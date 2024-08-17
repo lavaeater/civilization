@@ -1,7 +1,15 @@
-use bevy::prelude::{Component, Event, EventReader, Query, With};
+use bevy::prelude::{Component, Entity, Event, EventReader, Query, With};
+use crate::player::Player;
 
 #[derive(Event, Debug)]
 struct BeginPopulationExpansion;
+
+#[derive(Event, Debug)]
+struct MoveTokensFromStockToArea {
+    pub area_entity: Entity,
+    pub player_entity: Entity,
+    pub number_of_tokens: u8
+}
 
 #[derive(Component, Debug)]
 struct Area {
@@ -20,8 +28,18 @@ struct AreaHasSurplusPopulation;
 
 fn expand_ppopulation(
     mut begin_event: EventReader<BeginPopulationExpansion>,
-    query: Query<&Area, With<AreaHasPopulation>>) {
+    area_query: Query<&Area, With<AreaHasPopulation>>,
+    player_query: Query<&Player>
+) {
 
 }
 
-fn remove_surplus_population(query: Query<&Area, With<AreaHasSurplusPopulation>>)
+fn move_tokens_from_stock_to_area(
+    mut move_event: EventReader<MoveTokensFromStockToArea>,
+) {
+    
+}
+
+fn remove_surplus_population(query: Query<&Area, With<AreaHasSurplusPopulation>>) {
+
+}
