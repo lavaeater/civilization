@@ -1,8 +1,37 @@
+use bevy::app::{App, Plugin, Update};
 use crate::player::Player;
-use bevy::prelude::{BuildChildren, Children, Commands, Component, Entity, Event, EventReader, EventWriter, Query, With, Without};
+use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, OnEnter, Query, With, Without};
 use bevy::utils::HashMap;
-use bevy::utils::tracing::Instrument;
+use bevy_console::ConsoleConfiguration;
 use itertools::Itertools;
+use crate::GameState;
+
+pub struct CivilizationPlugin;
+
+/// This plugin handles player related stuff like movement
+/// Player logic is only active during the State `GameState::Playing`
+impl Plugin for CivilizationPlugin {
+    fn build(&self, app: &mut App) {
+        app
+            .add_event::<BeginPopulationExpansionEvent>()
+            .add_event::<CheckPopulationExpansionEligibilityEvent>()
+            .add_event::<StartManualPopulationExpansionEvent>()
+            .add_event::<StartHandleSurplusPopulationEvent>()
+            .add_event::<MoveTokensFromStockToAreaCommand>()
+            .add_event::<MoveTokenFromAreaToAreaCommand>()
+            .insert_resource(ConsoleConfiguration {
+                // override config here
+                ..Default::default()
+            })
+            .add_systems(OnEnter(GameState::Playing), setup_game)
+            .add_systems(Update, 
+                         (
+                             move_token_from_area_to_area
+                                 .run_if(in_state(GameState::Playing)),
+                             move_tokens_from_stock_to_area
+                                 .run_if(in_state(GameState::Playing))));
+    }
+}
 
 #[derive(Event, Debug)]
 struct BeginPopulationExpansionEvent;
@@ -60,7 +89,7 @@ fn setup_game(
                 parent.spawn(Stock)
                     .with_children(|p2|
                         {
-                            for n in 0..51 {
+                            for _n in 0..51 {
                                 p2.spawn(Token { player: p2.parent_entity() });
                             }
                         }
