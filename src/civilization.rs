@@ -18,9 +18,9 @@ struct StartHandleSurplusPopulationEvent;
 
 #[derive(Event, Debug)]
 struct MoveTokensFromStockToAreaCommand {
-    pub area_entity: Entity,
-    pub player_entity: Entity,
-    pub number_of_tokens: u8,
+    pub population_entity: Entity,
+    pub stock_entity: Entity,
+    pub number_of_tokens: usize,
 }
 
 #[derive(Event, Debug)]
@@ -55,28 +55,31 @@ fn setup_game(
     // Create Player
     commands
         .spawn(Player)
-        .with_children(|b| {
-            b.spawn((Stock))
-                .with_children(|b2|
-                    for n in 0..51 {
-                        b2.spawn((Token {player: b.parent_entity() }));
-                    }
-                );
-        });
+        .with_children(|parent|
+            {
+                parent.spawn(Stock)
+                    .with_children(|p2|
+                        {
+                            for n in 0..51 {
+                                p2.spawn(Token { player: p2.parent_entity() });
+                            }
+                        }
+                    );
+            });
 
     // Create some Areas
     commands
-        .spawn(Area {max_population: 2})
-        .with_children(|c| { c.spawn(Population); } );
+        .spawn(Area { max_population: 2 })
+        .with_children(|c| { c.spawn(Population); });
     commands
-        .spawn(Area {max_population: 3})
-        .with_children(|c| { c.spawn(Population); } );
+        .spawn(Area { max_population: 3 })
+        .with_children(|c| { c.spawn(Population); });
     commands
-        .spawn(Area {max_population: 1})
-        .with_children(|c| { c.spawn(Population); } );
+        .spawn(Area { max_population: 1 })
+        .with_children(|c| { c.spawn(Population); });
     commands
-        .spawn(Area {max_population: 5})
-        .with_children(|c| { c.spawn(Population); } );
+        .spawn(Area { max_population: 5 })
+        .with_children(|c| { c.spawn(Population); });
 }
 
 fn move_token_from_area_to_area(
@@ -99,7 +102,7 @@ fn check_population_expansion_eligibility(
     player_stock_query: Query<&Children, With<Stock>>,
     player_query: Query<&Children, With<Player>>,
     mut commands: Commands,
-    mut start_manual_expansion: EventWriter<StartManualPopulationExpansionEvent>
+    mut start_manual_expansion: EventWriter<StartManualPopulationExpansionEvent>,
 ) {
     for _event in begin_event.read() {
         let mut player_need_tokens_hash = HashMap::<Entity, usize>::new();
@@ -175,14 +178,14 @@ fn expand_population(
                         let c = tokens.count();
                         if c == 1 {
                             event_writer.send(MoveTokensFromStockToAreaCommand {
-                                area_entity: area_population_entity,
-                                player_entity: player,
+                                population_entity: area_population_entity,
+                                stock_entity: player,
                                 number_of_tokens: 1,
                             });
                         } else if c > 1 {
                             event_writer.send(MoveTokensFromStockToAreaCommand {
-                                area_entity: area_population_entity,
-                                player_entity: player,
+                                population_entity: area_population_entity,
+                                stock_entity: player,
                                 number_of_tokens: 2,
                             });
                         }
@@ -198,12 +201,20 @@ This is 100% needed to be able to test expansion and stuff.
 */
 fn move_tokens_from_stock_to_area(
     mut move_commands: EventReader<MoveTokensFromStockToAreaCommand>,
-    
-    mut commands: Commands
+    player_stock_query: Query<&Children, With<Stock>>,
+    player_query: Query<&Children, With<Player>>,
+    mut commands: Commands,
 ) {
     for ev in move_commands.read() {
-        commands.entity(ev.player_entity).remove_children(&ev);
-        commands.entity(ev.to_area).push_children(&ev.tokens);
+        if let Ok(children) = player_query.get(ev.stock_entity) {
+            for child in children {
+                if let Ok(tokens) = player_stock_query.get(*child) {
+                    let tokens_to_move = &tokens.into_iter().as_slice()[0..ev.number_of_tokens];
+                    commands.entity(ev.stock_entity).remove_children(&tokens_to_move);
+                    commands.entity(ev.population_entity).push_children(&tokens_to_move);
+                }
+            }
+        }
     }
 }
 
@@ -212,8 +223,5 @@ fn handle_surplus_population(
     mut start_event: EventReader<StartHandleSurplusPopulationEvent>,
     areas_query: Query<&Children, With<Area>>,
     population_query: Query<&Children, With<Population>>) {
-    for start in start_event.read() {
-
-    }
-
+    for start in start_event.read() {}
 }
