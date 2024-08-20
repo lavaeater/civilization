@@ -1,38 +1,32 @@
-use bevy::gizmos::start_gizmo_context;
 use crate::player::Player;
-use bevy::prelude::{BuildChildren, Children, Commands, Component, Entity, Event, EventReader, EventWriter, Parent, Query, With, Without};
+use bevy::prelude::{BuildChildren, Children, Commands, Component, Entity, Event, EventReader, EventWriter, Query, With, Without};
 use bevy::utils::HashMap;
 use itertools::Itertools;
 
 #[derive(Event, Debug)]
-struct BeginPopulationExpansion;
+struct BeginPopulationExpansionEvent;
 
 #[derive(Event, Debug)]
-struct CheckPopulationExpansionEligibility;
+struct CheckPopulationExpansionEligibilityEvent;
 
 #[derive(Event, Debug)]
-struct StartManualPopulationExpansion;
+struct StartManualPopulationExpansionEvent;
 
 #[derive(Event, Debug)]
-struct StartHandleSurplusPopulation;
+struct StartHandleSurplusPopulationEvent;
 
 #[derive(Event, Debug)]
-struct MoveTokensFromStockToArea {
+struct MoveTokensFromStockToAreaCommand {
     pub area_entity: Entity,
     pub player_entity: Entity,
     pub number_of_tokens: u8,
 }
 
 #[derive(Event, Debug)]
-struct MoveTokenFromAreaToArea {
+struct MoveTokenFromAreaToAreaCommand {
     pub from_area: Entity,
     pub to_area: Entity,
     pub tokens: Vec<Entity>,
-}
-
-#[derive(Event, Debug)]
-struct CheckAreaSurplus {
-    pub area: Entity,
 }
 
 #[derive(Component, Debug)]
@@ -51,21 +45,11 @@ struct Token {
     pub player: Entity,
 }
 
-/***
-Is it reasonable to have a marker component for this or will that add complexity somewhere
-else in the game? I don't knooow
- */
-#[derive(Component, Debug)]
-struct AreaHasPopulation;
-
-#[derive(Component, Debug)]
-struct AreaHasSurplusPopulation;
-
 #[derive(Component, Debug)]
 struct CannotAutoExpandPopulation;
 
 fn move_token_from_area_to_area(
-    mut move_events: EventReader<MoveTokenFromAreaToArea>,
+    mut move_events: EventReader<MoveTokenFromAreaToAreaCommand>,
     mut commands: Commands,
 ) {
     for ev in move_events.read() {
@@ -78,13 +62,13 @@ fn move_token_from_area_to_area(
 A system that checks if an area has children... I mean, this is completely unnecessary really
  */
 fn check_population_expansion_eligibility(
-    mut begin_event: EventReader<CheckPopulationExpansionEligibility>,
+    mut begin_event: EventReader<CheckPopulationExpansionEligibilityEvent>,
     area_population_query: Query<&Children, With<Population>>,
     token_query: Query<&Token>,
     player_stock_query: Query<&Children, With<Stock>>,
     player_query: Query<&Children, With<Player>>,
     mut commands: Commands,
-    mut start_manual_expansion: EventWriter<StartManualPopulationExpansion>
+    mut start_manual_expansion: EventWriter<StartManualPopulationExpansionEvent>
 ) {
     for _event in begin_event.read() {
         let mut player_need_tokens_hash = HashMap::<Entity, usize>::new();
@@ -127,17 +111,17 @@ fn check_population_expansion_eligibility(
             }
         }
         if need_manual_expansion {
-            start_manual_expansion.send(StartManualPopulationExpansion);
+            start_manual_expansion.send(StartManualPopulationExpansionEvent);
         }
     }
 }
 
 fn expand_population(
-    mut begin_event: EventReader<BeginPopulationExpansion>,
+    mut begin_event: EventReader<BeginPopulationExpansionEvent>,
     area_query: Query<(Entity, &Children), With<Population>>,
     token_query: Query<&Token>,
     player_eligible_query: Query<&Player, Without<CannotAutoExpandPopulation>>,
-    mut event_writer: EventWriter<MoveTokensFromStockToArea>,
+    mut event_writer: EventWriter<MoveTokensFromStockToAreaCommand>,
 ) {
     /*
     But what do we do in the case of the player not having enough tokens to expand the population
@@ -159,13 +143,13 @@ fn expand_population(
                     if player_eligible_query.get(player).is_ok() {
                         let c = tokens.count();
                         if c == 1 {
-                            event_writer.send(MoveTokensFromStockToArea {
+                            event_writer.send(MoveTokensFromStockToAreaCommand {
                                 area_entity: area_population_entity,
                                 player_entity: player,
                                 number_of_tokens: 1,
                             });
                         } else if c > 1 {
-                            event_writer.send(MoveTokensFromStockToArea {
+                            event_writer.send(MoveTokensFromStockToAreaCommand {
                                 area_entity: area_population_entity,
                                 player_entity: player,
                                 number_of_tokens: 2,
@@ -178,14 +162,19 @@ fn expand_population(
     }
 }
 
+fn move_tokens_from_stock_to_area(
+    mut move_commands: EventReader<MoveTokensFromStockToAreaCommand>
+) {
+
+}
+
 
 fn handle_surplus_population(
-    mut start_event: EventReader<StartHandleSurplusPopulation>,
+    mut start_event: EventReader<StartHandleSurplusPopulationEvent>,
     areas_query: Query<&Children, With<Area>>,
     population_query: Query<&Children, With<Population>>) {
-
     for start in start_event.read() {
-        
+
     }
 
 }
