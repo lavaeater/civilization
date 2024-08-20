@@ -11,6 +11,12 @@ struct BeginPopulationExpansion;
 struct CheckPopulationExpansionEligibility;
 
 #[derive(Event, Debug)]
+struct StartManualPopulationExpansion;
+
+#[derive(Event, Debug)]
+struct StartHandleSurplusPopulation;
+
+#[derive(Event, Debug)]
 struct MoveTokensFromStockToArea {
     pub area_entity: Entity,
     pub player_entity: Entity,
@@ -77,7 +83,8 @@ fn check_population_expansion_eligibility(
     token_query: Query<&Token>,
     player_stock_query: Query<&Children, With<Stock>>,
     player_query: Query<&Children, With<Player>>,
-    mut commands: Commands
+    mut commands: Commands,
+    mut start_manual_expansion: EventWriter<StartManualPopulationExpansion>
 ) {
     for _event in begin_event.read() {
         let mut player_need_tokens_hash = HashMap::<Entity, usize>::new();
@@ -106,16 +113,21 @@ fn check_population_expansion_eligibility(
                 }
             }
         }
+        let mut need_manual_expansion = false;
         for (player, needed_tokens) in player_need_tokens_hash {
             if let Ok(children) = player_query.get(player) {
                 for child in children {
                     if let Ok(tokens) = player_stock_query.get(*child) {
                         if tokens.iter().count() < needed_tokens {
+                            need_manual_expansion = true;
                             commands.entity(player).add(CannotAutoExpandPopulation);
                         }
                     }
                 }
             }
+        }
+        if need_manual_expansion {
+            start_manual_expansion.send(StartManualPopulationExpansion);
         }
     }
 }
@@ -167,4 +179,13 @@ fn expand_population(
 }
 
 
-fn remove_surplus_population(query: Query<&Area, With<AreaHasSurplusPopulation>>) {}
+fn handle_surplus_population(
+    mut start_event: EventReader<StartHandleSurplusPopulation>,
+    areas_query: Query<&Children, With<Area>>,
+    population_query: Query<&Children, With<Population>>) {
+
+    for start in start_event.read() {
+        
+    }
+
+}
