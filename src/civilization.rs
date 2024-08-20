@@ -1,5 +1,7 @@
+use bevy::gizmos::start_gizmo_context;
 use crate::player::Player;
 use bevy::prelude::{BuildChildren, Children, Commands, Component, Entity, Event, EventReader, EventWriter, Parent, Query, With, Without};
+use bevy::utils::HashMap;
 use itertools::Itertools;
 
 #[derive(Event, Debug)]
@@ -54,7 +56,7 @@ struct AreaHasPopulation;
 struct AreaHasSurplusPopulation;
 
 #[derive(Component, Debug)]
-struct CannotExpandPopulation;
+struct CannotAutoExpandPopulation;
 
 fn move_token_from_area_to_area(
     mut move_events: EventReader<MoveTokenFromAreaToArea>,
@@ -71,13 +73,15 @@ A system that checks if an area has children... I mean, this is completely unnec
  */
 fn check_population_expansion_eligibility(
     mut begin_event: EventReader<CheckPopulationExpansionEligibility>,
-    area_population_query: Query<(Entity, &Children), With<Population>>,
+    area_population_query: Query<&Children, With<Population>>,
     token_query: Query<&Token>,
-    player_stock_query: Query<(&Stock, &Parent, &Children)>,
-    mut event_writer: EventWriter<MoveTokensFromStockToArea>,
+    player_stock_query: Query<&Children, With<Stock>>,
+    player_query: Query<&Children, With<Player>>,
+    mut commands: Commands
 ) {
     for _event in begin_event.read() {
-        for (area_population_entity, area_pop_tokens) in area_population_query.iter() {
+        let mut player_need_tokens_hash = HashMap::<Entity, usize>::new();
+        for (area_pop_tokens) in area_population_query.iter() {
             if area_pop_tokens.iter().count() > 0 {
                 for (player_entity, player_area_tokens) in area_pop_tokens
                     .iter()
@@ -94,8 +98,22 @@ fn check_population_expansion_eligibility(
                     } else {
                         0
                     };
-                    
-                    
+                    if player_need_tokens_hash.contains_key(&player_entity) {
+                        player_need_tokens_hash[player_entity] = player_need_tokens_hash[player_entity] + c;
+                    } else {
+                        player_need_tokens_hash[player_entity] = c;
+                    }
+                }
+            }
+        }
+        for (player, needed_tokens) in player_need_tokens_hash {
+            if let Ok(children) = player_query.get(player) {
+                for child in children {
+                    if let Ok(tokens) = player_stock_query.get(*child) {
+                        if tokens.iter().count() < needed_tokens {
+                            commands.entity(player).add(CannotAutoExpandPopulation);
+                        }
+                    }
                 }
             }
         }
@@ -106,7 +124,7 @@ fn expand_population(
     mut begin_event: EventReader<BeginPopulationExpansion>,
     area_query: Query<(Entity, &Children), With<Population>>,
     token_query: Query<&Token>,
-    player_eligible_query: Query<&Player, Without<CannotExpandPopulation>>,
+    player_eligible_query: Query<&Player, Without<CannotAutoExpandPopulation>>,
     mut event_writer: EventWriter<MoveTokensFromStockToArea>,
 ) {
     /*
