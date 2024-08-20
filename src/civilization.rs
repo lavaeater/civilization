@@ -1,6 +1,7 @@
 use crate::player::Player;
 use bevy::prelude::{BuildChildren, Children, Commands, Component, Entity, Event, EventReader, EventWriter, Query, With, Without};
 use bevy::utils::HashMap;
+use bevy::utils::tracing::Instrument;
 use itertools::Itertools;
 
 #[derive(Event, Debug)]
@@ -47,6 +48,24 @@ struct Token {
 
 #[derive(Component, Debug)]
 struct CannotAutoExpandPopulation;
+
+fn setup_game(
+    mut commands: Commands,
+) {
+    // Create Player
+    commands
+        .spawn(Player)
+        .with_children(|b| {
+            b.spawn((Stock))
+                .with_children(|b2|
+                    for n in 0..55 {
+                        b2.spawn((Token {player: b.parent_entity() }));
+                    }
+                );
+        });
+
+    
+}
 
 fn move_token_from_area_to_area(
     mut move_events: EventReader<MoveTokenFromAreaToAreaCommand>,
