@@ -58,13 +58,25 @@ fn setup_game(
         .with_children(|b| {
             b.spawn((Stock))
                 .with_children(|b2|
-                    for n in 0..55 {
+                    for n in 0..51 {
                         b2.spawn((Token {player: b.parent_entity() }));
                     }
                 );
         });
 
-    
+    // Create some Areas
+    commands
+        .spawn(Area {max_population: 2})
+        .with_children(|c| { c.spawn(Population); } );
+    commands
+        .spawn(Area {max_population: 3})
+        .with_children(|c| { c.spawn(Population); } );
+    commands
+        .spawn(Area {max_population: 1})
+        .with_children(|c| { c.spawn(Population); } );
+    commands
+        .spawn(Area {max_population: 5})
+        .with_children(|c| { c.spawn(Population); } );
 }
 
 fn move_token_from_area_to_area(
@@ -181,10 +193,18 @@ fn expand_population(
     }
 }
 
+/**
+This is 100% needed to be able to test expansion and stuff.
+*/
 fn move_tokens_from_stock_to_area(
-    mut move_commands: EventReader<MoveTokensFromStockToAreaCommand>
+    mut move_commands: EventReader<MoveTokensFromStockToAreaCommand>,
+    
+    mut commands: Commands
 ) {
-
+    for ev in move_commands.read() {
+        commands.entity(ev.player_entity).remove_children(&ev);
+        commands.entity(ev.to_area).push_children(&ev.tokens);
+    }
 }
 
 
