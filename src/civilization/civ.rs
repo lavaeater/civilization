@@ -1,6 +1,6 @@
 use bevy::app::{App, Plugin, Update};
 use crate::player::Player;
-use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, Name, OnEnter, Query, With, Without};
+use bevy::prelude::{in_state, info, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, Name, OnEnter, Query, Reflect, With, Without};
 use bevy::utils::HashMap;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use itertools::Itertools;
@@ -13,6 +13,7 @@ pub struct CivilizationPlugin;
 impl Plugin for CivilizationPlugin {
     fn build(&self, app: &mut App) {
         app
+            .register_type::<Token>()
             .add_event::<BeginPopulationExpansionEvent>()
             .add_event::<CheckPopulationExpansionEligibilityEvent>()
             .add_event::<StartManualPopulationExpansionEvent>()
@@ -77,7 +78,7 @@ pub struct Population;
 #[derive(Component, Debug)]
 pub struct StartArea;
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
 pub struct Token {
     pub player: Entity,
 }
@@ -89,19 +90,18 @@ fn setup_game(
     mut commands: Commands,
 ) {
     // Create Player
-    commands
+    let player = commands
         .spawn((Player {}, Name::new("Player")))
-        .with_children(|parent|
-            {
-                parent.spawn((Stock {}, Name::new("Stock")))
-                    .with_children(|p2|
-                        {
-                            for _n in 0..51 {
-                                p2.spawn((Name::new("Token"), Token { player: p2.parent_entity() }));
-                            }
-                        }
-                    );
-            });
+        .id();
+
+    let stock = commands.spawn((Stock {}, Name::new("Stock"))).id();
+
+    commands.entity(player).add_child(stock);
+
+    for _n in 0..51 {
+        let token = commands.spawn((Name::new("Token"), Token { player })).id();
+        commands.entity(stock).add_child(token);
+    }
 
     // Create some Areas
     commands
@@ -142,6 +142,7 @@ fn check_population_expansion_eligibility(
     player_query: Query<&Children, With<Player>>,
     mut commands: Commands,
     mut start_manual_expansion: EventWriter<StartManualPopulationExpansionEvent>,
+    mut start_pop_expansion: EventWriter<BeginPopulationExpansionEvent>,
 ) {
     for _event in begin_event.read() {
         let mut player_need_tokens_hash = HashMap::<Entity, usize>::new();
@@ -181,6 +182,8 @@ fn check_population_expansion_eligibility(
         }
         if need_manual_expansion {
             start_manual_expansion.send(StartManualPopulationExpansionEvent {});
+        } else {
+            start_pop_expansion.send(BeginPopulationExpansionEvent {});
         }
     }
 }
@@ -216,9 +219,11 @@ fn expand_population(
                 for (player, tokens) in area_population_tokens
                     .iter()
                     .chunk_by(|pop_ent| {
-                        token_query.get(**pop_ent).unwrap().player
+                        let p = token_query.get(**pop_ent).unwrap().player;
+                        info!("Found entity?");
+                        p
                     }).into_iter() {
-                    if player_eligible_query.get(player).is_ok() {
+                    // if player_eligible_query.contains(player) {
                         let c = tokens.count();
                         match c {
                             0 => {}
@@ -237,7 +242,7 @@ fn expand_population(
                                 });
                             }
                         }
-                    }
+                    // }
                 }
             }
         }
@@ -250,7 +255,7 @@ This is 100% needed to be able to test expansion and stuff.
 fn move_tokens_from_stock_to_area(
     mut move_commands: EventReader<MoveTokensFromStockToAreaCommand>,
     player_stock_query: Query<&Children, With<Stock>>,
-    player_query: Query<&Children, With<Player>>,
+    player_query: Query<&Children>,
     mut commands: Commands,
 ) {
     for ev in move_commands.read() {

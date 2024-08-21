@@ -2,7 +2,7 @@ use bevy::app::{App, Plugin};
 use bevy::prelude::{Children, Entity, EventWriter, Parent, Query, With};
 use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
 use clap::Parser;
-use crate::civilization::civ::{MoveTokensFromStockToAreaCommand, Population, StartArea};
+use crate::civilization::civ::{CheckPopulationExpansionEligibilityEvent, MoveTokensFromStockToAreaCommand, Population, StartArea};
 use crate::player::Player;
 
 pub struct CommandsPlugin;
@@ -18,14 +18,28 @@ impl Plugin for CommandsPlugin {
                 ..Default::default()
             })
             .add_console_command::<StartCommand, _>(start_command)
+            .add_console_command::<ExpandPopulation, _>(expand_population)
         ;
+    }
+}
+
+#[derive(Parser, ConsoleCommand)]
+#[command(name = "exp-pop")]
+struct ExpandPopulation;
+
+fn expand_population(
+    mut command: ConsoleCommand<ExpandPopulation>,
+    mut writer: EventWriter<CheckPopulationExpansionEligibilityEvent>
+) {
+    if let Some(Ok(ExpandPopulation {})) = command.take() {
+        writer.send(CheckPopulationExpansionEligibilityEvent {});
+        command.reply("We are starting the expansion!")
     }
 }
 
 #[derive(Parser, ConsoleCommand)]
 #[command(name = "start")]
 struct StartCommand;
-
 
 fn start_command(
     mut command: ConsoleCommand<StartCommand>,

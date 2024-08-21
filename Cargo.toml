@@ -31,10 +31,10 @@ lto = true
 codegen-units = 1
 strip = true
 
-[features]
-dev = [
-    "bevy/dynamic_linking",
-]
+#[features]
+#dev = [
+#    "bevy/dynamic_linking",
+#]
 
 # All of Bevy's default features exept for the audio related ones (bevy_audio, vorbis), since they clash with bevy_kira_audio
 #   and android_shared_stdcxx, since that is covered in `mobile`
