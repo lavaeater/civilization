@@ -2,6 +2,7 @@ use bevy::app::{App, Plugin, Update};
 use crate::player::Player;
 use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, OnEnter, Query, With, Without};
 use bevy::utils::HashMap;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use itertools::Itertools;
 use crate::GameState;
 
