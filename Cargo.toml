@@ -78,6 +78,7 @@ log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"
 
 itertools = "0.13.0"
 bevy_console = { git="https://github.com/msklosak/bevy-console.git", branch="bevy_014" }
+clap = { version = "4.5.16", features = ["derive"] }
 
 [build-dependencies]
 embed-resource = "1"

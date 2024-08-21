@@ -24,12 +24,17 @@ impl Plugin for CivilizationPlugin {
                 ..Default::default()
             })
             .add_systems(OnEnter(GameState::Playing), setup_game)
-            .add_systems(Update, 
-                         (
-                             move_token_from_area_to_area
-                                 .run_if(in_state(GameState::Playing)),
-                             move_tokens_from_stock_to_area
-                                 .run_if(in_state(GameState::Playing))));
+            .add_systems(
+                Update, (
+                    move_token_from_area_to_area
+                        .run_if(in_state(GameState::Playing)),
+                    check_population_expansion_eligibility
+                        .run_if(in_state(GameState::Playing)),
+                    expand_population
+                        .run_if(in_state(GameState::Playing)),
+                    move_tokens_from_stock_to_area
+                        .run_if(in_state(GameState::Playing))
+                ));
     }
 }
 
@@ -135,7 +140,7 @@ fn check_population_expansion_eligibility(
 ) {
     for _event in begin_event.read() {
         let mut player_need_tokens_hash = HashMap::<Entity, usize>::new();
-        for (area_pop_tokens) in area_population_query.iter() {
+        for area_pop_tokens in area_population_query.iter() {
             if area_pop_tokens.iter().count() > 0 {
                 for (player_entity, player_area_tokens) in area_pop_tokens
                     .iter()
@@ -145,18 +150,12 @@ fn check_population_expansion_eligibility(
                     let mut required_player_tokens = 0;
                     let c = player_area_tokens.count();
 
-                    required_player_tokens += if c == 1 {
-                        1
-                    } else if c > 1 {
-                        2
-                    } else {
-                        0
+                    required_player_tokens += match c {
+                        1 => { 1 }
+                        0 => { 0 }
+                        _ => { 2 }
                     };
-                    if player_need_tokens_hash.contains_key(&player_entity) {
-                        player_need_tokens_hash[player_entity] = player_need_tokens_hash[player_entity] + c;
-                    } else {
-                        player_need_tokens_hash[player_entity] = c;
-                    }
+                    *player_need_tokens_hash.entry(player_entity).or_insert(0) += required_player_tokens;
                 }
             }
         }
@@ -167,14 +166,16 @@ fn check_population_expansion_eligibility(
                     if let Ok(tokens) = player_stock_query.get(*child) {
                         if tokens.iter().count() < needed_tokens {
                             need_manual_expansion = true;
-                            commands.entity(player).add(CannotAutoExpandPopulation);
+                            commands
+                                .entity(player)
+                                .insert(CannotAutoExpandPopulation {});
                         }
                     }
                 }
             }
         }
         if need_manual_expansion {
-            start_manual_expansion.send(StartManualPopulationExpansionEvent);
+            start_manual_expansion.send(StartManualPopulationExpansionEvent {});
         }
     }
 }
@@ -245,12 +246,4 @@ fn move_tokens_from_stock_to_area(
             }
         }
     }
-}
-
-
-fn handle_surplus_population(
-    mut start_event: EventReader<StartHandleSurplusPopulationEvent>,
-    areas_query: Query<&Children, With<Area>>,
-    population_query: Query<&Children, With<Population>>) {
-    for start in start_event.read() {}
 }
