@@ -2,7 +2,6 @@ use bevy::app::{App, Plugin, Update};
 use crate::player::Player;
 use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, OnEnter, Query, With, Without};
 use bevy::utils::HashMap;
-use bevy_console::ConsoleConfiguration;
 use itertools::Itertools;
 use crate::GameState;
 
@@ -19,10 +18,6 @@ impl Plugin for CivilizationPlugin {
             .add_event::<StartHandleSurplusPopulationEvent>()
             .add_event::<MoveTokensFromStockToAreaCommand>()
             .add_event::<MoveTokenFromAreaToAreaCommand>()
-            .insert_resource(ConsoleConfiguration {
-                // override config here
-                ..Default::default()
-            })
             .add_systems(OnEnter(GameState::Playing), setup_game)
             .add_systems(
                 Update, (
@@ -206,18 +201,22 @@ fn expand_population(
                     }).into_iter() {
                     if player_eligible_query.get(player).is_ok() {
                         let c = tokens.count();
-                        if c == 1 {
-                            event_writer.send(MoveTokensFromStockToAreaCommand {
-                                population_entity: area_population_entity,
-                                stock_entity: player,
-                                number_of_tokens: 1,
-                            });
-                        } else if c > 1 {
-                            event_writer.send(MoveTokensFromStockToAreaCommand {
-                                population_entity: area_population_entity,
-                                stock_entity: player,
-                                number_of_tokens: 2,
-                            });
+                        match c {
+                            0 => {}
+                            1 => {
+                                event_writer.send(MoveTokensFromStockToAreaCommand {
+                                    population_entity: area_population_entity,
+                                    stock_entity: player,
+                                    number_of_tokens: 1,
+                                });
+                            }
+                            _ => {
+                                event_writer.send(MoveTokensFromStockToAreaCommand {
+                                    population_entity: area_population_entity,
+                                    stock_entity: player,
+                                    number_of_tokens: 2,
+                                });
+                            }
                         }
                     }
                 }
@@ -240,8 +239,8 @@ fn move_tokens_from_stock_to_area(
             for child in children {
                 if let Ok(tokens) = player_stock_query.get(*child) {
                     let tokens_to_move = &tokens.into_iter().as_slice()[0..ev.number_of_tokens];
-                    commands.entity(ev.stock_entity).remove_children(&tokens_to_move);
-                    commands.entity(ev.population_entity).push_children(&tokens_to_move);
+                    commands.entity(ev.stock_entity).remove_children(tokens_to_move);
+                    commands.entity(ev.population_entity).push_children(tokens_to_move);
                 }
             }
         }

@@ -1,6 +1,5 @@
 use bevy::app::{App, Plugin};
-use bevy::prelude::EventWriter;
-use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsolePlugin, PrintConsoleLine};
+use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin, PrintConsoleLine};
 use clap::Parser;
 
 pub struct CommandsPlugin;
@@ -11,6 +10,10 @@ impl Plugin for CommandsPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugins(ConsolePlugin)
+            .insert_resource(ConsoleConfiguration {
+                // override config here
+                ..Default::default()
+            })
             .add_console_command::<LogCommand, _>(log_command);
     }
 }
@@ -22,9 +25,7 @@ struct LogCommand {
     msg: String,
 }
 
-fn log_command(mut command: ConsoleCommand<LogCommand>,
-               mut console_line: EventWriter<PrintConsoleLine>) {
+fn log_command(mut command: ConsoleCommand<LogCommand>) {
     if let Some(Ok(LogCommand { msg })) = command.take() {
-        console_line.send(PrintConsoleLine::new(msg.into()));
     }
 }
