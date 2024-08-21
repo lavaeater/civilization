@@ -5,8 +5,8 @@ mod audio;
 mod loading;
 mod menu;
 mod player;
-mod console;
-mod civilization;
+pub mod console;
+pub mod civilization;
 
 use crate::actions::ActionsPlugin;
 use crate::audio::InternalAudioPlugin;
@@ -19,6 +19,7 @@ use bevy::app::App;
 #[cfg(debug_assertions)]
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
+use crate::civilization::civ::CivilizationPlugin;
 
 // This example game uses States to separate logic
 // See https://bevy-cheatbook.github.io/programming/states.html
@@ -43,7 +44,8 @@ impl Plugin for GamePlugin {
             MenuPlugin,
             ActionsPlugin,
             InternalAudioPlugin,
-            PlayerPlugin,
+            // PlayerPlugin,
+            CivilizationPlugin,
             CommandsPlugin
         ));
 

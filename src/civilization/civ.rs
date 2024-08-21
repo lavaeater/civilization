@@ -19,9 +19,12 @@ impl Plugin for CivilizationPlugin {
             .add_event::<MoveTokensFromStockToAreaCommand>()
             .add_event::<MoveTokenFromAreaToAreaCommand>()
             .add_systems(OnEnter(GameState::Playing), setup_game)
+            .add_plugins(WorldInspectorPlugin::new())
             .add_systems(
                 Update, (
                     move_token_from_area_to_area
+                        .run_if(in_state(GameState::Playing)),
+                    handle_manual_population_expansion
                         .run_if(in_state(GameState::Playing)),
                     check_population_expansion_eligibility
                         .run_if(in_state(GameState::Playing)),
@@ -34,59 +37,62 @@ impl Plugin for CivilizationPlugin {
 }
 
 #[derive(Event, Debug)]
-struct BeginPopulationExpansionEvent;
+pub struct BeginPopulationExpansionEvent;
 
 #[derive(Event, Debug)]
-struct CheckPopulationExpansionEligibilityEvent;
+pub struct CheckPopulationExpansionEligibilityEvent;
 
 #[derive(Event, Debug)]
-struct StartManualPopulationExpansionEvent;
+pub struct StartManualPopulationExpansionEvent;
 
 #[derive(Event, Debug)]
-struct StartHandleSurplusPopulationEvent;
+pub struct StartHandleSurplusPopulationEvent;
 
 #[derive(Event, Debug)]
-struct MoveTokensFromStockToAreaCommand {
+pub struct MoveTokensFromStockToAreaCommand {
     pub population_entity: Entity,
     pub stock_entity: Entity,
     pub number_of_tokens: usize,
 }
 
 #[derive(Event, Debug)]
-struct MoveTokenFromAreaToAreaCommand {
+pub struct MoveTokenFromAreaToAreaCommand {
     pub from_area: Entity,
     pub to_area: Entity,
     pub tokens: Vec<Entity>,
 }
 
 #[derive(Component, Debug)]
-struct Area {
+pub struct Area {
     pub max_population: u8,
 }
 
 #[derive(Component, Debug)]
-struct Stock;
+pub struct Stock;
 
 #[derive(Component, Debug)]
-struct Population;
+pub struct Population;
 
 #[derive(Component, Debug)]
-struct Token {
+pub struct StartArea;
+
+#[derive(Component, Debug)]
+pub struct Token {
     pub player: Entity,
 }
 
 #[derive(Component, Debug)]
-struct CannotAutoExpandPopulation;
+pub struct CannotAutoExpandPopulation;
 
 fn setup_game(
     mut commands: Commands,
 ) {
     // Create Player
     commands
-        .spawn(Player)
+        .spawn(Player{})
         .with_children(|parent|
             {
-                parent.spawn(Stock)
+                parent.spawn(Stock {})
                     .with_children(|p2|
                         {
                             for _n in 0..51 {
@@ -98,17 +104,19 @@ fn setup_game(
 
     // Create some Areas
     commands
-        .spawn(Area { max_population: 2 })
-        .with_children(|c| { c.spawn(Population); });
+        .spawn((
+            Area { max_population: 2 },
+            StartArea {}))
+        .with_children(|c| { c.spawn(Population {}); });
     commands
         .spawn(Area { max_population: 3 })
-        .with_children(|c| { c.spawn(Population); });
+        .with_children(|c| { c.spawn(Population {}); });
     commands
         .spawn(Area { max_population: 1 })
-        .with_children(|c| { c.spawn(Population); });
+        .with_children(|c| { c.spawn(Population {}); });
     commands
         .spawn(Area { max_population: 5 })
-        .with_children(|c| { c.spawn(Population); });
+        .with_children(|c| { c.spawn(Population {}); });
 }
 
 fn move_token_from_area_to_area(
@@ -172,6 +180,15 @@ fn check_population_expansion_eligibility(
         if need_manual_expansion {
             start_manual_expansion.send(StartManualPopulationExpansionEvent {});
         }
+    }
+}
+
+fn handle_manual_population_expansion(
+    mut start_reader: EventReader<StartManualPopulationExpansionEvent>,
+    mut expand_writer: EventWriter<BeginPopulationExpansionEvent>,
+) {
+    for _start in start_reader.read() {
+        expand_writer.send(BeginPopulationExpansionEvent {});
     }
 }
 
