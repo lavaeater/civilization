@@ -1,6 +1,6 @@
 use bevy::app::{App, Plugin, Update};
 use crate::player::Player;
-use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, OnEnter, Query, With, Without};
+use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, Name, OnEnter, Query, With, Without};
 use bevy::utils::HashMap;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use itertools::Itertools;
@@ -90,14 +90,14 @@ fn setup_game(
 ) {
     // Create Player
     commands
-        .spawn(Player{})
+        .spawn((Player {}, Name::new("Player")))
         .with_children(|parent|
             {
-                parent.spawn(Stock {})
+                parent.spawn((Stock {}, Name::new("Stock")))
                     .with_children(|p2|
                         {
                             for _n in 0..51 {
-                                p2.spawn(Token { player: p2.parent_entity() });
+                                p2.spawn((Name::new("Token"), Token { player: p2.parent_entity() }));
                             }
                         }
                     );
@@ -106,18 +106,19 @@ fn setup_game(
     // Create some Areas
     commands
         .spawn((
+            Name::new("Start Area"),
             Area { max_population: 2 },
             StartArea {}))
-        .with_children(|c| { c.spawn(Population {}); });
+        .with_children(|c| { c.spawn((Name::new("Population"), Population {})); });
     commands
-        .spawn(Area { max_population: 3 })
-        .with_children(|c| { c.spawn(Population {}); });
+        .spawn((Area { max_population: 3 }, Name::new("Area two")))
+        .with_children(|c| { c.spawn((Name::new("Population"), Population {})); });
     commands
-        .spawn(Area { max_population: 1 })
-        .with_children(|c| { c.spawn(Population {}); });
+        .spawn((Area { max_population: 1 }, Name::new("Area three")))
+        .with_children(|c| { c.spawn((Name::new("Population"), Population {})); });
     commands
-        .spawn(Area { max_population: 5 })
-        .with_children(|c| { c.spawn(Population {}); });
+        .spawn((Area { max_population: 5 }, Name::new("Area four")))
+        .with_children(|c| { c.spawn((Name::new("Population"), Population {})); });
 }
 
 fn move_token_from_area_to_area(
