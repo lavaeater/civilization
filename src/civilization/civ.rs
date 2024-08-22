@@ -223,7 +223,7 @@ fn expand_population(
                         info!("Found entity?");
                         p
                     }).into_iter() {
-                    // if player_eligible_query.contains(player) {
+                    if player_eligible_query.contains(player) {
                         let c = tokens.count();
                         match c {
                             0 => {}
@@ -242,7 +242,7 @@ fn expand_population(
                                 });
                             }
                         }
-                    // }
+                    }
                 }
             }
         }
