@@ -1,9 +1,10 @@
+use std::cmp::PartialEq;
 use bevy::prelude::{Commands, Entity, Event, EventReader, EventWriter, Query, With, Without};
 use bevy::hierarchy::Children;
 use bevy::log::info;
 use bevy::utils::HashMap;
 use itertools::Itertools;
-use crate::civilization::civ::{CannotAutoExpandPopulation, MoveTokensFromStockToAreaCommand, Population, Stock, Token};
+use crate::civilization::civ::{CannotAutoExpandPopulation, GameActivity, GameActivityEnded, GameActivityStarted, MoveTokensFromStockToAreaCommand, Population, Stock, Token};
 use crate::player::Player;
 
 #[derive(Event, Debug)]
@@ -14,6 +15,28 @@ pub struct CheckPopulationExpansionEligibilityEvent;
 
 #[derive(Event, Debug)]
 pub struct StartManualPopulationExpansionEvent;
+
+pub fn handle_population_expansion_start(
+    mut activity_event: EventReader<GameActivityStarted>,
+    mut start_pop_exp: EventWriter<CheckPopulationExpansionEligibilityEvent>,
+) {
+    for activity in activity_event.read() {
+        if activity.0 == GameActivity::PopulationExpansion {
+            start_pop_exp.send(CheckPopulationExpansionEligibilityEvent {});
+        }
+    }
+}
+
+pub fn handle_population_expansion_end(
+    mut activity_end: EventReader<GameActivityEnded>,
+    mut activity_start: EventWriter<GameActivityStarted>,
+) {
+    for activity in activity_end.read() {
+        if activity.0 == GameActivity::PopulationExpansion {
+            activity_start.send(GameActivityStarted(GameActivity::Census));
+        }
+    }
+}
 
 pub fn check_population_expansion_eligibility(
     mut begin_event: EventReader<CheckPopulationExpansionEligibilityEvent>,
@@ -84,6 +107,7 @@ pub fn expand_population(
     token_query: Query<&Token>,
     player_eligible_query: Query<&Player, Without<CannotAutoExpandPopulation>>,
     mut event_writer: EventWriter<MoveTokensFromStockToAreaCommand>,
+    mut activity_ended: EventWriter<GameActivityEnded>,
 ) {
     /*
     But what do we do in the case of the player not having enough tokens to expand the population
@@ -128,4 +152,5 @@ pub fn expand_population(
             }
         }
     }
+    activity_ended.send(GameActivityEnded(GameActivity::PopulationExpansion));
 }
