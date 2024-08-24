@@ -1,9 +1,9 @@
 use bevy::app::{App, Plugin, Update};
 use crate::player::Player;
-use bevy::prelude::{in_state, info, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, Name, OnEnter, Query, Reflect, With, Without};
-use bevy::utils::HashMap;
+use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, IntoSystemConfigs, Name, OnEnter, Query, Reflect, With};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use itertools::Itertools;
+use crate::civilization::census::{perform_census, Census};
+use crate::civilization::population_expansion::{check_population_expansion_eligibility, expand_population, handle_manual_population_expansion, handle_population_expansion_end, handle_population_expansion_start, BeginPopulationExpansionEvent, CheckPopulationExpansionEligibilityEvent, StartManualPopulationExpansionEvent};
 use crate::GameState;
 
 pub struct CivilizationPlugin;
@@ -14,6 +14,9 @@ impl Plugin for CivilizationPlugin {
     fn build(&self, app: &mut App) {
         app
             .register_type::<Token>()
+            .register_type::<Census>()
+            .add_event::<GameActivityStarted>()
+            .add_event::<GameActivityEnded>()
             .add_event::<BeginPopulationExpansionEvent>()
             .add_event::<CheckPopulationExpansionEligibilityEvent>()
             .add_event::<StartManualPopulationExpansionEvent>()
@@ -32,20 +35,41 @@ impl Plugin for CivilizationPlugin {
                         .run_if(in_state(GameState::Playing)),
                     expand_population
                         .run_if(in_state(GameState::Playing)),
+                    handle_population_expansion_start
+                        .run_if(in_state(GameState::Playing)),
+                    handle_population_expansion_end
+                        .run_if(in_state(GameState::Playing)),
+                    perform_census
+                        .run_if(in_state(GameState::Playing)),
                     move_tokens_from_stock_to_area
                         .run_if(in_state(GameState::Playing))
                 ));
     }
 }
 
-#[derive(Event, Debug)]
-pub struct BeginPopulationExpansionEvent;
+#[derive(Debug, Reflect, PartialEq)]
+pub enum GameActivity {
+    CollectTaxes,
+    PopulationExpansion,
+    Census,
+    ShipConstruction,
+    Movement,
+    Conflict,
+    CityConstruction,
+    RemoveSurplusPopulation,
+    CheckCitySupport,
+    AcquireTradeCards,
+    Trade,
+    ResolveCalamities,
+    AcquireCivilizationCards,
+    MoveSuccessionMarkers,
+}
 
-#[derive(Event, Debug)]
-pub struct CheckPopulationExpansionEligibilityEvent;
+#[derive(Event, Debug, Reflect)]
+pub struct GameActivityStarted(pub GameActivity);
 
-#[derive(Event, Debug)]
-pub struct StartManualPopulationExpansionEvent;
+#[derive(Event, Debug, Reflect)]
+pub struct GameActivityEnded(pub GameActivity);
 
 #[derive(Event, Debug)]
 pub struct StartHandleSurplusPopulationEvent;
@@ -70,7 +94,9 @@ pub struct Area {
 }
 
 #[derive(Component, Debug)]
-pub struct Stock;
+pub struct Stock {
+    pub max_tokens: usize,
+}
 
 #[derive(Component, Debug)]
 pub struct Population;
@@ -91,14 +117,20 @@ fn setup_game(
 ) {
     // Create Player
     let player = commands
-        .spawn((Player {}, Name::new("Player")))
+        .spawn(
+            (
+                Player {},
+                Name::new("Player"),
+                Census { population: 0 }
+            )
+        )
         .id();
 
-    let stock = commands.spawn((Stock {}, Name::new("Stock"))).id();
+    let stock = commands.spawn((Stock { max_tokens: 47 }, Name::new("Stock"))).id();
 
     commands.entity(player).add_child(stock);
 
-    for _n in 0..51 {
+    for _n in 0..47 {
         let token = commands.spawn((Name::new("Token"), Token { player })).id();
         commands.entity(stock).add_child(token);
     }
@@ -134,120 +166,6 @@ fn move_token_from_area_to_area(
 /***
 A system that checks if an area has children... I mean, this is completely unnecessary really
  */
-fn check_population_expansion_eligibility(
-    mut begin_event: EventReader<CheckPopulationExpansionEligibilityEvent>,
-    area_population_query: Query<&Children, With<Population>>,
-    token_query: Query<&Token>,
-    player_stock_query: Query<&Children, With<Stock>>,
-    player_query: Query<&Children, With<Player>>,
-    mut commands: Commands,
-    mut start_manual_expansion: EventWriter<StartManualPopulationExpansionEvent>,
-    mut start_pop_expansion: EventWriter<BeginPopulationExpansionEvent>,
-) {
-    for _event in begin_event.read() {
-        let mut player_need_tokens_hash = HashMap::<Entity, usize>::new();
-        for area_pop_tokens in area_population_query.iter() {
-            if area_pop_tokens.iter().count() > 0 {
-                for (player_entity, player_area_tokens) in area_pop_tokens
-                    .iter()
-                    .chunk_by(|pop_ent| {
-                        token_query.get(**pop_ent).unwrap().player
-                    }).into_iter() {
-                    let mut required_player_tokens = 0;
-                    let c = player_area_tokens.count();
-
-                    required_player_tokens += match c {
-                        1 => { 1 }
-                        0 => { 0 }
-                        _ => { 2 }
-                    };
-                    *player_need_tokens_hash.entry(player_entity).or_insert(0) += required_player_tokens;
-                }
-            }
-        }
-        let mut need_manual_expansion = false;
-        for (player, needed_tokens) in player_need_tokens_hash {
-            if let Ok(children) = player_query.get(player) {
-                for child in children {
-                    if let Ok(tokens) = player_stock_query.get(*child) {
-                        if tokens.iter().count() < needed_tokens {
-                            need_manual_expansion = true;
-                            commands
-                                .entity(player)
-                                .insert(CannotAutoExpandPopulation {});
-                        }
-                    }
-                }
-            }
-        }
-        if need_manual_expansion {
-            start_manual_expansion.send(StartManualPopulationExpansionEvent {});
-        } else {
-            start_pop_expansion.send(BeginPopulationExpansionEvent {});
-        }
-    }
-}
-
-fn handle_manual_population_expansion(
-    mut start_reader: EventReader<StartManualPopulationExpansionEvent>,
-    mut expand_writer: EventWriter<BeginPopulationExpansionEvent>,
-) {
-    for _start in start_reader.read() {
-        expand_writer.send(BeginPopulationExpansionEvent {});
-    }
-}
-
-fn expand_population(
-    mut begin_event: EventReader<BeginPopulationExpansionEvent>,
-    area_query: Query<(Entity, &Children), With<Population>>,
-    token_query: Query<&Token>,
-    player_eligible_query: Query<&Player, Without<CannotAutoExpandPopulation>>,
-    mut event_writer: EventWriter<MoveTokensFromStockToAreaCommand>,
-) {
-    /*
-    But what do we do in the case of the player not having enough tokens to expand the population
-    across all his areas?
-
-    This needs simply to be a special case that we examine before this system is run.
-
-    Ah, it is even preferrable to do this only for players that are in fact able to expand their population
-     */
-
-    for _event in begin_event.read() {
-        for (area_population_entity, area_population_tokens) in area_query.iter() {
-            if area_population_tokens.iter().count() > 0 {
-                for (player, tokens) in area_population_tokens
-                    .iter()
-                    .chunk_by(|pop_ent| {
-                        let p = token_query.get(**pop_ent).unwrap().player;
-                        info!("Found entity?");
-                        p
-                    }).into_iter() {
-                    if player_eligible_query.contains(player) {
-                        let c = tokens.count();
-                        match c {
-                            0 => {}
-                            1 => {
-                                event_writer.send(MoveTokensFromStockToAreaCommand {
-                                    population_entity: area_population_entity,
-                                    stock_entity: player,
-                                    number_of_tokens: 1,
-                                });
-                            }
-                            _ => {
-                                event_writer.send(MoveTokensFromStockToAreaCommand {
-                                    population_entity: area_population_entity,
-                                    stock_entity: player,
-                                    number_of_tokens: 2,
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 /**
 This is 100% needed to be able to test expansion and stuff.
