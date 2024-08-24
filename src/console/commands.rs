@@ -3,7 +3,6 @@ use bevy::prelude::{Children, Entity, EventWriter, Parent, Query, With};
 use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
 use clap::Parser;
 use crate::civilization::civ::{GameActivity, GameActivityStarted, MoveTokensFromStockToAreaCommand, Population, StartArea};
-use crate::civilization::population_expansion::CheckPopulationExpansionEligibilityEvent;
 use crate::player::Player;
 
 pub struct CommandsPlugin;

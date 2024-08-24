@@ -1,9 +1,8 @@
 use bevy::app::{App, Plugin, Update};
 use crate::player::Player;
-use bevy::prelude::{in_state, info, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, Name, OnEnter, Query, Reflect, With, Without};
-use bevy::utils::HashMap;
+use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, IntoSystemConfigs, Name, OnEnter, Query, Reflect, With};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use itertools::Itertools;
+use crate::civilization::census::Census;
 use crate::civilization::population_expansion;
 use crate::civilization::population_expansion::{BeginPopulationExpansionEvent, CheckPopulationExpansionEligibilityEvent, StartManualPopulationExpansionEvent};
 use crate::GameState;
@@ -55,7 +54,7 @@ pub enum GameActivity {
     Trade,
     ResolveCalamities,
     AcquireCivilizationCards,
-    MoveSuccessionMarkers
+    MoveSuccessionMarkers,
 }
 
 #[derive(Event, Debug, Reflect)]
@@ -87,7 +86,9 @@ pub struct Area {
 }
 
 #[derive(Component, Debug)]
-pub struct Stock;
+pub struct Stock {
+    pub max_tokens: usize,
+}
 
 #[derive(Component, Debug)]
 pub struct Population;
@@ -108,14 +109,20 @@ fn setup_game(
 ) {
     // Create Player
     let player = commands
-        .spawn((Player {}, Name::new("Player")))
+        .spawn(
+            (
+                Player {},
+                Name::new("Player"),
+                Census { population: 0 }
+            )
+        )
         .id();
 
-    let stock = commands.spawn((Stock {}, Name::new("Stock"))).id();
+    let stock = commands.spawn((Stock { max_tokens: 47 }, Name::new("Stock"))).id();
 
     commands.entity(player).add_child(stock);
 
-    for _n in 0..51 {
+    for _n in 0..47 {
         let token = commands.spawn((Name::new("Token"), Token { player })).id();
         commands.entity(stock).add_child(token);
     }
