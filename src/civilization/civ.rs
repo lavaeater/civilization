@@ -40,6 +40,7 @@ impl Plugin for CivilizationPlugin {
     }
 }
 
+#[derive(Debug, Reflect)]
 pub enum GameActivity {
     CollectTaxes,
     PopulationExpansion,
@@ -58,7 +59,10 @@ pub enum GameActivity {
 }
 
 #[derive(Event, Debug, Reflect)]
-pub struct 
+pub struct GameActivityStarted(GameActivity);
+
+#[derive(Event, Debug, Reflect)]
+pub struct GameActivityEnded(GameActivity);
 
 #[derive(Event, Debug)]
 pub struct StartHandleSurplusPopulationEvent;
