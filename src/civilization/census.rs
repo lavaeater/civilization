@@ -10,14 +10,14 @@ pub struct Census {
 pub fn perform_census(
     mut start_activity: EventReader<GameActivityStarted>,
     mut end_activity: EventWriter<GameActivityEnded>,
-    stock_query: Query<(&Parent, &Children), With<Stock>>,
+    stock_query: Query<(&Parent, &Children, &Stock)>,
     mut player_query: Query<&mut Census, With<Player>>
 ) {
     for activity in start_activity.read() {
         if activity.0 == GameActivity::Census {
-            for (parent, tokens) in stock_query.iter() {
+            for (parent, tokens, stock) in stock_query.iter() {
                 if let Ok(mut census) = player_query.get_mut(parent.get()) {
-                    census.population = tokens.iter().count();
+                    census.population = stock.max_tokens - tokens.iter().count();
                 }
             }
             end_activity.send(GameActivityEnded(GameActivity::Census));

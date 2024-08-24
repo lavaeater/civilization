@@ -2,9 +2,8 @@ use bevy::app::{App, Plugin, Update};
 use crate::player::Player;
 use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, IntoSystemConfigs, Name, OnEnter, Query, Reflect, With};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use crate::civilization::census::Census;
-use crate::civilization::population_expansion;
-use crate::civilization::population_expansion::{BeginPopulationExpansionEvent, CheckPopulationExpansionEligibilityEvent, StartManualPopulationExpansionEvent};
+use crate::civilization::census::{perform_census, Census};
+use crate::civilization::population_expansion::{check_population_expansion_eligibility, expand_population, handle_manual_population_expansion, handle_population_expansion_end, handle_population_expansion_start, BeginPopulationExpansionEvent, CheckPopulationExpansionEligibilityEvent, StartManualPopulationExpansionEvent};
 use crate::GameState;
 
 pub struct CivilizationPlugin;
@@ -15,6 +14,9 @@ impl Plugin for CivilizationPlugin {
     fn build(&self, app: &mut App) {
         app
             .register_type::<Token>()
+            .register_type::<Census>()
+            .add_event::<GameActivityStarted>()
+            .add_event::<GameActivityEnded>()
             .add_event::<BeginPopulationExpansionEvent>()
             .add_event::<CheckPopulationExpansionEligibilityEvent>()
             .add_event::<StartManualPopulationExpansionEvent>()
@@ -27,11 +29,17 @@ impl Plugin for CivilizationPlugin {
                 Update, (
                     move_token_from_area_to_area
                         .run_if(in_state(GameState::Playing)),
-                    population_expansion::handle_manual_population_expansion
+                    handle_manual_population_expansion
                         .run_if(in_state(GameState::Playing)),
-                    population_expansion::check_population_expansion_eligibility
+                    check_population_expansion_eligibility
                         .run_if(in_state(GameState::Playing)),
-                    population_expansion::expand_population
+                    expand_population
+                        .run_if(in_state(GameState::Playing)),
+                    handle_population_expansion_start
+                        .run_if(in_state(GameState::Playing)),
+                    handle_population_expansion_end
+                        .run_if(in_state(GameState::Playing)),
+                    perform_census
                         .run_if(in_state(GameState::Playing)),
                     move_tokens_from_stock_to_area
                         .run_if(in_state(GameState::Playing))
