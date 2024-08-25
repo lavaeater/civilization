@@ -26,13 +26,32 @@ pub fn handle_population_expansion_start(
     }
 }
 
-pub fn handle_population_expansion_end(
+pub fn direct_game_phases(
     mut activity_end: EventReader<GameActivityEnded>,
     mut activity_start: EventWriter<GameActivityStarted>,
 ) {
     for activity in activity_end.read() {
-        if activity.0 == GameActivity::PopulationExpansion {
-            activity_start.send(GameActivityStarted(GameActivity::Census));
+        match activity.0 {
+            GameActivity::CollectTaxes => {
+                activity_start.send(GameActivityStarted(GameActivity::PopulationExpansion));
+            }
+            GameActivity::PopulationExpansion => {
+                activity_start.send(GameActivityStarted(GameActivity::Census));
+            }
+            GameActivity::Census => {
+                activity_start.send(GameActivityStarted(GameActivity::Movement));
+            }
+            GameActivity::ShipConstruction => {}
+            GameActivity::Movement => {}
+            GameActivity::Conflict => {}
+            GameActivity::CityConstruction => {}
+            GameActivity::RemoveSurplusPopulation => {}
+            GameActivity::CheckCitySupport => {}
+            GameActivity::AcquireTradeCards => {}
+            GameActivity::Trade => {}
+            GameActivity::ResolveCalamities => {}
+            GameActivity::AcquireCivilizationCards => {}
+            GameActivity::MoveSuccessionMarkers => {}
         }
     }
 }

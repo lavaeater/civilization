@@ -4,7 +4,7 @@ use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Enti
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use crate::civilization::census::{check_areas_for_population, perform_census, Census, GameInfoAndStuff};
 use crate::civilization::movement::MovementPlugin;
-use crate::civilization::population_expansion::{check_population_expansion_eligibility, expand_population, handle_manual_population_expansion, handle_population_expansion_end, handle_population_expansion_start, BeginPopulationExpansionEvent, CheckPopulationExpansionEligibilityEvent, StartManualPopulationExpansionEvent};
+use crate::civilization::population_expansion::{check_population_expansion_eligibility, expand_population, handle_manual_population_expansion, direct_game_phases, handle_population_expansion_start, BeginPopulationExpansionEvent, CheckPopulationExpansionEligibilityEvent, StartManualPopulationExpansionEvent};
 use crate::GameState;
 
 pub struct CivilizationPlugin;
@@ -16,6 +16,7 @@ impl Plugin for CivilizationPlugin {
         app
             .register_type::<Token>()
             .register_type::<Census>()
+            .register_type::<LandPassage>()
             .add_event::<GameActivityStarted>()
             .add_event::<GameActivityEnded>()
             .add_event::<BeginPopulationExpansionEvent>()
@@ -42,7 +43,7 @@ impl Plugin for CivilizationPlugin {
                         .run_if(in_state(GameState::Playing)),
                     handle_population_expansion_start
                         .run_if(in_state(GameState::Playing)),
-                    handle_population_expansion_end
+                    direct_game_phases
                         .run_if(in_state(GameState::Playing)),
                     perform_census
                         .run_if(in_state(GameState::Playing)),
@@ -133,7 +134,7 @@ pub struct CannotAutoExpandPopulation;
 fn setup_game(
     mut commands: Commands,
 ) {
-    (0..2).into_iter().for_each(|n| {
+    (1..=2).into_iter().for_each(|n| {
         // Create Player
         let player = commands
             .spawn(
@@ -234,7 +235,7 @@ fn connect_areas(
     for (area_entity,
         mut land_passages,
         needed_connections) in area_query.iter_mut() {
-        
+
         for named_area in needed_connections.land_connections.clone().into_iter() {
             let na = Name::new(named_area.clone());
             //This is fucking stupid, but who cares?
