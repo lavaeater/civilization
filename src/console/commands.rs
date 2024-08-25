@@ -19,7 +19,20 @@ impl Plugin for CommandsPlugin {
             })
             .add_console_command::<StartCommand, _>(start_command)
             .add_console_command::<ExpandPopulation, _>(expand_population)
+            .add_console_command::<ListMoves, _>(list_moves)
         ;
+    }
+}
+
+#[derive(Parser, ConsoleCommand)]
+#[command(name = "moves")]
+struct ListMoves;
+
+fn list_moves(
+    mut command: ConsoleCommand<ListMoves>,
+) {
+    if let Some(Ok(ListMoves {})) = command.take() {
+        command.reply("We will list some moves later.")
     }
 }
 

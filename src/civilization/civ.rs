@@ -4,7 +4,7 @@ use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Enti
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use crate::civilization::census::{check_areas_for_population, perform_census, Census, GameInfoAndStuff};
 use crate::civilization::movement::MovementPlugin;
-use crate::civilization::population_expansion::{check_population_expansion_eligibility, expand_population, handle_manual_population_expansion, direct_game_phases, handle_population_expansion_start, BeginPopulationExpansionEvent, CheckPopulationExpansionEligibilityEvent, StartManualPopulationExpansionEvent};
+use crate::civilization::population_expansion::{check_population_expansion_eligibility, expand_population, handle_manual_population_expansion, direct_game_phases, handle_population_expansion_start, BeginPopulationExpansionEvent, CheckPopulationExpansionEligibilityEvent, StartManualPopulationExpansionEvent, print_names_of_phases};
 use crate::GameState;
 
 pub struct CivilizationPlugin;
@@ -43,6 +43,8 @@ impl Plugin for CivilizationPlugin {
                         .run_if(in_state(GameState::Playing)),
                     handle_population_expansion_start
                         .run_if(in_state(GameState::Playing)),
+                    print_names_of_phases
+                        .run_if(in_state(GameState::Playing)),
                     direct_game_phases
                         .run_if(in_state(GameState::Playing)),
                     perform_census
@@ -55,7 +57,7 @@ impl Plugin for CivilizationPlugin {
     }
 }
 
-#[derive(Debug, Reflect, PartialEq)]
+#[derive(Debug, Reflect, PartialEq, Copy, Clone)]
 pub enum GameActivity {
     CollectTaxes,
     PopulationExpansion,
@@ -134,7 +136,7 @@ pub struct CannotAutoExpandPopulation;
 fn setup_game(
     mut commands: Commands,
 ) {
-    (1..=2).into_iter().for_each(|n| {
+    (1..=1).into_iter().for_each(|n| {
         // Create Player
         let player = commands
             .spawn(

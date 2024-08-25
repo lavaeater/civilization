@@ -2,6 +2,8 @@ use bevy::prelude::{Commands, Entity, Event, EventReader, EventWriter, Query, Wi
 use bevy::hierarchy::Children;
 use bevy::log::info;
 use bevy::utils::HashMap;
+use bevy_console::PrintConsoleLine;
+use clap::builder::StyledStr;
 use itertools::Itertools;
 use crate::civilization::civ::{CannotAutoExpandPopulation, GameActivity, GameActivityEnded, GameActivityStarted, MoveTokensFromStockToAreaCommand, Population, Stock, Token};
 use crate::player::Player;
@@ -23,6 +25,16 @@ pub fn handle_population_expansion_start(
         if activity.0 == GameActivity::PopulationExpansion {
             start_pop_exp.send(CheckPopulationExpansionEligibilityEvent {});
         }
+    }
+}
+
+pub fn print_names_of_phases(
+    mut write_line: EventWriter<PrintConsoleLine>,
+    mut activity_start: EventReader<GameActivityStarted>,
+) {
+    for activity in activity_start.read() {
+        let a = activity.0;
+        write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Started: {:?}",a))));
     }
 }
 
