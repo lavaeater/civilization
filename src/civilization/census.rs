@@ -31,13 +31,15 @@ pub fn check_areas_for_population(
     for activity in start_activity.read() {
         if activity.0 == GameActivity::Census {
             for (area, children) in area_query.iter() {
-                if let Some((pop_ent, tokens)) = population_query.get(area) {
-                    if tokens.into_iter().any() {
-                        commands.entity(area).insert(HasPopulation {});
-                        commands.entity(pop_ent).insert(HasPopulation {});
-                    } else {
-                        commands.entity(area).remove::<HasPopulation>();
-                        commands.entity(pop_ent).remove::<HasPopulation>();
+                for area_child in children {
+                    if let Ok((pop_ent, tokens)) = population_query.get(*area_child) {
+                        if tokens.into_iter().count() > 0 {
+                            commands.entity(area).insert(HasPopulation {});
+                            commands.entity(pop_ent).insert(HasPopulation {});
+                        } else {
+                            commands.entity(area).remove::<HasPopulation>();
+                            commands.entity(pop_ent).remove::<HasPopulation>();
+                        }
                     }
                 }
             }

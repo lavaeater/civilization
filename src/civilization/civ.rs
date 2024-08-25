@@ -2,7 +2,7 @@ use bevy::app::{App, Plugin, Update};
 use crate::player::Player;
 use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, IntoSystemConfigs, Name, OnEnter, Query, Reflect, With};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use crate::civilization::census::{perform_census, Census, GameInfoAndStuff};
+use crate::civilization::census::{check_areas_for_population, perform_census, Census, GameInfoAndStuff};
 use crate::civilization::movement::MovementPlugin;
 use crate::civilization::population_expansion::{check_population_expansion_eligibility, expand_population, handle_manual_population_expansion, handle_population_expansion_end, handle_population_expansion_start, BeginPopulationExpansionEvent, CheckPopulationExpansionEligibilityEvent, StartManualPopulationExpansionEvent};
 use crate::GameState;
@@ -30,6 +30,8 @@ impl Plugin for CivilizationPlugin {
             .insert_resource(GameInfoAndStuff::default())
             .add_systems(
                 Update, (
+                    connect_areas
+                        .run_if(in_state(GameState::Playing)),
                     move_token_from_area_to_area
                         .run_if(in_state(GameState::Playing)),
                     handle_manual_population_expansion
@@ -43,6 +45,8 @@ impl Plugin for CivilizationPlugin {
                     handle_population_expansion_end
                         .run_if(in_state(GameState::Playing)),
                     perform_census
+                        .run_if(in_state(GameState::Playing)),
+                    check_areas_for_population
                         .run_if(in_state(GameState::Playing)),
                     move_tokens_from_stock_to_area
                         .run_if(in_state(GameState::Playing))
@@ -96,6 +100,17 @@ pub struct Area {
     pub max_population: u8,
 }
 
+#[derive(Component, Debug, Reflect, Default)]
+pub struct LandPassage {
+    pub to_areas: Vec<Entity>,
+}
+
+#[derive(Component, Debug, Reflect)]
+pub struct NeedsConnections {
+    pub land_connections: Vec<String>,
+    pub sea_connections: Vec<String>,
+}
+
 #[derive(Component, Debug)]
 pub struct Stock {
     pub max_tokens: usize,
@@ -118,25 +133,42 @@ pub struct CannotAutoExpandPopulation;
 fn setup_game(
     mut commands: Commands,
 ) {
-    // Create Player
-    let player = commands
-        .spawn(
-            (
-                Player {},
-                Name::new("Player"),
-                Census { population: 0 }
+    (0..2).into_iter().for_each(|n| {
+        // Create Player
+        let player = commands
+            .spawn(
+                (
+                    Player {},
+                    Name::new(format!("Player {n}")),
+                    Census { population: 0 }
+                )
             )
-        )
-        .id();
+            .id();
 
-    let stock = commands.spawn((Stock { max_tokens: 47 }, Name::new("Stock"))).id();
+        let stock = commands
+            .spawn(
+                (
+                    Stock { max_tokens: 47 },
+                    Name::new(format!("Stock {n}"))
+                )
+            )
+            .id();
 
-    commands.entity(player).add_child(stock);
+        commands
+            .entity(player)
+            .add_child(stock);
 
-    for _n in 0..47 {
-        let token = commands.spawn((Name::new("Token"), Token { player })).id();
-        commands.entity(stock).add_child(token);
-    }
+        for _n in 0..47 {
+            let token = commands
+                .spawn((
+                    Name::new(format!("Token {n}")),
+                    Token { player })).id();
+            commands
+                .entity(stock)
+                .add_child(token);
+        }
+    });
+
 
     // Create some Areas
     commands
@@ -154,6 +186,23 @@ fn setup_game(
     commands
         .spawn((Area { max_population: 5 }, Name::new("Area four")))
         .with_children(|c| { c.spawn((Name::new("Population"), Population {})); });
+}
+
+fn connect_areas(
+    mut area_query: Query<(&mut LandPassage, &NeedsConnections)>,
+    named_areas: Query<(Entity, &Name), With<Area>>,
+) {
+    for (mut land_passages, needed_connections) in area_query.iter_mut() {
+        for named_area in needed_connections.land_connections.clone().into_iter() {
+            let na = Name::new(named_area.clone());
+            //This is fucking stupid, but who cares?
+            for (target_area_entity, target_name) in named_areas.iter() {
+                if *target_name == na {
+                    land_passages.to_areas.push(target_area_entity);
+                }
+            }
+        }
+    }
 }
 
 fn move_token_from_area_to_area(
