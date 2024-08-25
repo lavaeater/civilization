@@ -172,27 +172,69 @@ fn setup_game(
 
     // Create some Areas
     commands
-        .spawn((
-            Name::new("Start Area"),
-            Area { max_population: 2 },
-            StartArea {}))
+        .spawn(
+            (
+                Name::new("Start Area"),
+                Area { max_population: 2 },
+                LandPassage::default(),
+                NeedsConnections {
+                    land_connections: vec!("Area two".into(), "Area three".into()),
+                    sea_connections: vec!(),
+                },
+                StartArea {}
+            )
+        )
         .with_children(|c| { c.spawn((Name::new("Population"), Population {})); });
     commands
-        .spawn((Area { max_population: 3 }, Name::new("Area two")))
+        .spawn(
+            (
+                Area { max_population: 3 },
+                Name::new("Area two"),
+                LandPassage::default(),
+                NeedsConnections {
+                    land_connections: vec!("Start Area".into(), "Area four".into()),
+                    sea_connections: vec!()
+                },
+            )
+        )
         .with_children(|c| { c.spawn((Name::new("Population"), Population {})); });
     commands
-        .spawn((Area { max_population: 1 }, Name::new("Area three")))
+        .spawn(
+            (
+                Area { max_population: 1 },
+                Name::new("Area three"),
+                LandPassage::default(),
+                NeedsConnections {
+                    land_connections: vec!("Start Area".into(), "Area four".into()),
+                    sea_connections: vec!()
+                },
+            )
+        )
         .with_children(|c| { c.spawn((Name::new("Population"), Population {})); });
     commands
-        .spawn((Area { max_population: 5 }, Name::new("Area four")))
+        .spawn(
+            (
+                Area { max_population: 5 },
+                Name::new("Area four"),
+                LandPassage::default(),
+                NeedsConnections {
+                    land_connections: vec!("Area two".into(), "Area three".into()),
+                    sea_connections: vec!()
+                },
+            )
+        )
         .with_children(|c| { c.spawn((Name::new("Population"), Population {})); });
 }
 
 fn connect_areas(
-    mut area_query: Query<(&mut LandPassage, &NeedsConnections)>,
+    mut area_query: Query<(Entity, &mut LandPassage, &NeedsConnections)>,
     named_areas: Query<(Entity, &Name), With<Area>>,
+    mut commands: Commands
 ) {
-    for (mut land_passages, needed_connections) in area_query.iter_mut() {
+    for (area_entity,
+        mut land_passages,
+        needed_connections) in area_query.iter_mut() {
+        
         for named_area in needed_connections.land_connections.clone().into_iter() {
             let na = Name::new(named_area.clone());
             //This is fucking stupid, but who cares?
@@ -202,6 +244,7 @@ fn connect_areas(
                 }
             }
         }
+        commands.entity(area_entity).remove::<NeedsConnections>();
     }
 }
 
