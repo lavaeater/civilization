@@ -31,10 +31,16 @@ pub fn handle_population_expansion_start(
 pub fn print_names_of_phases(
     mut write_line: EventWriter<PrintConsoleLine>,
     mut activity_start: EventReader<GameActivityStarted>,
+    mut activity_end: EventReader<GameActivityEnded>,
 ) {
     for activity in activity_start.read() {
         let a = activity.0;
-        write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Started: {:?}",a))));
+        write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Started: {:?}", a))));
+    }
+
+    for activity in activity_end.read() {
+        let a = activity.0;
+        write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Ended: {:?}", a))));
     }
 }
 
@@ -137,7 +143,7 @@ pub fn expand_population(
     token_query: Query<&Token>,
     player_eligible_query: Query<&Player, Without<CannotAutoExpandPopulation>>,
     mut event_writer: EventWriter<MoveTokensFromStockToAreaCommand>,
-    mut activity_ended: EventWriter<GameActivityEnded>,
+    mut population_expansion_ended_writer: EventWriter<GameActivityEnded>,
 ) {
     /*
     But what do we do in the case of the player not having enough tokens to expand the population
@@ -181,6 +187,6 @@ pub fn expand_population(
                 }
             }
         }
+        population_expansion_ended_writer.send(GameActivityEnded(GameActivity::PopulationExpansion));
     }
-    activity_ended.send(GameActivityEnded(GameActivity::PopulationExpansion));
 }

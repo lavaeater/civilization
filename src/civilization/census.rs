@@ -33,7 +33,7 @@ pub fn check_areas_for_population(
             for (area, children) in area_query.iter() {
                 for area_child in children {
                     if let Ok((pop_ent, tokens)) = population_query.get(*area_child) {
-                        if tokens.into_iter().count() > 0 {
+                        if tokens.iter().count() > 0 {
                             commands.entity(area).insert(HasPopulation {});
                             commands.entity(pop_ent).insert(HasPopulation {});
                         } else {
@@ -49,7 +49,7 @@ pub fn check_areas_for_population(
 
 pub fn perform_census(
     mut start_activity: EventReader<GameActivityStarted>,
-    mut end_activity: EventWriter<GameActivityEnded>,
+    mut census_activity_ended_writer: EventWriter<GameActivityEnded>,
     stock_query: Query<(&Parent, &Children, &Stock)>,
     mut player_query: Query<(&mut Census, Entity), With<Player>>,
     mut census_order: ResMut<GameInfoAndStuff>,
@@ -63,14 +63,14 @@ pub fn perform_census(
             }
             census_order.census_order.clear();
             let mut hash_to_sort = HashMap::new();
-            for (census, entity) in player_query.iter_mut() {
+            for ( census, entity) in player_query.iter_mut() {
                 hash_to_sort.insert(entity, census.population);
             }
             let mut ordered: Vec<(Entity, usize)> = hash_to_sort.into_iter().collect();
             ordered.sort_by(|a, b| b.1.cmp(&a.1));
 
             census_order.census_order = ordered.into_iter().map(|(entity, _)| entity).collect();
-            end_activity.send(GameActivityEnded(GameActivity::Census));
+            census_activity_ended_writer.send(GameActivityEnded(GameActivity::Census));
         }
     }
 }

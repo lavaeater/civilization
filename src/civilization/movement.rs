@@ -1,5 +1,5 @@
 use bevy::app::{App, Update};
-use crate::civilization::civ::{GameActivity, GameActivityEnded, GameActivityStarted, Population, Token};
+use crate::civilization::civ::{GameActivity, GameActivityStarted, Population, Token};
 use bevy::prelude::{in_state, Children, Commands, Component, Event, EventReader, EventWriter, IntoSystemConfigs, Plugin, Query, Reflect, ResMut, With};
 use crate::civilization::census::{GameInfoAndStuff, HasPopulation};
 use crate::GameState;
@@ -48,7 +48,7 @@ pub fn start_movement_activity(
 pub fn prepare_next_mover(
     mut next_mover: EventReader<PrepareNextMoverCommand>,
     mut game_info: ResMut<GameInfoAndStuff>,
-    mut move_over: EventWriter<GameActivityEnded>,
+    // mut move_ended_writer: EventWriter<GameActivityEnded>,
     moveable_tokens: Query<(&Population, &Children), With<HasPopulation>>,
     token_query: Query<&Token>,
     mut commands: Commands,
@@ -69,7 +69,7 @@ pub fn prepare_next_mover(
         } else {
             // We're done bro
             game_info.current_mover = None;
-            move_over.send(GameActivityEnded(GameActivity::Movement));
+            // move_ended_writer.send(GameActivityEnded(GameActivity::Movement));
         }
     }
 }

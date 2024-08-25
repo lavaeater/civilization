@@ -37,7 +37,7 @@ fn list_moves(
 }
 
 #[derive(Parser, ConsoleCommand)]
-#[command(name = "exp-pop")]
+#[command(name = "popexp")]
 struct ExpandPopulation;
 
 fn expand_population(
