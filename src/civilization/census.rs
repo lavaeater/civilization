@@ -1,17 +1,16 @@
 use bevy::prelude::{Children, Component, Entity, EventReader, EventWriter, Parent, Query, Reflect, ResMut, Resource, With};
 use bevy::utils::HashMap;
-use itertools::Itertools;
 use crate::civilization::civ::{GameActivity, GameActivityEnded, GameActivityStarted, Stock};
 use crate::player::Player;
 
 #[derive(Component, Debug, Reflect)]
 pub struct Census {
-    pub population: usize
+    pub population: usize,
 }
 
 #[derive(Resource, Debug, Reflect)]
 pub struct CensusOrder {
-    pub players_by_population: Vec<Entity>
+    pub players_by_population: Vec<Entity>,
 }
 
 pub fn perform_census(
@@ -19,7 +18,7 @@ pub fn perform_census(
     mut end_activity: EventWriter<GameActivityEnded>,
     stock_query: Query<(&Parent, &Children, &Stock)>,
     mut player_query: Query<(&mut Census, Entity), With<Player>>,
-    mut census_order: ResMut<CensusOrder>
+    mut census_order: ResMut<CensusOrder>,
 ) {
     for activity in start_activity.read() {
         if activity.0 == GameActivity::Census {
@@ -33,7 +32,10 @@ pub fn perform_census(
             for (census, entity) in player_query.iter_mut() {
                 hash_to_sort.insert(entity, census.population);
             }
-            census_order.players_by_population = hash_to_sort.iter().sorted().collect();
+            let mut ordered: Vec<(Entity, usize)> = hash_to_sort.into_iter().collect();
+            ordered.sort_by(|a, b| b.1.cmp(&a.1));
+
+            census_order.players_by_population = ordered.into_iter().map(|(entity, _)| entity).collect();
             end_activity.send(GameActivityEnded(GameActivity::Census));
         }
     }

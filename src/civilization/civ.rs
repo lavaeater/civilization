@@ -3,6 +3,7 @@ use crate::player::Player;
 use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, IntoSystemConfigs, Name, OnEnter, Query, Reflect, With};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use crate::civilization::census::{perform_census, Census, CensusOrder};
+use crate::civilization::movement::MovementPlugin;
 use crate::civilization::population_expansion::{check_population_expansion_eligibility, expand_population, handle_manual_population_expansion, handle_population_expansion_end, handle_population_expansion_start, BeginPopulationExpansionEvent, CheckPopulationExpansionEligibilityEvent, StartManualPopulationExpansionEvent};
 use crate::GameState;
 
@@ -25,6 +26,7 @@ impl Plugin for CivilizationPlugin {
             .add_event::<MoveTokenFromAreaToAreaCommand>()
             .add_systems(OnEnter(GameState::Playing), setup_game)
             .add_plugins(WorldInspectorPlugin::new())
+            .add_plugins(MovementPlugin)
             .insert_resource(CensusOrder { players_by_population: vec![] })
             .add_systems(
                 Update, (
