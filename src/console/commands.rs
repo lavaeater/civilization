@@ -1,8 +1,11 @@
 use bevy::app::{App, Plugin};
-use bevy::prelude::{Children, Entity, EventWriter, Parent, Query, With};
+use bevy::prelude::{Children, Entity, EventWriter, HierarchyQueryExt, Name, Parent, Query, Res, With};
 use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
 use clap::Parser;
-use crate::civilization::civ::{GameActivity, GameActivityStarted, MoveTokensFromStockToAreaCommand, Population, StartArea};
+use itertools::Itertools;
+use crate::civilization::census::GameInfoAndStuff;
+use crate::civilization::civ::{Area, GameActivity, GameActivityStarted, LandPassage, MoveTokensFromStockToAreaCommand, Population, StartArea, Token};
+use crate::civilization::movement::TokenCanMove;
 use crate::player::Player;
 
 pub struct CommandsPlugin;
@@ -30,9 +33,37 @@ struct ListMoves;
 
 fn list_moves(
     mut command: ConsoleCommand<ListMoves>,
+    moveable_tokens: Query<(Entity, &Token), With<TokenCanMove>>,
+    parent: Query<&Parent>,
+    area_query: Query<(&Area, &LandPassage)>,
+    name_query: Query<&Name>,
+    game_info: Res<GameInfoAndStuff>
 ) {
     if let Some(Ok(ListMoves {})) = command.take() {
-        command.reply("We will list some moves later.")
+        if let Some(player_to_move) = game_info.current_mover {
+            let message = moveable_tokens
+                .iter()
+                .filter(|(_, t)|{
+                    t.player == player_to_move
+            }).map(|(token_entity, token)| {
+                //find area, is top entity
+                let area_entity: Entity = *parent.iter_ancestors(token_entity).filter(|e| {
+                    area_query.contains(*e)
+                }).collect::<Vec<Entity>>().first().unwrap();
+
+                if let Ok(n) = name_query.get(area_entity) {
+                    if let Ok((p, lp)) = area_query.get(area_entity) {
+                        let lands = lp
+                            .to_areas
+                            .iter()
+                            .map(|targets| { name_query.get(*targets).unwrap() })
+                            .collect();
+                        format!("Can move from {n} to {:?}", lands)
+                    }
+                }
+            }).join("\n");
+            command.reply(message);
+        }
     }
 }
 
