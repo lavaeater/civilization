@@ -52,8 +52,8 @@ pub struct MoveTokensFromStockToAreaCommand {
 
 #[derive(Event, Debug)]
 pub struct MoveTokenFromAreaToAreaCommand {
-    pub from_area: Entity,
-    pub to_area: Entity,
+    pub from_area_population: Entity,
+    pub to_area_population: Entity,
     pub tokens: Vec<Entity>,
 }
 
@@ -214,8 +214,8 @@ fn move_token_from_area_to_area(
     mut commands: Commands,
 ) {
     for ev in move_events.read() {
-        commands.entity(ev.from_area).remove_children(&ev.tokens);
-        commands.entity(ev.to_area).push_children(&ev.tokens);
+        commands.entity(ev.from_area_population).remove_children(&ev.tokens);
+        commands.entity(ev.to_area_population).push_children(&ev.tokens);
     }
 }
 

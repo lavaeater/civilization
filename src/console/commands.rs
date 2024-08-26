@@ -1,5 +1,5 @@
 use crate::civilization::census::GameInfoAndStuff;
-use crate::civilization::civ::{MoveTokensFromStockToAreaCommand, Population, StartArea};
+use crate::civilization::civ::{Area, MoveTokenFromAreaToAreaCommand, MoveTokensFromStockToAreaCommand, Population, StartArea};
 use crate::civilization::movement::MoveableTokens;
 use crate::player::Player;
 use bevy::app::{App, Plugin};
@@ -38,11 +38,36 @@ struct MoveCommand {
 
 fn perform_move(
     mut command: ConsoleCommand<MoveCommand>,
-    
+    moveable_tokens: Query<(&Name, &MoveableTokens)>,
+    area_query: Query<(&Name, &Children), With<Area>>,
+    population_query: Query<&Population>,
+    parent_query: Query<&Parent>,
+    mut move_command: EventWriter<MoveTokenFromAreaToAreaCommand>,
 ) {
-     if let Some(Ok(MoveCommand { from, to, number_of_tokens })) = command.take() {
-        command.reply(format!("Moving {} tokens from {} to {}", number_of_tokens, from, to));
-    }}
+    if let Some(Ok(MoveCommand { from: source, to: target, number_of_tokens })) = command.take() {
+        let source_name = Name::from(source);
+        let target_name = Name::from(target);
+        if let Some((_, tokens)) = moveable_tokens.iter().find(|(name, _)| *name == &source_name) {
+            if tokens.tokens.len() >= number_of_tokens {
+                let from_pop_entity = parent_query.get(tokens.tokens[0]).unwrap().get();
+                if let Some((_, children)) = area_query.iter().find(|(name, _)| *name == &target_name) {
+                    let to_pop_entity = children.iter().find(|child| population_query.contains(**child)).unwrap();
+                    move_command.send(MoveTokenFromAreaToAreaCommand {
+                        from_area_population: from_pop_entity,
+                        to_area_population: *to_pop_entity,
+                        tokens: tokens.tokens.iter().take(number_of_tokens).copied().collect(),
+                    });
+                } else {
+                    command.reply(format!("Could not find target area: {}", target_name));
+                }
+            } else {
+                command.reply(format!("Not enough tokens in {}", source_name));
+            }
+        } else {
+            command.reply(format!("Could not find source area: {}", source_name));
+        }
+    }
+}
 
 #[derive(Parser, ConsoleCommand)]
 #[command(name = "moves")]
