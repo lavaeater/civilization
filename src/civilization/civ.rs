@@ -2,9 +2,10 @@ use bevy::app::{App, Plugin, Update};
 use crate::player::Player;
 use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, IntoSystemConfigs, Name, OnEnter, Query, Reflect, With};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use crate::civilization::census::{check_areas_for_population, perform_census, Census, GameInfoAndStuff};
+use crate::civilization::census::{Census, CensusPlugin, GameInfoAndStuff};
+use crate::civilization::game_phases::GamePhasesPlugin;
 use crate::civilization::movement::MovementPlugin;
-use crate::civilization::population_expansion::{check_population_expansion_eligibility, expand_population, handle_manual_population_expansion, direct_game_phases, handle_population_expansion_start, BeginPopulationExpansionEvent, CheckPopulationExpansionEligibilityEvent, StartManualPopulationExpansionEvent, print_names_of_phases};
+use crate::civilization::population_expansion::PopulationExpansionPlugin;
 use crate::GameState;
 
 pub struct CivilizationPlugin;
@@ -17,17 +18,18 @@ impl Plugin for CivilizationPlugin {
             .register_type::<Token>()
             .register_type::<Census>()
             .register_type::<LandPassage>()
-            .add_event::<GameActivityStarted>()
-            .add_event::<GameActivityEnded>()
-            .add_event::<BeginPopulationExpansionEvent>()
-            .add_event::<CheckPopulationExpansionEligibilityEvent>()
-            .add_event::<StartManualPopulationExpansionEvent>()
-            .add_event::<StartHandleSurplusPopulationEvent>()
             .add_event::<MoveTokensFromStockToAreaCommand>()
             .add_event::<MoveTokenFromAreaToAreaCommand>()
+            .add_plugins(
+                (
+                    MovementPlugin,
+                    CensusPlugin,
+                    GamePhasesPlugin,
+                    PopulationExpansionPlugin
+                )
+            )
             .add_systems(OnEnter(GameState::Playing), setup_game)
             .add_plugins(WorldInspectorPlugin::new())
-            .add_plugins(MovementPlugin)
             .insert_resource(GameInfoAndStuff::default())
             .add_systems(
                 Update, (
@@ -35,54 +37,11 @@ impl Plugin for CivilizationPlugin {
                         .run_if(in_state(GameState::Playing)),
                     move_token_from_area_to_area
                         .run_if(in_state(GameState::Playing)),
-                    handle_manual_population_expansion
-                        .run_if(in_state(GameState::Playing)),
-                    check_population_expansion_eligibility
-                        .run_if(in_state(GameState::Playing)),
-                    expand_population
-                        .run_if(in_state(GameState::Playing)),
-                    handle_population_expansion_start
-                        .run_if(in_state(GameState::Playing)),
-                    print_names_of_phases
-                        .run_if(in_state(GameState::Playing)),
-                    direct_game_phases
-                        .run_if(in_state(GameState::Playing)),
-                    perform_census
-                        .run_if(in_state(GameState::Playing)),
-                    check_areas_for_population
-                        .run_if(in_state(GameState::Playing)),
                     move_tokens_from_stock_to_area
                         .run_if(in_state(GameState::Playing))
                 ));
     }
 }
-
-#[derive(Debug, Reflect, PartialEq, Copy, Clone)]
-pub enum GameActivity {
-    CollectTaxes,
-    PopulationExpansion,
-    Census,
-    ShipConstruction,
-    Movement,
-    Conflict,
-    CityConstruction,
-    RemoveSurplusPopulation,
-    CheckCitySupport,
-    AcquireTradeCards,
-    Trade,
-    ResolveCalamities,
-    AcquireCivilizationCards,
-    MoveSuccessionMarkers,
-}
-
-#[derive(Event, Debug, Reflect)]
-pub struct GameActivityStarted(pub GameActivity);
-
-#[derive(Event, Debug, Reflect)]
-pub struct GameActivityEnded(pub GameActivity);
-
-#[derive(Event, Debug)]
-pub struct StartHandleSurplusPopulationEvent;
 
 #[derive(Event, Debug)]
 pub struct MoveTokensFromStockToAreaCommand {
@@ -196,7 +155,7 @@ fn setup_game(
                 LandPassage::default(),
                 NeedsConnections {
                     land_connections: vec!("Start Area".into(), "Area four".into()),
-                    sea_connections: vec!()
+                    sea_connections: vec!(),
                 },
             )
         )
@@ -209,7 +168,7 @@ fn setup_game(
                 LandPassage::default(),
                 NeedsConnections {
                     land_connections: vec!("Start Area".into(), "Area four".into()),
-                    sea_connections: vec!()
+                    sea_connections: vec!(),
                 },
             )
         )
@@ -222,7 +181,7 @@ fn setup_game(
                 LandPassage::default(),
                 NeedsConnections {
                     land_connections: vec!("Area two".into(), "Area three".into()),
-                    sea_connections: vec!()
+                    sea_connections: vec!(),
                 },
             )
         )
@@ -232,12 +191,11 @@ fn setup_game(
 fn connect_areas(
     mut area_query: Query<(Entity, &mut LandPassage, &NeedsConnections)>,
     named_areas: Query<(Entity, &Name), With<Area>>,
-    mut commands: Commands
+    mut commands: Commands,
 ) {
     for (area_entity,
         mut land_passages,
         needed_connections) in area_query.iter_mut() {
-
         for named_area in needed_connections.land_connections.clone().into_iter() {
             let na = Name::new(named_area.clone());
             //This is fucking stupid, but who cares?

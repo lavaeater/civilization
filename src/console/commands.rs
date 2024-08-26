@@ -1,11 +1,12 @@
 use crate::civilization::census::GameInfoAndStuff;
-use crate::civilization::civ::{GameActivity, GameActivityStarted, MoveTokensFromStockToAreaCommand, Population, StartArea};
+use crate::civilization::civ::{MoveTokensFromStockToAreaCommand, Population, StartArea};
 use crate::civilization::movement::MoveableTokens;
 use crate::player::Player;
 use bevy::app::{App, Plugin};
 use bevy::prelude::{Children, Entity, EventWriter, Name, Parent, Query, Res, With};
 use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
 use clap::Parser;
+use crate::civilization::game_phases::{GameActivity, GameActivityEnded};
 
 pub struct CommandsPlugin;
 
@@ -22,9 +23,25 @@ impl Plugin for CommandsPlugin {
             .add_console_command::<StartCommand, _>(start_command)
             .add_console_command::<ExpandPopulation, _>(expand_population)
             .add_console_command::<ListMoves, _>(list_moves)
+            .add_console_command::<MoveCommand, _>(perform_move)
         ;
     }
 }
+
+#[derive(Parser, ConsoleCommand)]
+#[command(name = "move")]
+struct MoveCommand {
+    from: String,
+    to: String,
+    number_of_tokens: usize,
+}
+
+fn perform_move(
+    mut command: ConsoleCommand<MoveCommand>,
+) {
+     if let Some(Ok(MoveCommand { from, to, number_of_tokens })) = command.take() {
+        command.reply(format!("Moving {} tokens from {} to {}", number_of_tokens, from, to));
+    }}
 
 #[derive(Parser, ConsoleCommand)]
 #[command(name = "moves")]
@@ -38,15 +55,24 @@ fn list_moves(
 ) {
     if let Some(Ok(ListMoves {})) = command.take() {
         if let Some(_player_to_move) = game_info.current_mover {
-            let message = moveable_tokens
+            let moves = moveable_tokens
                 .iter()
                 .map(|(from_name, move_specs)| {
-                    move_specs.targets.iter().map(|target| {
-                        let target_name = name_query.get(*target).unwrap();
-                        format!("{:?} to {:?}", from_name, target_name)
-                    }).collect::<Vec<String>>().join("\n");
+                    (from_name, move_specs.tokens.iter().count(),
+                     move_specs
+                         .targets
+                         .iter()
+                         .map(|target| {
+                             let target_name = name_query.get(*target).unwrap();
+                             target_name
+                         }).collect::<Vec<&Name>>()
+                    )
                 });
-            command.reply(format!("Moves: {:?}", message));
+
+            let message = moves.map(|(from_name, number_of_tokens, targets)| {
+                format!("{from_name} can move max {number_of_tokens} to: {:?}", targets.iter().map(|name| name.as_str()).collect::<Vec<&str>>().join(", "))
+            }).collect::<Vec<String>>().join("\n");
+            command.reply(format!("Moves: {}", message));
         }
     }
 }
@@ -57,10 +83,10 @@ struct ExpandPopulation;
 
 fn expand_population(
     mut command: ConsoleCommand<ExpandPopulation>,
-    mut writer: EventWriter<GameActivityStarted>,
+    mut writer: EventWriter<GameActivityEnded>,
 ) {
     if let Some(Ok(ExpandPopulation {})) = command.take() {
-        writer.send(GameActivityStarted(GameActivity::PopulationExpansion));
+        writer.send(GameActivityEnded(GameActivity::CollectTaxes));
         command.reply("We are starting the expansion!")
     }
 }

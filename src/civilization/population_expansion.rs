@@ -1,12 +1,40 @@
-use bevy::prelude::{Commands, Entity, Event, EventReader, EventWriter, Query, With, Without};
+use bevy::app::{App, Plugin, Update};
+use bevy::prelude::{in_state, Commands, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, Query, With, Without};
 use bevy::hierarchy::Children;
 use bevy::log::info;
 use bevy::utils::HashMap;
-use bevy_console::PrintConsoleLine;
-use clap::builder::StyledStr;
 use itertools::Itertools;
-use crate::civilization::civ::{CannotAutoExpandPopulation, GameActivity, GameActivityEnded, GameActivityStarted, MoveTokensFromStockToAreaCommand, Population, Stock, Token};
+use crate::civilization::civ::{CannotAutoExpandPopulation, MoveTokensFromStockToAreaCommand, Population, Stock, Token};
+use crate::civilization::game_phases::{GameActivity, GameActivityEnded, GameActivityStarted};
+use crate::GameState;
 use crate::player::Player;
+
+pub struct PopulationExpansionPlugin;
+
+impl Plugin for PopulationExpansionPlugin {
+    fn build(&self, app: &mut App) {
+        app
+            .add_event::<PopulationExpansionEnded>()
+            .add_event::<BeginPopulationExpansionEvent>()
+            .add_event::<CheckPopulationExpansionEligibilityEvent>()
+            .add_event::<StartManualPopulationExpansionEvent>()
+            .add_systems(
+                Update, (
+                    handle_population_expansion_start
+                        .run_if(in_state(GameState::Playing)),
+                    handle_manual_population_expansion
+                        .run_if(in_state(GameState::Playing)),
+                    check_population_expansion_eligibility
+                        .run_if(in_state(GameState::Playing)),
+                    expand_population
+                        .run_if(in_state(GameState::Playing)),
+                    end_population_expansion
+                        .run_if(in_state(GameState::Playing)),
+                ),
+            )
+        ;
+    }
+}
 
 #[derive(Event, Debug)]
 pub struct BeginPopulationExpansionEvent;
@@ -17,6 +45,19 @@ pub struct CheckPopulationExpansionEligibilityEvent;
 #[derive(Event, Debug)]
 pub struct StartManualPopulationExpansionEvent;
 
+#[derive(Event, Debug)]
+pub struct PopulationExpansionEnded;
+
+pub fn end_population_expansion(
+    mut population_expansion_ended: EventReader<PopulationExpansionEnded>,
+    mut game_activity_ended: EventWriter<GameActivityEnded>
+) {
+    for _ in population_expansion_ended.read() {
+        game_activity_ended.send(GameActivityEnded(GameActivity::PopulationExpansion));
+    }
+}
+
+
 pub fn handle_population_expansion_start(
     mut activity_event: EventReader<GameActivityStarted>,
     mut start_pop_exp: EventWriter<CheckPopulationExpansionEligibilityEvent>,
@@ -24,52 +65,6 @@ pub fn handle_population_expansion_start(
     for activity in activity_event.read() {
         if activity.0 == GameActivity::PopulationExpansion {
             start_pop_exp.send(CheckPopulationExpansionEligibilityEvent {});
-        }
-    }
-}
-
-pub fn print_names_of_phases(
-    mut write_line: EventWriter<PrintConsoleLine>,
-    mut activity_start: EventReader<GameActivityStarted>,
-    mut activity_end: EventReader<GameActivityEnded>,
-) {
-    for activity in activity_start.read() {
-        let a = activity.0;
-        write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Started: {:?}", a))));
-    }
-
-    for activity in activity_end.read() {
-        let a = activity.0;
-        write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Ended: {:?}", a))));
-    }
-}
-
-pub fn direct_game_phases(
-    mut activity_end: EventReader<GameActivityEnded>,
-    mut activity_start: EventWriter<GameActivityStarted>,
-) {
-    for activity in activity_end.read() {
-        match activity.0 {
-            GameActivity::CollectTaxes => {
-                activity_start.send(GameActivityStarted(GameActivity::PopulationExpansion));
-            }
-            GameActivity::PopulationExpansion => {
-                activity_start.send(GameActivityStarted(GameActivity::Census));
-            }
-            GameActivity::Census => {
-                activity_start.send(GameActivityStarted(GameActivity::Movement));
-            }
-            GameActivity::ShipConstruction => {}
-            GameActivity::Movement => {}
-            GameActivity::Conflict => {}
-            GameActivity::CityConstruction => {}
-            GameActivity::RemoveSurplusPopulation => {}
-            GameActivity::CheckCitySupport => {}
-            GameActivity::AcquireTradeCards => {}
-            GameActivity::Trade => {}
-            GameActivity::ResolveCalamities => {}
-            GameActivity::AcquireCivilizationCards => {}
-            GameActivity::MoveSuccessionMarkers => {}
         }
     }
 }
@@ -143,7 +138,7 @@ pub fn expand_population(
     token_query: Query<&Token>,
     player_eligible_query: Query<&Player, Without<CannotAutoExpandPopulation>>,
     mut event_writer: EventWriter<MoveTokensFromStockToAreaCommand>,
-    mut population_expansion_ended_writer: EventWriter<GameActivityEnded>,
+    mut end_population_expansion: EventWriter<PopulationExpansionEnded>,
 ) {
     /*
     But what do we do in the case of the player not having enough tokens to expand the population
@@ -187,6 +182,6 @@ pub fn expand_population(
                 }
             }
         }
-        population_expansion_ended_writer.send(GameActivityEnded(GameActivity::PopulationExpansion));
+        end_population_expansion.send(PopulationExpansionEnded {});
     }
 }

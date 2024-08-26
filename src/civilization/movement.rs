@@ -1,10 +1,11 @@
 use bevy::app::{App, Update};
 use bevy::hierarchy::Parent;
-use crate::civilization::civ::{Area, GameActivity, GameActivityStarted, LandPassage, Population, Token};
+use crate::civilization::civ::{Area, LandPassage, Population, Token};
 use bevy::prelude::{in_state, Children, Commands, Component, Entity, Event, EventReader, EventWriter, HierarchyQueryExt, IntoSystemConfigs, Plugin, Query, Reflect, ResMut, With};
 use bevy::utils::HashMap;
 use itertools::Itertools;
 use crate::civilization::census::{GameInfoAndStuff, HasPopulation};
+use crate::civilization::game_phases::{GameActivity, GameActivityStarted};
 use crate::GameState;
 
 pub struct MovementPlugin;
@@ -13,6 +14,7 @@ impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_event::<PrepareNextMoverCommand>()
+            .add_event::<CalculateMovesCommand>()
             .add_systems(
                 Update, (
                     start_movement_activity
