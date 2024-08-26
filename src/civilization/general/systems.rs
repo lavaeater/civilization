@@ -1,99 +1,10 @@
-use bevy::app::{App, Plugin, Update};
-use crate::player::Player;
-use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Entity, Event, EventReader, IntoSystemConfigs, Name, OnEnter, Query, Reflect, With};
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use crate::civilization::census::{Census, CensusPlugin, GameInfoAndStuff};
-use crate::civilization::game_phases::GamePhasesPlugin;
-use crate::civilization::movement;
-use crate::civilization::movement::MovementPlugin;
-use crate::civilization::population_expansion::PopulationExpansionPlugin;
-use crate::GameState;
+use bevy::core::Name;
+use bevy::hierarchy::Children;
+use bevy::prelude::{BuildChildren, Commands, Entity, EventReader, Query, With};
+use crate::civilization::census::components::Census;
+use crate::civilization::general::plugin::{Area, LandPassage, MoveTokensFromStockToAreaCommand, NeedsConnections, Stock, Token};
 
-pub struct CivilizationPlugin;
-
-/// This plugin handles player related stuff like movement
-/// Player logic is only active during the State `GameState::Playing`
-impl Plugin for CivilizationPlugin {
-    fn build(&self, app: &mut App) {
-        app
-            .register_type::<Token>()
-            .register_type::<Census>()
-            .register_type::<LandPassage>()
-            .add_event::<MoveTokensFromStockToAreaCommand>()
-            .add_event::<MoveTokenFromAreaToAreaCommand>()
-            .add_plugins(
-                (
-                    MovementPlugin,
-                    CensusPlugin,
-                    GamePhasesPlugin,
-                    PopulationExpansionPlugin
-                )
-            )
-            .add_systems(OnEnter(GameState::Playing), setup_game)
-            .add_plugins(WorldInspectorPlugin::new())
-            .insert_resource(GameInfoAndStuff::default())
-            .add_systems(
-                Update, (
-                    connect_areas
-                        .run_if(in_state(GameState::Playing)),
-                    movement::move_token_from_area_to_area
-                        .run_if(in_state(GameState::Playing)),
-                    move_tokens_from_stock_to_area
-                        .run_if(in_state(GameState::Playing))
-                ));
-    }
-}
-
-#[derive(Event, Debug)]
-pub struct MoveTokensFromStockToAreaCommand {
-    pub population_entity: Entity,
-    pub stock_entity: Entity,
-    pub number_of_tokens: usize,
-}
-
-#[derive(Event, Debug)]
-pub struct MoveTokenFromAreaToAreaCommand {
-    pub from_area_population: Entity,
-    pub to_area_population: Entity,
-    pub tokens: Vec<Entity>,
-}
-
-#[derive(Component, Debug)]
-pub struct Area {
-    pub max_population: u8,
-}
-
-#[derive(Component, Debug, Reflect, Default)]
-pub struct LandPassage {
-    pub to_areas: Vec<Entity>,
-}
-
-#[derive(Component, Debug, Reflect)]
-pub struct NeedsConnections {
-    pub land_connections: Vec<String>,
-    pub sea_connections: Vec<String>,
-}
-
-#[derive(Component, Debug)]
-pub struct Stock {
-    pub max_tokens: usize,
-}
-
-#[derive(Component, Debug)]
-pub struct Population;
-
-#[derive(Component, Debug)]
-pub struct StartArea;
-
-#[derive(Component, Debug, Reflect)]
-pub struct Token {
-    pub player: Entity,
-}
-
-#[derive(Component, Debug)]
-pub struct CannotAutoExpandPopulation;
-
-fn setup_game(
+pub fn setup_game(
     mut commands: Commands,
 ) {
     (1..=1).into_iter().for_each(|n| {
@@ -101,7 +12,7 @@ fn setup_game(
         let player = commands
             .spawn(
                 (
-                    Player {},
+                    crate::player::Player {},
                     Name::new(format!("Player {n}")),
                     Census { population: 0 }
                 )
@@ -144,10 +55,10 @@ fn setup_game(
                     land_connections: vec!("2".into(), "3".into()),
                     sea_connections: vec!(),
                 },
-                StartArea {}
+                crate::civilization::general::plugin::StartArea {}
             )
         )
-        .with_children(|c| { c.spawn((Name::new("Population"), Population {})); });
+        .with_children(|c| { c.spawn((Name::new("Population"), crate::civilization::general::plugin::Population {})); });
     commands
         .spawn(
             (
@@ -160,7 +71,7 @@ fn setup_game(
                 },
             )
         )
-        .with_children(|c| { c.spawn((Name::new("Population"), Population {})); });
+        .with_children(|c| { c.spawn((Name::new("Population"), crate::civilization::general::plugin::Population {})); });
     commands
         .spawn(
             (
@@ -173,7 +84,7 @@ fn setup_game(
                 },
             )
         )
-        .with_children(|c| { c.spawn((Name::new("Population"), Population {})); });
+        .with_children(|c| { c.spawn((Name::new("Population"), crate::civilization::general::plugin::Population {})); });
     commands
         .spawn(
             (
@@ -186,10 +97,10 @@ fn setup_game(
                 },
             )
         )
-        .with_children(|c| { c.spawn((Name::new("Population"), Population {})); });
+        .with_children(|c| { c.spawn((Name::new("Population"), crate::civilization::general::plugin::Population {})); });
 }
 
-fn connect_areas(
+pub fn connect_areas(
     mut area_query: Query<(Entity, &mut LandPassage, &NeedsConnections)>,
     named_areas: Query<(Entity, &Name), With<Area>>,
     mut commands: Commands,
@@ -213,7 +124,7 @@ fn connect_areas(
 /**
 This is 100% needed to be able to test expansion and stuff.
 */
-fn move_tokens_from_stock_to_area(
+pub fn move_tokens_from_stock_to_area(
     mut move_commands: EventReader<MoveTokensFromStockToAreaCommand>,
     player_stock_query: Query<&Children, With<Stock>>,
     player_query: Query<&Children>,

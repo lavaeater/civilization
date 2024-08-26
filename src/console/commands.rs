@@ -1,12 +1,12 @@
-use crate::civilization::census::GameInfoAndStuff;
-use crate::civilization::civ::{Area, MoveTokenFromAreaToAreaCommand, MoveTokensFromStockToAreaCommand, Population, StartArea};
 use crate::civilization::movement::{ClearMovesCommand, MoveableTokens};
 use crate::player::Player;
 use bevy::app::{App, Plugin};
 use bevy::prelude::{Children, Entity, EventWriter, Name, Parent, Query, Res, With};
 use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
 use clap::Parser;
+use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::{GameActivity, GameActivityEnded};
+use crate::civilization::general::plugin::{Area, MoveTokenFromAreaToAreaCommand, MoveTokensFromStockToAreaCommand, Population, StartArea};
 
 pub struct CommandsPlugin;
 

@@ -1,13 +1,14 @@
 use bevy::app::{App, Update};
 use bevy::hierarchy::{BuildChildren, Parent};
-use crate::civilization::civ::{Area, LandPassage, MoveTokenFromAreaToAreaCommand, Population, Token};
 use bevy::prelude::{in_state, Children, Commands, Component, Entity, Event, EventReader, EventWriter, HierarchyQueryExt, IntoSystemConfigs, Plugin, Query, Reflect, ResMut, With};
 use bevy::utils::HashMap;
 use itertools::Itertools;
 use bevy_console::PrintConsoleLine;
 use clap::builder::StyledStr;
-use crate::civilization::census::{GameInfoAndStuff, HasPopulation};
+use crate::civilization::census::components::HasPopulation;
+use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::{GameActivity, GameActivityStarted};
+use crate::civilization::general::plugin::{Area, LandPassage, MoveTokenFromAreaToAreaCommand, Population, Token};
 use crate::GameState;
 
 pub struct MovementPlugin;
@@ -21,6 +22,8 @@ impl Plugin for MovementPlugin {
             .add_systems(
                 Update, (
                     start_movement_activity
+                        .run_if(in_state(GameState::Playing)),
+                    move_token_from_area_to_area
                         .run_if(in_state(GameState::Playing)),
                     prepare_next_mover
                         .run_if(in_state(GameState::Playing)),

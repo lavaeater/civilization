@@ -1,51 +1,12 @@
-use bevy::prelude::{in_state, Children, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, Parent, Plugin, Query, Reflect, ResMut, Resource, With};
+use bevy::hierarchy::{Children, Parent};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Query, ResMut, With};
 use bevy::utils::HashMap;
-use crate::civilization::civ::{Area, Population, Stock};
+use crate::civilization::census::events::{CensusEnded, CheckAreasForPopulationCommand};
+use crate::civilization::census::components::{Census, HasPopulation};
+use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::{GameActivity, GameActivityEnded, GameActivityStarted};
-use crate::GameState;
+use crate::civilization::general::plugin::{Area, Population, Stock};
 use crate::player::Player;
-
-pub struct CensusPlugin;
-
-impl Plugin for CensusPlugin {
-    fn build(&self, app: &mut bevy::app::App) {
-        app
-            .add_event::<CensusEnded>()
-            .add_event::<CheckAreasForPopulationCommand>()
-            .add_systems(
-                bevy::app::Update, (
-                    perform_census
-                        .run_if(in_state(GameState::Playing)),
-                    check_areas_for_population
-                        .run_if(in_state(GameState::Playing)),
-                    end_census
-                        .run_if(in_state(GameState::Playing)),
-                ),
-            )
-        ;
-    }
-}
-
-#[derive(Event, Debug)]
-pub struct CensusEnded;
-
-#[derive(Event, Debug)]
-pub struct CheckAreasForPopulationCommand;
-
-#[derive(Component, Debug, Reflect)]
-pub struct Census {
-    pub population: usize,
-}
-
-#[derive(Component, Debug, Reflect)]
-pub struct HasPopulation;
-
-#[derive(Resource, Debug, Reflect, Default)]
-pub struct GameInfoAndStuff {
-    pub census_order: Vec<Entity>,
-    pub left_to_move: Vec<Entity>,
-    pub current_mover: Option<Entity>,
-}
 
 pub fn end_census(
     mut census_ended: EventReader<CensusEnded>,
