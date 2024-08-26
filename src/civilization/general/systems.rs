@@ -4,8 +4,8 @@ use bevy::prelude::{BuildChildren, Commands, Entity, EventReader, Query, With};
 use crate::civilization::census::components::Census;
 use crate::civilization::general::plugin::{Area, LandPassage, MoveTokensFromStockToAreaCommand, NeedsConnections, Stock, Token};
 
-pub fn setup_game(
-    mut commands: Commands,
+pub fn setup_players(
+    mut commands: Commands
 ) {
     (1..=1).into_iter().for_each(|n| {
         // Create Player
@@ -14,34 +14,32 @@ pub fn setup_game(
                 (
                     crate::player::Player {},
                     Name::new(format!("Player {n}")),
-                    Census { population: 0 }
+                    Census { population: 0 },
                 )
-            )
-            .id();
-
-        let stock = commands
-            .spawn(
-                (
-                    Stock { max_tokens: 47 },
-                    Name::new(format!("Stock {n}"))
-                )
-            )
-            .id();
+            ).id();
 
         commands
             .entity(player)
-            .add_child(stock);
-
-        for _n in 0..47 {
-            let token = commands
-                .spawn((
-                    Name::new(format!("Token {n}")),
-                    Token { player })).id();
-            commands
-                .entity(stock)
-                .add_child(token);
-        }
+            .insert(
+                Stock::new(
+                    47,
+                    (0..47).map(|_| {
+                        commands
+                            .spawn(
+                                (
+                                    Name::new(format!("Token {n}")),
+                                    Token { player })).id()
+                    }
+                    )
+                        .collect::<Vec<Entity>>()
+                )
+            );
     });
+}
+
+pub fn setup_game(
+    mut commands: Commands,
+) {
 
 
     // Create some Areas

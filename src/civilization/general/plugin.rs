@@ -74,6 +74,16 @@ pub struct NeedsConnections {
 #[derive(Component, Debug)]
 pub struct Stock {
     pub max_tokens: usize,
+    pub tokens: Vec<Entity>
+}
+
+impl Stock {
+    pub(crate) fn new(max_tokens: usize, tokens: Vec<Entity>) -> Self {
+        Stock {
+            max_tokens,
+            tokens
+        }
+    }
 }
 
 #[derive(Component, Debug)]
