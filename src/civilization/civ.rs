@@ -4,6 +4,7 @@ use bevy::prelude::{in_state, BuildChildren, Children, Commands, Component, Enti
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use crate::civilization::census::{Census, CensusPlugin, GameInfoAndStuff};
 use crate::civilization::game_phases::GamePhasesPlugin;
+use crate::civilization::movement;
 use crate::civilization::movement::MovementPlugin;
 use crate::civilization::population_expansion::PopulationExpansionPlugin;
 use crate::GameState;
@@ -35,7 +36,7 @@ impl Plugin for CivilizationPlugin {
                 Update, (
                     connect_areas
                         .run_if(in_state(GameState::Playing)),
-                    move_token_from_area_to_area
+                    movement::move_token_from_area_to_area
                         .run_if(in_state(GameState::Playing)),
                     move_tokens_from_stock_to_area
                         .run_if(in_state(GameState::Playing))
@@ -136,11 +137,11 @@ fn setup_game(
     commands
         .spawn(
             (
-                Name::new("Start Area"),
+                Name::new("sa"),
                 Area { max_population: 2 },
                 LandPassage::default(),
                 NeedsConnections {
-                    land_connections: vec!("Area two".into(), "Area three".into()),
+                    land_connections: vec!("2".into(), "3".into()),
                     sea_connections: vec!(),
                 },
                 StartArea {}
@@ -151,10 +152,10 @@ fn setup_game(
         .spawn(
             (
                 Area { max_population: 3 },
-                Name::new("Area two"),
+                Name::new("2"),
                 LandPassage::default(),
                 NeedsConnections {
-                    land_connections: vec!("Start Area".into(), "Area four".into()),
+                    land_connections: vec!("sa".into(), "4".into()),
                     sea_connections: vec!(),
                 },
             )
@@ -164,10 +165,10 @@ fn setup_game(
         .spawn(
             (
                 Area { max_population: 1 },
-                Name::new("Area three"),
+                Name::new("3"),
                 LandPassage::default(),
                 NeedsConnections {
-                    land_connections: vec!("Start Area".into(), "Area four".into()),
+                    land_connections: vec!("sa".into(), "4".into()),
                     sea_connections: vec!(),
                 },
             )
@@ -177,10 +178,10 @@ fn setup_game(
         .spawn(
             (
                 Area { max_population: 5 },
-                Name::new("Area four"),
+                Name::new("4"),
                 LandPassage::default(),
                 NeedsConnections {
-                    land_connections: vec!("Area two".into(), "Area three".into()),
+                    land_connections: vec!("2".into(), "3".into()),
                     sea_connections: vec!(),
                 },
             )
@@ -208,25 +209,6 @@ fn connect_areas(
         commands.entity(area_entity).remove::<NeedsConnections>();
     }
 }
-
-fn move_token_from_area_to_area(
-    mut move_events: EventReader<MoveTokenFromAreaToAreaCommand>,
-    mut commands: Commands,
-) {
-    for ev in move_events.read() {
-        &ev.tokens.iter().for_each(|t| {
-            commands
-            }
-        );
-        commands.entity(ev.from_area_population).remove_children(&ev.tokens);
-        commands.entity(ev.to_area_population).push_children(&ev.tokens);
-
-    }
-}
-
-/***
-A system that checks if an area has children... I mean, this is completely unnecessary really
- */
 
 /**
 This is 100% needed to be able to test expansion and stuff.

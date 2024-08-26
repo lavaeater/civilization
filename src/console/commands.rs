@@ -1,6 +1,6 @@
 use crate::civilization::census::GameInfoAndStuff;
 use crate::civilization::civ::{Area, MoveTokenFromAreaToAreaCommand, MoveTokensFromStockToAreaCommand, Population, StartArea};
-use crate::civilization::movement::MoveableTokens;
+use crate::civilization::movement::{ClearMovesCommand, MoveableTokens};
 use crate::player::Player;
 use bevy::app::{App, Plugin};
 use bevy::prelude::{Children, Entity, EventWriter, Name, Parent, Query, Res, With};
@@ -78,6 +78,7 @@ fn list_moves(
     moveable_tokens: Query<(&Name, &MoveableTokens)>,
     name_query: Query<&Name>,
     game_info: Res<GameInfoAndStuff>,
+    mut clear_moves: EventWriter<ClearMovesCommand>
 ) {
     if let Some(Ok(ListMoves {})) = command.take() {
         if let Some(_player_to_move) = game_info.current_mover {
@@ -98,6 +99,7 @@ fn list_moves(
             let message = moves.map(|(from_name, number_of_tokens, targets)| {
                 format!("{from_name} can move max {number_of_tokens} to: {:?}", targets.iter().map(|name| name.as_str()).collect::<Vec<&str>>().join(", "))
             }).collect::<Vec<String>>().join("\n");
+            clear_moves.send(ClearMovesCommand {});
             command.reply(format!("Moves: {}", message));
         }
     }

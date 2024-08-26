@@ -1,9 +1,11 @@
 use bevy::app::{App, Update};
-use bevy::hierarchy::Parent;
-use crate::civilization::civ::{Area, LandPassage, Population, Token};
+use bevy::hierarchy::{BuildChildren, Parent};
+use crate::civilization::civ::{Area, LandPassage, MoveTokenFromAreaToAreaCommand, Population, Token};
 use bevy::prelude::{in_state, Children, Commands, Component, Entity, Event, EventReader, EventWriter, HierarchyQueryExt, IntoSystemConfigs, Plugin, Query, Reflect, ResMut, With};
 use bevy::utils::HashMap;
 use itertools::Itertools;
+use bevy_console::PrintConsoleLine;
+use clap::builder::StyledStr;
 use crate::civilization::census::{GameInfoAndStuff, HasPopulation};
 use crate::civilization::game_phases::{GameActivity, GameActivityStarted};
 use crate::GameState;
@@ -15,6 +17,7 @@ impl Plugin for MovementPlugin {
         app
             .add_event::<PrepareNextMoverCommand>()
             .add_event::<CalculateMovesCommand>()
+            .add_event::<ClearMovesCommand>()
             .add_systems(
                 Update, (
                     start_movement_activity
@@ -22,6 +25,8 @@ impl Plugin for MovementPlugin {
                     prepare_next_mover
                         .run_if(in_state(GameState::Playing)),
                     calculate_moves
+                        .run_if(in_state(GameState::Playing)),
+                    clear_moves
                         .run_if(in_state(GameState::Playing)),
                 ),
             )
@@ -31,6 +36,9 @@ impl Plugin for MovementPlugin {
 
 #[derive(Event, Debug, Reflect)]
 pub struct PrepareNextMoverCommand;
+
+#[derive(Event, Debug, Reflect)]
+pub struct ClearMovesCommand;
 
 #[derive(Event, Debug, Reflect)]
 pub struct CalculateMovesCommand;
@@ -68,7 +76,7 @@ pub fn prepare_next_mover(
     moveable_tokens: Query<(&Population, &Children), With<HasPopulation>>,
     token_query: Query<&Token>,
     mut commands: Commands,
-    mut calc_moves_writer: EventWriter<CalculateMovesCommand>,
+    mut clear_moves: EventWriter<ClearMovesCommand>,
 ) {
     for _ in next_mover.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
@@ -83,12 +91,26 @@ pub fn prepare_next_mover(
                     }
                 }
             });
-            calc_moves_writer.send(CalculateMovesCommand {});
+            clear_moves.send(ClearMovesCommand {});
         } else {
             // We're done bro
             game_info.current_mover = None;
             // move_ended_writer.send(GameActivityEnded(GameActivity::Movement));
         }
+    }
+}
+
+pub fn clear_moves(
+    mut clear_moves_reader: EventReader<ClearMovesCommand>,
+    moveable_tokens: Query<(Entity, &MoveableTokens)>,
+    mut commands: Commands,
+    mut calculate_moves: EventWriter<CalculateMovesCommand>
+) {
+    for _ in clear_moves_reader.read() {
+        moveable_tokens.iter().for_each(|(area, _)| {
+            commands.entity(area).remove::<MoveableTokens>();
+        });
+        calculate_moves.send(CalculateMovesCommand {});
     }
 }
 
@@ -134,18 +156,31 @@ pub fn calculate_moves(
                 .first()
                 .unwrap();
 
-            if let Ok((_area, lp)) = area_query.get(area_entity) {
-                commands.entity(area_entity).insert(MoveableTokens {
-                    tokens,
-                    targets: lp.to_areas.clone(),
-                });
+            if tokens.len() > 0 {
+                if let Ok((_area, lp)) = area_query.get(area_entity) {
+                    commands.entity(area_entity).insert(MoveableTokens {
+                        tokens,
+                        targets: lp.to_areas.clone(),
+                    });
+                }
             }
         }
     }
 }
 
-pub fn handle_move_selections(
-
+pub fn move_token_from_area_to_area(
+    mut move_events: EventReader<MoveTokenFromAreaToAreaCommand>,
+    mut commands: Commands,
+    mut write_line: EventWriter<PrintConsoleLine>,
+    mut calculate_moves_command: EventWriter<CalculateMovesCommand>
 ) {
-
+    for ev in move_events.read() {
+        ev.tokens.iter().for_each(|t| {
+            commands.entity(*t).remove::<TokenCanMove>();
+        });
+        write_line.send(PrintConsoleLine::new(StyledStr::from("Moved some tokens!")));
+        commands.entity(ev.from_area_population).remove_children(&ev.tokens);
+        commands.entity(ev.to_area_population).push_children(&ev.tokens);
+        calculate_moves_command.send(CalculateMovesCommand {});
+    }
 }
