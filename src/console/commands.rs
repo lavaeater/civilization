@@ -5,7 +5,7 @@ use bevy::prelude::{Children, Entity, EventWriter, Name, Parent, Query, Res, Wit
 use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
 use clap::Parser;
 use crate::civilization::census::resources::GameInfoAndStuff;
-use crate::civilization::game_phases::{GameActivity, GameActivityEnded};
+use crate::civilization::game_phases_plugin::{GameActivity, GameActivityEnded};
 use crate::civilization::general::plugin::{Area, MoveTokenFromAreaToAreaCommand, MoveTokensFromStockToAreaCommand, Population, StartArea};
 
 pub struct CommandsPlugin;

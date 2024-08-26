@@ -1,25 +1,7 @@
-use bevy::app::Update;
-use bevy::prelude::{in_state, Event, EventReader, EventWriter, IntoSystemConfigs, Plugin, Reflect};
+use bevy::prelude::{EventReader, EventWriter};
 use bevy_console::PrintConsoleLine;
 use clap::builder::StyledStr;
-use crate::GameState;
-
-pub struct GamePhasesPlugin;
-
-impl Plugin for GamePhasesPlugin {
-    fn build(&self, app: &mut bevy::app::App) {
-        app
-            .add_event::<GameActivityStarted>()
-            .add_event::<GameActivityEnded>()
-            .add_systems(
-                Update, (
-                    print_names_of_phases.run_if(in_state(GameState::Playing)),
-                    direct_game_phases.run_if(in_state(GameState::Playing)),
-                ),
-            )
-        ;
-    }
-}
+use crate::civilization::game_phases::plugin::{GameActivity, GameActivityEnded, GameActivityStarted};
 
 pub fn print_names_of_phases(
     mut write_line: EventWriter<PrintConsoleLine>,
@@ -66,27 +48,3 @@ pub fn direct_game_phases(
         }
     }
 }
-
-#[derive(Debug, Reflect, PartialEq, Copy, Clone)]
-pub enum GameActivity {
-    CollectTaxes,
-    PopulationExpansion,
-    Census,
-    ShipConstruction,
-    Movement,
-    Conflict,
-    CityConstruction,
-    RemoveSurplusPopulation,
-    CheckCitySupport,
-    AcquireTradeCards,
-    Trade,
-    ResolveCalamities,
-    AcquireCivilizationCards,
-    MoveSuccessionMarkers,
-}
-
-#[derive(Event, Debug, Reflect)]
-pub struct GameActivityStarted(pub GameActivity);
-
-#[derive(Event, Debug, Reflect)]
-pub struct GameActivityEnded(pub GameActivity);

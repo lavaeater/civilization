@@ -4,7 +4,7 @@ use bevy::hierarchy::Children;
 use bevy::log::info;
 use bevy::utils::HashMap;
 use itertools::Itertools;
-use crate::civilization::game_phases::{GameActivity, GameActivityEnded, GameActivityStarted};
+use crate::civilization::game_phases_plugin::{GameActivity, GameActivityEnded, GameActivityStarted};
 use crate::civilization::general::plugin::{Population, Stock, Token, CannotAutoExpandPopulation, MoveTokensFromStockToAreaCommand};
 use crate::GameState;
 use crate::player::Player;

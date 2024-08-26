@@ -4,7 +4,7 @@ use bevy::utils::HashMap;
 use crate::civilization::census::events::{CensusEnded, CheckAreasForPopulationCommand};
 use crate::civilization::census::components::{Census, HasPopulation};
 use crate::civilization::census::resources::GameInfoAndStuff;
-use crate::civilization::game_phases::{GameActivity, GameActivityEnded, GameActivityStarted};
+use crate::civilization::game_phases_plugin::{GameActivity, GameActivityEnded, GameActivityStarted};
 use crate::civilization::general::plugin::{Area, Population, Stock};
 use crate::player::Player;
 

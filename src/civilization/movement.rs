@@ -7,7 +7,7 @@ use bevy_console::PrintConsoleLine;
 use clap::builder::StyledStr;
 use crate::civilization::census::components::HasPopulation;
 use crate::civilization::census::resources::GameInfoAndStuff;
-use crate::civilization::game_phases::{GameActivity, GameActivityStarted};
+use crate::civilization::game_phases_plugin::{GameActivity, GameActivityStarted};
 use crate::civilization::general::plugin::{Area, LandPassage, MoveTokenFromAreaToAreaCommand, Population, Token};
 use crate::GameState;
 
