@@ -1,6 +1,7 @@
 use bevy::app::{App, Plugin};
 use bevy::prelude::{Children, Entity, EventWriter, HierarchyQueryExt, Name, Parent, Query, Res, With};
 use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
+use clap::error::ContextValue::StyledStr;
 use clap::Parser;
 use itertools::Itertools;
 use crate::civilization::census::GameInfoAndStuff;
@@ -34,36 +35,19 @@ struct ListMoves;
 fn list_moves(
     mut command: ConsoleCommand<ListMoves>,
     moveable_tokens: Query<(Entity, &Token), With<TokenCanMove>>,
-    parent: Query<&Parent>,
-    area_query: Query<(&Area, &LandPassage)>,
     name_query: Query<&Name>,
-    game_info: Res<GameInfoAndStuff>
+    game_info: Res<GameInfoAndStuff>,
 ) {
     if let Some(Ok(ListMoves {})) = command.take() {
         if let Some(player_to_move) = game_info.current_mover {
             let message = moveable_tokens
                 .iter()
-                .filter(|(_, t)|{
+                .filter(|(_, t)| {
                     t.player == player_to_move
-            }).map(|(token_entity, _token)| {
-                //find area, is top entity
-                let area_entity: Entity = *parent.iter_ancestors(token_entity).filter(|e| {
-                    area_query.contains(*e)
-                }).collect::<Vec<Entity>>().first().unwrap();
-
-                if let Ok(n) = name_query.get(area_entity) {
-                    if let Ok((_p, lp)) = area_query.get(area_entity) {
-                        let lands: Vec<&Name> = lp
-                            .to_areas
-                            .iter()
-                            .map(|target| { name_query.get(*target).unwrap() })
-                            .collect();
-                        return format!("Can move from {n} to {:?}", lands);
-                    }
-                }
-                "".into()
-            }).join("\n");
-            command.reply(message);
+                }).map(|(token_entity, _token)| {});
+            //find area, is top entity
+            let mut messag = "".to_string();
+            command.reply(format!("Moves: {}", messag));
         }
     }
 }
@@ -74,7 +58,7 @@ struct ExpandPopulation;
 
 fn expand_population(
     mut command: ConsoleCommand<ExpandPopulation>,
-    mut writer: EventWriter<GameActivityStarted>
+    mut writer: EventWriter<GameActivityStarted>,
 ) {
     if let Some(Ok(ExpandPopulation {})) = command.take() {
         writer.send(GameActivityStarted(GameActivity::PopulationExpansion));
@@ -91,7 +75,7 @@ fn start_command(
     player_query: Query<Entity, With<Player>>,
     start_area_query: Query<(Entity, &Children), With<StartArea>>,
     pop_query: Query<(Entity, &Parent), With<Population>>,
-    mut writer: EventWriter<MoveTokensFromStockToAreaCommand>
+    mut writer: EventWriter<MoveTokensFromStockToAreaCommand>,
 ) {
     if let Some(Ok(StartCommand {})) = command.take() {
         if let Ok(player_entity) = player_query.get_single() {
@@ -99,7 +83,6 @@ fn start_command(
                 for child in children {
                     if let Ok((pop_entity, parent)) = pop_query.get(*child) {
                         if parent.get() == area_entity {
-
                             command.reply("Player adds a token to start area!");
                             writer.send(
                                 MoveTokensFromStockToAreaCommand {
