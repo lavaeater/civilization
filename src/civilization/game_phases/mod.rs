@@ -1,3 +1,3 @@
 pub mod systems;
 pub mod plugin;
-pub mod structs;
+pub mod game_activity;

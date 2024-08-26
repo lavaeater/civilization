@@ -1,12 +1,13 @@
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{in_state, Component, Entity, Event, IntoSystemConfigs, OnEnter, Reflect};
+use bevy::utils::HashMap;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use crate::civilization::census::plugin::CensusPlugin;
 use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases_plugin::GamePhasesPlugin;
 use crate::civilization::general::systems::{connect_areas, move_tokens_from_stock_to_area, setup_game};
 use crate::civilization::movement::MovementPlugin;
-use crate::civilization::population_expansion::PopulationExpansionPlugin;
+use crate::civilization::population_expansion_plugin::PopulationExpansionPlugin;
 use crate::GameState;
 
 pub struct CivilizationPlugin;
@@ -88,7 +89,7 @@ impl Stock {
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct Population {
-    pub population: Vec<Entity>,
+    pub population: HashMap<Entity, Vec<Entity>>,
 }
 
 #[derive(Component, Debug)]
@@ -99,5 +100,3 @@ pub struct Token {
     pub player: Entity,
 }
 
-#[derive(Component, Debug)]
-pub struct CannotAutoExpandPopulation;

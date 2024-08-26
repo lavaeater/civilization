@@ -1,7 +1,7 @@
 use bevy::prelude::{EventReader, EventWriter, StateTransitionEvent};
 use bevy_console::PrintConsoleLine;
 use clap::builder::StyledStr;
-use crate::civilization::game_phases::structs::GameActivity;
+use crate::civilization::game_phases::game_activity::GameActivity;
 
 pub fn print_names_of_phases(
     mut write_line: EventWriter<PrintConsoleLine>,

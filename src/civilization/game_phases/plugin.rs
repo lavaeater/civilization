@@ -1,7 +1,7 @@
 use crate::GameState;
 use bevy::app::Update;
 use bevy::prelude::{in_state, AppExtStates, IntoSystemConfigs, Plugin};
-use crate::civilization::game_phases::structs::GameActivity;
+use crate::civilization::game_phases::game_activity::GameActivity;
 use crate::civilization::game_phases::systems::print_names_of_phases;
 
 pub struct GamePhasesPlugin;
