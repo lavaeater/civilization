@@ -38,6 +38,7 @@ struct MoveCommand {
 
 fn perform_move(
     mut command: ConsoleCommand<MoveCommand>,
+    
 ) {
      if let Some(Ok(MoveCommand { from, to, number_of_tokens })) = command.take() {
         command.reply(format!("Moving {} tokens from {} to {}", number_of_tokens, from, to));
