@@ -45,22 +45,23 @@ fn list_moves(
                 .iter()
                 .filter(|(_, t)|{
                     t.player == player_to_move
-            }).map(|(token_entity, token)| {
+            }).map(|(token_entity, _token)| {
                 //find area, is top entity
                 let area_entity: Entity = *parent.iter_ancestors(token_entity).filter(|e| {
                     area_query.contains(*e)
                 }).collect::<Vec<Entity>>().first().unwrap();
 
                 if let Ok(n) = name_query.get(area_entity) {
-                    if let Ok((p, lp)) = area_query.get(area_entity) {
-                        let lands = lp
+                    if let Ok((_p, lp)) = area_query.get(area_entity) {
+                        let lands: Vec<&Name> = lp
                             .to_areas
                             .iter()
-                            .map(|targets| { name_query.get(*targets).unwrap() })
+                            .map(|target| { name_query.get(*target).unwrap() })
                             .collect();
-                        format!("Can move from {n} to {:?}", lands)
+                        return format!("Can move from {n} to {:?}", lands);
                     }
                 }
+                "".into()
             }).join("\n");
             command.reply(message);
         }
