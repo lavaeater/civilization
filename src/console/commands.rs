@@ -1,13 +1,11 @@
-use bevy::app::{App, Plugin};
-use bevy::prelude::{Children, Entity, EventWriter, HierarchyQueryExt, Name, Parent, Query, Res, With};
-use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
-use clap::error::ContextValue::StyledStr;
-use clap::Parser;
-use itertools::Itertools;
 use crate::civilization::census::GameInfoAndStuff;
-use crate::civilization::civ::{Area, GameActivity, GameActivityStarted, LandPassage, MoveTokensFromStockToAreaCommand, Population, StartArea, Token};
-use crate::civilization::movement::TokenCanMove;
+use crate::civilization::civ::{GameActivity, GameActivityStarted, MoveTokensFromStockToAreaCommand, Population, StartArea};
+use crate::civilization::movement::MoveableTokens;
 use crate::player::Player;
+use bevy::app::{App, Plugin};
+use bevy::prelude::{Children, Entity, EventWriter, Name, Parent, Query, Res, With};
+use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
+use clap::Parser;
 
 pub struct CommandsPlugin;
 
@@ -34,20 +32,21 @@ struct ListMoves;
 
 fn list_moves(
     mut command: ConsoleCommand<ListMoves>,
-    moveable_tokens: Query<(Entity, &Token), With<TokenCanMove>>,
+    moveable_tokens: Query<(&Name, &MoveableTokens)>,
     name_query: Query<&Name>,
     game_info: Res<GameInfoAndStuff>,
 ) {
     if let Some(Ok(ListMoves {})) = command.take() {
-        if let Some(player_to_move) = game_info.current_mover {
+        if let Some(_player_to_move) = game_info.current_mover {
             let message = moveable_tokens
                 .iter()
-                .filter(|(_, t)| {
-                    t.player == player_to_move
-                }).map(|(token_entity, _token)| {});
-            //find area, is top entity
-            let mut messag = "".to_string();
-            command.reply(format!("Moves: {}", messag));
+                .map(|(from_name, move_specs)| {
+                    move_specs.targets.iter().map(|target| {
+                        let target_name = name_query.get(*target).unwrap();
+                        format!("{:?} to {:?}", from_name, target_name)
+                    }).collect::<Vec<String>>().join("\n");
+                });
+            command.reply(format!("Moves: {:?}", message));
         }
     }
 }
