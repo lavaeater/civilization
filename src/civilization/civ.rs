@@ -214,8 +214,13 @@ fn move_token_from_area_to_area(
     mut commands: Commands,
 ) {
     for ev in move_events.read() {
+        &ev.tokens.iter().for_each(|t| {
+            commands
+            }
+        );
         commands.entity(ev.from_area_population).remove_children(&ev.tokens);
         commands.entity(ev.to_area_population).push_children(&ev.tokens);
+
     }
 }
 
