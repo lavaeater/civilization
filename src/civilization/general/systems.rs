@@ -2,7 +2,7 @@ use bevy::core::Name;
 use bevy::hierarchy::Children;
 use bevy::prelude::{BuildChildren, Commands, Entity, EventReader, Query, With};
 use crate::civilization::census::components::Census;
-use crate::civilization::general::plugin::{Area, LandPassage, MoveTokensFromStockToAreaCommand, NeedsConnections, Stock, Token};
+use crate::civilization::general::plugin::{Population, Area, StartArea, LandPassage, MoveTokensFromStockToAreaCommand, NeedsConnections, Stock, Token};
 
 pub fn setup_players(
     mut commands: Commands
@@ -18,20 +18,21 @@ pub fn setup_players(
                 )
             ).id();
 
+        let tokens =                     (0..47).map(|_| {
+            commands
+                .spawn(
+                    (
+                        Name::new(format!("Token {n}")),
+                        Token { player })).id()
+        }
+        )
+            .collect::<Vec<Entity>>();
         commands
             .entity(player)
             .insert(
                 Stock::new(
                     47,
-                    (0..47).map(|_| {
-                        commands
-                            .spawn(
-                                (
-                                    Name::new(format!("Token {n}")),
-                                    Token { player })).id()
-                    }
-                    )
-                        .collect::<Vec<Entity>>()
+                    tokens
                 )
             );
     });
@@ -40,8 +41,6 @@ pub fn setup_players(
 pub fn setup_game(
     mut commands: Commands,
 ) {
-
-
     // Create some Areas
     commands
         .spawn(
@@ -53,10 +52,10 @@ pub fn setup_game(
                     land_connections: vec!("2".into(), "3".into()),
                     sea_connections: vec!(),
                 },
-                crate::civilization::general::plugin::StartArea {}
+                StartArea {},
+                Population::default()
             )
-        )
-        .with_children(|c| { c.spawn((Name::new("Population"), crate::civilization::general::plugin::Population {})); });
+        );
     commands
         .spawn(
             (
@@ -67,9 +66,9 @@ pub fn setup_game(
                     land_connections: vec!("sa".into(), "4".into()),
                     sea_connections: vec!(),
                 },
+                Population::default()
             )
-        )
-        .with_children(|c| { c.spawn((Name::new("Population"), crate::civilization::general::plugin::Population {})); });
+        );
     commands
         .spawn(
             (
@@ -80,9 +79,9 @@ pub fn setup_game(
                     land_connections: vec!("sa".into(), "4".into()),
                     sea_connections: vec!(),
                 },
+                Population::default()
             )
-        )
-        .with_children(|c| { c.spawn((Name::new("Population"), crate::civilization::general::plugin::Population {})); });
+        );
     commands
         .spawn(
             (
@@ -93,9 +92,9 @@ pub fn setup_game(
                     land_connections: vec!("2".into(), "3".into()),
                     sea_connections: vec!(),
                 },
+                Population::default()
             )
-        )
-        .with_children(|c| { c.spawn((Name::new("Population"), crate::civilization::general::plugin::Population {})); });
+        );
 }
 
 pub fn connect_areas(

@@ -86,8 +86,10 @@ impl Stock {
     }
 }
 
-#[derive(Component, Debug)]
-pub struct Population;
+#[derive(Component, Debug, Reflect, Default)]
+pub struct Population {
+    pub population: Vec<Entity>,
+}
 
 #[derive(Component, Debug)]
 pub struct StartArea;
