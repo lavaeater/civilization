@@ -3,7 +3,7 @@ use crate::civilization::game_phases::game_activity::GameActivity;
 use crate::civilization::general::components::{Area, StartArea};
 use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::movement::components::MoveableTokens;
-use crate::civilization::movement::events::MoveTokenFromAreaToAreaCommand;
+use crate::civilization::movement::events::{MoveTokenFromAreaToAreaCommand, NextPlayerStarted};
 use crate::player::Player;
 use bevy::app::{App, Plugin};
 use bevy::prelude::{Entity, EventWriter, Name, NextState, Query, Res, ResMut, With};
@@ -26,7 +26,22 @@ impl Plugin for CommandsPlugin {
             .add_console_command::<ExpandPopulation, _>(expand_population)
             .add_console_command::<ListMoves, _>(list_moves)
             .add_console_command::<MoveCommand, _>(perform_move)
+            .add_console_command::<EndMoveCommand, _>(end_move)
         ;
+    }
+}
+
+#[derive(Parser, ConsoleCommand)]
+#[command(name = "endmove")]
+struct EndMoveCommand;
+
+fn end_move(
+    mut command: ConsoleCommand<EndMoveCommand>,
+    mut next_player_started: EventWriter<NextPlayerStarted>
+) {
+    if let Some(Ok(EndMoveCommand {})) = command.take() {
+        next_player_started.send(NextPlayerStarted {});
+        command.reply("Next player started!");
     }
 }
 

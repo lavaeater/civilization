@@ -89,10 +89,10 @@ pub fn calculate_moves(
             area_tokens
                 .iter()
                 .filter(|t| moveable_tokens.contains(**t)).copied()
-                .map(|t| t)
+                // .map(|t| t)
                 .collect::<Vec<Entity>>();
 
-        if area_moveable_tokens.len() > 0 {
+        if !area_moveable_tokens.is_empty() {
             commands.entity(area_entity).insert(MoveableTokens {
                 tokens: area_moveable_tokens,
                 targets: land_passage.to_areas.clone(),
