@@ -1,5 +1,5 @@
 use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::movement::events::{PlayerMovementEnded, MoveTokenFromAreaToAreaCommand, NextPlayerStarted};
+use crate::civilization::movement::events::{PlayerMovementEnded, MoveTokenFromAreaToAreaCommand, NextPlayerStarted, InitAllAreas};
 use crate::civilization::movement::systems::{calculate_moves, clear_moves, move_token_from_area_to_area, player_end_movement, prepare_next_mover, start_movement_activity};
 use bevy::app::App;
 use bevy::prelude::{in_state, IntoSystemConfigs, OnEnter, OnExit, Plugin, Update};
@@ -12,6 +12,7 @@ impl Plugin for MovementPlugin {
             .add_event::<MoveTokenFromAreaToAreaCommand>()
             .add_event::<PlayerMovementEnded>()
             .add_event::<NextPlayerStarted>()
+            .add_event::<InitAllAreas>()
             .add_systems(
                 OnEnter(GameActivity::Movement), start_movement_activity,
             )

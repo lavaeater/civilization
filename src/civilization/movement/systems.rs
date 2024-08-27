@@ -3,7 +3,7 @@ use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::game_activity::GameActivity;
 use crate::civilization::general::components::{Area, LandPassage, Population};
 use crate::civilization::movement::components::{MoveableTokens, NeedsTocalculateMoves, PerformingMovement, TokenCanMove};
-use crate::civilization::movement::events::{PlayerMovementEnded, NextPlayerStarted};
+use crate::civilization::movement::events::{PlayerMovementEnded, NextPlayerStarted, InitAllAreas};
 use crate::civilization::movement::events::MoveTokenFromAreaToAreaCommand;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Name, NextState, Query, ResMut, With};
 use bevy_console::PrintConsoleLine;
@@ -11,15 +11,11 @@ use clap::builder::StyledStr;
 
 pub fn start_movement_activity(
     mut game_info: ResMut<GameInfoAndStuff>,
-    area_query: Query<Entity, With<Area>>,
     mut commands: Commands,
     mut next_player: EventWriter<NextPlayerStarted>
 ) {
     game_info.left_to_move = game_info.census_order.clone();
     game_info.left_to_move.reverse();
-    for area_entity in area_query.iter() {
-        commands.entity(area_entity).insert(NeedsTocalculateMoves {});
-    }
     next_player.send(NextPlayerStarted {});
 }
 
@@ -29,6 +25,7 @@ pub fn prepare_next_mover(
     moveable_tokens: Query<&Population, With<HasPopulation>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
+    mut init_all_areas: EventWriter<InitAllAreas>
 ) {
     for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
@@ -41,9 +38,22 @@ pub fn prepare_next_mover(
                     }
                 }
             });
+            init_all_areas.send(InitAllAreas {});
         } else {
             // All hath moved, move along
             next_state.set(GameActivity::Conflict);
+        }
+    }
+}
+
+pub fn init_all_areas(
+    mut init: EventReader<InitAllAreas>,
+    area_query: Query<Entity, With<Area>>,
+    mut commands: Commands,
+) {
+    for _ in init.read() {
+        for area_entity in area_query.iter() {
+            commands.entity(area_entity).insert(NeedsTocalculateMoves {});
         }
     }
 }
