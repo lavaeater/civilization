@@ -24,7 +24,7 @@ pub fn setup_players(
                 .spawn(
                     (
                         Name::new(format!("Token {n}")),
-                        Token { player })).id()
+                        Token::new(player))).id()
         }
         )
             .collect::<Vec<Entity>>();
@@ -129,7 +129,7 @@ pub fn move_tokens_from_stock_to_area(
 ) {
     for ev in move_commands.read() {
         if let Ok(mut stock) = stock_query.get_mut(ev.player_entity) {
-            if let Ok(mut population) = population_query.get_mut(ev.area_entity) {
+            if let Ok( mut population) = population_query.get_mut(ev.area_entity) {
                 let tokens_to_move = (0..ev.number_of_tokens).map(|_| stock.tokens.swap_remove(0)).collect::<Vec<Entity>>();
                 if !population.player_tokens.contains_key(&ev.player_entity) {
                    population.player_tokens.insert(ev.player_entity, Vec::new());

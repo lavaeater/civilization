@@ -10,7 +10,7 @@ pub enum GameActivity {
     Census,
     // ShipConstruction,
     Movement,
-    // Conflict,
+    Conflict,
     // CityConstruction,
     // RemoveSurplusPopulation,
     // CheckCitySupport,
