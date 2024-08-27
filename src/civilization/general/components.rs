@@ -19,7 +19,7 @@ pub struct NeedsConnections {
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct Population {
-    pub population: HashMap<Entity, Vec<Entity>>,
+    pub tokens: HashMap<Entity, Vec<Entity>>,
 }
 
 #[derive(Component, Debug)]

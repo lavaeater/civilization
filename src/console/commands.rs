@@ -1,9 +1,9 @@
 use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{Population, StartArea};
+use crate::civilization::general::components::StartArea;
 use crate::civilization::general::plugin::MoveTokensFromStockToAreaCommand;
 use crate::player::Player;
 use bevy::app::{App, Plugin};
-use bevy::prelude::{Children, Entity, EventWriter, NextState, Parent, Query, ResMut, With};
+use bevy::prelude::{Entity, EventWriter, NextState, Query, ResMut, With};
 use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
 use clap::Parser;
 
@@ -21,8 +21,8 @@ impl Plugin for CommandsPlugin {
             })
             .add_console_command::<StartCommand, _>(start_command)
             .add_console_command::<ExpandPopulation, _>(expand_population)
-            // .add_console_command::<ListMoves, _>(list_moves)
-            // .add_console_command::<MoveCommand, _>(perform_move)
+        // .add_console_command::<ListMoves, _>(list_moves)
+        // .add_console_command::<MoveCommand, _>(perform_move)
         ;
     }
 }
@@ -125,26 +125,19 @@ struct StartCommand;
 fn start_command(
     mut command: ConsoleCommand<StartCommand>,
     player_query: Query<Entity, With<Player>>,
-    start_area_query: Query<(Entity, &Children), With<StartArea>>,
-    pop_query: Query<(Entity, &Parent), With<Population>>,
+    start_area_query: Query<Entity, With<StartArea>>,
     mut writer: EventWriter<MoveTokensFromStockToAreaCommand>,
 ) {
     if let Some(Ok(StartCommand {})) = command.take() {
         if let Ok(player_entity) = player_query.get_single() {
-            if let Ok((area_entity, children)) = start_area_query.get_single() {
-                for child in children {
-                    if let Ok((pop_entity, parent)) = pop_query.get(*child) {
-                        if parent.get() == area_entity {
-                            command.reply("Player adds a token to start area!");
-                            writer.send(
-                                MoveTokensFromStockToAreaCommand {
-                                    population_entity: pop_entity,
-                                    stock_entity: player_entity,
-                                    number_of_tokens: 1,
-                                });
-                        }
-                    }
-                }
+            if let Ok(area_entity) = start_area_query.get_single() {
+                command.reply("Player adds a token to start area!");
+                writer.send(
+                    MoveTokensFromStockToAreaCommand {
+                        area_entity,
+                        player_entity,
+                        number_of_tokens: 1,
+                    });
             }
         }
     }

@@ -10,12 +10,12 @@ pub fn check_population_expansion_eligibility(
 ) {
     for (player, stock) in player_stock_query.iter() {
         // how many tokens has the player?
-        let tokens_in_stock = stock.iter().count();
+        let tokens_in_stock = stock.tokens.len();
 
         let mut required_tokens = 0;
         for (pop_entity, pop) in area_pop_query.iter() {
-            if let Some(p) = pop.population.get(player) {
-                let rt = match *p.len() {
+            if let Some(p) = pop.tokens.get(&player) {
+                let rt = match p.len() {
                     1 => { 1 }
                     0 => { 0 }
                     _ => { 2 }
@@ -47,18 +47,18 @@ pub fn expand_population(
     mut commands: Commands,
 ) {
     for (pop_entity, pop) in area_query.iter() {
-        for (player, tokens) in pop.population.iter() {
+        for (player, tokens) in pop.tokens.iter() {
             if to_expand.contains(*player) {
                 if tokens.len() == 1 {
                     event_writer.send(MoveTokensFromStockToAreaCommand {
-                        population_entity: pop_entity,
-                        stock_entity: *player,
+                        area_entity: pop_entity,
+                        player_entity: *player,
                         number_of_tokens: 1,
                     });
                 } else if tokens.len() > 1 {
                     event_writer.send(MoveTokensFromStockToAreaCommand {
-                        population_entity: pop_entity,
-                        stock_entity: *player,
+                        area_entity: pop_entity,
+                        player_entity: *player,
                         number_of_tokens: 2,
                     });
                 }

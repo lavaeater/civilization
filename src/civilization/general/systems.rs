@@ -1,14 +1,13 @@
-use bevy::core::Name;
-use bevy::hierarchy::Children;
-use bevy::prelude::{BuildChildren, Commands, Entity, EventReader, Query, With};
 use crate::civilization::census::components::Census;
 use crate::civilization::general::components::{Area, LandPassage, NeedsConnections, Population, StartArea, Token};
 use crate::civilization::general::plugin::{MoveTokensFromStockToAreaCommand, Stock};
+use bevy::core::Name;
+use bevy::prelude::{Commands, Entity, EventReader, Query, With};
 
 pub fn setup_players(
     mut commands: Commands
 ) {
-    (1..=1).into_iter().for_each(|n| {
+    (1..=1).for_each(|n| {
         // Create Player
         let player = commands
             .spawn(
@@ -19,7 +18,7 @@ pub fn setup_players(
                 )
             ).id();
 
-        let tokens =                     (0..47).map(|_| {
+        let tokens = (0..47).map(|_| {
             commands
                 .spawn(
                     (
@@ -33,7 +32,7 @@ pub fn setup_players(
             .insert(
                 Stock::new(
                     47,
-                    tokens
+                    tokens,
                 )
             );
     });
@@ -124,18 +123,25 @@ This is 100% needed to be able to test expansion and stuff.
 */
 pub fn move_tokens_from_stock_to_area(
     mut move_commands: EventReader<MoveTokensFromStockToAreaCommand>,
-    player_stock_query: Query<&Children, With<Stock>>,
-    player_query: Query<&Children>,
-    mut commands: Commands,
+    mut stock_query: Query<&mut Stock>,
+    mut population_query: Query<&mut Population>,
 ) {
     for ev in move_commands.read() {
-        if let Ok(children) = player_query.get(ev.stock_entity) {
-            for child in children {
-                if let Ok(tokens) = player_stock_query.get(*child) {
-                    let tokens_to_move = &tokens.into_iter().as_slice()[0..ev.number_of_tokens];
-                    commands.entity(ev.stock_entity).remove_children(tokens_to_move);
-                    commands.entity(ev.population_entity).push_children(tokens_to_move);
+        if let Ok(mut stock) = stock_query.get_mut(ev.player_entity) {
+            if let Ok(mut population) = population_query.get_mut(ev.area_entity) {
+                let tokens_to_move = (0..ev.number_of_tokens).map(|_| stock.tokens.swap_remove(0)).collect::<Vec<Entity>>();
+                if !population.tokens.contains_key(&ev.player_entity) {
+                   population.tokens.insert(ev.player_entity, Vec::new());
                 }
+                tokens_to_move
+                    .iter()
+                    .for_each(|t| {
+                        population
+                            .tokens
+                            .get_mut(&ev.player_entity)
+                            .unwrap()
+                            .push(*t)
+                    });
             }
         }
     }

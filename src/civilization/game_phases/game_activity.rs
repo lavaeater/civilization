@@ -1,6 +1,5 @@
-use bevy::prelude::SubStates;
+use bevy::prelude::{SubStates, StateSet};
 use crate::GameState;
-use StateSet;
 
 #[derive(SubStates, Clone, PartialEq, Eq, Hash, Debug, Default)]
 #[source(GameState = GameState::Playing)]
