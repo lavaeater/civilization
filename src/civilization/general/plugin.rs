@@ -5,8 +5,10 @@ use crate::civilization::census::plugin::CensusPlugin;
 use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::plugin::GamePhasesPlugin;
 use crate::civilization::general::components::{Area, LandPassage, Population, Stock, Token};
-use crate::civilization::general::events::{MoveTokenFromAreaToAreaCommand, MoveTokensFromStockToAreaCommand};
+use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::general::systems::{connect_areas, move_tokens_from_stock_to_area, setup_game, setup_players};
+use crate::civilization::movement::events::MoveTokenFromAreaToAreaCommand;
+use crate::civilization::movement::plugin::MovementPlugin;
 use crate::civilization::population_expansion::plugin::PopulationExpansionPlugin;
 use crate::console::commands::CommandsPlugin;
 use crate::GameState;
@@ -28,13 +30,13 @@ impl Plugin for CivilizationPlugin {
             .register_type::<Area>()
             .register_type::<Population>()
             .add_event::<MoveTokensFromStockToAreaCommand>()
-            .add_event::<MoveTokenFromAreaToAreaCommand>()
             .add_plugins(
                 (
                     GamePhasesPlugin,
                     CommandsPlugin,
                     PopulationExpansionPlugin,
                     CensusPlugin,
+                    MovementPlugin,
                 )
             )
             .add_systems(OnEnter(GameState::Playing), (setup_game, setup_players))
