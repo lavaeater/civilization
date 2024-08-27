@@ -6,6 +6,7 @@ use crate::civilization::game_phases::plugin::GamePhasesPlugin;
 use crate::civilization::general::components::{LandPassage, Token};
 use crate::civilization::general::systems::{connect_areas, move_tokens_from_stock_to_area, setup_game};
 use crate::civilization::population_expansion::plugin::PopulationExpansionPlugin;
+use crate::console::commands::CommandsPlugin;
 use crate::GameState;
 
 pub struct CivilizationPlugin;
@@ -26,6 +27,7 @@ impl Plugin for CivilizationPlugin {
             .add_plugins(
                 (
                     GamePhasesPlugin,
+                    CommandsPlugin,
                     PopulationExpansionPlugin
                 )
             )

@@ -13,14 +13,11 @@ use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
 use crate::menu::MenuPlugin;
 
-use crate::console::commands::CommandsPlugin;
+use crate::civilization::general::plugin::CivilizationPlugin;
 use bevy::app::App;
 // #[cfg(debug_assertions)]
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
-use crate::civilization::game_phases::plugin::GamePhasesPlugin;
-use crate::civilization::general::plugin::CivilizationPlugin;
-use crate::civilization::population_expansion::plugin::PopulationExpansionPlugin;
 
 // This example game uses States to separate logic
 // See https://bevy-cheatbook.github.io/programming/states.html
@@ -45,10 +42,7 @@ impl Plugin for GamePlugin {
             MenuPlugin,
             ActionsPlugin,
             InternalAudioPlugin,
-            GamePhasesPlugin,
             CivilizationPlugin,
-            CommandsPlugin,
-            PopulationExpansionPlugin
         ));
 
         // #[cfg(debug_assertions)]

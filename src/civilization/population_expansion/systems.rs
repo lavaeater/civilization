@@ -28,14 +28,16 @@ pub fn check_population_expansion_eligibility(
                 required_tokens += rt;
             };
         }
-        if required_tokens <= tokens_in_stock {
-            commands
-                .entity(player)
-                .insert((ExpandAutomatically { required_tokens }, NeedsExpansion {}));
-        } else {
-            commands
-                .entity(player)
-                .insert((ExpandManually {}, NeedsExpansion {}));
+        if required_tokens > 0 {
+            if required_tokens <= tokens_in_stock {
+                commands
+                    .entity(player)
+                    .insert((ExpandAutomatically { required_tokens }, NeedsExpansion {}));
+            } else {
+                commands
+                    .entity(player)
+                    .insert((ExpandManually {}, NeedsExpansion {}));
+            }
         }
     }
 }
