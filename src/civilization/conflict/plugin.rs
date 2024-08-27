@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use crate::civilization::game_phases::game_activity::GameActivity;
 use bevy::app::App;
 use bevy::prelude::{Entity, EventWriter, NextState, OnEnter, Plugin, Query, ResMut};
@@ -40,51 +41,66 @@ fn resolve_conflicts(
             let key_a = &keys.remove(0);
             let key_b = &keys.remove(0);
 
-            let same_length = player_tokens.get(key_a).unwrap().len() == player_tokens.get(key_b).unwrap().len();
+            let player_tokens_a = player_tokens.get(key_a).unwrap();
+            let player_tokens_b = player_tokens.get(key_b).unwrap();
 
-            if same_length {
-                while pop.total_population > area.max_population {
-                    pop.total_population -= 2;
-                    if let Some(vec_a) = pop.player_tokens.get_mut(key_a) {
-                        if let Some(token_entity) = vec_a.pop() {
-                            return_token.send(ReturnTokenToStock { token_entity });
+            let compared = player_tokens_a.len().cmp(&player_tokens_b.len());
+
+            match compared {
+                Ordering::Less => {
+                    // player_a has less tokens
+
+                }
+                Ordering::Equal => {
+                    while pop.total_population > area.max_population {
+                        pop.total_population -= 2;
+                        if let Some(vec_a) = pop.player_tokens.get_mut(key_a) {
+                            if let Some(token_entity) = vec_a.pop() {
+                                return_token.send(ReturnTokenToStock { token_entity });
+                            }
                         }
-                    }
 
-                    if let Some(vec_b) = pop.player_tokens.get_mut(key_b) {
-                        if let Some(token_entity) = vec_b.pop() {
-                            return_token.send(ReturnTokenToStock { token_entity });
+                        if let Some(vec_b) = pop.player_tokens.get_mut(key_b) {
+                            if let Some(token_entity) = vec_b.pop() {
+                                return_token.send(ReturnTokenToStock { token_entity });
+                            }
                         }
                     }
                 }
-            } else {
-                // Determine order
-                let mut temp_map = map.into_iter().collect();
-
-                // Step 2: Sort the Vec by the usize value in descending order
-                vec.sort_by(|a, b| b.1.cmp(&a.1));
-
-                // Step 3: Extract the Entity values from the sorted Vec
-                let sorted_entities: Vec<Entity> = vec.into_iter().map(|(entity, _)| entity).collect();
-
-
-
-
-                while pop.total_population > area.max_population {
-                    pop.total_population -= 1;
-                    if let Some(vec_a) = pop.player_tokens.get_mut(key_a) {
-                        if let Some(token_entity) = vec_a.pop() {
-                            return_token.send(ReturnTokenToStock { token_entity });
-                        }
-                    }
-
-                    if let Some(vec_b) = pop.player_tokens.get_mut(key_b) {
-                        if let Some(token_entity) = vec_b.pop() {
-                            return_token.send(ReturnTokenToStock { token_entity });
-                        }
-                    }
+                Ordering::Greater => {
+                    // player_b has less tokens
                 }
             }
+
+            //     } else {
+            //         // Determine order
+            //         let mut temp_map = map.into_iter().collect();
+            //
+            //         // Step 2: Sort the Vec by the usize value in descending order
+            //         vec.sort_by(|a, b| b.1.cmp(&a.1));
+            //
+            //         // Step 3: Extract the Entity values from the sorted Vec
+            //         let sorted_entities: Vec<Entity> = vec.into_iter().map(|(entity, _)| entity).collect();
+            //
+            //
+            //
+            //
+            //         while pop.total_population > area.max_population {
+            //             pop.total_population -= 1;
+            //             if let Some(vec_a) = pop.player_tokens.get_mut(key_a) {
+            //                 if let Some(token_entity) = vec_a.pop() {
+            //                     return_token.send(ReturnTokenToStock { token_entity });
+            //                 }
+            //             }
+            //
+            //             if let Some(vec_b) = pop.player_tokens.get_mut(key_b) {
+            //                 if let Some(token_entity) = vec_b.pop() {
+            //                     return_token.send(ReturnTokenToStock { token_entity });
+            //                 }
+            //             }
+            //         }
+            //     }
+            // }
         }
     }
     next_state.set(GameActivity::PopulationExpansion);
