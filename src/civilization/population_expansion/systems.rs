@@ -3,6 +3,7 @@ use crate::civilization::game_phases::game_activity::GameActivity;
 use crate::civilization::general::components::Population;
 use crate::civilization::general::plugin::{MoveTokensFromStockToAreaCommand, Stock};
 use crate::civilization::population_expansion::components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
+
 pub fn check_population_expansion_eligibility(
     area_pop_query: Query<(Entity, &Population), Without<NeedsExpansion>>,
     player_stock_query: Query<(Entity, &Stock), Without<NeedsExpansion>>,
@@ -21,7 +22,7 @@ pub fn check_population_expansion_eligibility(
                     _ => { 2 }
                 };
                 if rt > 0 {
-                    commands.entity(pop_entity).insert(NeedsExpansion{});
+                    commands.entity(pop_entity).insert(NeedsExpansion {});
                 }
 
                 required_tokens += rt;
@@ -49,24 +50,28 @@ pub fn expand_population(
     for (pop_entity, pop) in area_query.iter() {
         for (player, tokens) in pop.tokens.iter() {
             if to_expand.contains(*player) {
-                if tokens.len() == 1 {
-                    event_writer.send(MoveTokensFromStockToAreaCommand {
-                        area_entity: pop_entity,
-                        player_entity: *player,
-                        number_of_tokens: 1,
-                    });
-                } else if tokens.len() > 1 {
-                    event_writer.send(MoveTokensFromStockToAreaCommand {
-                        area_entity: pop_entity,
-                        player_entity: *player,
-                        number_of_tokens: 2,
-                    });
+                match tokens.len() {
+                    0 => {}
+                    1 => {
+                        event_writer.send(MoveTokensFromStockToAreaCommand {
+                            area_entity: pop_entity,
+                            player_entity: *player,
+                            number_of_tokens: 1,
+                        });
+                    }
+                    _ => {
+                        event_writer.send(MoveTokensFromStockToAreaCommand {
+                            area_entity: pop_entity,
+                            player_entity: *player,
+                            number_of_tokens: 2,
+                        });
+                    }
                 }
             }
         }
         commands.entity(pop_entity).remove::<NeedsExpansion>();
     }
-    for(player, _) in to_expand.iter() {
+    for (player, _) in to_expand.iter() {
         commands.entity(player).remove::<NeedsExpansion>();
         commands.entity(player).remove::<ExpandAutomatically>();
     }
