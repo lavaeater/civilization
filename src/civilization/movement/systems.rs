@@ -1,16 +1,13 @@
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With, Without};
-use bevy::hierarchy::{BuildChildren, Children, HierarchyQueryExt, Parent};
-use bevy_console::PrintConsoleLine;
-use clap::builder::StyledStr;
-use bevy::utils::HashMap;
-use itertools::Itertools;
 use crate::civilization::census::components::HasPopulation;
 use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{Area, LandPassage, Population, Token};
-use crate::civilization::movement::events::MoveTokenFromAreaToAreaCommand;
-use crate::civilization::movement::components::{MoveableTokens, TokenCanMove, PerformingMovement};
+use crate::civilization::general::components::{LandPassage, Population};
+use crate::civilization::movement::components::{MoveableTokens, PerformingMovement, TokenCanMove};
 use crate::civilization::movement::events::EndPlayerMovement;
+use crate::civilization::movement::events::MoveTokenFromAreaToAreaCommand;
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Name, NextState, Query, ResMut, With, Without};
+use bevy_console::PrintConsoleLine;
+use clap::builder::StyledStr;
 
 pub fn start_movement_activity(
     mut game_info: ResMut<GameInfoAndStuff>,
@@ -21,7 +18,7 @@ pub fn start_movement_activity(
 
 pub fn prepare_next_mover(
     mut game_info: ResMut<GameInfoAndStuff>,
-    moveable_tokens: Query<(&Population), With<HasPopulation>>,
+    moveable_tokens: Query<&Population, With<HasPopulation>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
@@ -59,15 +56,25 @@ pub fn clear_moves(
 
 pub fn calculate_moves(
     moveable_tokens: Query<Entity, With<TokenCanMove>>,
-    area_query: Query<(Entity, &LandPassage, &Population), Without<MoveableTokens>>,
+    area_query: Query<(Entity, &LandPassage, &Population, &Name), Without<MoveableTokens>>,
     mut commands: Commands,
+    mut write_line: EventWriter<PrintConsoleLine>,
 ) {
-    for (area_entity, land_passage, population) in area_query.iter() {
-        let area_tokens: Vec<Entity> = population.player_tokens.values().flatten().map(|e| *e).collect();
+    for (area_entity, land_passage, population, name) in area_query.iter() {
+        let area_tokens: Vec<Entity> =
+            population
+                .player_tokens
+                .values()
+                .flat_map(|v| v.iter()
+                    .copied())
+                .collect::<Vec<Entity>>();
+
         let area_moveable_tokens =
             area_tokens
                 .iter()
-                .filter(|t| moveable_tokens.contains(**t)).collect::<Vec<Entity>>();
+                .filter(|t| moveable_tokens.contains(**t)).copied()
+                .map(|t| t)
+                .collect::<Vec<Entity>>();
 
         if area_moveable_tokens.len() > 0 {
             commands.entity(area_entity).insert(MoveableTokens {
@@ -75,13 +82,14 @@ pub fn calculate_moves(
                 targets: land_passage.to_areas.clone(),
             });
         }
+        write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Recalculated moves for {}", name))));
     }
 }
 
 pub fn player_end_movement(
     mut end_event: EventReader<EndPlayerMovement>,
     mut game_info_and_stuff: ResMut<GameInfoAndStuff>,
-    mut commands: Commands
+    mut commands: Commands,
 ) {
     for _ in end_event.read() {
         if let Some(player) = game_info_and_stuff.current_mover {
@@ -93,17 +101,29 @@ pub fn player_end_movement(
 
 pub fn move_token_from_area_to_area(
     mut move_events: EventReader<MoveTokenFromAreaToAreaCommand>,
+    mut pop_query: Query<&mut Population>,
     mut commands: Commands,
     mut write_line: EventWriter<PrintConsoleLine>,
-    mut calculate_moves_command: EventWriter<CalculateMovesCommand>,
 ) {
     for ev in move_events.read() {
-        ev.tokens.iter().for_each(|t| {
-            commands.entity(*t).remove::<TokenCanMove>();
-        });
-        write_line.send(PrintConsoleLine::new(StyledStr::from("Moved some tokens!")));
-        commands.entity(ev.from_area_population).remove_children(&ev.tokens);
-        commands.entity(ev.to_area_population).push_children(&ev.tokens);
-        calculate_moves_command.send(CalculateMovesCommand {});
+        let mut tokens_to_move = vec![];
+        if let Ok(mut from_pop) = pop_query.get_mut(ev.from_area) {
+            tokens_to_move = (0..ev.number_of_tokens).map(|_| from_pop.player_tokens.get_mut(&ev.player).unwrap().swap_remove(0)).collect::<Vec<Entity>>();
+        }
+        if let Ok(mut to_pop) = pop_query.get_mut(ev.to_area) {
+            tokens_to_move
+                .iter()
+                .for_each(|token| {
+                    commands.entity(*token).remove::<TokenCanMove>();
+                    to_pop
+                        .player_tokens
+                        .get_mut(&ev.player)
+                        .unwrap()
+                        .push(*token)
+                });
+            // this will make that area recompute its moves. Cool.
+            commands.entity(ev.from_area).remove::<MoveableTokens>();
+            write_line.send(PrintConsoleLine::new(StyledStr::from("Moved some tokens!")));
+        }
     }
 }
