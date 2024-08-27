@@ -1,10 +1,11 @@
 use bevy::app::{App, Plugin, Update};
-use bevy::prelude::{in_state, Component, Entity, Event, IntoSystemConfigs, OnEnter};
+use bevy::prelude::{in_state, IntoSystemConfigs, OnEnter};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::plugin::GamePhasesPlugin;
-use crate::civilization::general::components::{LandPassage, Token};
-use crate::civilization::general::systems::{connect_areas, move_tokens_from_stock_to_area, setup_game};
+use crate::civilization::general::components::{Area, LandPassage, Population, Stock, Token};
+use crate::civilization::general::events::{MoveTokenFromAreaToAreaCommand, MoveTokensFromStockToAreaCommand};
+use crate::civilization::general::systems::{connect_areas, move_tokens_from_stock_to_area, setup_game, setup_players};
 use crate::civilization::population_expansion::plugin::PopulationExpansionPlugin;
 use crate::console::commands::CommandsPlugin;
 use crate::GameState;
@@ -22,6 +23,9 @@ impl Plugin for CivilizationPlugin {
         app
             .register_type::<Token>()
             .register_type::<LandPassage>()
+            .register_type::<Stock>()
+            .register_type::<Area>()
+            .register_type::<Population>()
             .add_event::<MoveTokensFromStockToAreaCommand>()
             .add_event::<MoveTokenFromAreaToAreaCommand>()
             .add_plugins(
@@ -31,7 +35,7 @@ impl Plugin for CivilizationPlugin {
                     PopulationExpansionPlugin
                 )
             )
-            .add_systems(OnEnter(GameState::Playing), setup_game)
+            .add_systems(OnEnter(GameState::Playing), (setup_game, setup_players))
             .add_plugins(WorldInspectorPlugin::new())
             .insert_resource(GameInfoAndStuff::default())
             .add_systems(
@@ -41,35 +45,6 @@ impl Plugin for CivilizationPlugin {
                     move_tokens_from_stock_to_area
                         .run_if(in_state(GameState::Playing))
                 ));
-    }
-}
-
-#[derive(Event, Debug)]
-pub struct MoveTokensFromStockToAreaCommand {
-    pub area_entity: Entity,
-    pub player_entity: Entity,
-    pub number_of_tokens: usize,
-}
-
-#[derive(Event, Debug)]
-pub struct MoveTokenFromAreaToAreaCommand {
-    pub from_area_population: Entity,
-    pub to_area_population: Entity,
-    pub tokens: Vec<Entity>,
-}
-
-#[derive(Component, Debug)]
-pub struct Stock {
-    pub max_tokens: usize,
-    pub tokens: Vec<Entity>
-}
-
-impl Stock {
-    pub(crate) fn new(max_tokens: usize, tokens: Vec<Entity>) -> Self {
-        Stock {
-            max_tokens,
-            tokens
-        }
     }
 }
 

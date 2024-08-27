@@ -1,6 +1,6 @@
 use crate::civilization::game_phases::game_activity::GameActivity;
 use crate::civilization::general::components::StartArea;
-use crate::civilization::general::plugin::MoveTokensFromStockToAreaCommand;
+use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
 use crate::player::Player;
 use bevy::app::{App, Plugin};
 use bevy::prelude::{Entity, EventWriter, NextState, Query, ResMut, With};

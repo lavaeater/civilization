@@ -1,6 +1,8 @@
 use bevy::app::{App, Plugin, Update};
-use bevy::prelude::{in_state, Event, IntoSystemConfigs, OnEnter};
+use bevy::prelude::{in_state, IntoSystemConfigs, OnEnter};
 use crate::civilization::game_phases::game_activity::GameActivity;
+use crate::civilization::population_expansion::components::ExpandAutomatically;
+use crate::civilization::population_expansion::events::StartManualPopulationExpansionEvent;
 use crate::civilization::population_expansion::systems::{check_population_expansion_eligibility, expand_population};
 
 pub struct PopulationExpansionPlugin;
@@ -8,6 +10,7 @@ pub struct PopulationExpansionPlugin;
 impl Plugin for PopulationExpansionPlugin {
     fn build(&self, app: &mut App) {
         app
+            .register_type::<ExpandAutomatically>()
             .add_event::<StartManualPopulationExpansionEvent>()
             .add_systems(OnEnter(GameActivity::PopulationExpansion),
                          check_population_expansion_eligibility)
@@ -21,8 +24,6 @@ impl Plugin for PopulationExpansionPlugin {
     }
 }
 
-#[derive(Event, Debug)]
-pub struct StartManualPopulationExpansionEvent;
 
 /***
     * This system checks if the player has enough tokens to expand the population in all areas.

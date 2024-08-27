@@ -1,8 +1,9 @@
 use crate::civilization::census::components::Census;
 use crate::civilization::general::components::{Area, LandPassage, NeedsConnections, Population, StartArea, Token};
-use crate::civilization::general::plugin::{MoveTokensFromStockToAreaCommand, Stock};
+use crate::civilization::general::components::Stock;
 use bevy::core::Name;
 use bevy::prelude::{Commands, Entity, EventReader, Query, With};
+use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
 
 pub fn setup_players(
     mut commands: Commands
