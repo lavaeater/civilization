@@ -1,1 +1,3 @@
-pub mod population_expansion_plugin;
+pub mod plugin;
+pub mod systems;
+pub mod components;

@@ -1,7 +1,9 @@
 use bevy::prelude::SubStates;
+use crate::GameState;
+use StateSet;
 
 #[derive(SubStates, Clone, PartialEq, Eq, Hash, Debug, Default)]
-#[source(AppState = GameState::Playing)]
+#[source(GameState = GameState::Playing)]
 pub enum GameActivity {
     // CollectTaxes,
     #[default]

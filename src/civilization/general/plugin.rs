@@ -1,16 +1,18 @@
 use bevy::app::{App, Plugin, Update};
-use bevy::prelude::{in_state, Component, Entity, Event, IntoSystemConfigs, OnEnter, Reflect};
-use bevy::utils::HashMap;
+use bevy::prelude::{in_state, Component, Entity, Event, IntoSystemConfigs, OnEnter};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use crate::civilization::census::plugin::CensusPlugin;
 use crate::civilization::census::resources::GameInfoAndStuff;
-use crate::civilization::game_phases_plugin::GamePhasesPlugin;
+use crate::civilization::game_phases::plugin::GamePhasesPlugin;
+use crate::civilization::general::components::{LandPassage, Token};
 use crate::civilization::general::systems::{connect_areas, move_tokens_from_stock_to_area, setup_game};
-use crate::civilization::movement::MovementPlugin;
-use crate::civilization::population_expansion_plugin::PopulationExpansionPlugin;
+use crate::civilization::population_expansion::plugin::PopulationExpansionPlugin;
 use crate::GameState;
 
 pub struct CivilizationPlugin;
+
+// MovementPlugin,
+// CensusPlugin,
+
 
 /// This plugin handles player related stuff like movement
 /// Player logic is only active during the State `GameState::Playing`
@@ -23,8 +25,6 @@ impl Plugin for CivilizationPlugin {
             .add_event::<MoveTokenFromAreaToAreaCommand>()
             .add_plugins(
                 (
-                    MovementPlugin,
-                    CensusPlugin,
                     GamePhasesPlugin,
                     PopulationExpansionPlugin
                 )
@@ -57,22 +57,6 @@ pub struct MoveTokenFromAreaToAreaCommand {
 }
 
 #[derive(Component, Debug)]
-pub struct Area {
-    pub max_population: u8,
-}
-
-#[derive(Component, Debug, Reflect, Default)]
-pub struct LandPassage {
-    pub to_areas: Vec<Entity>,
-}
-
-#[derive(Component, Debug, Reflect)]
-pub struct NeedsConnections {
-    pub land_connections: Vec<String>,
-    pub sea_connections: Vec<String>,
-}
-
-#[derive(Component, Debug)]
 pub struct Stock {
     pub max_tokens: usize,
     pub tokens: Vec<Entity>
@@ -85,18 +69,5 @@ impl Stock {
             tokens
         }
     }
-}
-
-#[derive(Component, Debug, Reflect, Default)]
-pub struct Population {
-    pub population: HashMap<Entity, Vec<Entity>>,
-}
-
-#[derive(Component, Debug)]
-pub struct StartArea;
-
-#[derive(Component, Debug, Reflect)]
-pub struct Token {
-    pub player: Entity,
 }
 

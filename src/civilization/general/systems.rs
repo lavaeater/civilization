@@ -2,7 +2,8 @@ use bevy::core::Name;
 use bevy::hierarchy::Children;
 use bevy::prelude::{BuildChildren, Commands, Entity, EventReader, Query, With};
 use crate::civilization::census::components::Census;
-use crate::civilization::general::plugin::{Population, Area, StartArea, LandPassage, MoveTokensFromStockToAreaCommand, NeedsConnections, Stock, Token};
+use crate::civilization::general::components::{Area, LandPassage, NeedsConnections, Population, StartArea, Token};
+use crate::civilization::general::plugin::{MoveTokensFromStockToAreaCommand, Stock};
 
 pub fn setup_players(
     mut commands: Commands
