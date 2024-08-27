@@ -1,29 +1,36 @@
 use crate::civilization::census::components::HasPopulation;
 use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{LandPassage, Population};
-use crate::civilization::movement::components::{MoveableTokens, PerformingMovement, TokenCanMove};
-use crate::civilization::movement::events::EndPlayerMovement;
+use crate::civilization::general::components::{Area, LandPassage, Population};
+use crate::civilization::movement::components::{MoveableTokens, NeedsTocalculateMoves, PerformingMovement, TokenCanMove};
+use crate::civilization::movement::events::{PlayerMovementEnded, NextPlayerStarted};
 use crate::civilization::movement::events::MoveTokenFromAreaToAreaCommand;
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Name, NextState, Query, ResMut, With, Without};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Name, NextState, Query, ResMut, With};
 use bevy_console::PrintConsoleLine;
 use clap::builder::StyledStr;
 
 pub fn start_movement_activity(
     mut game_info: ResMut<GameInfoAndStuff>,
+    area_query: Query<Entity, With<Area>>,
+    mut commands: Commands,
+    mut next_player: EventWriter<NextPlayerStarted>
 ) {
     game_info.left_to_move = game_info.census_order.clone();
     game_info.left_to_move.reverse();
+    for area_entity in area_query.iter() {
+        commands.entity(area_entity).insert(NeedsTocalculateMoves {});
+    }
+    next_player.send(NextPlayerStarted {});
 }
 
 pub fn prepare_next_mover(
+    mut started: EventReader<NextPlayerStarted>,
     mut game_info: ResMut<GameInfoAndStuff>,
     moveable_tokens: Query<&Population, With<HasPopulation>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    // If no one is moving, get poppin!
-    if game_info.current_mover.is_none() {
+    for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
             commands.entity(to_move).insert(PerformingMovement {});
             game_info.current_mover = Some(to_move);
@@ -56,7 +63,7 @@ pub fn clear_moves(
 
 pub fn calculate_moves(
     moveable_tokens: Query<Entity, With<TokenCanMove>>,
-    area_query: Query<(Entity, &LandPassage, &Population, &Name), Without<MoveableTokens>>,
+    area_query: Query<(Entity, &LandPassage, &Population, &Name), With<NeedsTocalculateMoves>>,
     mut commands: Commands,
     mut write_line: EventWriter<PrintConsoleLine>,
 ) {
@@ -82,19 +89,22 @@ pub fn calculate_moves(
                 targets: land_passage.to_areas.clone(),
             });
         }
+        commands.entity(area_entity).remove::<NeedsTocalculateMoves>();
         write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Recalculated moves for {}", name))));
     }
 }
 
 pub fn player_end_movement(
-    mut end_event: EventReader<EndPlayerMovement>,
+    mut end_event: EventReader<PlayerMovementEnded>,
     mut game_info_and_stuff: ResMut<GameInfoAndStuff>,
     mut commands: Commands,
+    mut next_player: EventWriter<NextPlayerStarted>
 ) {
     for _ in end_event.read() {
         if let Some(player) = game_info_and_stuff.current_mover {
             commands.entity(player).remove::<PerformingMovement>();
             game_info_and_stuff.current_mover = None;
+            next_player.send(NextPlayerStarted {});
         }
     }
 }
@@ -123,6 +133,7 @@ pub fn move_token_from_area_to_area(
                 });
             // this will make that area recompute its moves. Cool.
             commands.entity(ev.source_entity).remove::<MoveableTokens>();
+            commands.entity(ev.source_entity).insert(NeedsTocalculateMoves{});
             write_line.send(PrintConsoleLine::new(StyledStr::from("Moved some tokens!")));
         }
     }

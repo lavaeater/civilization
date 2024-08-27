@@ -1,7 +1,10 @@
 use bevy::prelude::{Entity, Event, Reflect};
 
 #[derive(Event, Debug, Reflect)]
-pub struct EndPlayerMovement;
+pub struct PlayerMovementEnded;
+
+#[derive(Event, Debug, Reflect)]
+pub struct NextPlayerStarted;
 
 #[derive(Event, Debug, Reflect)]
 pub struct MoveTokenFromAreaToAreaCommand {
