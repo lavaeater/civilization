@@ -16,7 +16,7 @@ pub fn check_population_expansion_eligibility(
 
         let mut required_tokens = 0;
         for (pop_entity, pop) in area_pop_query.iter() {
-            if let Some(p) = pop.tokens.get(&player) {
+            if let Some(p) = pop.player_tokens.get(&player) {
                 let rt = match p.len() {
                     1 => { 1 }
                     0 => { 0 }
@@ -51,7 +51,7 @@ pub fn expand_population(
     mut commands: Commands,
 ) {
     for (pop_entity, pop) in area_query.iter() {
-        for (player, tokens) in pop.tokens.iter() {
+        for (player, tokens) in pop.player_tokens.iter() {
             if to_expand.contains(*player) {
                 match tokens.len() {
                     0 => {}

@@ -19,7 +19,8 @@ pub struct NeedsConnections {
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct Population {
-    pub tokens: HashMap<Entity, Vec<Entity>>,
+    pub player_tokens: HashMap<Entity, Vec<Entity>>,
+    pub total_population: usize
 }
 
 #[derive(Component, Debug)]
