@@ -11,7 +11,7 @@ use clap::builder::StyledStr;
 
 pub fn start_movement_activity(
     mut game_info: ResMut<GameInfoAndStuff>,
-    mut next_player: EventWriter<NextPlayerStarted>
+    mut next_player: EventWriter<NextPlayerStarted>,
 ) {
     game_info.left_to_move = game_info.census_order.clone();
     game_info.left_to_move.reverse();
@@ -24,7 +24,7 @@ pub fn prepare_next_mover(
     populated_areas: Query<&Population, With<HasPopulation>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
-    mut init_all_areas: EventWriter<InitAllAreas>
+    mut init_all_areas: EventWriter<InitAllAreas>,
 ) {
     for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
@@ -107,7 +107,7 @@ pub fn player_end_movement(
     mut end_event: EventReader<PlayerMovementEnded>,
     mut game_info_and_stuff: ResMut<GameInfoAndStuff>,
     mut commands: Commands,
-    mut next_player: EventWriter<NextPlayerStarted>
+    mut next_player: EventWriter<NextPlayerStarted>,
 ) {
     for _ in end_event.read() {
         if let Some(player) = game_info_and_stuff.current_mover {
@@ -134,6 +134,10 @@ pub fn move_token_from_area_to_area(
                 .iter()
                 .for_each(|token| {
                     commands.entity(*token).remove::<TokenCanMove>();
+                    if !to_pop.player_tokens.contains_key(&ev.player) {
+                        to_pop.player_tokens.insert(ev.player, vec![]);
+                    }
+
                     to_pop
                         .player_tokens
                         .get_mut(&ev.player)
@@ -142,7 +146,7 @@ pub fn move_token_from_area_to_area(
                 });
             // this will make that area recompute its moves. Cool.
             commands.entity(ev.source_entity).remove::<MoveableTokens>();
-            commands.entity(ev.source_entity).insert(NeedsTocalculateMoves{});
+            commands.entity(ev.source_entity).insert(NeedsTocalculateMoves {});
             write_line.send(PrintConsoleLine::new(StyledStr::from("Moved some tokens!")));
         }
     }
