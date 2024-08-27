@@ -107,10 +107,10 @@ pub fn move_token_from_area_to_area(
 ) {
     for ev in move_events.read() {
         let mut tokens_to_move = vec![];
-        if let Ok(mut from_pop) = pop_query.get_mut(ev.from_area) {
+        if let Ok(mut from_pop) = pop_query.get_mut(ev.source_entity) {
             tokens_to_move = (0..ev.number_of_tokens).map(|_| from_pop.player_tokens.get_mut(&ev.player).unwrap().swap_remove(0)).collect::<Vec<Entity>>();
         }
-        if let Ok(mut to_pop) = pop_query.get_mut(ev.to_area) {
+        if let Ok(mut to_pop) = pop_query.get_mut(ev.target_entity) {
             tokens_to_move
                 .iter()
                 .for_each(|token| {
@@ -122,7 +122,7 @@ pub fn move_token_from_area_to_area(
                         .push(*token)
                 });
             // this will make that area recompute its moves. Cool.
-            commands.entity(ev.from_area).remove::<MoveableTokens>();
+            commands.entity(ev.source_entity).remove::<MoveableTokens>();
             write_line.send(PrintConsoleLine::new(StyledStr::from("Moved some tokens!")));
         }
     }

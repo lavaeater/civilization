@@ -5,7 +5,6 @@ mod audio;
 mod loading;
 mod menu;
 mod player;
-pub mod console;
 pub mod civilization;
 
 use crate::actions::ActionsPlugin;
@@ -37,13 +36,15 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<GameState>().add_plugins((
-            LoadingPlugin,
-            MenuPlugin,
-            ActionsPlugin,
-            InternalAudioPlugin,
-            CivilizationPlugin,
-        ));
+        app
+            .init_state::<GameState>()
+            .add_plugins((
+                LoadingPlugin,
+                MenuPlugin,
+                ActionsPlugin,
+                InternalAudioPlugin,
+                CivilizationPlugin,
+            ));
 
         // #[cfg(debug_assertions)]
         // {

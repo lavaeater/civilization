@@ -3,13 +3,13 @@ use bevy::prelude::{in_state, IntoSystemConfigs, OnEnter};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use crate::civilization::census::plugin::CensusPlugin;
 use crate::civilization::census::resources::GameInfoAndStuff;
+use crate::civilization::console::commands::CommandsPlugin;
 use crate::civilization::game_phases::plugin::GamePhasesPlugin;
 use crate::civilization::general::components::{Area, LandPassage, Population, Stock, Token};
 use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::general::systems::{connect_areas, move_tokens_from_stock_to_area, setup_game, setup_players};
 use crate::civilization::movement::plugin::MovementPlugin;
 use crate::civilization::population_expansion::plugin::PopulationExpansionPlugin;
-use crate::console::commands::CommandsPlugin;
 use crate::GameState;
 
 pub struct CivilizationPlugin;

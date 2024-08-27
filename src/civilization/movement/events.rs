@@ -5,8 +5,8 @@ pub struct EndPlayerMovement;
 
 #[derive(Event, Debug, Reflect)]
 pub struct MoveTokenFromAreaToAreaCommand {
-    pub from_area: Entity,
-    pub to_area: Entity,
+    pub source_entity: Entity,
+    pub target_entity: Entity,
     pub number_of_tokens: usize,
     pub player: Entity
 }
