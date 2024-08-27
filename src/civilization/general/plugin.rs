@@ -30,6 +30,7 @@ impl Plugin for CivilizationPlugin {
             .register_type::<Area>()
             .register_type::<Population>()
             .add_event::<MoveTokensFromStockToAreaCommand>()
+            .add_event::<ReturnTokenToStock>()
             .add_plugins(
                 (
                     GamePhasesPlugin,

@@ -118,7 +118,7 @@ pub fn player_end_movement(
     }
 }
 
-pub fn move_token_from_area_to_area(
+pub fn move_tokens_from_area_to_area(
     mut move_events: EventReader<MoveTokenFromAreaToAreaCommand>,
     mut pop_query: Query<&mut Population>,
     mut commands: Commands,
@@ -128,6 +128,9 @@ pub fn move_token_from_area_to_area(
         let mut tokens_to_move = vec![];
         if let Ok(mut from_pop) = pop_query.get_mut(ev.source_entity) {
             tokens_to_move = (0..ev.number_of_tokens).map(|_| from_pop.player_tokens.get_mut(&ev.player).unwrap().swap_remove(0)).collect::<Vec<Entity>>();
+            if from_pop.player_tokens.get_mut(&ev.player).unwrap().is_empty() {
+                from_pop.player_tokens.remove(&ev.player);
+            }
         }
         if let Ok(mut to_pop) = pop_query.get_mut(ev.target_entity) {
             tokens_to_move

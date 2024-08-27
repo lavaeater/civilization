@@ -3,7 +3,7 @@ use bevy::utils::HashMap;
 
 #[derive(Component, Debug, Reflect)]
 pub struct Area {
-    pub max_population: u8,
+    pub max_population: usize,
 }
 
 #[derive(Component, Debug, Reflect, Default)]
