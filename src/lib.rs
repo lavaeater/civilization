@@ -13,18 +13,17 @@ use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
 use crate::menu::MenuPlugin;
 
-use crate::console::commands::CommandsPlugin;
+use crate::civilization::general::plugin::CivilizationPlugin;
 use bevy::app::App;
 // #[cfg(debug_assertions)]
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
-use crate::civilization::civ::CivilizationPlugin;
 
 // This example game uses States to separate logic
 // See https://bevy-cheatbook.github.io/programming/states.html
 // Or https://github.com/bevyengine/bevy/blob/main/examples/ecs/state.rs
-#[derive(States, Default, Clone, Eq, PartialEq, Debug, Hash)]
-enum GameState {
+#[derive(States, Clone, PartialEq, Eq, Hash, Debug, Default)]
+pub enum GameState {
     // During the loading State the LoadingPlugin will load our assets
     #[default]
     Loading,
@@ -43,9 +42,7 @@ impl Plugin for GamePlugin {
             MenuPlugin,
             ActionsPlugin,
             InternalAudioPlugin,
-            // PlayerPlugin,
             CivilizationPlugin,
-            CommandsPlugin
         ));
 
         // #[cfg(debug_assertions)]
