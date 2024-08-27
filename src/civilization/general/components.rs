@@ -28,15 +28,13 @@ pub struct StartArea;
 
 #[derive(Component, Debug, Reflect)]
 pub struct Token {
-    pub player: Entity,
-    pub in_area: Option<Entity>
+    pub player: Entity
 }
 
 impl Token {
     pub fn new(player: Entity) -> Self {
         Token {
-            player,
-            in_area: None
+            player
         }
     }
 }
