@@ -3,6 +3,7 @@ use bevy::prelude::{in_state, IntoSystemConfigs, OnEnter};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use crate::civilization::census::plugin::CensusPlugin;
 use crate::civilization::census::resources::GameInfoAndStuff;
+use crate::civilization::conflict::plugin::ConflictPlugin;
 use crate::civilization::console::commands::CommandsPlugin;
 use crate::civilization::game_phases::plugin::GamePhasesPlugin;
 use crate::civilization::general::components::{Area, LandPassage, Population, Stock, Token};
@@ -36,6 +37,7 @@ impl Plugin for CivilizationPlugin {
                     PopulationExpansionPlugin,
                     CensusPlugin,
                     MovementPlugin,
+                    ConflictPlugin
                 )
             )
             .add_systems(OnEnter(GameState::Playing), (setup_game, setup_players))
