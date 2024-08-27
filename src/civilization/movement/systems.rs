@@ -11,7 +11,6 @@ use clap::builder::StyledStr;
 
 pub fn start_movement_activity(
     mut game_info: ResMut<GameInfoAndStuff>,
-    mut commands: Commands,
     mut next_player: EventWriter<NextPlayerStarted>
 ) {
     game_info.left_to_move = game_info.census_order.clone();
@@ -22,7 +21,7 @@ pub fn start_movement_activity(
 pub fn prepare_next_mover(
     mut started: EventReader<NextPlayerStarted>,
     mut game_info: ResMut<GameInfoAndStuff>,
-    moveable_tokens: Query<&Population, With<HasPopulation>>,
+    populated_areas: Query<&Population, With<HasPopulation>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
     mut init_all_areas: EventWriter<InitAllAreas>
@@ -31,7 +30,7 @@ pub fn prepare_next_mover(
         if let Some(to_move) = game_info.left_to_move.pop() {
             commands.entity(to_move).insert(PerformingMovement {});
             game_info.current_mover = Some(to_move);
-            moveable_tokens.iter().for_each(|population| {
+            populated_areas.iter().for_each(|population| {
                 if population.player_tokens.contains_key(&to_move) {
                     for token in population.player_tokens[&to_move].iter() {
                         commands.entity(*token).insert(TokenCanMove {});
