@@ -85,7 +85,7 @@ pub fn setup_game(
                 Name::new("2"),
                 LandPassage::default(),
                 NeedsConnections {
-                    land_connections: vec!("sa".into(), "4".into()),
+                    land_connections: vec!("egypt".into(), "4".into()),
                     sea_connections: vec!(),
                 },
                 Population::default()
@@ -98,7 +98,7 @@ pub fn setup_game(
                 Name::new("3"),
                 LandPassage::default(),
                 NeedsConnections {
-                    land_connections: vec!("sa".into(), "4".into()),
+                    land_connections: vec!("egypt".into(), "crete".into(), "4".into()),
                     sea_connections: vec!(),
                 },
                 Population::default()
@@ -111,7 +111,7 @@ pub fn setup_game(
                 Name::new("4"),
                 LandPassage::default(),
                 NeedsConnections {
-                    land_connections: vec!("2".into(), "3".into(), "sa2".into()),
+                    land_connections: vec!("2".into(), "3".into(), "crete".into()),
                     sea_connections: vec!(),
                 },
                 Population::default()
