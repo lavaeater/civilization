@@ -1,12 +1,12 @@
 use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{Area, StartArea};
+use crate::civilization::general::components::{Area, Faction, LandPassage, Population, StartArea};
 use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::movement::components::MoveableTokens;
-use crate::civilization::movement::events::{MoveTokenFromAreaToAreaCommand, NextPlayerStarted};
+use crate::civilization::movement::events::{ClearAllMoves, MoveTokenFromAreaToAreaCommand};
 use crate::player::Player;
 use bevy::app::{App, Plugin};
-use bevy::prelude::{Entity, EventWriter, Name, NextState, Query, Res, ResMut, With};
+use bevy::prelude::{Entity, EventWriter, Has, Name, NextState, Query, Res, ResMut, With};
 use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
 use clap::Parser;
 
@@ -27,9 +27,31 @@ impl Plugin for CommandsPlugin {
             .add_console_command::<ListMoves, _>(list_moves)
             .add_console_command::<MoveCommand, _>(perform_move)
             .add_console_command::<EndMoveCommand, _>(end_move)
+            .add_console_command::<ShowBoardCommand, _>(show_board)
         ;
     }
 }
+
+#[derive(Parser, ConsoleCommand)]
+#[command(name = "board")]
+struct ShowBoardCommand;
+
+fn show_board(
+    mut command: ConsoleCommand<ShowBoardCommand>,
+    area_query: Query<(&Name, &Population, &LandPassage, Has<StartArea>)>,
+    name_query: Query<&Name>,
+) {
+    if let Some(Ok(ShowBoardCommand {})) = command.take() {
+        for (area_name, population, land_passage, is_start_area) in area_query.iter() {
+            let passage_names = land_passage.to_areas.iter().map(|area| name_query.get(*area).unwrap().as_str()).collect::<Vec<&str>>().join(", ");
+            command.reply(format!("Area: {:?} {:?} has population: {:?} and land passages: {:?}", area_name, if is_start_area { "*" } else { "" }, population.total_population, passage_names));
+            for (player, tokens) in population.player_tokens.iter() {
+                command.reply(format!("Player: {:?} has: {:?} tokens", name_query.get(*player).unwrap(), tokens.len()));
+            }
+        }
+    }
+}
+
 
 #[derive(Parser, ConsoleCommand)]
 #[command(name = "endmove")]
@@ -37,10 +59,10 @@ struct EndMoveCommand;
 
 fn end_move(
     mut command: ConsoleCommand<EndMoveCommand>,
-    mut next_player_started: EventWriter<NextPlayerStarted>
+    mut clear_all_moves: EventWriter<ClearAllMoves>,
 ) {
     if let Some(Ok(EndMoveCommand {})) = command.take() {
-        next_player_started.send(NextPlayerStarted {});
+        clear_all_moves.send(ClearAllMoves {});
         command.reply("Next player started!");
     }
 }
@@ -138,21 +160,23 @@ struct StartCommand;
 
 fn start_command(
     mut command: ConsoleCommand<StartCommand>,
-    player_query: Query<Entity, With<Player>>,
-    start_area_query: Query<Entity, With<StartArea>>,
+    player_query: Query<(Entity, &Name, &Faction), With<Player>>,
+    start_area_query: Query<(Entity, &Name, &StartArea)>,
     mut writer: EventWriter<MoveTokensFromStockToAreaCommand>,
+    mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     if let Some(Ok(StartCommand {})) = command.take() {
-        if let Ok(player_entity) = player_query.get_single() {
-            if let Ok(area_entity) = start_area_query.get_single() {
-                command.reply("Player adds a token to start area!");
+        for (player_entity, name, player_faction) in player_query.iter() {
+            if let Some((area_entity, area_name, _)) = start_area_query.iter().find(|(_, _, start_area)| start_area.faction == player_faction.faction) {
                 writer.send(
                     MoveTokensFromStockToAreaCommand {
                         area_entity,
                         player_entity,
                         number_of_tokens: 1,
                     });
+                command.reply(format!("{:?} adds a token to {:?}!", name, area_name));
             }
         }
+        next_state.set(GameActivity::PopulationExpansion);
     }
 }

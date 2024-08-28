@@ -1,10 +1,9 @@
 use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::HashMap;
+use crate::civilization::general::enums::GameFaction;
 
 #[derive(Component, Debug, Reflect)]
-pub struct Area {
-    pub max_population: u8,
-}
+pub struct Area;
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct LandPassage {
@@ -17,14 +16,33 @@ pub struct NeedsConnections {
     pub sea_connections: Vec<String>,
 }
 
-#[derive(Component, Debug, Reflect, Default)]
+#[derive(Component, Debug, Reflect)]
 pub struct Population {
     pub player_tokens: HashMap<Entity, Vec<Entity>>,
+    pub max_population: usize,
     pub total_population: usize
 }
 
+impl Population {
+    pub fn new(max_population: usize) -> Self {
+        Population {
+            player_tokens: HashMap::default(),
+            max_population,
+            total_population: 0
+        }
+    }
+}
+
 #[derive(Component, Debug)]
-pub struct StartArea;
+pub struct StartArea {
+    pub faction: GameFaction
+}
+
+
+#[derive(Component, Debug)]
+pub struct Faction {
+    pub faction: GameFaction,
+}
 
 #[derive(Component, Debug, Reflect)]
 pub struct Token {

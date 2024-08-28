@@ -1,21 +1,25 @@
 use crate::civilization::census::components::Census;
-use crate::civilization::general::components::{Area, LandPassage, NeedsConnections, Population, StartArea, Token};
+use crate::civilization::general::components::{Area, Faction, LandPassage, NeedsConnections, Population, StartArea, Token};
 use crate::civilization::general::components::Stock;
 use bevy::core::Name;
 use bevy::prelude::{Commands, Entity, EventReader, Query, With};
-use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
+use bevy::utils::HashMap;
+use crate::civilization::general::enums::GameFaction::{Crete, Egypt};
+use crate::civilization::general::events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
+use crate::player::Player;
 
 pub fn setup_players(
     mut commands: Commands
 ) {
-    (1..=1).for_each(|n| {
+    (1..=2).for_each(|n| {
         // Create Player
         let player = commands
             .spawn(
                 (
-                    crate::player::Player {},
+                    Player {},
                     Name::new(format!("Player {n}")),
                     Census { population: 0 },
+                    Faction { faction: if n % 2 == 0 { Egypt } else { Crete } }
                 )
             ).id();
 
@@ -42,60 +46,87 @@ pub fn setup_players(
 pub fn setup_game(
     mut commands: Commands,
 ) {
-    // Create some Areas
-    commands
-        .spawn(
-            (
-                Name::new("sa"),
-                Area { max_population: 2 },
-                LandPassage::default(),
-                NeedsConnections {
-                    land_connections: vec!("2".into(), "3".into()),
-                    sea_connections: vec!(),
-                },
-                StartArea {},
-                Population::default()
-            )
-        );
-    commands
-        .spawn(
-            (
-                Area { max_population: 3 },
-                Name::new("2"),
-                LandPassage::default(),
-                NeedsConnections {
-                    land_connections: vec!("sa".into(), "4".into()),
-                    sea_connections: vec!(),
-                },
-                Population::default()
-            )
-        );
-    commands
-        .spawn(
-            (
-                Area { max_population: 1 },
-                Name::new("3"),
-                LandPassage::default(),
-                NeedsConnections {
-                    land_connections: vec!("sa".into(), "4".into()),
-                    sea_connections: vec!(),
-                },
-                Population::default()
-            )
-        );
-    commands
-        .spawn(
-            (
-                Area { max_population: 5 },
-                Name::new("4"),
-                LandPassage::default(),
-                NeedsConnections {
-                    land_connections: vec!("2".into(), "3".into()),
-                    sea_connections: vec!(),
-                },
-                Population::default()
-            )
-        );
+    /*
+    Areas | Connected To
+    ---------------------
+    egypt | numidia, cyprus, syria
+    crete | cyprus, thrace, athens
+    numidia | egypt, iberia
+    cyprus | egypt, crete, syria
+    syria | egypt, cyprus, thrace
+    thrace | syria, crete, athens
+    athens | thrace, crete
+    iberia | numidia
+     */
+    let map: HashMap<String, Vec<String>> = [
+        ("egypt", vec!["numidia", "cyprus", "syria"]),
+        ("crete", vec!["cyprus", "thrace", "athens"]),
+        ("numidia", vec!["egypt", "iberia"]),
+        ("cyprus", vec!["egypt", "crete", "syria"]),
+        ("syria", vec!["egypt", "cyprus", "thrace"]),
+        ("thrace", vec!["syria", "crete", "athens"]),
+        ("athens", vec!["thrace", "crete"]),
+        ("iberia", vec!["numidia"]),
+    ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.into_iter().map(|s| s.to_string()).collect()))
+        .collect();
+
+    for (area, connections) in map {
+        match area.as_str() {
+            "egypt" => {
+                commands
+                    .spawn(
+                        (
+                            Name::new("egypt"),
+                            Area {},
+                            LandPassage::default(),
+                            NeedsConnections {
+                                land_connections: connections,
+                                sea_connections: vec!(),
+                            },
+                            StartArea {
+                                faction: Egypt
+                            },
+                            Population::new(4)
+                        )
+                    );
+            }
+            "crete" => {
+                commands
+                    .spawn(
+                        (
+                            Name::new("crete"),
+                            Area {},
+                            LandPassage::default(),
+                            NeedsConnections {
+                                land_connections: connections,
+                                sea_connections: vec!(),
+                            },
+                            StartArea {
+                                faction: Crete
+                            },
+                            Population::new(3)
+                        )
+                    );
+            }
+            _ => {
+                commands
+                    .spawn(
+                        (
+                            Area {},
+                            Name::new(area),
+                            LandPassage::default(),
+                            NeedsConnections {
+                                land_connections: connections,
+                                sea_connections: vec!(),
+                            },
+                            Population::new(3)
+                        )
+                    );
+            }
+        }
+    }
 }
 
 pub fn connect_areas(
@@ -129,20 +160,36 @@ pub fn move_tokens_from_stock_to_area(
 ) {
     for ev in move_commands.read() {
         if let Ok(mut stock) = stock_query.get_mut(ev.player_entity) {
-            if let Ok( mut population) = population_query.get_mut(ev.area_entity) {
-                let tokens_to_move = (0..ev.number_of_tokens).map(|_| stock.tokens.swap_remove(0)).collect::<Vec<Entity>>();
-                if !population.player_tokens.contains_key(&ev.player_entity) {
-                   population.player_tokens.insert(ev.player_entity, Vec::new());
+            if let Ok(mut population) = population_query.get_mut(ev.area_entity) {
+                if stock.tokens.len() > ev.number_of_tokens {
+                    let tokens_to_move = (0..ev.number_of_tokens).map(|_| stock.tokens.swap_remove(0)).collect::<Vec<Entity>>();
+                    if !population.player_tokens.contains_key(&ev.player_entity) {
+                        population.player_tokens.insert(ev.player_entity, Vec::new());
+                    }
+                    tokens_to_move
+                        .iter()
+                        .for_each(|t| {
+                            population
+                                .player_tokens
+                                .get_mut(&ev.player_entity)
+                                .unwrap()
+                                .push(*t)
+                        });
                 }
-                tokens_to_move
-                    .iter()
-                    .for_each(|t| {
-                        population
-                            .player_tokens
-                            .get_mut(&ev.player_entity)
-                            .unwrap()
-                            .push(*t)
-                    });
+            }
+        }
+    }
+}
+
+pub(crate) fn return_token_to_stock(
+    mut event: EventReader<ReturnTokenToStock>,
+    mut stock_query: Query<&mut Stock>,
+    token_query: Query<&Token>,
+) {
+    for return_event in event.read() {
+        if let Ok(token) = token_query.get(return_event.token_entity) {
+            if let Ok(mut stock) = stock_query.get_mut(token.player) {
+                stock.tokens.push(return_event.token_entity);
             }
         }
     }

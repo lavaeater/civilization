@@ -6,3 +6,10 @@ pub struct MoveTokensFromStockToAreaCommand {
     pub player_entity: Entity,
     pub number_of_tokens: usize,
 }
+
+#[derive(Event, Debug)]
+pub struct ReturnTokenToStock {
+    pub token_entity: Entity,
+}
+
+
