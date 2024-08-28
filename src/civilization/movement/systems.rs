@@ -131,6 +131,7 @@ pub fn move_tokens_from_area_to_area(
     for ev in move_events.read() {
         let mut tokens_to_move = vec![];
         if let Ok(mut from_pop) = pop_query.get_mut(ev.source_entity) {
+            from_pop.total_population -= ev.number_of_tokens;
             tokens_to_move = (0..ev.number_of_tokens).map(|_| from_pop.player_tokens.get_mut(&ev.player).unwrap().swap_remove(0)).collect::<Vec<Entity>>();
             if from_pop.player_tokens.get_mut(&ev.player).unwrap().is_empty() {
                 from_pop.player_tokens.remove(&ev.player);
@@ -149,7 +150,8 @@ pub fn move_tokens_from_area_to_area(
                         .player_tokens
                         .get_mut(&ev.player)
                         .unwrap()
-                        .push(*token)
+                        .push(*token);
+                    to_pop.total_population += 1;
                 });
             // this will make that area recompute its moves. Cool.
             commands.entity(ev.source_entity).remove::<MoveableTokens>();
