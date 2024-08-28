@@ -27,7 +27,23 @@ impl Plugin for CommandsPlugin {
             .add_console_command::<ListMoves, _>(list_moves)
             .add_console_command::<MoveCommand, _>(perform_move)
             .add_console_command::<EndMoveCommand, _>(end_move)
+            .add_console_command::<ShowBoardCommand, _>(show_board)
         ;
+    }
+}
+
+#[derive(Parser, ConsoleCommand)]
+#[command(name = "board")]
+struct ShowBoardCommand;
+
+fn show_board(
+    mut command: ConsoleCommand<EndMoveCommand>) {
+    if let Some(Ok(EndMoveCommand {})) = command.take() {
+        
+
+
+
+        command.reply("Next player started!");
     }
 }
 
