@@ -7,6 +7,9 @@ pub struct PlayerMovementEnded;
 pub struct NextPlayerStarted;
 
 #[derive(Event, Debug, Reflect)]
+pub struct ClearAllMoves;
+
+#[derive(Event, Debug, Reflect)]
 pub struct InitAllAreas;
 
 #[derive(Event, Debug, Reflect)]

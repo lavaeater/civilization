@@ -3,7 +3,7 @@ use crate::civilization::game_phases::game_activity::GameActivity;
 use crate::civilization::general::components::{Area, Faction, LandPassage, Population, StartArea};
 use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::movement::components::MoveableTokens;
-use crate::civilization::movement::events::{MoveTokenFromAreaToAreaCommand, NextPlayerStarted};
+use crate::civilization::movement::events::{ClearAllMoves, MoveTokenFromAreaToAreaCommand};
 use crate::player::Player;
 use bevy::app::{App, Plugin};
 use bevy::prelude::{Entity, EventWriter, Has, Name, NextState, Query, Res, ResMut, With};
@@ -59,10 +59,10 @@ struct EndMoveCommand;
 
 fn end_move(
     mut command: ConsoleCommand<EndMoveCommand>,
-    mut next_player_started: EventWriter<NextPlayerStarted>,
+    mut clear_all_moves: EventWriter<ClearAllMoves>,
 ) {
     if let Some(Ok(EndMoveCommand {})) = command.take() {
-        next_player_started.send(NextPlayerStarted {});
+        clear_all_moves.send(ClearAllMoves {});
         command.reply("Next player started!");
     }
 }
@@ -94,7 +94,6 @@ fn perform_move(
                         number_of_tokens,
                         player: game_info_and_stuff.current_mover.unwrap(),
                     });
-
                 } else {
                     command.reply(format!("Not enough tokens in {}", source_name));
                 }
@@ -164,7 +163,7 @@ fn start_command(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
     start_area_query: Query<(Entity, &Name, &StartArea)>,
     mut writer: EventWriter<MoveTokensFromStockToAreaCommand>,
-    mut next_state: ResMut<NextState<GameActivity>>
+    mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     if let Some(Ok(StartCommand {})) = command.take() {
         for (player_entity, name, player_faction) in player_query.iter() {

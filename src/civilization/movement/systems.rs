@@ -3,7 +3,7 @@ use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::game_activity::GameActivity;
 use crate::civilization::general::components::{Area, LandPassage, Population};
 use crate::civilization::movement::components::{MoveableTokens, NeedsTocalculateMoves, PerformingMovement, TokenCanMove};
-use crate::civilization::movement::events::{PlayerMovementEnded, NextPlayerStarted, InitAllAreas};
+use crate::civilization::movement::events::{PlayerMovementEnded, NextPlayerStarted, InitAllAreas, ClearAllMoves};
 use crate::civilization::movement::events::MoveTokenFromAreaToAreaCommand;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Name, NextState, Query, Res, ResMut, With};
 use bevy_console::PrintConsoleLine;
@@ -16,6 +16,24 @@ pub fn start_movement_activity(
     game_info.left_to_move = game_info.census_order.clone();
     game_info.left_to_move.reverse();
     next_player.send(NextPlayerStarted {});
+}
+
+pub fn clear_all_moves(
+    mut clear_event: EventReader<ClearAllMoves>,
+    areas_to_clear_query: Query<Entity, With<MoveableTokens>>,
+    token_query: Query<Entity, With<TokenCanMove>>,
+    mut commands: Commands,
+    mut next_player_started: EventWriter<NextPlayerStarted>
+) {
+    for _ in clear_event.read() {
+        for area in areas_to_clear_query.iter() {
+            commands.entity(area).remove::<MoveableTokens>();
+        }
+        for token in token_query.iter() {
+            commands.entity(token).remove::<TokenCanMove>();
+        }
+        next_player_started.send(NextPlayerStarted {});
+    }
 }
 
 pub fn prepare_next_mover(
