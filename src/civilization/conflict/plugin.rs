@@ -1,6 +1,6 @@
 use crate::civilization::game_phases::game_activity::GameActivity;
 use bevy::app::App;
-use bevy::prelude::{Commands, Component, Entity, EventWriter, NextState, OnEnter, OnExit, Plugin, Query, Reflect, ResMut, Update, With};
+use bevy::prelude::{Commands, Component, Entity, EventWriter, NextState, OnEnter, OnExit, Plugin, Query, Reflect, ResMut, With};
 use crate::civilization::general::components::{Area, Population};
 use crate::civilization::general::events::ReturnTokenToStock;
 
