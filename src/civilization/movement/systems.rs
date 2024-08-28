@@ -5,7 +5,7 @@ use crate::civilization::general::components::{Area, LandPassage, Population};
 use crate::civilization::movement::components::{MoveableTokens, NeedsTocalculateMoves, PerformingMovement, TokenCanMove};
 use crate::civilization::movement::events::{PlayerMovementEnded, NextPlayerStarted, InitAllAreas};
 use crate::civilization::movement::events::MoveTokenFromAreaToAreaCommand;
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Name, NextState, Query, ResMut, With};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Name, NextState, Query, Res, ResMut, With};
 use bevy_console::PrintConsoleLine;
 use clap::builder::StyledStr;
 
@@ -77,31 +77,33 @@ pub fn clear_moves(
 pub fn calculate_moves(
     moveable_tokens: Query<Entity, With<TokenCanMove>>,
     area_query: Query<(Entity, &LandPassage, &Population, &Name), With<NeedsTocalculateMoves>>,
+    game_info_and_stuff: Res<GameInfoAndStuff>,
     mut commands: Commands,
     mut write_line: EventWriter<PrintConsoleLine>,
 ) {
     for (area_entity, land_passage, population, name) in area_query.iter() {
-        let area_tokens: Vec<Entity> =
-            population
-                .player_tokens
-                .values()
-                .flat_map(|v| v.iter()
-                    .copied())
-                .collect::<Vec<Entity>>();
+        let player = game_info_and_stuff.current_mover.unwrap();
+        if let Some(player_tokens) = population.player_tokens.get(&player) {
+            if player_tokens.is_empty() {
+                continue;
+            } else {
+                let area_moveable_tokens =
+                    player_tokens
+                        .iter()
+                        .filter(|t| moveable_tokens.contains(**t)).copied()
+                        .collect::<Vec<Entity>>();
 
-        let area_moveable_tokens =
-            area_tokens
-                .iter()
-                .filter(|t| moveable_tokens.contains(**t)).copied()
-                // .map(|t| t)
-                .collect::<Vec<Entity>>();
-
-        if !area_moveable_tokens.is_empty() {
-            commands.entity(area_entity).insert(MoveableTokens {
-                tokens: area_moveable_tokens,
-                targets: land_passage.to_areas.clone(),
-            });
+                if !area_moveable_tokens.is_empty() {
+                    commands.entity(area_entity).insert(MoveableTokens {
+                        tokens: area_moveable_tokens,
+                        targets: land_passage.to_areas.clone(),
+                    });
+                }
+            }
+        } else {
+            continue;
         }
+
         commands.entity(area_entity).remove::<NeedsTocalculateMoves>();
         write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Recalculated moves for {}", name))));
     }
@@ -119,7 +121,7 @@ pub fn player_end_movement(
         for token in all_tokens.iter() {
             commands.entity(token).remove::<TokenCanMove>();
         }
-        
+
         if let Some(player) = game_info_and_stuff.current_mover {
             commands.entity(player).remove::<PerformingMovement>();
             game_info_and_stuff.current_mover = None;
