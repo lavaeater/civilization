@@ -1,12 +1,12 @@
 use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{Area, Faction, StartArea};
+use crate::civilization::general::components::{Area, Faction, LandPassage, Population, StartArea};
 use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::movement::components::MoveableTokens;
 use crate::civilization::movement::events::{MoveTokenFromAreaToAreaCommand, NextPlayerStarted};
 use crate::player::Player;
 use bevy::app::{App, Plugin};
-use bevy::prelude::{Entity, EventWriter, Name, NextState, Query, Res, ResMut, With};
+use bevy::prelude::{Entity, EventWriter, Has, Name, NextState, Query, Res, ResMut, With};
 use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
 use clap::Parser;
 
@@ -37,15 +37,21 @@ impl Plugin for CommandsPlugin {
 struct ShowBoardCommand;
 
 fn show_board(
-    mut command: ConsoleCommand<EndMoveCommand>) {
-    if let Some(Ok(EndMoveCommand {})) = command.take() {
-        
-
-
-
-        command.reply("Next player started!");
+    mut command: ConsoleCommand<ShowBoardCommand>,
+    area_query: Query<(&Name, &Population, &LandPassage, Has<StartArea>)>,
+    name_query: Query<&Name>,
+) {
+    if let Some(Ok(ShowBoardCommand {})) = command.take() {
+        for (area_name, population, land_passage, is_start_area) in area_query.iter() {
+            let passage_names = land_passage.to_areas.iter().map(|area| name_query.get(*area).unwrap().as_str()).collect::<Vec<&str>>().join(", ");
+            command.reply(format!("Area: {:?} {:?} has population: {:?} and land passages: {:?}", area_name, if is_start_area { "*" } else { "" }, population.total_population, passage_names));
+            for (player, tokens) in population.player_tokens.iter() {
+                command.reply(format!("Player: {:?} has: {:?} tokens", name_query.get(*player).unwrap(), tokens.len()));
+            }
+        }
     }
 }
+
 
 #[derive(Parser, ConsoleCommand)]
 #[command(name = "endmove")]
@@ -53,7 +59,7 @@ struct EndMoveCommand;
 
 fn end_move(
     mut command: ConsoleCommand<EndMoveCommand>,
-    mut next_player_started: EventWriter<NextPlayerStarted>
+    mut next_player_started: EventWriter<NextPlayerStarted>,
 ) {
     if let Some(Ok(EndMoveCommand {})) = command.take() {
         next_player_started.send(NextPlayerStarted {});

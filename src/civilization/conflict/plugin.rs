@@ -1,6 +1,6 @@
 use crate::civilization::game_phases::game_activity::GameActivity;
 use bevy::app::App;
-use bevy::prelude::{Commands, Component, Entity, EventWriter, NextState, OnEnter, OnExit, Plugin, Query, Reflect, ResMut, With};
+use bevy::prelude::{in_state, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, NextState, OnEnter, Plugin, Query, Reflect, ResMut, Update, With};
 use crate::civilization::general::components::{Area, Population};
 use crate::civilization::general::events::ReturnTokenToStock;
 
@@ -9,10 +9,15 @@ pub struct ConflictPlugin;
 impl Plugin for ConflictPlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_event::<ConflictsResolved>()
             .add_systems(
                 OnEnter(GameActivity::Conflict), find_conflict_zones)
-            .add_systems(
-                OnExit(GameActivity::Conflict), resolve_conflicts)
+            .add_systems(Update,
+                         (
+                             resolve_conflicts.run_if(in_state(GameActivity::Conflict)),
+                             move_on.run_if(in_state(GameActivity::Conflict)),
+                         ),
+            )
         ;
     }
 }
@@ -20,10 +25,23 @@ impl Plugin for ConflictPlugin {
 #[derive(Component, Debug, Reflect)]
 pub struct UnresolvedConflict;
 
+#[derive(Event, Debug, Reflect)]
+pub struct ConflictsResolved;
+
+fn move_on(
+    mut resolved: EventReader<ConflictsResolved>,
+    mut next_state: ResMut<NextState<GameActivity>>,
+) {
+    for _ in resolved.read() {
+        next_state.set(GameActivity::PopulationExpansion);
+    }
+}
+
 fn resolve_conflicts(
     mut conflict_zones: Query<(Entity, &mut Population, &Area), With<UnresolvedConflict>>,
     mut return_token: EventWriter<ReturnTokenToStock>,
     mut commands: Commands,
+    mut conflicts_resolved: EventWriter<ConflictsResolved>,
 ) {
     for (area_entity, mut population, area) in conflict_zones.iter_mut() {
         let temp_map = population.player_tokens.clone();
@@ -62,17 +80,16 @@ fn resolve_conflicts(
         }
         commands.entity(area_entity).remove::<UnresolvedConflict>();
     }
+    conflicts_resolved.send(ConflictsResolved {});
 }
 
 fn find_conflict_zones(
     pop_query: Query<(Entity, &Population, &Area)>,
     mut commands: Commands,
-    mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     pop_query.iter().filter(|(_, pop, area)| {
         pop.player_tokens.keys().len() > 1 && pop.total_population > area.max_population
     }).for_each(|(conflict_zone, _, _)| {
         commands.entity(conflict_zone).insert(UnresolvedConflict);
     });
-    next_state.set(GameActivity::PopulationExpansion);
 }
