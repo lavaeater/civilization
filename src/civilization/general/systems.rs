@@ -1,21 +1,24 @@
 use crate::civilization::census::components::Census;
-use crate::civilization::general::components::{Area, LandPassage, NeedsConnections, Population, StartArea, Token};
+use crate::civilization::general::components::{Area, Faction, LandPassage, NeedsConnections, Population, StartArea, Token};
 use crate::civilization::general::components::Stock;
 use bevy::core::Name;
 use bevy::prelude::{Commands, Entity, EventReader, Query, With};
+use crate::civilization::general::enums::GameFaction::{Crete, Egypt};
 use crate::civilization::general::events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
+use crate::player::Player;
 
 pub fn setup_players(
     mut commands: Commands
 ) {
-    (1..=1).for_each(|n| {
+    (1..=2).for_each(|n| {
         // Create Player
         let player = commands
             .spawn(
                 (
-                    crate::player::Player {},
+                    Player {},
                     Name::new(format!("Player {n}")),
                     Census { population: 0 },
+                    Faction { faction: if n % 2 == 0 { Egypt } else { Crete } }
                 )
             ).id();
 
@@ -46,14 +49,32 @@ pub fn setup_game(
     commands
         .spawn(
             (
-                Name::new("sa"),
-                Area { max_population: 2 },
+                Name::new("egypt"),
+                Area { max_population: 3 },
                 LandPassage::default(),
                 NeedsConnections {
                     land_connections: vec!("2".into(), "3".into()),
                     sea_connections: vec!(),
                 },
-                StartArea {},
+                StartArea {
+                    faction: Egypt
+                },
+                Population::default()
+            )
+        );
+    commands
+        .spawn(
+            (
+                Name::new("crete"),
+                Area { max_population: 2 },
+                LandPassage::default(),
+                NeedsConnections {
+                    land_connections: vec!("4".into(), "3".into()),
+                    sea_connections: vec!(),
+                },
+                StartArea {
+                    faction: Crete
+                },
                 Population::default()
             )
         );
@@ -90,7 +111,7 @@ pub fn setup_game(
                 Name::new("4"),
                 LandPassage::default(),
                 NeedsConnections {
-                    land_connections: vec!("2".into(), "3".into()),
+                    land_connections: vec!("2".into(), "3".into(), "sa2".into()),
                     sea_connections: vec!(),
                 },
                 Population::default()
@@ -129,10 +150,10 @@ pub fn move_tokens_from_stock_to_area(
 ) {
     for ev in move_commands.read() {
         if let Ok(mut stock) = stock_query.get_mut(ev.player_entity) {
-            if let Ok( mut population) = population_query.get_mut(ev.area_entity) {
+            if let Ok(mut population) = population_query.get_mut(ev.area_entity) {
                 let tokens_to_move = (0..ev.number_of_tokens).map(|_| stock.tokens.swap_remove(0)).collect::<Vec<Entity>>();
                 if !population.player_tokens.contains_key(&ev.player_entity) {
-                   population.player_tokens.insert(ev.player_entity, Vec::new());
+                    population.player_tokens.insert(ev.player_entity, Vec::new());
                 }
                 tokens_to_move
                     .iter()
@@ -151,7 +172,7 @@ pub fn move_tokens_from_stock_to_area(
 pub(crate) fn return_token_to_stock(
     mut event: EventReader<ReturnTokenToStock>,
     mut stock_query: Query<&mut Stock>,
-    token_query: Query<&Token>
+    token_query: Query<&Token>,
 ) {
     for return_event in event.read() {
         if let Ok(token) = token_query.get(return_event.token_entity) {

@@ -1,6 +1,6 @@
 use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{Area, StartArea};
+use crate::civilization::general::components::{Area, Faction, StartArea};
 use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::movement::components::MoveableTokens;
 use crate::civilization::movement::events::{MoveTokenFromAreaToAreaCommand, NextPlayerStarted};
@@ -138,20 +138,20 @@ struct StartCommand;
 
 fn start_command(
     mut command: ConsoleCommand<StartCommand>,
-    player_query: Query<Entity, With<Player>>,
-    start_area_query: Query<Entity, With<StartArea>>,
+    player_query: Query<(Entity, &Name, &Faction), With<Player>>,
+    start_area_query: Query<(Entity, &Name, &StartArea)>,
     mut writer: EventWriter<MoveTokensFromStockToAreaCommand>,
 ) {
     if let Some(Ok(StartCommand {})) = command.take() {
-        if let Ok(player_entity) = player_query.get_single() {
-            if let Ok(area_entity) = start_area_query.get_single() {
-                command.reply("Player adds a token to start area!");
+        for (player_entity, name, player_faction) in player_query.iter() {
+            if let Some((area_entity, area_name, _)) = start_area_query.iter().find(|(_, _, start_area)| start_area.faction == player_faction.faction) {
                 writer.send(
                     MoveTokensFromStockToAreaCommand {
                         area_entity,
                         player_entity,
                         number_of_tokens: 1,
                     });
+                command.reply(format!("{:?} adds a token to {:?}!", name, area_name));
             }
         }
     }

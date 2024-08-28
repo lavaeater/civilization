@@ -1,5 +1,6 @@
 use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::HashMap;
+use crate::civilization::general::enums::GameFaction;
 
 #[derive(Component, Debug, Reflect)]
 pub struct Area {
@@ -24,7 +25,15 @@ pub struct Population {
 }
 
 #[derive(Component, Debug)]
-pub struct StartArea;
+pub struct StartArea {
+    pub faction: GameFaction
+}
+
+
+#[derive(Component, Debug)]
+pub struct Faction {
+    pub faction: GameFaction,
+}
 
 #[derive(Component, Debug, Reflect)]
 pub struct Token {
