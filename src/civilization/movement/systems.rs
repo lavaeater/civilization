@@ -110,10 +110,16 @@ pub fn calculate_moves(
 pub fn player_end_movement(
     mut end_event: EventReader<PlayerMovementEnded>,
     mut game_info_and_stuff: ResMut<GameInfoAndStuff>,
+    all_tokens: Query<Entity, With<TokenCanMove>>,
     mut commands: Commands,
     mut next_player: EventWriter<NextPlayerStarted>,
 ) {
     for _ in end_event.read() {
+        //Clear all moveable tokens
+        for token in all_tokens.iter() {
+            commands.entity(token).remove::<TokenCanMove>();
+        }
+        
         if let Some(player) = game_info_and_stuff.current_mover {
             commands.entity(player).remove::<PerformingMovement>();
             game_info_and_stuff.current_mover = None;

@@ -94,6 +94,7 @@ fn perform_move(
                         number_of_tokens,
                         player: game_info_and_stuff.current_mover.unwrap(),
                     });
+
                 } else {
                     command.reply(format!("Not enough tokens in {}", source_name));
                 }
@@ -163,6 +164,7 @@ fn start_command(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
     start_area_query: Query<(Entity, &Name, &StartArea)>,
     mut writer: EventWriter<MoveTokensFromStockToAreaCommand>,
+    mut next_state: ResMut<NextState<GameActivity>>
 ) {
     if let Some(Ok(StartCommand {})) = command.take() {
         for (player_entity, name, player_faction) in player_query.iter() {
@@ -176,5 +178,6 @@ fn start_command(
                 command.reply(format!("{:?} adds a token to {:?}!", name, area_name));
             }
         }
+        next_state.set(GameActivity::PopulationExpansion);
     }
 }

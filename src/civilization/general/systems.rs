@@ -79,7 +79,7 @@ pub fn setup_game(
                     .spawn(
                         (
                             Name::new("egypt"),
-                            Area { max_population: 3 },
+                            Area {},
                             LandPassage::default(),
                             NeedsConnections {
                                 land_connections: connections,
@@ -88,7 +88,7 @@ pub fn setup_game(
                             StartArea {
                                 faction: Egypt
                             },
-                            Population::default()
+                            Population::new(4)
                         )
                     );
             }
@@ -97,7 +97,7 @@ pub fn setup_game(
                     .spawn(
                         (
                             Name::new("crete"),
-                            Area { max_population: 3 },
+                            Area {},
                             LandPassage::default(),
                             NeedsConnections {
                                 land_connections: connections,
@@ -106,7 +106,7 @@ pub fn setup_game(
                             StartArea {
                                 faction: Crete
                             },
-                            Population::default()
+                            Population::new(3)
                         )
                     );
             }
@@ -114,14 +114,14 @@ pub fn setup_game(
                 commands
                     .spawn(
                         (
-                            Area { max_population: 3 },
+                            Area {},
                             Name::new(area),
                             LandPassage::default(),
                             NeedsConnections {
                                 land_connections: connections,
                                 sea_connections: vec!(),
                             },
-                            Population::default()
+                            Population::new(3)
                         )
                     );
             }
