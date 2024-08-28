@@ -25,10 +25,13 @@ pub fn prepare_next_mover(
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
     mut init_all_areas: EventWriter<InitAllAreas>,
+    mut write_line: EventWriter<PrintConsoleLine>,
+    name_query: Query<&Name>,
 ) {
     for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
             commands.entity(to_move).insert(PerformingMovement {});
+            write_line.send(PrintConsoleLine::new(StyledStr::from(format!("{} is moving", name_query.get(to_move).unwrap()))));
             game_info.current_mover = Some(to_move);
             populated_areas.iter().for_each(|population| {
                 if population.player_tokens.contains_key(&to_move) {
@@ -40,6 +43,7 @@ pub fn prepare_next_mover(
             init_all_areas.send(InitAllAreas {});
         } else {
             // All hath moved, move along
+            write_line.send(PrintConsoleLine::new(StyledStr::from("All moves are done".to_string())));
             next_state.set(GameActivity::Conflict);
         }
     }

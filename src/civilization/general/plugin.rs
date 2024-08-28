@@ -7,8 +7,8 @@ use crate::civilization::conflict::plugin::ConflictPlugin;
 use crate::civilization::console::commands::CommandsPlugin;
 use crate::civilization::game_phases::plugin::GamePhasesPlugin;
 use crate::civilization::general::components::{Area, LandPassage, Population, Stock, Token};
-use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
-use crate::civilization::general::systems::{connect_areas, move_tokens_from_stock_to_area, setup_game, setup_players};
+use crate::civilization::general::events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
+use crate::civilization::general::systems::{connect_areas, move_tokens_from_stock_to_area, setup_game, setup_players, return_token_to_stock};
 use crate::civilization::movement::plugin::MovementPlugin;
 use crate::civilization::population_expansion::plugin::PopulationExpansionPlugin;
 use crate::GameState;
@@ -49,7 +49,9 @@ impl Plugin for CivilizationPlugin {
                     connect_areas
                         .run_if(in_state(GameState::Playing)),
                     move_tokens_from_stock_to_area
-                        .run_if(in_state(GameState::Playing))
+                        .run_if(in_state(GameState::Playing)),
+                return_token_to_stock
+                        .run_if(in_state(GameState::Playing)),
                 ));
     }
 }

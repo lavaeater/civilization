@@ -3,7 +3,7 @@ use crate::civilization::general::components::{Area, LandPassage, NeedsConnectio
 use crate::civilization::general::components::Stock;
 use bevy::core::Name;
 use bevy::prelude::{Commands, Entity, EventReader, Query, With};
-use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
+use crate::civilization::general::events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
 
 pub fn setup_players(
     mut commands: Commands
@@ -143,6 +143,20 @@ pub fn move_tokens_from_stock_to_area(
                             .unwrap()
                             .push(*t)
                     });
+            }
+        }
+    }
+}
+
+pub(crate) fn return_token_to_stock(
+    mut event: EventReader<ReturnTokenToStock>,
+    mut stock_query: Query<&mut Stock>,
+    token_query: Query<&Token>
+) {
+    for return_event in event.read() {
+        if let Ok(token) = token_query.get(return_event.token_entity) {
+            if let Ok(mut stock) = stock_query.get_mut(token.player) {
+                stock.tokens.push(return_event.token_entity);
             }
         }
     }
