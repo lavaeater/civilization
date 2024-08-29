@@ -20,7 +20,7 @@ pub struct NeedsConnections {
 pub struct Population {
     pub player_tokens: HashMap<Entity, Vec<Entity>>,
     pub max_population: usize,
-    pub total_population: usize
+    pub total_population: usize,
 }
 
 impl Population {
@@ -28,14 +28,34 @@ impl Population {
         Population {
             player_tokens: HashMap::default(),
             max_population,
-            total_population: 0
+            total_population: 0,
         }
     }
 }
 
+#[derive(Component, Debug, Reflect)]
+pub struct CitySite;
+
+#[derive(Component, Debug, Reflect)]
+pub struct CityToken {
+    pub player: Entity,
+}
+
+impl CityToken {
+    pub fn new(player: Entity) -> Self {
+        CityToken { player }
+    }
+}
+
+#[derive(Component, Debug, Reflect)]
+pub struct BuiltCity {
+    pub city: Entity,
+    pub player: Entity,
+}
+
 #[derive(Component, Debug)]
 pub struct StartArea {
-    pub faction: GameFaction
+    pub faction: GameFaction,
 }
 
 
@@ -46,7 +66,7 @@ pub struct Faction {
 
 #[derive(Component, Debug, Reflect)]
 pub struct Token {
-    pub player: Entity
+    pub player: Entity,
 }
 
 impl Token {
@@ -66,6 +86,21 @@ pub struct Stock {
 impl Stock {
     pub(crate) fn new(max_tokens: usize, tokens: Vec<Entity>) -> Self {
         Stock {
+            max_tokens,
+            tokens,
+        }
+    }
+}
+
+#[derive(Component, Debug, Reflect)]
+pub struct CityTokenStock {
+    pub max_tokens: usize,
+    pub tokens: Vec<Entity>,
+}
+
+impl CityTokenStock {
+    pub(crate) fn new(max_tokens: usize, tokens: Vec<Entity>) -> Self {
+        CityTokenStock {
             max_tokens,
             tokens,
         }
