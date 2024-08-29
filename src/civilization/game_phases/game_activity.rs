@@ -11,7 +11,7 @@ pub enum GameActivity {
     // ShipConstruction,
     Movement,
     Conflict,
-    // CityConstruction,
+    CityConstruction,
     // RemoveSurplusPopulation,
     // CheckCitySupport,
     // AcquireTradeCards,

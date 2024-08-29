@@ -95,5 +95,5 @@ pub fn find_conflict_zones(
         write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Conflict zone found: {:?}", name))));
         commands.entity(conflict_zone).insert(UnresolvedConflict);
     });
-    next_state.set(GameActivity::PopulationExpansion);
+    next_state.set(GameActivity::CityConstruction);
 }

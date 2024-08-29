@@ -1,5 +1,5 @@
 use crate::civilization::census::components::Census;
-use crate::civilization::general::components::{Area, Faction, LandPassage, NeedsConnections, Population, StartArea, Token};
+use crate::civilization::general::components::{Area, CitySite, CityToken, CityTokenStock, Faction, LandPassage, NeedsConnections, Population, StartArea, Token};
 use crate::civilization::general::components::Stock;
 use bevy::core::Name;
 use bevy::prelude::{Commands, Entity, EventReader, Query, With};
@@ -32,12 +32,27 @@ pub fn setup_players(
         }
         )
             .collect::<Vec<Entity>>();
+
+        let city_tokens = (0..9).map(|_| {
+            commands
+                .spawn(
+                    (
+                        Name::new(format!("City {n}")),
+                        CityToken::new(player))).id()
+        }
+        )
+            .collect::<Vec<Entity>>();
         commands
             .entity(player)
             .insert(
-                Stock::new(
+                (
+                    Stock::new(
                     47,
-                    tokens,
+                    tokens),
+                    CityTokenStock::new(
+                        9,
+                        city_tokens
+                    )
                 )
             );
     });
@@ -59,18 +74,21 @@ pub fn setup_game(
     iberia | numidia
      */
     let map: HashMap<String, Vec<String>> = [
-        ("egypt", vec!["numidia", "cyprus", "syria"]),
+        ("egypt", vec!["alexandria"]),
         ("crete", vec!["cyprus", "thrace", "athens"]),
-        ("numidia", vec!["egypt", "iberia"]),
+        ("numidia", vec!["alexandria", "iberia"]),
         ("cyprus", vec!["egypt", "crete", "syria"]),
         ("syria", vec!["egypt", "cyprus", "thrace"]),
         ("thrace", vec!["syria", "crete", "athens"]),
         ("athens", vec!["thrace", "crete"]),
         ("iberia", vec!["numidia"]),
+        ("alexandria", vec!["egypt", "numidia", "cyprus", "syria"]),
     ]
         .into_iter()
         .map(|(k, v)| (k.to_string(), v.into_iter().map(|s| s.to_string()).collect()))
         .collect();
+
+    let city_sites = ["crete", "athens", "alexandria", "iberia"];
 
     for (area, connections) in map {
         match area.as_str() {
@@ -111,11 +129,11 @@ pub fn setup_game(
                     );
             }
             _ => {
-                commands
+                let area_id = commands
                     .spawn(
                         (
                             Area {},
-                            Name::new(area),
+                            Name::new(area.clone()),
                             LandPassage::default(),
                             NeedsConnections {
                                 land_connections: connections,
@@ -123,7 +141,10 @@ pub fn setup_game(
                             },
                             Population::new(3)
                         )
-                    );
+                    ).id();
+                if city_sites.contains(&&*area) {
+                    commands.entity(area_id).insert(CitySite {});
+                }
             }
         }
     }
