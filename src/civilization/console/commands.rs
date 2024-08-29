@@ -1,6 +1,8 @@
 use crate::civilization::census::resources::GameInfoAndStuff;
+use crate::civilization::cities::components::CityBuildTargets;
+use crate::civilization::cities::events::{BuildCity, EndCityConstructionActivity};
 use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{Area, Faction, LandPassage, Population, StartArea};
+use crate::civilization::general::components::{Area, BuiltCity, CitySite, Faction, Population, StartArea};
 use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::movement::components::MoveableTokens;
 use crate::civilization::movement::events::{ClearAllMoves, MoveTokenFromAreaToAreaCommand};
@@ -9,8 +11,6 @@ use bevy::app::{App, Plugin};
 use bevy::prelude::{Entity, EventWriter, Has, Name, NextState, Query, Res, ResMut, With};
 use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
 use clap::Parser;
-use crate::civilization::cities::components::CityBuildTargets;
-use crate::civilization::cities::events::EndCityConstructionActivity;
 
 pub struct CommandsPlugin;
 
@@ -31,6 +31,7 @@ impl Plugin for CommandsPlugin {
             .add_console_command::<EndMoveCommand, _>(end_move)
             .add_console_command::<ShowBoardCommand, _>(show_board)
             .add_console_command::<ListBuildsCommand, _>(list_builds)
+            .add_console_command::<BuildCityCommand, _>(build_city)
             .add_console_command::<EndBuildsCommand, _>(end_builds)
         ;
     }
@@ -42,10 +43,38 @@ struct EndBuildsCommand;
 
 fn end_builds(
     mut command: ConsoleCommand<EndBuildsCommand>,
-    mut end_builds: EventWriter<EndCityConstructionActivity>
+    mut end_builds: EventWriter<EndCityConstructionActivity>,
 ) {
     if let Some(Ok(EndBuildsCommand {})) = command.take() {
         end_builds.send(EndCityConstructionActivity {});
+    }
+}
+
+#[derive(Parser, ConsoleCommand)]
+#[command(name = "bc")]
+struct BuildCityCommand {
+    player: String,
+    area: String,
+}
+
+fn build_city(
+    mut command: ConsoleCommand<BuildCityCommand>,
+    player_query: Query<(Entity, &Name, &CityBuildTargets), With<Player>>,
+    name_query: Query<&Name>,
+    mut build_city: EventWriter<BuildCity>,
+) {
+    if let Some(Ok(BuildCityCommand { player, area })) = command.take() {
+        if let Some((player_entity, targets)) = player_query.iter().find(|(_, name, _)| **name == Name::from(player.clone())).map(|(entity, _, targets)| (entity, targets)) {
+            if let Some(target_entity) = targets.targets.iter().filter(|t| *name_query.get(**t).unwrap() == Name::from(area.clone())).next() {
+                build_city.send(BuildCity {
+                    player: player_entity,
+                    area: *target_entity,
+                });
+                command.reply("Building City");
+            } else {
+                command.reply("Could not find target area");
+            }
+        }
     }
 }
 
@@ -72,13 +101,12 @@ struct ShowBoardCommand;
 
 fn show_board(
     mut command: ConsoleCommand<ShowBoardCommand>,
-    area_query: Query<(&Name, &Population, &LandPassage, Has<StartArea>)>,
+    area_query: Query<(&Name, &Population, Has<StartArea>, Has<CitySite>, Has<BuiltCity>)>,
     name_query: Query<&Name>,
 ) {
     if let Some(Ok(ShowBoardCommand {})) = command.take() {
-        for (area_name, population, land_passage, is_start_area) in area_query.iter() {
-            let passage_names = land_passage.to_areas.iter().map(|area| name_query.get(*area).unwrap().as_str()).collect::<Vec<&str>>().join(", ");
-            command.reply(format!("Area: {:?} {:?} has population: {:?} and land passages: {:?}", area_name, if is_start_area { "*" } else { "" }, population.total_population, passage_names));
+        for (area_name, population, is_start_area, is_city_site, has_city) in area_query.iter() {
+            command.reply(format!("Area: {:?} {:?} has population: {:?}{:?}{:?}", area_name, if is_start_area { "<s>" } else { "" }, population.total_population,if is_city_site { ", City Site" } else { "" }, if has_city { ", Has City" } else { "" }));
             for (player, tokens) in population.player_tokens.iter() {
                 command.reply(format!("Player: {:?} has: {:?} tokens", name_query.get(*player).unwrap(), tokens.len()));
             }

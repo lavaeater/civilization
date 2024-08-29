@@ -1,6 +1,6 @@
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, NextState, Query, ResMut, With, Without};
 use crate::civilization::cities::components::{CityBuildTargets, DoneBuilding};
-use crate::civilization::cities::events::EndCityConstructionActivity;
+use crate::civilization::cities::events::{BuildCity, EndCityConstructionActivity};
 use crate::civilization::game_phases::game_activity::GameActivity;
 use crate::civilization::general::components::{BuiltCity, CitySite, CityTokenStock, Population};
 use crate::player::Player;
@@ -17,6 +17,13 @@ pub fn check_if_done_building(
     }
 }
 
+pub fn build_city(
+    mut command: EventReader<BuildCity>,
+) {
+    for build_city in command.iter() {
+        println!("Build city for player {:?} in area {:?}", build_city.player, build_city.area);
+    }
+}
 
 pub fn setup_players_and_cities(
     player_query: Query<(Entity, &CityTokenStock), With<Player>>,
