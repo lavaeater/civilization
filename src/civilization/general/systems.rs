@@ -17,7 +17,7 @@ pub fn setup_players(
             .spawn(
                 (
                     Player {},
-                    Name::new(format!("Player {n}")),
+                    Name::new(format!("p{n}")),
                     Census { population: 0 },
                     Faction { faction: if n % 2 == 0 { Egypt } else { Crete } }
                 )

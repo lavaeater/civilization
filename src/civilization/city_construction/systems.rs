@@ -95,6 +95,6 @@ pub fn end_city_construction_activity(
             commands.entity(player_entity)
                 .remove::<DoneBuilding>();
         }
-        next_state.set(GameActivity::PopulationExpansion);
+        next_state.set(GameActivity::RemoveSurplusPopulation);
     }
 }

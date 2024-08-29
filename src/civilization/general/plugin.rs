@@ -12,13 +12,10 @@ use crate::civilization::general::events::{MoveTokensFromStockToAreaCommand, Ret
 use crate::civilization::general::systems::{connect_areas, move_tokens_from_stock_to_area, setup_game, setup_players, return_token_to_stock};
 use crate::civilization::movement::plugin::MovementPlugin;
 use crate::civilization::population_expansion::plugin::PopulationExpansionPlugin;
+use crate::civilization::remove_surplus::plugin::RemoveSurplusPlugin;
 use crate::GameState;
 
 pub struct CivilizationPlugin;
-
-// MovementPlugin,
-// CensusPlugin,
-
 
 /// This plugin handles player related stuff like movement
 /// Player logic is only active during the State `GameState::Playing`
@@ -40,7 +37,8 @@ impl Plugin for CivilizationPlugin {
                     CensusPlugin,
                     MovementPlugin,
                     ConflictPlugin,
-                    CityConstructionPlugin
+                    CityConstructionPlugin,
+                    RemoveSurplusPlugin,
                 )
             )
             .add_systems(OnEnter(GameState::Playing), (setup_game, setup_players))
