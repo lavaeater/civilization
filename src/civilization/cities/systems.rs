@@ -3,6 +3,7 @@ use crate::civilization::cities::components::{CityBuildTargets, DoneBuilding};
 use crate::civilization::cities::events::{BuildCity, EndCityConstructionActivity};
 use crate::civilization::game_phases::game_activity::GameActivity;
 use crate::civilization::general::components::{BuiltCity, CitySite, CityTokenStock, Population};
+use crate::civilization::general::events::ReturnTokenToStock;
 use crate::player::Player;
 
 pub fn check_if_done_building(
@@ -19,9 +20,32 @@ pub fn check_if_done_building(
 
 pub fn build_city(
     mut command: EventReader<BuildCity>,
+    mut city_token_stock: Query<&mut CityTokenStock>,
+    mut city_population: Query<&mut Population>,
+    mut return_tokens: EventWriter<ReturnTokenToStock>,
+    mut commands: Commands,
 ) {
-    for build_city in command.iter() {
-        println!("Build city for player {:?} in area {:?}", build_city.player, build_city.area);
+    for build_city in command.read() {
+        if let Ok(mut city_stock) = city_token_stock.get_mut(build_city.player) {
+            if let Ok(mut population) = city_population.get_mut(build_city.area) {
+                // we shall return all tokens
+                let tokens_to_return = population.player_tokens.values().flatten().map(|t|t.clone()).collect::<Vec<Entity>>();
+                population.player_tokens.clear();
+                for token in tokens_to_return {
+                    return_tokens.send(ReturnTokenToStock {
+                        token_entity: token,
+                    });
+                }
+            }
+            if let Some(city_token) = city_stock.tokens.pop() {
+                println!("Build city for player {:?} in area {:?}", build_city.player, build_city.area);
+                commands.entity(build_city.area)
+                    .insert(BuiltCity {
+                        player: build_city.player,
+                        city: city_token,
+                    });
+            }
+        }
     }
 }
 
