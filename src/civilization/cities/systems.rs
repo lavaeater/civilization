@@ -9,7 +9,10 @@ pub fn check_if_done_building(
     query: Query<(Entity, Has<DoneBuilding>), With<Player>>,
     mut end_activity: EventWriter<EndCityConstructionActivity>
 ) {
-    if query.iter().count() == 1 {
+    let all_players_count = query.iter().len();
+    let done_player_count = query.iter().filter(|(_, done_building)| *done_building).count();
+
+    if all_players_count == done_player_count {
         end_activity.send(EndCityConstructionActivity {});
     }
 }
