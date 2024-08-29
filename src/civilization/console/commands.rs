@@ -1,6 +1,4 @@
 use crate::civilization::census::resources::GameInfoAndStuff;
-use crate::civilization::cities::components::CityBuildTargets;
-use crate::civilization::cities::events::{BuildCity, EndCityConstructionActivity};
 use crate::civilization::game_phases::game_activity::GameActivity;
 use crate::civilization::general::components::{Area, BuiltCity, CitySite, Faction, Population, StartArea};
 use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
@@ -11,6 +9,8 @@ use bevy::app::{App, Plugin};
 use bevy::prelude::{Entity, EventWriter, Has, Name, NextState, Query, Res, ResMut, With};
 use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
 use clap::Parser;
+use crate::civilization::city_construction::components::CityBuildTargets;
+use crate::civilization::city_construction::events::{BuildCity, EndCityConstructionActivity};
 
 pub struct CommandsPlugin;
 

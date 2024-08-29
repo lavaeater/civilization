@@ -1,6 +1,6 @@
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, NextState, Query, ResMut, With, Without};
-use crate::civilization::cities::components::{CityBuildTargets, DoneBuilding};
-use crate::civilization::cities::events::{BuildCity, EndCityConstructionActivity};
+use crate::civilization::city_construction::components::{CityBuildTargets, DoneBuilding};
+use crate::civilization::city_construction::events::{BuildCity, EndCityConstructionActivity};
 use crate::civilization::game_phases::game_activity::GameActivity;
 use crate::civilization::general::components::{BuiltCity, CitySite, CityTokenStock, Population};
 use crate::civilization::general::events::ReturnTokenToStock;
