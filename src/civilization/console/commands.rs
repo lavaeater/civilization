@@ -9,6 +9,8 @@ use bevy::app::{App, Plugin};
 use bevy::prelude::{Entity, EventWriter, Has, Name, NextState, Query, Res, ResMut, With};
 use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
 use clap::Parser;
+use crate::civilization::cities::components::CityBuildTargets;
+use crate::civilization::cities::events::EndCityConstructionActivity;
 
 pub struct CommandsPlugin;
 
@@ -28,7 +30,39 @@ impl Plugin for CommandsPlugin {
             .add_console_command::<MoveCommand, _>(perform_move)
             .add_console_command::<EndMoveCommand, _>(end_move)
             .add_console_command::<ShowBoardCommand, _>(show_board)
+            .add_console_command::<ListBuildsCommand, _>(list_builds)
+            .add_console_command::<EndBuildsCommand, _>(end_builds)
         ;
+    }
+}
+
+#[derive(Parser, ConsoleCommand)]
+#[command(name = "endbuilds")]
+struct EndBuildsCommand;
+
+fn end_builds(
+    mut command: ConsoleCommand<EndBuildsCommand>,
+    mut end_builds: EventWriter<EndCityConstructionActivity>
+) {
+    if let Some(Ok(EndBuildsCommand {})) = command.take() {
+        end_builds.send(EndCityConstructionActivity {});
+    }
+}
+
+#[derive(Parser, ConsoleCommand)]
+#[command(name = "builds")]
+struct ListBuildsCommand;
+
+fn list_builds(
+    mut command: ConsoleCommand<ListBuildsCommand>,
+    player_query: Query<(&Name, &CityBuildTargets)>,
+    name_query: Query<&Name>,
+) {
+    if let Some(Ok(ListBuildsCommand {})) = command.take() {
+        for (player_name, targets) in player_query.iter() {
+            let target_names = targets.targets.iter().map(|target| name_query.get(*target).unwrap().as_str()).collect::<Vec<&str>>().join(", ");
+            command.reply(format!("{:?} can build in: {:?}", player_name, target_names));
+        }
     }
 }
 
