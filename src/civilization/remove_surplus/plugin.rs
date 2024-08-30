@@ -19,10 +19,10 @@ fn remove_surplus_population(
     mut areas: Query<&mut Population>,
 ) {
     for mut area in areas.iter_mut() {
-        let surplus = area.total_population - area.max_population;
+        let surplus: i32 = area.total_population.try_into().unwrap_or(i32::MAX) - area.max_population.try_into().unwrap_or(i32::MAX);
         if surplus > 0 {
             assert_eq!(area.player_tokens.keys().len(), 1); // this should never, ever, happen
-            area.player_tokens.values_mut().next().unwrap().drain(0..surplus).for_each(|token| {
+            area.player_tokens.values_mut().next().unwrap().drain(0..surplus.try_into().unwrap_or(0)).for_each(|token| {
                 return_token.send(ReturnTokenToStock {
                     token_entity: token,
                 });
