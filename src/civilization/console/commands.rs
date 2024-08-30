@@ -1,6 +1,4 @@
 use crate::civilization::census::resources::GameInfoAndStuff;
-use crate::civilization::cities::components::CityBuildTargets;
-use crate::civilization::cities::events::{BuildCity, EndCityConstructionActivity};
 use crate::civilization::game_phases::game_activity::GameActivity;
 use crate::civilization::general::components::{Area, BuiltCity, CitySite, Faction, Population, StartArea};
 use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
@@ -8,9 +6,11 @@ use crate::civilization::movement::components::MoveableTokens;
 use crate::civilization::movement::events::{ClearAllMoves, MoveTokenFromAreaToAreaCommand};
 use crate::player::Player;
 use bevy::app::{App, Plugin};
-use bevy::prelude::{Entity, EventWriter, Has, Name, NextState, Query, Res, ResMut, With};
+use bevy::prelude::{Commands, Entity, EventWriter, Has, Name, NextState, Query, Res, ResMut, With};
 use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
 use clap::Parser;
+use crate::civilization::city_construction::components::{CityBuildTargets, DoneBuilding};
+use crate::civilization::city_construction::events::BuildCity;
 
 pub struct CommandsPlugin;
 
@@ -32,21 +32,29 @@ impl Plugin for CommandsPlugin {
             .add_console_command::<ShowBoardCommand, _>(show_board)
             .add_console_command::<ListBuildsCommand, _>(list_builds)
             .add_console_command::<BuildCityCommand, _>(build_city)
-            .add_console_command::<EndBuildsCommand, _>(end_builds)
+            .add_console_command::<PlayerEndBuildingCommand, _>(end_building)
         ;
     }
 }
 
 #[derive(Parser, ConsoleCommand)]
-#[command(name = "endbuilds")]
-struct EndBuildsCommand;
+#[command(name = "eb")]
+struct PlayerEndBuildingCommand {
+    pub player_name: String,
+}
 
-fn end_builds(
-    mut command: ConsoleCommand<EndBuildsCommand>,
-    mut end_builds: EventWriter<EndCityConstructionActivity>,
+fn end_building(
+    mut command: ConsoleCommand<PlayerEndBuildingCommand>,
+    mut commands: Commands,
+    player_query: Query<(Entity, &Name)>,
 ) {
-    if let Some(Ok(EndBuildsCommand {})) = command.take() {
-        end_builds.send(EndCityConstructionActivity {});
+    if let Some(Ok(PlayerEndBuildingCommand { player_name })) = command.take() {
+        if let Some(player_entity) = player_query
+            .iter()
+            .find(|(_, name)| **name == Name::from(player_name.clone()))
+            .map(|(entity, _)| entity) {
+            commands.entity(player_entity).insert(DoneBuilding {});
+        }
     }
 }
 
@@ -106,7 +114,7 @@ fn show_board(
 ) {
     if let Some(Ok(ShowBoardCommand {})) = command.take() {
         for (area_name, population, is_start_area, is_city_site, has_city) in area_query.iter() {
-            command.reply(format!("Area: {:?} {:?} has population: {:?}{:?}{:?}", area_name, if is_start_area { "<s>" } else { "" }, population.total_population,if is_city_site { ", City Site" } else { "" }, if has_city { ", Has City" } else { "" }));
+            command.reply(format!("Area: {:?} {:?} has population: {:?}{:?}{:?}", area_name, if is_start_area { "<s>" } else { "" }, population.total_population, if is_city_site { ", City Site" } else { "" }, if has_city { ", Has City" } else { "" }));
             for (player, tokens) in population.player_tokens.iter() {
                 command.reply(format!("Player: {:?} has: {:?} tokens", name_query.get(*player).unwrap(), tokens.len()));
             }

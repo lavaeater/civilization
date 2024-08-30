@@ -12,7 +12,7 @@ pub enum GameActivity {
     Movement,
     Conflict,
     CityConstruction,
-    // RemoveSurplusPopulation,
+    RemoveSurplusPopulation,
     // CheckCitySupport,
     // AcquireTradeCards,
     // Trade,
