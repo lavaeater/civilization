@@ -93,6 +93,11 @@ impl Stock {
 }
 
 #[derive(Component, Debug, Reflect)]
+pub struct Treasury {
+    pub tokens: Vec<Entity>,
+}
+
+#[derive(Component, Debug, Reflect)]
 pub struct CityTokenStock {
     pub max_tokens: usize,
     pub tokens: Vec<Entity>,

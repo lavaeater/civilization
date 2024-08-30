@@ -1,5 +1,5 @@
 use crate::civilization::census::components::Census;
-use crate::civilization::general::components::{Area, CitySite, CityToken, CityTokenStock, Faction, LandPassage, NeedsConnections, Population, StartArea, Token};
+use crate::civilization::general::components::{Area, CitySite, CityToken, CityTokenStock, Faction, LandPassage, NeedsConnections, Population, StartArea, Token, Treasury};
 use crate::civilization::general::components::Stock;
 use bevy::core::Name;
 use bevy::prelude::{Commands, Entity, EventReader, Query, With};
@@ -19,6 +19,7 @@ pub fn setup_players(
                     Player {},
                     Name::new(format!("p{n}")),
                     Census { population: 0 },
+                    Treasury { tokens: vec![] },
                     Faction { faction: if n % 2 == 0 { Egypt } else { Crete } }
                 )
             ).id();
