@@ -12,6 +12,7 @@ impl Plugin for CitySupportPlugin {
         app
             .add_event::<EliminateCity>()
             .add_event::<CheckPlayerCitySupport>()
+            .add_event::<CheckCitySupportStatus>()
             .add_systems(OnEnter(GameActivity::CheckCitySupport), check_city_support)
             .add_systems(Update,
                          (
@@ -121,7 +122,12 @@ fn check_player_city_support(
 fn check_city_support(
     city_query: Query<&BuiltCity>,
     mut check_player_city_support: EventWriter<CheckPlayerCitySupport>,
+    mut next_state: ResMut<NextState<GameActivity>>
 ) {
+    if city_query.is_empty() {
+        next_state.set(GameActivity::PopulationExpansion);
+        return;
+    }
     for (player, _) in city_query
         .iter()
         .chunk_by(|city| city.player).into_iter() {
