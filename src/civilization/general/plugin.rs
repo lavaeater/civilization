@@ -4,6 +4,7 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use crate::civilization::census::plugin::CensusPlugin;
 use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::city_construction::plugin::CityConstructionPlugin;
+use crate::civilization::city_support::plugin::CitySupportPlugin;
 use crate::civilization::conflict::plugin::ConflictPlugin;
 use crate::civilization::console::commands::CommandsPlugin;
 use crate::civilization::game_phases::plugin::GamePhasesPlugin;
@@ -39,6 +40,7 @@ impl Plugin for CivilizationPlugin {
                     ConflictPlugin,
                     CityConstructionPlugin,
                     RemoveSurplusPlugin,
+                    CitySupportPlugin,
                 )
             )
             .add_systems(OnEnter(GameState::Playing), (setup_game, setup_players))

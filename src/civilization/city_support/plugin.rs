@@ -26,7 +26,10 @@ impl Plugin for CitySupportPlugin {
 }
 
 #[derive(Component, Debug, Reflect)]
-pub struct HasTooManyCities;
+pub struct HasTooManyCities {
+    pub surplus_count: usize,
+    pub needed_tokens: usize
+}
 
 #[derive(Event, Debug, Reflect)]
 pub struct EliminateCity {
@@ -100,8 +103,12 @@ fn check_player_city_support(
         if let Ok((stock, treasury)) = stock_query.get(check_player_support.player) {
             let population_count = stock.max_tokens - stock.tokens.len() - treasury.tokens.len();
             if needed_population > population_count {
+                let needed_tokens = needed_population - population_count;
                 let surplus_count = (needed_population - population_count) / 2;
-                commands.entity(check_player_support.player).insert(HasTooManyCities {});
+                commands.entity(check_player_support.player).insert(HasTooManyCities {
+                    surplus_count,
+                    needed_tokens,
+                });
                 println!("Player {:?} has {} too many cities", check_player_support.player, surplus_count);
             } else {
                 commands.entity(check_player_support.player).remove::<HasTooManyCities>();

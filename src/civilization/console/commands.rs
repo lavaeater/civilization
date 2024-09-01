@@ -11,6 +11,7 @@ use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, Cons
 use clap::Parser;
 use crate::civilization::city_construction::components::{CityBuildTargets, DoneBuilding};
 use crate::civilization::city_construction::events::BuildCity;
+use crate::civilization::city_support::plugin::EliminateCity;
 
 pub struct CommandsPlugin;
 
@@ -33,7 +34,32 @@ impl Plugin for CommandsPlugin {
             .add_console_command::<ListBuildsCommand, _>(list_builds)
             .add_console_command::<BuildCityCommand, _>(build_city)
             .add_console_command::<PlayerEndBuildingCommand, _>(end_building)
+            .add_console_command::<EliminateCityCommand, _>(eliminate_city)
         ;
+    }
+}
+
+#[derive(Parser, ConsoleCommand)]
+#[command(name = "ec")]
+struct EliminateCityCommand {
+    pub area_name: String,
+}
+
+fn eliminate_city(
+    mut command: ConsoleCommand<EliminateCityCommand>,
+    area_query: Query<(Entity, &Name, &BuiltCity)>,
+    mut eliminate_city: EventWriter<EliminateCity>,
+) {
+    if let Some(Ok(EliminateCityCommand { area_name })) = command.take() {
+        if let Some((area_entity, _, built_city)) = area_query
+            .iter()
+            .find(|(_, name, _)| **name == Name::from(area_name.clone()))
+        {
+            eliminate_city.send(EliminateCity {
+                city: built_city.city,
+                area_entity,
+            });
+        }
     }
 }
 
