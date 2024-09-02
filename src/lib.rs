@@ -1,10 +1,10 @@
 #![allow(clippy::type_complexity)]
 
-mod actions;
-mod audio;
-mod loading;
-mod menu;
-mod player;
+pub mod actions;
+pub mod audio;
+pub mod loading;
+pub mod menu;
+pub mod player;
 pub mod civilization;
 
 use crate::actions::ActionsPlugin;
