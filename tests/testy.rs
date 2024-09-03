@@ -100,7 +100,8 @@ fn a_simple_test() {
     // // Setup test resource
     // let mut input = ButtonInput::<KeyCode>::default();
     // input.press(KeyCode::Space);
-    assert!(!reader.is_empty(&events))
+    assert!(!reader.is_empty(&events));
+    assert_eq!(reader.len(&events), 3);
 
     // Run systems
 
