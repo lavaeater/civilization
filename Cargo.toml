@@ -39,7 +39,7 @@ dev = [
 # All of Bevy's default features exept for the audio related ones (bevy_audio, vorbis), since they clash with bevy_kira_audio
 #   and android_shared_stdcxx, since that is covered in `mobile`
 [dependencies]
-bevy = { version = "0.14", default-features = false, features = [
+bevy = { version = "0.14.1", default-features = false, features = [
     "animation",
     "bevy_asset",
     "bevy_state",
@@ -67,14 +67,14 @@ bevy = { version = "0.14", default-features = false, features = [
 ] }
 bevy_kira_audio = { version = "0.20" }
 bevy_asset_loader = { version = "0.21" }
-rand = { version = "0.8.3" }
-webbrowser = { version = "1", features = ["hardened"] }
+rand = { version = "0.9.0-alpha.2" }
+webbrowser = { version = "1.0.1", features = ["hardened"] }
 
 # keep the following in sync with Bevy's dependencies
-winit = { version = "0.30", default-features = false }
-image = { version = "0.25", default-features = false }
+winit = { version = "0.30.5", default-features = false }
+image = { version = "0.25.2", default-features = false }
 ## This greatly improves WGPU's performance due to its heavy use of trace! calls
-log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"] }
+log = { version = "0.4.22", features = ["max_level_debug", "release_max_level_warn"] }
 
 itertools = "0.13.0"
 bevy_console = { git="https://github.com/msklosak/bevy-console.git", branch="bevy_014" }
@@ -84,4 +84,4 @@ rust-fsm = "0.7.0"
 rust-fsm-dsl = "0.7.0"
 
 [build-dependencies]
-embed-resource = "1"
+embed-resource = "1.8.0"
