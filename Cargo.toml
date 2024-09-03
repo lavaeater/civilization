@@ -85,3 +85,6 @@ rust-fsm-dsl = "0.7.0"
 
 [build-dependencies]
 embed-resource = "1.8.0"
+
+[build]
+rustflags = ["-Z", "threads=8"]
