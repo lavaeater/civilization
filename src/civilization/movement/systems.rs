@@ -1,7 +1,7 @@
 use crate::civilization::census::components::HasPopulation;
 use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{Area, LandPassage, Population};
+use crate::civilization::general::components::{GameArea, LandPassage, Population};
 use crate::civilization::movement::components::{MoveableTokens, NeedsTocalculateMoves, PerformingMovement, TokenCanMove};
 use crate::civilization::movement::events::{PlayerMovementEnded, NextPlayerStarted, InitAllAreas, ClearAllMoves};
 use crate::civilization::movement::events::MoveTokenFromAreaToAreaCommand;
@@ -69,7 +69,7 @@ pub fn prepare_next_mover(
 
 pub fn init_all_areas(
     mut init: EventReader<InitAllAreas>,
-    area_query: Query<Entity, With<Area>>,
+    area_query: Query<Entity, With<GameArea>>,
     mut commands: Commands,
 ) {
     for _ in init.read() {

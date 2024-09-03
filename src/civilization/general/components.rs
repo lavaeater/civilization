@@ -3,7 +3,7 @@ use bevy::utils::HashMap;
 use crate::civilization::general::enums::GameFaction;
 
 #[derive(Component, Debug, Reflect)]
-pub struct Area;
+pub struct GameArea;
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct LandPassage {
@@ -84,7 +84,7 @@ pub struct Stock {
 }
 
 impl Stock {
-    pub(crate) fn new(max_tokens: usize, tokens: Vec<Entity>) -> Self {
+    pub fn new(max_tokens: usize, tokens: Vec<Entity>) -> Self {
         Stock {
             max_tokens,
             tokens,
@@ -104,7 +104,7 @@ pub struct CityTokenStock {
 }
 
 impl CityTokenStock {
-    pub(crate) fn new(max_tokens: usize, tokens: Vec<Entity>) -> Self {
+    pub fn new(max_tokens: usize, tokens: Vec<Entity>) -> Self {
         CityTokenStock {
             max_tokens,
             tokens,

@@ -1,6 +1,6 @@
 use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{Area, BuiltCity, CitySite, Faction, Population, StartArea};
+use crate::civilization::general::components::{GameArea, BuiltCity, CitySite, Faction, Population, StartArea};
 use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::movement::components::MoveableTokens;
 use crate::civilization::movement::events::{ClearAllMoves, MoveTokenFromAreaToAreaCommand};
@@ -174,7 +174,7 @@ struct MoveCommand {
 fn perform_move(
     mut command: ConsoleCommand<MoveCommand>,
     source_query: Query<(Entity, &Name, &MoveableTokens)>,
-    target_query: Query<(Entity, &Name), With<Area>>,
+    target_query: Query<(Entity, &Name), With<GameArea>>,
     game_info_and_stuff: Res<GameInfoAndStuff>,
     mut move_command: EventWriter<MoveTokenFromAreaToAreaCommand>,
 ) {
