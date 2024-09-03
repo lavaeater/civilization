@@ -56,7 +56,7 @@ fn setup_player(mut app: App) -> (App, Entity, Vec<Entity>) {
 
 #[test]
 fn a_simple_test() {
-    // Setup app
+    // Arrange
     let mut app = App::new();
     app
         .add_plugins(
@@ -76,22 +76,28 @@ fn a_simple_test() {
     population.player_tokens.insert(player, tokens.drain(0..7).collect());
     population.total_population = 7;
     
-    app.world_mut().spawn(
+    let area = app.world_mut().spawn(
         (
             Name::new("egypt"),
             GameArea {},
             LandPassage::default(),
             population
         )
-    );
+    ).id();
+    
+    // Act
+    app.update();
 
+    // Assert
+    assert!(app.world().get::<Population>(area).is_some());
+    let population = app.world().get::<Population>(area).unwrap();
+    assert_eq!(population.total_population, population.max_population);
     // // Setup test resource
     // let mut input = ButtonInput::<KeyCode>::default();
     // input.press(KeyCode::Space);
 
 
     // Run systems
-    app.update();
 
     // Check resulting changes, one entity has been spawned with `Enemy` component
     // assert_eq!(app.world_mut().query::<&Enemy>().iter(app.world()).len(), 1);
