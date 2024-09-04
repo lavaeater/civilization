@@ -3,6 +3,7 @@ mod common;
 use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Entity, Name};
 use bevy::state::app::StatesPlugin;
+use bevy_console::PrintConsoleLine;
 use bevy_game::civilization::conflict::components::UnresolvedConflict;
 use bevy_game::civilization::conflict::systems::find_conflict_zones;
 use bevy_game::civilization::game_phases::game_activity::*;
@@ -27,17 +28,18 @@ fn given_two_players_no_keys_are_left_behind() {
             StatesPlugin,
         )
         .add_event::<ReturnTokenToStock>()
+        .add_event::<PrintConsoleLine>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .add_systems(Update, find_conflict_zones);
 
     let player_one: Entity;
     let mut player_one_tokens: Vec<Entity>;
-    (app, player_one, player_one_tokens) = setup_player(app, "player one");
+    (player_one, player_one_tokens) = setup_player(&mut app, "player one");
 
     let player_two: Entity;
     let mut player_two_tokens: Vec<Entity>;
-    (app, player_two, player_two_tokens) = setup_player(app, "player two");
+    (player_two, player_two_tokens) = setup_player(&mut  app, "player two");
 
     let mut population = Population::new(4);
 

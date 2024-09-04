@@ -1,15 +1,13 @@
-use bevy::app::{App, Update};
-use bevy::prelude::{AppExtStates, Entity, Mut};
+use bevy::app::App;
 use bevy::core::Name;
+use bevy::prelude::{AppExtStates, Entity};
 use bevy::state::app::StatesPlugin;
 use bevy_game::civilization::game_phases::game_activity::GameActivity;
 use bevy_game::civilization::general::components::{CityToken, CityTokenStock, GameArea, LandPassage, Population, Stock, Token, Treasury};
-use bevy_game::civilization::general::events::ReturnTokenToStock;
-use bevy_game::civilization::remove_surplus::systems::remove_surplus_population;
-use bevy_game::GameState;
 use bevy_game::player::Player;
+use bevy_game::GameState;
 
-pub fn setup_player(mut app: &mut App, name: impl Into<String>) -> (Entity, Vec<Entity>) {
+pub fn setup_player(app: &mut App, name: impl Into<String>) -> (Entity, Vec<Entity>) {
     let player = app.world_mut()
         .spawn(
             (
@@ -77,7 +75,7 @@ pub fn create_area(app: &mut App, name: impl Into<String>) -> Entity {
     ).id()
 }
 
-pub fn create_area_with_population(app: &mut App, mut population: Population) -> Entity {
+pub fn create_area_with_population(app: &mut App, population: Population) -> Entity {
     app.world_mut().spawn(
         (
             Name::new("egypt"),

@@ -1,6 +1,6 @@
 mod common;
 
-use bevy::prelude::{AppExtStates, Entity, Events, Update};
+use bevy::prelude::{Entity, Events, Update};
 use bevy_game::civilization::general::components::*;
 use bevy_game::civilization::general::events::*;
 use bevy_game::civilization::remove_surplus::systems::remove_surplus_population;
@@ -17,7 +17,7 @@ fn given_one_player_events_are_sent() {
 
     let player: Entity;
     let mut tokens: Vec<Entity>;
-    (app, player, tokens) = setup_player(app, "player one");
+    (player, tokens) = setup_player(&mut  app, "player one");
 
     let mut population = Population::new(4);
 
