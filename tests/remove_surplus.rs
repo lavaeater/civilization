@@ -1,3 +1,5 @@
+mod common;
+
 use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Entity, Events, Name};
 use bevy::state::app::StatesPlugin;
@@ -5,57 +7,11 @@ use bevy_game::civilization::game_phases::game_activity::*;
 use bevy_game::civilization::general::components::*;
 use bevy_game::civilization::general::events::*;
 use bevy_game::civilization::remove_surplus::systems::*;
-use bevy_game::player::Player;
 use bevy_game::GameState;
-
-fn setup_player(mut app: App) -> (App, Entity, Vec<Entity>) {
-    let player = app.world_mut()
-        .spawn(
-            (
-                Player {},
-                Name::new("PLAYER"),
-                Treasury { tokens: vec![] },
-            )
-        ).id();
-
-    let tokens = (0..47).map(|_| {
-        app.world_mut()
-            .spawn(
-                (
-                    Name::new("Token 1"),
-                    Token::new(player))).id()
-    })
-        .collect::<Vec<Entity>>();
-
-    let city_tokens = (0..9).map(|_| {
-        app.world_mut()
-            .spawn(
-                (
-                    Name::new("City 1"),
-                    CityToken::new(player))).id()
-    }
-    )
-        .collect::<Vec<Entity>>();
-
-    app
-        .world_mut()
-        .entity_mut(player)
-        .insert(
-            (
-                Stock::new(
-                    47,
-                    tokens.clone()),
-                CityTokenStock::new(
-                    9,
-                    city_tokens,
-                )
-            )
-        );
-    (app, player, tokens.clone())
-}
+use crate::common::setup_player;
 
 #[test]
-fn a_simple_test() {
+fn given_one_player_events_are_sent() {
     // Arrange
     let mut app = App::new();
     app
@@ -69,7 +25,7 @@ fn a_simple_test() {
 
     let player: Entity;
     let mut tokens: Vec<Entity>;
-    (app, player, tokens) = setup_player(app);
+    (app, player, tokens) = setup_player(app, "player one");
 
     let mut population = Population::new(4);
 
@@ -96,15 +52,8 @@ fn a_simple_test() {
     // Assert
     assert!(app.world().get::<Population>(area).is_some());
     let population = app.world().get::<Population>(area).unwrap();
+
     assert_eq!(population.total_population, population.max_population);
-    // // Setup test resource
-    // let mut input = ButtonInput::<KeyCode>::default();
-    // input.press(KeyCode::Space);
     assert!(!reader.is_empty(&events));
     assert_eq!(reader.len(&events), 3);
-
-    // Run systems
-
-    // Check resulting changes, one entity has been spawned with `Enemy` component
-    // assert_eq!(app.world_mut().query::<&Enemy>().iter(app.world()).len(), 1);
 }
