@@ -1,14 +1,22 @@
 mod common;
 
 use bevy::app::Update;
-use bevy::prelude::{App, AppExtStates, Entity, Events, Name};
+use bevy::prelude::{App, AppExtStates, Entity, Name};
 use bevy::state::app::StatesPlugin;
+use bevy_game::civilization::conflict::components::UnresolvedConflict;
 use bevy_game::civilization::conflict::systems::find_conflict_zones;
 use bevy_game::civilization::game_phases::game_activity::*;
 use bevy_game::civilization::general::components::{GameArea, LandPassage, Population};
 use bevy_game::civilization::general::events::*;
 use bevy_game::GameState;
 use crate::common::setup_player;
+
+/****************************************************
+Test for the find_conflict_zones system
+Given two players that have tokens in an area,
+when the system is run, that area should have a component
+added indicating that it has a conflict.
+*****************************************************/
 
 #[test]
 fn given_two_players_no_keys_are_left_behind() {
@@ -34,8 +42,8 @@ fn given_two_players_no_keys_are_left_behind() {
     let mut population = Population::new(4);
 
     population.player_tokens.insert(player_one, player_one_tokens.drain(0..7).collect());
-    population.player_tokens.insert(player_two, player_two_tokens.drain(0..7).collect());
-    population.total_population = 7;
+    population.player_tokens.insert(player_two, player_two_tokens.drain(0..5).collect());
+    population.total_population = 12;
 
     let area = app.world_mut().spawn(
         (
@@ -49,16 +57,6 @@ fn given_two_players_no_keys_are_left_behind() {
 
     // Act
     app.update();
-    let events = app.world()
-        .resource::<Events<ReturnTokenToStock>>();
-
-    let reader = events.get_reader();
-
     // Assert
-    assert!(app.world().get::<Population>(area).is_some());
-    let population = app.world().get::<Population>(area).unwrap();
-
-    assert_eq!(population.total_population, population.max_population);
-    assert!(!reader.is_empty(&events));
-    assert_eq!(reader.len(&events), 3);
+    assert!(app.world().get::<UnresolvedConflict>(area).is_some());
 }

@@ -1,10 +1,15 @@
-use bevy::app::App;
-use bevy::prelude::Entity;
+use bevy::app::{App, Update};
+use bevy::prelude::{AppExtStates, Entity, Mut};
 use bevy::core::Name;
-use bevy_game::civilization::general::components::{CityToken, CityTokenStock, Stock, Token, Treasury};
+use bevy::state::app::StatesPlugin;
+use bevy_game::civilization::game_phases::game_activity::GameActivity;
+use bevy_game::civilization::general::components::{CityToken, CityTokenStock, GameArea, LandPassage, Population, Stock, Token, Treasury};
+use bevy_game::civilization::general::events::ReturnTokenToStock;
+use bevy_game::civilization::remove_surplus::systems::remove_surplus_population;
+use bevy_game::GameState;
 use bevy_game::player::Player;
 
-pub fn setup_player(mut app: App, name: impl Into<String>) -> (App, Entity, Vec<Entity>) {
+pub fn setup_player(mut app: &mut App, name: impl Into<String>) -> (Entity, Vec<Entity>) {
     let player = app.world_mut()
         .spawn(
             (
@@ -47,5 +52,38 @@ pub fn setup_player(mut app: App, name: impl Into<String>) -> (App, Entity, Vec<
                 )
             )
         );
-    (app, player, tokens.clone())
+    (player, tokens.clone())
+}
+
+pub fn setup_bevy_app(app_builder: fn(App)->App) -> App {
+    let mut app = App::new();
+    app
+        .add_plugins(
+            StatesPlugin,
+        )
+        .insert_state(GameState::Playing)
+        .add_sub_state::<GameActivity>();
+    
+    app_builder(app)
+}
+
+pub fn create_area(app: &mut App, name: impl Into<String>) -> Entity {
+    app.world_mut().spawn(
+        (
+            Name::new(name.into()),
+            GameArea {},
+            LandPassage::default(),
+        )
+    ).id()
+}
+
+pub fn create_area_with_population(app: &mut App, mut population: Population) -> Entity {
+    app.world_mut().spawn(
+        (
+            Name::new("egypt"),
+            GameArea {},
+            LandPassage::default(),
+            population
+        )
+    ).id()
 }

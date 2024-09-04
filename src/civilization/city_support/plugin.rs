@@ -46,7 +46,7 @@ pub struct CheckPlayerCitySupport {
 #[derive(Event, Debug, Reflect)]
 pub struct CheckCitySupportStatus;
 
-fn eliminate_city(
+pub fn eliminate_city(
     mut eliminate_city: EventReader<EliminateCity>,
     mut commands: Commands,
     mut city_token_stock: Query<&mut CityTokenStock>,
@@ -73,7 +73,7 @@ fn eliminate_city(
     }
 }
 
-fn check_status(
+pub fn check_status(
     mut check_support_status: EventReader<CheckCitySupportStatus>,
     needs_city_support: Query<&HasTooManyCities>,
     mut next_state: ResMut<NextState<GameActivity>>
@@ -85,7 +85,7 @@ fn check_status(
     }
 }
 
-fn check_player_city_support(
+pub fn check_player_city_support(
     mut check_player_city_support: EventReader<CheckPlayerCitySupport>,
     city_query: Query<&BuiltCity>,
     stock_query: Query<(&Stock, &Treasury)>,
@@ -119,7 +119,7 @@ fn check_player_city_support(
     }
 }
 
-fn check_city_support(
+pub fn check_city_support(
     city_query: Query<&BuiltCity>,
     mut check_player_city_support: EventWriter<CheckPlayerCitySupport>,
     mut next_state: ResMut<NextState<GameActivity>>

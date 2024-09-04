@@ -1,27 +1,19 @@
 mod common;
 
-use bevy::app::Update;
-use bevy::prelude::{App, AppExtStates, Entity, Events, Name};
-use bevy::state::app::StatesPlugin;
-use bevy_game::civilization::game_phases::game_activity::*;
+use bevy::prelude::{AppExtStates, Entity, Events, Update};
 use bevy_game::civilization::general::components::*;
 use bevy_game::civilization::general::events::*;
-use bevy_game::civilization::remove_surplus::systems::*;
-use bevy_game::GameState;
-use crate::common::setup_player;
+use bevy_game::civilization::remove_surplus::systems::remove_surplus_population;
+use crate::common::{create_area_with_population, setup_bevy_app, setup_player};
 
 #[test]
 fn given_one_player_events_are_sent() {
     // Arrange
-    let mut app = App::new();
-    app
-        .add_plugins(
-            StatesPlugin,
-        )
-        .add_event::<ReturnTokenToStock>()
-        .insert_state(GameState::Playing)
-        .add_sub_state::<GameActivity>()
-        .add_systems(Update, remove_surplus_population);
+    let mut app = setup_bevy_app(|mut app| {
+        app.add_event::<ReturnTokenToStock>()
+            .add_systems(Update, remove_surplus_population);
+        app
+    });
 
     let player: Entity;
     let mut tokens: Vec<Entity>;
@@ -32,15 +24,7 @@ fn given_one_player_events_are_sent() {
     population.player_tokens.insert(player, tokens.drain(0..7).collect());
     population.total_population = 7;
 
-    let area = app.world_mut().spawn(
-        (
-            Name::new("egypt"),
-            GameArea {},
-            LandPassage::default(),
-            population
-        )
-    ).id();
-    
+    let area = create_area_with_population(&mut app, population);
 
     // Act
     app.update();
@@ -57,3 +41,4 @@ fn given_one_player_events_are_sent() {
     assert!(!reader.is_empty(&events));
     assert_eq!(reader.len(&events), 3);
 }
+
