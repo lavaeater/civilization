@@ -1,3 +1,6 @@
+cargo-features = ["codegen-backend"]
+
+
 [package]
 name = "bevy_game" # ToDo
 version = "0.1.0"
@@ -14,6 +17,7 @@ opt-level = 3
 
 [profile.dev]
 opt-level = 1
+codegen-backend = "cranelift"
 
 # This is used by trunk as it doesn't support custom profiles: https://github.com/trunk-rs/trunk/issues/605
 # xbuild also uses this profile for building android AABs because I couldn't find a configuration for it
