@@ -1,6 +1,6 @@
 use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{Area, BuiltCity, CitySite, Faction, Population, StartArea};
+use crate::civilization::general::components::{GameArea, BuiltCity, CitySite, Faction, Population, StartArea};
 use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::movement::components::MoveableTokens;
 use crate::civilization::movement::events::{ClearAllMoves, MoveTokenFromAreaToAreaCommand};
@@ -11,6 +11,7 @@ use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, Cons
 use clap::Parser;
 use crate::civilization::city_construction::components::{CityBuildTargets, DoneBuilding};
 use crate::civilization::city_construction::events::BuildCity;
+use crate::civilization::city_support::plugin::EliminateCity;
 
 pub struct CommandsPlugin;
 
@@ -33,7 +34,32 @@ impl Plugin for CommandsPlugin {
             .add_console_command::<ListBuildsCommand, _>(list_builds)
             .add_console_command::<BuildCityCommand, _>(build_city)
             .add_console_command::<PlayerEndBuildingCommand, _>(end_building)
+            .add_console_command::<EliminateCityCommand, _>(eliminate_city)
         ;
+    }
+}
+
+#[derive(Parser, ConsoleCommand)]
+#[command(name = "ec")]
+struct EliminateCityCommand {
+    pub area_name: String,
+}
+
+fn eliminate_city(
+    mut command: ConsoleCommand<EliminateCityCommand>,
+    area_query: Query<(Entity, &Name, &BuiltCity)>,
+    mut eliminate_city: EventWriter<EliminateCity>,
+) {
+    if let Some(Ok(EliminateCityCommand { area_name })) = command.take() {
+        if let Some((area_entity, _, built_city)) = area_query
+            .iter()
+            .find(|(_, name, _)| **name == Name::from(area_name.clone()))
+        {
+            eliminate_city.send(EliminateCity {
+                city: built_city.city,
+                area_entity,
+            });
+        }
     }
 }
 
@@ -148,7 +174,7 @@ struct MoveCommand {
 fn perform_move(
     mut command: ConsoleCommand<MoveCommand>,
     source_query: Query<(Entity, &Name, &MoveableTokens)>,
-    target_query: Query<(Entity, &Name), With<Area>>,
+    target_query: Query<(Entity, &Name), With<GameArea>>,
     game_info_and_stuff: Res<GameInfoAndStuff>,
     mut move_command: EventWriter<MoveTokenFromAreaToAreaCommand>,
 ) {

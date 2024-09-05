@@ -4,10 +4,11 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use crate::civilization::census::plugin::CensusPlugin;
 use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::city_construction::plugin::CityConstructionPlugin;
+use crate::civilization::city_support::plugin::CitySupportPlugin;
 use crate::civilization::conflict::plugin::ConflictPlugin;
 use crate::civilization::console::commands::CommandsPlugin;
 use crate::civilization::game_phases::plugin::GamePhasesPlugin;
-use crate::civilization::general::components::{Area, LandPassage, Population, Stock, Token};
+use crate::civilization::general::components::{GameArea, LandPassage, Population, Stock, Token};
 use crate::civilization::general::events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
 use crate::civilization::general::systems::{connect_areas, move_tokens_from_stock_to_area, setup_game, setup_players, return_token_to_stock};
 use crate::civilization::movement::plugin::MovementPlugin;
@@ -25,7 +26,7 @@ impl Plugin for CivilizationPlugin {
             .register_type::<Token>()
             .register_type::<LandPassage>()
             .register_type::<Stock>()
-            .register_type::<Area>()
+            .register_type::<GameArea>()
             .register_type::<Population>()
             .add_event::<MoveTokensFromStockToAreaCommand>()
             .add_event::<ReturnTokenToStock>()
@@ -39,6 +40,7 @@ impl Plugin for CivilizationPlugin {
                     ConflictPlugin,
                     CityConstructionPlugin,
                     RemoveSurplusPlugin,
+                    CitySupportPlugin,
                 )
             )
             .add_systems(OnEnter(GameState::Playing), (setup_game, setup_players))

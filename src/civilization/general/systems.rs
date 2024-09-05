@@ -1,5 +1,5 @@
 use crate::civilization::census::components::Census;
-use crate::civilization::general::components::{Area, CitySite, CityToken, CityTokenStock, Faction, LandPassage, NeedsConnections, Population, StartArea, Token};
+use crate::civilization::general::components::{GameArea, CitySite, CityToken, CityTokenStock, Faction, LandPassage, NeedsConnections, Population, StartArea, Token, Treasury};
 use crate::civilization::general::components::Stock;
 use bevy::core::Name;
 use bevy::prelude::{Commands, Entity, EventReader, Query, With};
@@ -19,6 +19,7 @@ pub fn setup_players(
                     Player {},
                     Name::new(format!("p{n}")),
                     Census { population: 0 },
+                    Treasury { tokens: vec![] },
                     Faction { faction: if n % 2 == 0 { Egypt } else { Crete } }
                 )
             ).id();
@@ -97,7 +98,7 @@ pub fn setup_game(
                     .spawn(
                         (
                             Name::new("egypt"),
-                            Area {},
+                            GameArea {},
                             LandPassage::default(),
                             NeedsConnections {
                                 land_connections: connections,
@@ -115,7 +116,7 @@ pub fn setup_game(
                     .spawn(
                         (
                             Name::new("crete"),
-                            Area {},
+                            GameArea {},
                             LandPassage::default(),
                             NeedsConnections {
                                 land_connections: connections,
@@ -132,7 +133,7 @@ pub fn setup_game(
                 let area_id = commands
                     .spawn(
                         (
-                            Area {},
+                            GameArea {},
                             Name::new(area.clone()),
                             LandPassage::default(),
                             NeedsConnections {
@@ -152,7 +153,7 @@ pub fn setup_game(
 
 pub fn connect_areas(
     mut area_query: Query<(Entity, &mut LandPassage, &NeedsConnections)>,
-    named_areas: Query<(Entity, &Name), With<Area>>,
+    named_areas: Query<(Entity, &Name), With<GameArea>>,
     mut commands: Commands,
 ) {
     for (area_entity,
