@@ -4,7 +4,7 @@ use bevy::prelude::{Entity, Events, Update};
 use bevy_game::civilization::general::components::*;
 use bevy_game::civilization::general::events::*;
 use bevy_game::civilization::remove_surplus::systems::remove_surplus_population;
-use crate::common::{create_area_with_population, setup_bevy_app, setup_player};
+use crate::common::{create_area, setup_bevy_app, setup_player};
 
 #[test]
 fn given_one_player_events_are_sent() {
@@ -17,15 +17,18 @@ fn given_one_player_events_are_sent() {
 
     let player: Entity;
     let mut tokens: Vec<Entity>;
-    (player, tokens) = setup_player(&mut  app, "player one");
+    (player, tokens, _) = setup_player(&mut  app, "player one");
 
     let mut population = Population::new(4);
 
     population.player_tokens.insert(player, tokens.drain(0..7).collect());
     population.total_population = 7;
 
-    let area = create_area_with_population(&mut app, population);
+    let area = create_area(&mut app, "Egypt");
 
+    app.world_mut().entity_mut(area)
+        .insert(population);
+    
     // Act
     app.update();
     let events = app.world()

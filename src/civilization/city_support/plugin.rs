@@ -128,6 +128,7 @@ pub fn check_city_support(
         next_state.set(GameActivity::PopulationExpansion);
         return;
     }
+    
     for (player, _) in city_query
         .iter()
         .chunk_by(|city| city.player).into_iter() {

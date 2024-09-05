@@ -3,7 +3,7 @@ use bevy::core::Name;
 use bevy::prelude::{AppExtStates, Entity};
 use bevy::state::app::StatesPlugin;
 use bevy_game::civilization::game_phases::game_activity::GameActivity;
-use bevy_game::civilization::general::components::{CityToken, CityTokenStock, GameArea, LandPassage, Population, Stock, Token, Treasury};
+use bevy_game::civilization::general::components::{CityToken, CityTokenStock, GameArea, LandPassage, Stock, Token, Treasury};
 use bevy_game::player::Player;
 use bevy_game::GameState;
 
@@ -66,22 +66,12 @@ pub fn setup_bevy_app(app_builder: fn(App)->App) -> App {
 }
 
 pub fn create_area(app: &mut App, name: impl Into<String>) -> Entity {
-    app.world_mut().spawn(
+    let area = app.world_mut().spawn(
         (
             Name::new(name.into()),
             GameArea {},
             LandPassage::default(),
         )
-    ).id()
-}
-
-pub fn create_area_with_population(app: &mut App, population: Population) -> Entity {
-    app.world_mut().spawn(
-        (
-            Name::new("egypt"),
-            GameArea {},
-            LandPassage::default(),
-            population
-        )
-    ).id()
+    ).id();
+    area
 }
