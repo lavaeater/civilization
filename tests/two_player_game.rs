@@ -14,3 +14,22 @@ to be sooo much work, but perhaps it will be worth it?
 
 It is either this or making some kind of scripting for the commands. I will do these in parallell...
  */
+
+#[test]
+fn start_game() {
+    let mut app = setup_bevy_app(|mut app| {
+        app
+            .add_event::<CheckPlayerCitySupport>()
+            .add_systems(Update, check_city_support)
+        ;
+        app
+    });
+
+    setup_player(&mut app, "Player 1");
+    create_area(&mut app, "Egypt");
+
+    app.update();
+
+    let state = app.world().get_resource::<NextState<GameActivity>>().unwrap();
+    assert!(matches!(state, Pending(GameActivity::PopulationExpansion)));
+}
