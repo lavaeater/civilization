@@ -6,6 +6,7 @@ pub mod loading;
 pub mod menu;
 pub mod player;
 pub mod civilization;
+pub mod stupid_ai;
 
 use crate::actions::ActionsPlugin;
 use crate::audio::InternalAudioPlugin;
