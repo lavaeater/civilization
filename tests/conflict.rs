@@ -35,11 +35,11 @@ fn given_two_players_no_keys_are_left_behind() {
 
     let player_one: Entity;
     let mut player_one_tokens: Vec<Entity>;
-    (player_one, player_one_tokens) = setup_player(&mut app, "player one");
+    (player_one, player_one_tokens, _) = setup_player(&mut app, "player one");
 
     let player_two: Entity;
     let mut player_two_tokens: Vec<Entity>;
-    (player_two, player_two_tokens) = setup_player(&mut  app, "player two");
+    (player_two, player_two_tokens, _) = setup_player(&mut  app, "player two");
 
     let mut population = Population::new(4);
 

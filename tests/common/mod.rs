@@ -7,7 +7,7 @@ use bevy_game::civilization::general::components::{CityToken, CityTokenStock, Ga
 use bevy_game::player::Player;
 use bevy_game::GameState;
 
-pub fn setup_player(app: &mut App, name: impl Into<String>) -> (Entity, Vec<Entity>) {
+pub fn setup_player(app: &mut App, name: impl Into<String>) -> (Entity, Vec<Entity>, Vec<Entity>) {
     let player = app.world_mut()
         .spawn(
             (
@@ -46,11 +46,11 @@ pub fn setup_player(app: &mut App, name: impl Into<String>) -> (Entity, Vec<Enti
                     tokens.clone()),
                 CityTokenStock::new(
                     9,
-                    city_tokens,
+                    city_tokens.clone(),
                 )
             )
         );
-    (player, tokens.clone())
+    (player, tokens, city_tokens)
 }
 
 pub fn setup_bevy_app(app_builder: fn(App)->App) -> App {
