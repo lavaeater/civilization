@@ -1,5 +1,5 @@
 use bevy::app::{Plugin, Update};
-use bevy::prelude::{in_state, App, Commands, Component, Entity, Event, EventReader, IntoSystemConfigs, OnEnter, Reflect};
+use bevy::prelude::{in_state, App, Commands, Component, Entity, Event, EventReader, IntoSystemConfigs, Reflect};
 use crate::civilization::game_phases::game_activity::GameActivity;
 use crate::GameState;
 
@@ -23,7 +23,7 @@ impl Plugin for StupidAiPlugin {
 
 #[derive(Event, Debug, Reflect)]
 pub struct StupidAiEvent {
-    player: Entity
+    pub player: Entity
 }
 
 #[derive(Component, Debug, Reflect, Default)]

@@ -37,7 +37,7 @@ fn given_one_city_event_sent_for_player() {
         app
     });
 
-    let (player, tokens, mut city_tokens) = setup_player(&mut app, "Player 1");
+    let (player, _tokens, mut city_tokens) = setup_player(&mut app, "Player 1");
  let area = create_area(&mut app, "Egypt");
     app
         .world_mut()

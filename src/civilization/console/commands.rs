@@ -12,6 +12,7 @@ use clap::Parser;
 use crate::civilization::city_construction::components::{CityBuildTargets, DoneBuilding};
 use crate::civilization::city_construction::events::BuildCity;
 use crate::civilization::city_support::plugin::EliminateCity;
+use crate::stupid_ai::plugin::{StupidAiEvent};
 
 pub struct CommandsPlugin;
 
@@ -35,7 +36,31 @@ impl Plugin for CommandsPlugin {
             .add_console_command::<BuildCityCommand, _>(build_city)
             .add_console_command::<PlayerEndBuildingCommand, _>(end_building)
             .add_console_command::<EliminateCityCommand, _>(eliminate_city)
+            .add_console_command::<StupidAiCommand, _>(stupid_ai)
         ;
+    }
+}
+
+#[derive(Parser, ConsoleCommand)]
+#[command(name = "sa")]
+struct StupidAiCommand {
+    player: String,
+}
+
+fn stupid_ai(
+    mut command: ConsoleCommand<StupidAiCommand>,
+    player_query: Query<(Entity, &Name), With<Player>>,
+    mut add_stupid_ai: EventWriter<StupidAiEvent>,
+) {
+    if let Some(Ok(StupidAiCommand { player })) = command.take() {
+        if let Some(player_entity) = player_query.iter().find(|(_, name)| **name == Name::from(player.clone())).map(|(entity, _)| entity) {
+            add_stupid_ai.send(StupidAiEvent {
+                player: player_entity
+            });
+            command.reply("Making Player Stupid");
+        } else {
+            command.reply("Could not find target player");
+        }
     }
 }
 
