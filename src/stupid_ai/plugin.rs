@@ -40,8 +40,27 @@ fn setup_stupid_ai(
     }
 }
 
-fn move_tokens() {
-    
+fn move_tokens(
+    game_info_and_stuff:
+) {
+    if let Some(_player_to_move) = game_info.current_mover {
+        let moves = moveable_tokens
+            .iter()
+            .map(|(from_name, move_specs)| {
+                (from_name, move_specs.tokens.iter().count(),
+                 move_specs
+                     .targets
+                     .iter()
+                     .map(|target| {
+                         let target_name = name_query.get(*target).unwrap();
+                         target_name
+                     }).collect::<Vec<&Name>>()
+                )
+            });
+
+        let message = moves.map(|(from_name, number_of_tokens, targets)| {
+            format!("{from_name} can move max {number_of_tokens} to: {:?}", targets.iter().map(|name| name.as_str()).collect::<Vec<&str>>().join(", "))
+        }).collect::<Vec<String>>().join("\n");
 }
 
 fn build_cities() {
