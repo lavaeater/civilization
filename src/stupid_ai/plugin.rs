@@ -1,5 +1,5 @@
 use bevy::app::{Plugin, Update};
-use bevy::prelude::{in_state, App, Commands, Component, IntoSystemConfigs, OnEnter, Reflect};
+use bevy::prelude::{in_state, App, Commands, Component, Entity, Event, EventReader, IntoSystemConfigs, OnEnter, Reflect};
 use crate::civilization::game_phases::game_activity::GameActivity;
 use crate::GameState;
 
@@ -8,6 +8,7 @@ pub struct StupidAiPlugin;
 impl Plugin for StupidAiPlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_event::<StupidAiEvent>()
             .add_systems(OnEnter(GameState::Playing), setup_stupid_ai)
             .add_systems(Update, (
                 move_tokens.run_if(in_state(GameActivity::Movement)),
@@ -20,15 +21,23 @@ impl Plugin for StupidAiPlugin {
 
 }
 
-#[derive(Component, Debug, Reflect)]
+#[derive(Event, Debug, Reflect)]
+pub struct StupidAiEvent {
+    player: Entity
+}
+
+#[derive(Component, Debug, Reflect, Default)]
 pub struct StupidAi;
 
 
 // Run different systems depending on what game state we are in...
 fn setup_stupid_ai(
+    mut stupid_ai_event: EventReader<StupidAiEvent>,
     mut commands: Commands,
 ) {
-    
+    for e in stupid_ai_event.read() {
+        commands.entity(e.player).insert(StupidAi::default());
+    }
 }
 
 fn move_tokens() {
