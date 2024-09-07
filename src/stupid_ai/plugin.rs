@@ -9,8 +9,8 @@ impl Plugin for StupidAiPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_event::<StupidAiEvent>()
-            .add_systems(OnEnter(GameState::Playing), setup_stupid_ai)
             .add_systems(Update, (
+                setup_stupid_ai.run_if(in_state(GameState::Playing)),
                 move_tokens.run_if(in_state(GameActivity::Movement)),
                 build_cities.run_if(in_state(GameActivity::CityConstruction)),
                 remove_surplus.run_if(in_state(GameActivity::RemoveSurplusPopulation)),
