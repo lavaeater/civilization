@@ -1,6 +1,9 @@
 use bevy::app::{Plugin, Update};
-use bevy::prelude::{in_state, App, Commands, Component, Entity, Event, EventReader, IntoSystemConfigs, Reflect};
+use bevy::core::Name;
+use bevy::prelude::{in_state, App, Commands, Component, Entity, Event, EventReader, IntoSystemConfigs, Query, Reflect, Res};
+use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::game_activity::GameActivity;
+use crate::civilization::movement::components::MoveableTokens;
 use crate::GameState;
 
 pub struct StupidAiPlugin;
@@ -41,8 +44,23 @@ fn setup_stupid_ai(
 }
 
 fn move_tokens(
-    game_info_and_stuff:
+    game_info: Res<GameInfoAndStuff>,
+    moveable_tokens: Query<(&Name, &MoveableTokens)>,
 ) {
+    /*
+    If an area that the player has a presence in contains more than max
+    population in that area, move surplus population to other areas,
+    prioritizing empty areas. 
+    
+    This is a bit more advanced than the algorithm below and gives us 
+    opportunity to add some more components to areas and players to
+    make all this easier.
+    
+    Players can have a list of "I have a presence in the following 
+    areas" to simplify iterating over them
+    Areas in turn might have a "I am empty"-component to make it 
+    easy to exclude or include empty areas in queries.
+     */
     if let Some(_player_to_move) = game_info.current_mover {
         let moves = moveable_tokens
             .iter()
@@ -61,6 +79,7 @@ fn move_tokens(
         let message = moves.map(|(from_name, number_of_tokens, targets)| {
             format!("{from_name} can move max {number_of_tokens} to: {:?}", targets.iter().map(|name| name.as_str()).collect::<Vec<&str>>().join(", "))
         }).collect::<Vec<String>>().join("\n");
+    }
 }
 
 fn build_cities() {

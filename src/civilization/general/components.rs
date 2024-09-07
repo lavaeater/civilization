@@ -93,6 +93,18 @@ impl Stock {
 }
 
 #[derive(Component, Debug, Reflect)]
+pub struct PlayerCities {
+    pub areas: Vec<Entity>,
+    pub areas_and_cities: HashMap<Entity, Entity>,
+    pub cities: Vec<Entity>
+}
+
+#[derive(Component, Debug, Reflect)]
+pub struct PlayerAreas {
+    pub areas: Vec<Entity>,
+}
+
+#[derive(Component, Debug, Reflect)]
 pub struct Treasury {
     pub tokens: Vec<Entity>,
 }
