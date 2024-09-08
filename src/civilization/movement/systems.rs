@@ -156,28 +156,24 @@ pub fn move_tokens_from_area_to_area(
     mut player_areas: Query<&mut PlayerAreas>,
 ) {
     for ev in move_events.read() {
-        let mut tokens_to_move = vec![];
         if let Ok(mut from_pop) = pop_query.get_mut(ev.source_entity) {
-            from_pop.total_population -= ev.number_of_tokens;
-            tokens_to_move = (0..ev.number_of_tokens).map(|_| from_pop.player_tokens.get_mut(&ev.player).unwrap().swap_remove(0)).collect::<Vec<Entity>>();
-            if from_pop.player_tokens.get_mut(&ev.player).unwrap().is_empty() {
-                from_pop.player_tokens.remove(&ev.player);
-            }
-        }
-        if let Ok(mut to_pop) = pop_query.get_mut(ev.target_entity) {
-            if let Ok(mut player_area) = player_areas.get_mut(ev.player) {
-                tokens_to_move
-                    .iter()
-                    .for_each(|token| {
-                        commands.entity(*token).remove::<TokenCanMove>();
-                        player_area.remove_token_from_area(ev.source_entity, *token);
-                        to_pop.add_token_to_area(ev.player, *token);
-                        player_area.add_token_to_area(ev.target_entity, *token);
-                    });
-                // this will make that area recompute its moves. Cool.
-                commands.entity(ev.source_entity).remove::<MoveableTokens>();
-                commands.entity(ev.source_entity).insert(NeedsTocalculateMoves {});
-                write_line.send(PrintConsoleLine::new(StyledStr::from("Moved some tokens!")));
+            if let Some(tokens_to_move) = from_pop.remove_tokens_from_area(ev.player, ev.number_of_tokens) {
+                if let Ok(mut to_pop) = pop_query.get_mut(ev.target_entity) {
+                    if let Ok(mut player_area) = player_areas.get_mut(ev.player) {
+                        tokens_to_move
+                            .iter()
+                            .for_each(|token| {
+                                commands.entity(*token).remove::<TokenCanMove>();
+                                player_area.remove_token_from_area(ev.source_entity, *token);
+                                to_pop.add_token_to_area(ev.player, *token);
+                                player_area.add_token_to_area(ev.target_entity, *token);
+                            });
+                        // this will make that area recompute its moves. Cool.
+                        commands.entity(ev.source_entity).remove::<MoveableTokens>();
+                        commands.entity(ev.source_entity).insert(NeedsTocalculateMoves {});
+                        write_line.send(PrintConsoleLine::new(StyledStr::from("Moved some tokens!")));
+                    }
+                }
             }
         }
     }

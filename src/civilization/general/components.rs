@@ -24,6 +24,21 @@ pub struct Population {
 }
 
 impl Population {
+    pub fn remove_tokens_from_area(&mut self, player: Entity, number_of_tokens: usize) -> Option<Vec<Entity>> {
+        if let Some(player_tokens) = self.player_tokens.get_mut(&player) {
+            if player_tokens.len() >= number_of_tokens {
+                let tokens = player_tokens.drain(0..number_of_tokens).collect();
+                self.total_population -= number_of_tokens;
+                if player_tokens.is_empty() { self.player_tokens.remove(&player); }
+                Some(tokens)
+            } else {
+                None
+            }
+        } else { 
+            None
+        }
+    }
+    
     pub fn add_token_to_area(&mut self, player: Entity, token: Entity) {
         if let Some(tokens) = self.player_tokens.get_mut(&player) {
             tokens.push(token);
