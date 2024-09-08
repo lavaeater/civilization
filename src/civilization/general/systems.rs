@@ -192,7 +192,6 @@ pub fn move_tokens_from_stock_to_area(
                         population.player_tokens.insert(ev.player_entity, Vec::new());
                     }
                     let mut player_areas = presence_query.get_mut(ev.player_entity).unwrap();
-                    player_areas.areas.insert(ev.area_entity);
                     tokens_to_move
                         .iter()
                         .for_each(|t| {
@@ -200,7 +199,8 @@ pub fn move_tokens_from_stock_to_area(
                                 .player_tokens
                                 .get_mut(&ev.player_entity)
                                 .unwrap()
-                                .push(*t)
+                                .push(*t);
+                            player_areas.add_token_to_area(ev.area_entity, *t);
                         });
                 }
             }

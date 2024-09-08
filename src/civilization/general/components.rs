@@ -24,6 +24,15 @@ pub struct Population {
 }
 
 impl Population {
+    pub fn add_token_to_area(&mut self, player: Entity, token: Entity) {
+        if let Some(tokens) = self.player_tokens.get_mut(&player) {
+            tokens.push(token);
+        } else {
+            self.player_tokens.insert(player, vec![token]);
+        }
+        self.total_population += 1;
+    }
+    
     pub fn new(max_population: usize) -> Self {
         Population {
             player_tokens: HashMap::default(),
@@ -99,9 +108,55 @@ pub struct PlayerCities {
     pub city_tokens: HashSet<Entity>
 }
 
+impl PlayerCities {
+    pub fn add_city_to_area(&mut self, area: Entity, city_token: Entity) {
+        self.areas.insert(area);
+        self.areas_and_cities.insert(area, city_token);
+        self.city_tokens.insert(city_token);
+    }
+    
+    pub fn remove_city_from_area(&mut self, area: Entity) -> Option<Entity> {
+        if let Some(city) = self.areas_and_cities.remove(&area) {
+            self.city_tokens.remove(&city);
+            if self.areas_and_cities.is_empty() {
+                self.areas.remove(&area);
+            }
+            Some(city)
+        } else { 
+            None
+        }
+    }
+}
+
 #[derive(Component, Debug, Reflect, Default)]
 pub struct PlayerAreas {
-    pub areas: HashSet<Entity>,
+    areas: HashSet<Entity>,
+    area_population: HashMap<Entity, HashSet<Entity>>,
+}
+
+impl PlayerAreas {
+    pub fn add_token_to_area(&mut self, area: Entity, token: Entity) {
+        self.areas.insert(area);
+        if !self.area_population.contains_key(&area) {
+            self.area_population.insert(area, HashSet::default());
+        }
+        self.area_population.get_mut(&area).unwrap().insert(token);
+    }
+    
+    pub fn remove_token_from_area(&mut self, area: Entity, token: Entity) {
+        if let Some(tokens) = self.area_population.get_mut(&area) {
+            tokens.remove(&token);
+            if tokens.is_empty() {
+                self.area_population.remove(&area);
+                self.areas.remove(&area);
+            }
+        }
+    }
+    
+    pub fn remove_area(&mut self, area: Entity) {
+        self.areas.remove(&area);
+        self.area_population.remove(&area);
+    }
 }
 
 #[derive(Component, Debug, Reflect, Default)]

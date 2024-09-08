@@ -40,9 +40,8 @@ pub fn build_city(
             }
             if let Some(city_token) = city_stock.tokens.pop() {
                 if let Ok((mut player_areas, mut player_cities)) = player_cities_and_areas.get_mut(build_city.player) {
-                    player_areas.areas.remove(&build_city.area);
-                    player_cities.city_tokens.insert(city_token);
-                    player_cities.areas_and_cities.insert(build_city.area, city_token);
+                    player_areas.remove_area(build_city.area);
+                    player_cities.add_city_to_area(build_city.area, city_token);
                 }
 
                 println!("Build city for player {:?} in area {:?}", build_city.player, build_city.area);

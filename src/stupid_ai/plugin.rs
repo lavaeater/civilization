@@ -1,9 +1,7 @@
 use bevy::app::{Plugin, Update};
-use bevy::core::Name;
 use bevy::prelude::{in_state, App, Commands, Component, Entity, Event, EventReader, IntoSystemConfigs, Query, Reflect, Res};
 use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::movement::components::MoveableTokens;
 use crate::GameState;
 
 pub struct StupidAiPlugin;
@@ -45,7 +43,6 @@ fn setup_stupid_ai(
 
 fn move_tokens(
     game_info: Res<GameInfoAndStuff>,
-    moveable_tokens: Query<(&Name, &MoveableTokens)>,
 ) {
     /*
     If an area that the player has a presence in contains more than max
@@ -62,23 +59,7 @@ fn move_tokens(
     easy to exclude or include empty areas in queries.
      */
     if let Some(_player_to_move) = game_info.current_mover {
-        // let moves = moveable_tokens
-        //     .iter()
-        //     .map(|(from_name, move_specs)| {
-        //         (from_name, move_specs.tokens.iter().count(),
-        //          move_specs
-        //              .targets
-        //              .iter()
-        //              .map(|target| {
-        //                  let target_name = name_query.get(*target).unwrap();
-        //                  target_name
-        //              }).collect::<Vec<&Name>>()
-        //         )
-        //     });
-        // 
-        // let message = moves.map(|(from_name, number_of_tokens, targets)| {
-        //     format!("{from_name} can move max {number_of_tokens} to: {:?}", targets.iter().map(|name| name.as_str()).collect::<Vec<&str>>().join(", "))
-        // }).collect::<Vec<String>>().join("\n");
+        
     }
 }
 

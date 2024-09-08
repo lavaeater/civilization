@@ -1,7 +1,7 @@
 use crate::civilization::census::components::HasPopulation;
 use crate::civilization::census::resources::GameInfoAndStuff;
 use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{GameArea, LandPassage, Population};
+use crate::civilization::general::components::{GameArea, LandPassage, PlayerAreas, Population};
 use crate::civilization::movement::components::{MoveableTokens, NeedsTocalculateMoves, PerformingMovement, TokenCanMove};
 use crate::civilization::movement::events::{PlayerMovementEnded, NextPlayerStarted, InitAllAreas, ClearAllMoves};
 use crate::civilization::movement::events::MoveTokenFromAreaToAreaCommand;
@@ -23,7 +23,7 @@ pub fn clear_all_moves(
     areas_to_clear_query: Query<Entity, With<MoveableTokens>>,
     token_query: Query<Entity, With<TokenCanMove>>,
     mut commands: Commands,
-    mut next_player_started: EventWriter<NextPlayerStarted>
+    mut next_player_started: EventWriter<NextPlayerStarted>,
 ) {
     for _ in clear_event.read() {
         for area in areas_to_clear_query.iter() {
@@ -153,6 +153,7 @@ pub fn move_tokens_from_area_to_area(
     mut pop_query: Query<&mut Population>,
     mut commands: Commands,
     mut write_line: EventWriter<PrintConsoleLine>,
+    mut player_areas: Query<&mut PlayerAreas>,
 ) {
     for ev in move_events.read() {
         let mut tokens_to_move = vec![];
@@ -164,25 +165,20 @@ pub fn move_tokens_from_area_to_area(
             }
         }
         if let Ok(mut to_pop) = pop_query.get_mut(ev.target_entity) {
-            tokens_to_move
-                .iter()
-                .for_each(|token| {
-                    commands.entity(*token).remove::<TokenCanMove>();
-                    if !to_pop.player_tokens.contains_key(&ev.player) {
-                        to_pop.player_tokens.insert(ev.player, vec![]);
-                    }
-
-                    to_pop
-                        .player_tokens
-                        .get_mut(&ev.player)
-                        .unwrap()
-                        .push(*token);
-                    to_pop.total_population += 1;
-                });
-            // this will make that area recompute its moves. Cool.
-            commands.entity(ev.source_entity).remove::<MoveableTokens>();
-            commands.entity(ev.source_entity).insert(NeedsTocalculateMoves {});
-            write_line.send(PrintConsoleLine::new(StyledStr::from("Moved some tokens!")));
+            if let Ok(mut player_area) = player_areas.get_mut(ev.player) {
+                tokens_to_move
+                    .iter()
+                    .for_each(|token| {
+                        commands.entity(*token).remove::<TokenCanMove>();
+                        player_area.remove_token_from_area(ev.source_entity, *token);
+                        to_pop.add_token_to_area(ev.player, *token);
+                        player_area.add_token_to_area(ev.target_entity, *token);
+                    });
+                // this will make that area recompute its moves. Cool.
+                commands.entity(ev.source_entity).remove::<MoveableTokens>();
+                commands.entity(ev.source_entity).insert(NeedsTocalculateMoves {});
+                write_line.send(PrintConsoleLine::new(StyledStr::from("Moved some tokens!")));
+            }
         }
     }
 }
