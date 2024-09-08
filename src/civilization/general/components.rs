@@ -1,5 +1,5 @@
 use bevy::prelude::{Component, Entity, Reflect};
-use bevy::utils::HashMap;
+use bevy::utils::{HashMap, HashSet};
 use crate::civilization::general::enums::GameFaction;
 
 #[derive(Component, Debug, Reflect)]
@@ -94,14 +94,14 @@ impl Stock {
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct PlayerCities {
-    pub areas: Vec<Entity>,
+    pub areas: HashSet<Entity>,
     pub areas_and_cities: HashMap<Entity, Entity>,
-    pub cities: Vec<Entity>
+    pub cities: HashSet<Entity>
 }
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct PlayerAreas {
-    pub areas: Vec<Entity>,
+    pub areas: HashSet<Entity>,
 }
 
 #[derive(Component, Debug, Reflect, Default)]

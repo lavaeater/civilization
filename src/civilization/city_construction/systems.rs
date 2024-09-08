@@ -1,8 +1,8 @@
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, NextState, Query, ResMut, With, Without};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, Mut, NextState, Query, ResMut, With, Without};
 use crate::civilization::city_construction::components::{CityBuildTargets, DoneBuilding};
 use crate::civilization::city_construction::events::{BuildCity, EndCityConstructionActivity};
 use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{BuiltCity, CitySite, CityTokenStock, Population};
+use crate::civilization::general::components::{BuiltCity, CitySite, CityTokenStock, PlayerAreas, PlayerCities, Population};
 use crate::civilization::general::events::ReturnTokenToStock;
 use crate::player::Player;
 
@@ -23,6 +23,7 @@ pub fn build_city(
     mut city_token_stock: Query<&mut CityTokenStock>,
     mut city_population: Query<&mut Population>,
     mut return_tokens: EventWriter<ReturnTokenToStock>,
+    mut player_cities_and_areas: Query<(&mut PlayerAreas, &mut PlayerCities)>,
     mut commands: Commands,
 ) {
     for build_city in command.read() {
@@ -36,6 +37,7 @@ pub fn build_city(
                         token_entity: token,
                     });
                 }
+                
             }
             if let Some(city_token) = city_stock.tokens.pop() {
                 println!("Build city for player {:?} in area {:?}", build_city.player, build_city.area);
