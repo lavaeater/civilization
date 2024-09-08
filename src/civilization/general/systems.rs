@@ -1,9 +1,10 @@
 use crate::civilization::census::components::Census;
-use crate::civilization::general::components::{GameArea, CitySite, CityToken, CityTokenStock, Faction, LandPassage, NeedsConnections, Population, StartArea, Token, Treasury};
+use crate::civilization::general::components::{GameArea, CitySite, CityToken, CityTokenStock, Faction, LandPassage, NeedsConnections, Population, StartArea, Token, Treasury, PlayerAreas, PlayerCities};
 use crate::civilization::general::components::Stock;
 use bevy::core::Name;
 use bevy::prelude::{Commands, Entity, EventReader, Query, With};
 use bevy::utils::HashMap;
+use crate::civilization::console::commands::CommandsPlugin;
 use crate::civilization::general::enums::GameFaction::{Crete, Egypt};
 use crate::civilization::general::events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
 use crate::player::Player;
@@ -20,7 +21,9 @@ pub fn setup_players(
                     Name::new(format!("p{n}")),
                     Census { population: 0 },
                     Treasury { tokens: vec![] },
-                    Faction { faction: if n % 2 == 0 { Egypt } else { Crete } }
+                    Faction { faction: if n % 2 == 0 { Egypt } else { Crete } },
+                    PlayerAreas::default(),
+                    PlayerCities::default()
                 )
             ).id();
 
@@ -179,6 +182,7 @@ pub fn move_tokens_from_stock_to_area(
     mut move_commands: EventReader<MoveTokensFromStockToAreaCommand>,
     mut stock_query: Query<&mut Stock>,
     mut population_query: Query<&mut Population>,
+    mut commands: Commands
 ) {
     for ev in move_commands.read() {
         if let Ok(mut stock) = stock_query.get_mut(ev.player_entity) {
@@ -188,6 +192,7 @@ pub fn move_tokens_from_stock_to_area(
                     if !population.player_tokens.contains_key(&ev.player_entity) {
                         population.player_tokens.insert(ev.player_entity, Vec::new());
                     }
+                    commands.entity(ev.player_entity).insert()
                     tokens_to_move
                         .iter()
                         .for_each(|t| {
