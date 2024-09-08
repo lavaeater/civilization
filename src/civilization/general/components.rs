@@ -96,7 +96,7 @@ impl Stock {
 pub struct PlayerCities {
     pub areas: HashSet<Entity>,
     pub areas_and_cities: HashMap<Entity, Entity>,
-    pub cities: HashSet<Entity>
+    pub city_tokens: HashSet<Entity>
 }
 
 #[derive(Component, Debug, Reflect, Default)]
