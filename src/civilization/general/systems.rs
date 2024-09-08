@@ -50,11 +50,11 @@ pub fn setup_players(
             .insert(
                 (
                     Stock::new(
-                    47,
-                    tokens),
+                        47,
+                        tokens),
                     CityTokenStock::new(
                         9,
-                        city_tokens
+                        city_tokens,
                     )
                 )
             );
@@ -181,25 +181,17 @@ pub fn move_tokens_from_stock_to_area(
     mut move_commands: EventReader<MoveTokensFromStockToAreaCommand>,
     mut stock_query: Query<&mut Stock>,
     mut population_query: Query<&mut Population>,
-    mut presence_query: Query<&mut PlayerAreas>
+    mut presence_query: Query<&mut PlayerAreas>,
 ) {
     for ev in move_commands.read() {
         if let Ok(mut stock) = stock_query.get_mut(ev.player_entity) {
             if let Ok(mut population) = population_query.get_mut(ev.area_entity) {
-                if stock.tokens.len() > ev.number_of_tokens {
-                    let tokens_to_move = (0..ev.number_of_tokens).map(|_| stock.tokens.swap_remove(0)).collect::<Vec<Entity>>();
-                    if !population.player_tokens.contains_key(&ev.player_entity) {
-                        population.player_tokens.insert(ev.player_entity, Vec::new());
-                    }
+                if let Some(tokens_to_move) = stock.remove_tokens_from_stock(ev.number_of_tokens) {
                     let mut player_areas = presence_query.get_mut(ev.player_entity).unwrap();
                     tokens_to_move
                         .iter()
                         .for_each(|t| {
-                            population
-                                .player_tokens
-                                .get_mut(&ev.player_entity)
-                                .unwrap()
-                                .push(*t);
+                            population.add_token_to_area(ev.player_entity, *t);
                             player_areas.add_token_to_area(ev.area_entity, *t);
                         });
                 }

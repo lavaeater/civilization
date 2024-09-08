@@ -34,11 +34,11 @@ impl Population {
             } else {
                 None
             }
-        } else { 
+        } else {
             None
         }
     }
-    
+
     pub fn add_token_to_area(&mut self, player: Entity, token: Entity) {
         if let Some(tokens) = self.player_tokens.get_mut(&player) {
             tokens.push(token);
@@ -47,7 +47,7 @@ impl Population {
         }
         self.total_population += 1;
     }
-    
+
     pub fn new(max_population: usize) -> Self {
         Population {
             player_tokens: HashMap::default(),
@@ -114,13 +114,22 @@ impl Stock {
             tokens,
         }
     }
+    pub fn remove_tokens_from_stock(&mut self, number_of_tokens: usize) -> Option<Vec<Entity>> {
+        if self.tokens.len() >= number_of_tokens {
+            let tokens = self.tokens.drain(0..number_of_tokens).collect();
+            Some(tokens)
+        } else {
+            None
+        }
+    }
 }
+
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct PlayerCities {
     pub areas: HashSet<Entity>,
     pub areas_and_cities: HashMap<Entity, Entity>,
-    pub city_tokens: HashSet<Entity>
+    pub city_tokens: HashSet<Entity>,
 }
 
 impl PlayerCities {
@@ -129,7 +138,7 @@ impl PlayerCities {
         self.areas_and_cities.insert(area, city_token);
         self.city_tokens.insert(city_token);
     }
-    
+
     pub fn remove_city_from_area(&mut self, area: Entity) -> Option<Entity> {
         if let Some(city) = self.areas_and_cities.remove(&area) {
             self.city_tokens.remove(&city);
@@ -137,7 +146,7 @@ impl PlayerCities {
                 self.areas.remove(&area);
             }
             Some(city)
-        } else { 
+        } else {
             None
         }
     }
@@ -157,7 +166,7 @@ impl PlayerAreas {
         }
         self.area_population.get_mut(&area).unwrap().insert(token);
     }
-    
+
     pub fn remove_token_from_area(&mut self, area: Entity, token: Entity) {
         if let Some(tokens) = self.area_population.get_mut(&area) {
             tokens.remove(&token);
@@ -167,7 +176,7 @@ impl PlayerAreas {
             }
         }
     }
-    
+
     pub fn remove_area(&mut self, area: Entity) {
         self.areas.remove(&area);
         self.area_population.remove(&area);
