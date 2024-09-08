@@ -2,9 +2,8 @@ use crate::civilization::census::components::Census;
 use crate::civilization::general::components::{GameArea, CitySite, CityToken, CityTokenStock, Faction, LandPassage, NeedsConnections, Population, StartArea, Token, Treasury, PlayerAreas, PlayerCities};
 use crate::civilization::general::components::Stock;
 use bevy::core::Name;
-use bevy::prelude::{Commands, Entity, EventReader, Mut, Query, With};
+use bevy::prelude::{Commands, Entity, EventReader, Query, With};
 use bevy::utils::HashMap;
-use crate::civilization::console::commands::CommandsPlugin;
 use crate::civilization::general::enums::GameFaction::{Crete, Egypt};
 use crate::civilization::general::events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
 use crate::player::Player;
@@ -192,7 +191,7 @@ pub fn move_tokens_from_stock_to_area(
                     if !population.player_tokens.contains_key(&ev.player_entity) {
                         population.player_tokens.insert(ev.player_entity, Vec::new());
                     }
-                    let player_areas = presence_query.get_mut(ev.player_entity).unwrap();
+                    let mut player_areas = presence_query.get_mut(ev.player_entity).unwrap();
                     player_areas.areas.insert(ev.area_entity);
                     tokens_to_move
                         .iter()

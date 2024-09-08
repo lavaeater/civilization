@@ -62,23 +62,23 @@ fn move_tokens(
     easy to exclude or include empty areas in queries.
      */
     if let Some(_player_to_move) = game_info.current_mover {
-        let moves = moveable_tokens
-            .iter()
-            .map(|(from_name, move_specs)| {
-                (from_name, move_specs.tokens.iter().count(),
-                 move_specs
-                     .targets
-                     .iter()
-                     .map(|target| {
-                         let target_name = name_query.get(*target).unwrap();
-                         target_name
-                     }).collect::<Vec<&Name>>()
-                )
-            });
-
-        let message = moves.map(|(from_name, number_of_tokens, targets)| {
-            format!("{from_name} can move max {number_of_tokens} to: {:?}", targets.iter().map(|name| name.as_str()).collect::<Vec<&str>>().join(", "))
-        }).collect::<Vec<String>>().join("\n");
+        // let moves = moveable_tokens
+        //     .iter()
+        //     .map(|(from_name, move_specs)| {
+        //         (from_name, move_specs.tokens.iter().count(),
+        //          move_specs
+        //              .targets
+        //              .iter()
+        //              .map(|target| {
+        //                  let target_name = name_query.get(*target).unwrap();
+        //                  target_name
+        //              }).collect::<Vec<&Name>>()
+        //         )
+        //     });
+        // 
+        // let message = moves.map(|(from_name, number_of_tokens, targets)| {
+        //     format!("{from_name} can move max {number_of_tokens} to: {:?}", targets.iter().map(|name| name.as_str()).collect::<Vec<&str>>().join(", "))
+        // }).collect::<Vec<String>>().join("\n");
     }
 }
 

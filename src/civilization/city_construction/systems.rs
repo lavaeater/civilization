@@ -1,4 +1,4 @@
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, Mut, NextState, Query, ResMut, With, Without};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, NextState, Query, ResMut, With, Without};
 use crate::civilization::city_construction::components::{CityBuildTargets, DoneBuilding};
 use crate::civilization::city_construction::events::{BuildCity, EndCityConstructionActivity};
 use crate::civilization::game_phases::game_activity::GameActivity;
