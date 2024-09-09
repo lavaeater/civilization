@@ -87,7 +87,40 @@ pub fn resolve_conflicts(
                         }
                     }
                 }
-                _ => {}
+                _ => {
+                    if population.all_lengths_equal() {
+                        /*
+                        I get it. 
+                        everyone has to remove one token per player until we 
+                        are below max_pop
+                        
+                        So that means that we do
+                         */
+                        let mut token_rounds = 1;
+                        let must_remove = population.total_population() - population.max_population;
+                        while token_rounds * population.number_of_players() < must_remove {
+                            token_rounds += 1;
+                        }
+
+                        let must_remove = token_rounds * population.number_of_players();
+
+                        for player in players {
+                            for token in population.remove_tokens_from_area(player, must_remove).unwrap_or_default() {
+                                return_token.send(ReturnTokenToStock::new(token));
+                            }
+                        }
+                    } else {
+                        while population.total_population() > population.max_population {
+                            let current_player = players.pop().unwrap();
+                            for token in population.remove_tokens_from_area(current_player, 1).unwrap_or_default() {
+                                return_token.send(ReturnTokenToStock::new(token));
+                            }
+                            if population.has_player(current_player) {
+                                players.insert(0, current_player);
+                            }
+                        }
+                    }
+                }
             }
             commands.entity(area_entity).remove::<UnresolvedConflict>();
         }
