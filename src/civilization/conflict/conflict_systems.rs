@@ -23,13 +23,13 @@ pub fn resolve_conflicts(
             temp_map[player].len() == temp_map[&players[0]].len()
         });
 
-        while population.total_population > population.max_population {
+        while population.total_population() > population.max_population {
             write_line.send(
                 PrintConsoleLine::new(
                     StyledStr::from(
                         format!("Resolving conflict in: {:?}, total: {}, max: {}",
                                 name,
-                                population.total_population,
+                                population.total_population(),
                                 population.max_population)
                     )
                 )
@@ -42,18 +42,17 @@ pub fn resolve_conflicts(
                 );
                 for player in players.iter() {
                     let p_name = name_query.get(*player).unwrap();
-                    population.total_population -= 1;
                     write_line.send(
                         PrintConsoleLine::new(
                             StyledStr::from(
                                 format!("Removing token for player: {:?}, Population now: {}",
                                         p_name,
-                                        population.total_population)
+                                        population.total_population())
                             )
                         )
                     );
-                    if let Some(vec) = population.player_tokens.get_mut(player) {
-                        if let Some(token_entity) = vec.pop() {
+                    if let Some(tokens) = population.player_tokens.get_mut(player) {
+                        if let Some(token_entity) = tokens.pop() {
                             write_line.send(
                                 PrintConsoleLine::new(
                                     StyledStr::from("Sending back token!")
@@ -64,7 +63,6 @@ pub fn resolve_conflicts(
                     }
                 }
             } else {
-                population.total_population -= 1;
                 // pop the last player (has least tokens on this area)
                 let player = players.pop().unwrap();
                 if let Some(vec) = population.player_tokens.get_mut(&player) {
@@ -90,7 +88,7 @@ pub fn find_conflict_zones(
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     pop_query.iter().filter(|(_, _, pop)| {
-        pop.player_tokens.keys().len() > 1 && pop.total_population > pop.max_population
+        pop.is_conflict_zone()
     }).for_each(|(conflict_zone, name, _)| {
         write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Conflict zone found: {:?}", name))));
         commands.entity(conflict_zone).insert(UnresolvedConflict);

@@ -1,7 +1,7 @@
 mod common;
 
 use bevy::app::Update;
-use bevy::prelude::{App, AppExtStates, Entity, Events, Name};
+use bevy::prelude::{App, AppExtStates, Events, Name};
 use bevy::state::app::StatesPlugin;
 use bevy_console::PrintConsoleLine;
 use bevy_game::civilization::general::general_components::{GameArea, LandPassage, PlayerAreas, Population};
@@ -11,13 +11,6 @@ use bevy_game::civilization::general::general_enums::GameFaction;
 use bevy_game::civilization::movement::movement_components::{MoveableTokens, NeedsTocalculateMoves};
 use bevy_game::civilization::movement::movement_systems::move_tokens_from_area_to_area;
 use crate::common::setup_player;
-
-/****************************************************
-Test for the find_conflict_zones system
-Given two players that have tokens in an area,
-when the system is run, that area should have a component
-added indicating that it has a conflict.
-*****************************************************/
 
 fn setup_app() -> App {
     let mut app = App::new();

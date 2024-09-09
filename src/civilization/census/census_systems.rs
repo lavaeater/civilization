@@ -13,9 +13,7 @@ pub fn check_areas_for_population(
     mut commands: Commands,
 ) {
     for (area, mut population) in area_query.iter_mut() {
-        let population_count = population.player_tokens.iter().map(|(_, tokens)| tokens.iter()).flatten().count();
-        population.total_population = population_count;
-        if population_count > 0 {
+        if population.has_population() {
             commands.entity(area).insert(HasPopulation {});
         } else {
             commands.entity(area).remove::<HasPopulation>();

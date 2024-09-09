@@ -165,7 +165,7 @@ fn show_board(
 ) {
     if let Some(Ok(ShowBoardCommand {})) = command.take() {
         for (area_name, population, is_start_area, is_city_site, has_city) in area_query.iter() {
-            command.reply(format!("Area: {:?} {:?} has population: {:?}{:?}{:?}", area_name, if is_start_area { "<s>" } else { "" }, population.total_population, if is_city_site { ", City Site" } else { "" }, if has_city { ", Has City" } else { "" }));
+            command.reply(format!("Area: {:?} {:?} has population: {:?}{:?}{:?}", area_name, if is_start_area { "<s>" } else { "" }, population.total_population(), if is_city_site { ", City Site" } else { "" }, if has_city { ", Has City" } else { "" }));
             for (player, tokens) in population.player_tokens.iter() {
                 command.reply(format!("Player: {:?} has: {:?} tokens", name_query.get(*player).unwrap(), tokens.len()));
             }

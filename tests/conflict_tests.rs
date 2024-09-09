@@ -5,10 +5,10 @@ use bevy::prelude::{App, AppExtStates, Entity, Name};
 use bevy::state::app::StatesPlugin;
 use bevy_console::PrintConsoleLine;
 use bevy_game::civilization::conflict::conflict_components::UnresolvedConflict;
-use bevy_game::civilization::conflict::conflict_systems::find_conflict_zones;
 use bevy_game::civilization::general::general_components::{GameArea, LandPassage, Population};
 use bevy_game::civilization::general::general_events::*;
 use bevy_game::{GameActivity, GameState};
+use bevy_game::civilization::conflict::conflict_systems::find_conflict_zones;
 use bevy_game::civilization::general::general_enums::GameFaction;
 use crate::common::setup_player;
 

@@ -1,5 +1,7 @@
 use bevy::prelude::{default, Component, Entity, Reflect};
+use bevy::render::render_resource::encase::private::RuntimeSizedArray;
 use bevy::utils::{HashMap, HashSet};
+use itertools::Itertools;
 use crate::civilization::general::general_enums::GameFaction;
 
 #[derive(Component, Debug, Reflect, Default)]
@@ -20,7 +22,6 @@ pub struct NeedsConnections {
 pub struct Population {
     pub player_tokens: HashMap<Entity, Vec<Entity>>,
     pub max_population: usize,
-    pub total_population: usize,
 }
 
 impl Population {
@@ -30,12 +31,46 @@ impl Population {
             ..default()
         }
     }
+    
+    pub fn remove_surplus(&mut self) {
+        
+    }
+    
+    pub fn has_surplus(&self)-> bool {
+        self.surplus_count() > 0
+    }
+    
+    pub fn surplus_count(&self) -> usize {
+        let surplus: i32 = self.total_population().try_into().unwrap_or(0) - self.max_population.try_into().unwrap_or(0);
+        if surplus > 0 {
+            surplus.into()
+        } else { 0 } 
+    }
+    
+    pub fn is_conflict_zone(&self) -> bool {
+        self.number_of_players() > 1 && self.has_too_many_tokens()
+    }
+    
+    pub fn has_too_many_tokens(&self) -> bool {
+        self.total_population() > self.max_population
+    }
+    
+    pub fn total_population(&self)-> usize {
+        self.player_tokens.values().map(|set| set.len()).sum()
+    }
+
+    pub fn has_population(&self)-> bool {
+        self.total_population() > 0
+    }
+    
+    pub fn number_of_players(&self) -> usize {
+        self.player_tokens.keys().len()
+    }
 
     pub fn remove_tokens_from_area(&mut self, player: Entity, number_of_tokens: usize) -> Option<Vec<Entity>> {
         if let Some(player_tokens) = self.player_tokens.get_mut(&player) {
             if player_tokens.len() >= number_of_tokens {
-                let tokens = player_tokens.drain(0..number_of_tokens).collect();
-                self.total_population -= number_of_tokens;
+                let mut tokens = player_tokens.drain(0..number_of_tokens).collect();
                 if player_tokens.is_empty() { self.player_tokens.remove(&player); }
                 Some(tokens)
             } else {
@@ -50,9 +85,8 @@ impl Population {
         if let Some(tokens) = self.player_tokens.get_mut(&player) {
             tokens.push(token);
         } else {
-            self.player_tokens.insert(player, vec![token]);
+            self.player_tokens.insert(player,  vec![token]);
         }
-        self.total_population += 1;
     }
 }
 
