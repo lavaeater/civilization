@@ -2,6 +2,7 @@ mod common;
 
 use bevy::prelude::{Entity, Events, Update};
 use bevy_game::civilization::general::general_components::*;
+use bevy_game::civilization::general::general_enums::GameFaction;
 use bevy_game::civilization::general::general_events::*;
 use bevy_game::civilization::remove_surplus::remove_surplus_systems::remove_surplus_population;
 use crate::common::{create_area, setup_bevy_app, setup_player};
@@ -17,7 +18,7 @@ fn given_one_player_events_are_sent() {
 
     let player: Entity;
     let mut tokens: Vec<Entity>;
-    (player, tokens, _) = setup_player(&mut  app, "player one");
+    (player, tokens, _) = setup_player(&mut  app, "player one", GameFaction::Egypt);
 
     let mut population = Population::new(4);
 

@@ -4,8 +4,9 @@ use bevy::prelude::{Events, NextState, Update};
 use bevy::prelude::NextState::Pending;
 use bevy_game::civilization::city_support::city_support_events::CheckPlayerCitySupport;
 use bevy_game::civilization::city_support::city_support_systems::check_city_support;
-use bevy_game::civilization::general::general_enums::GameActivity;
 use bevy_game::civilization::general::general_components::BuiltCity;
+use bevy_game::civilization::general::general_enums::GameFaction;
+use bevy_game::GameActivity;
 use common::{setup_bevy_app, setup_player};
 use crate::common::create_area;
 
@@ -19,7 +20,7 @@ fn given_no_cities_next_state_is_set() {
         app
     });
 
-    setup_player(&mut app, "Player 1");
+    setup_player(&mut app, "Player 1", GameFaction::Egypt);
     create_area(&mut app, "Egypt");
 
     app.update();
@@ -38,7 +39,7 @@ fn given_one_city_event_sent_for_player() {
         app
     });
 
-    let (player, _tokens, mut city_tokens) = setup_player(&mut app, "Player 1");
+    let (player, _tokens, mut city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
  let area = create_area(&mut app, "Egypt");
     app
         .world_mut()

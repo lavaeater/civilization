@@ -8,8 +8,8 @@ use bevy_game::civilization::conflict::conflict_components::UnresolvedConflict;
 use bevy_game::civilization::conflict::conflict_systems::find_conflict_zones;
 use bevy_game::civilization::general::general_components::{GameArea, LandPassage, Population};
 use bevy_game::civilization::general::general_events::*;
-use bevy_game::civilization::general::general_enums::GameActivity;
-use bevy_game::GameState;
+use bevy_game::{GameActivity, GameState};
+use bevy_game::civilization::general::general_enums::GameFaction;
 use crate::common::setup_player;
 
 /****************************************************
@@ -35,11 +35,11 @@ fn given_two_players_no_keys_are_left_behind() {
 
     let player_one: Entity;
     let mut player_one_tokens: Vec<Entity>;
-    (player_one, player_one_tokens, _) = setup_player(&mut app, "player one");
+    (player_one, player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
 
     let player_two: Entity;
     let mut player_two_tokens: Vec<Entity>;
-    (player_two, player_two_tokens, _) = setup_player(&mut  app, "player two");
+    (player_two, player_two_tokens, _) = setup_player(&mut  app, "player two", GameFaction::Crete);
 
     let mut population = Population::new(4);
 

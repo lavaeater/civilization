@@ -3,11 +3,10 @@ use bevy::core::Name;
 use bevy::prelude::{AppExtStates, Entity};
 use bevy::state::app::StatesPlugin;
 use bevy_game::civilization::census::census_components::Census;
-use bevy_game::civilization::general::general_enums::GameActivity;
 use bevy_game::civilization::general::general_components::{CityToken, CityTokenStock, Faction, GameArea, LandPassage, PlayerAreas, PlayerCities, Stock, Token, Treasury};
 use bevy_game::civilization::general::general_enums::GameFaction;
 use bevy_game::player::Player;
-use bevy_game::GameState;
+use bevy_game::{GameActivity, GameState};
 
 /*
 Make sure to update this to mirror the method in
