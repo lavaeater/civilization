@@ -1,7 +1,7 @@
-use crate::civilization::game_phases::game_activity::GameActivity;
 use bevy::app::App;
 use bevy::prelude::{OnEnter, OnExit, Plugin};
-use crate::civilization::conflict::systems::*;
+use crate::civilization::conflict::conflict_systems::*;
+use crate::GameActivity;
 
 pub struct ConflictPlugin;
 

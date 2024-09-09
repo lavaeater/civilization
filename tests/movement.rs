@@ -7,8 +7,8 @@ use bevy_console::PrintConsoleLine;
 use bevy_game::civilization::conflict::conflict_components::UnresolvedConflict;
 use bevy_game::civilization::conflict::conflict_systems::find_conflict_zones;
 use bevy_game::civilization::general::general_components::{GameArea, LandPassage, Population};
-use bevy_game::civilization::general::general_events::*;
 use bevy_game::civilization::general::general_enums::GameActivity;
+use bevy_game::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;
 use bevy_game::GameState;
 use crate::common::setup_player;
 
@@ -20,14 +20,14 @@ added indicating that it has a conflict.
 *****************************************************/
 
 #[test]
-fn given_two_players_no_keys_are_left_behind() {
+fn moving_token_to_area_adds_area_to_player_areas() {
     // Arrange
     let mut app = App::new();
     app
         .add_plugins(
             StatesPlugin,
         )
-        .add_event::<ReturnTokenToStock>()
+        .add_event::<MoveTokenFromAreaToAreaCommand>()
         .add_event::<PrintConsoleLine>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()

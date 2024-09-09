@@ -1,18 +1,18 @@
-use crate::civilization::census::resources::GameInfoAndStuff;
-use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{GameArea, BuiltCity, CitySite, Faction, Population, StartArea};
-use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
-use crate::civilization::movement::components::MoveableTokens;
-use crate::civilization::movement::events::{ClearAllMoves, MoveTokenFromAreaToAreaCommand};
+use crate::civilization::census::census_resources::GameInfoAndStuff;
+use crate::civilization::general::general_components::{GameArea, BuiltCity, CitySite, Faction, Population, StartArea};
+use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
+use crate::civilization::movement::movement_components::MoveableTokens;
+use crate::civilization::movement::movement_events::{ClearAllMoves, MoveTokenFromAreaToAreaCommand};
 use crate::player::Player;
 use bevy::app::{App, Plugin};
 use bevy::prelude::{Commands, Entity, EventWriter, Has, Name, NextState, Query, Res, ResMut, With};
 use bevy_console::{AddConsoleCommand, ConsoleCommand, ConsoleConfiguration, ConsolePlugin};
 use clap::Parser;
-use crate::civilization::city_construction::components::{CityBuildTargets, DoneBuilding};
-use crate::civilization::city_construction::events::BuildCity;
-use crate::civilization::city_support::plugin::EliminateCity;
-use crate::stupid_ai::plugin::{StupidAiEvent};
+use crate::civilization::city_construction::city_construction_components::{CityBuildTargets, DoneBuilding};
+use crate::civilization::city_construction::city_construction_events::BuildCity;
+use crate::civilization::city_support::city_support_events::EliminateCity;
+use crate::GameActivity;
+use crate::stupid_ai::stupid_ai_plugin::{StupidAiEvent};
 
 pub struct CommandsPlugin;
 

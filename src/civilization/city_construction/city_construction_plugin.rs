@@ -1,8 +1,8 @@
-use crate::civilization::game_phases::game_activity::GameActivity;
 use bevy::app::{App, Update};
 use bevy::prelude::{in_state, IntoSystemConfigs, OnEnter, Plugin};
-use crate::civilization::city_construction::events::{BuildCity, EndCityConstructionActivity};
-use crate::civilization::city_construction::systems::{build_city, check_if_done_building, end_city_construction_activity, setup_players_and_cities};
+use crate::civilization::city_construction::city_construction_events::{BuildCity, EndCityConstructionActivity};
+use crate::civilization::city_construction::city_construction_systems::{build_city, check_if_done_building, end_city_construction_activity, setup_players_and_cities};
+use crate::GameActivity;
 
 pub struct CityConstructionPlugin;
 

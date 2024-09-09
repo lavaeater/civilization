@@ -1,9 +1,9 @@
 use bevy::prelude::{Commands, Entity, EventWriter, NextState, Query, ResMut, With, Without};
-use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::Population;
-use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
-use crate::civilization::general::components::Stock;
-use crate::civilization::population_expansion::components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
+use crate::civilization::general::general_components::Population;
+use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
+use crate::civilization::general::general_components::Stock;
+use crate::civilization::population_expansion::movement_components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
+use crate::GameActivity;
 
 pub fn check_population_expansion_eligibility(
     area_pop_query: Query<(Entity, &Population), Without<NeedsExpansion>>,

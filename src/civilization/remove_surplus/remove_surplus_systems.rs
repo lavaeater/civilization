@@ -1,7 +1,7 @@
 use bevy::prelude::{EventWriter, NextState, Query, ResMut};
-use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::Population;
-use crate::civilization::general::events::ReturnTokenToStock;
+use crate::civilization::general::general_components::Population;
+use crate::civilization::general::general_events::ReturnTokenToStock;
+use crate::GameActivity;
 
 pub fn remove_surplus_population(
     mut next_state: ResMut<NextState<GameActivity>>,

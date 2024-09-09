@@ -1,13 +1,13 @@
-use crate::civilization::census::components::HasPopulation;
-use crate::civilization::census::resources::GameInfoAndStuff;
-use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{GameArea, LandPassage, PlayerAreas, Population};
-use crate::civilization::movement::components::{MoveableTokens, NeedsTocalculateMoves, PerformingMovement, TokenCanMove};
-use crate::civilization::movement::events::{PlayerMovementEnded, NextPlayerStarted, InitAllAreas, ClearAllMoves};
-use crate::civilization::movement::events::MoveTokenFromAreaToAreaCommand;
+use crate::civilization::census::census_components::HasPopulation;
+use crate::civilization::census::census_resources::GameInfoAndStuff;
+use crate::civilization::general::general_components::{GameArea, LandPassage, PlayerAreas, Population};
+use crate::civilization::movement::movement_components::{MoveableTokens, NeedsTocalculateMoves, PerformingMovement, TokenCanMove};
+use crate::civilization::movement::movement_events::{PlayerMovementEnded, NextPlayerStarted, InitAllAreas, ClearAllMoves};
+use crate::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Name, NextState, Query, Res, ResMut, With};
 use bevy_console::PrintConsoleLine;
 use clap::builder::StyledStr;
+use crate::GameActivity;
 
 pub fn start_movement_activity(
     mut game_info: ResMut<GameInfoAndStuff>,

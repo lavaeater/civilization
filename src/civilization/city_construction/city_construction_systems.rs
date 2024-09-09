@@ -1,9 +1,9 @@
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, NextState, Query, ResMut, With, Without};
-use crate::civilization::city_construction::components::{CityBuildTargets, DoneBuilding};
-use crate::civilization::city_construction::events::{BuildCity, EndCityConstructionActivity};
-use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{BuiltCity, CitySite, CityTokenStock, PlayerAreas, PlayerCities, Population};
-use crate::civilization::general::events::ReturnTokenToStock;
+use crate::civilization::city_construction::city_construction_components::{CityBuildTargets, DoneBuilding};
+use crate::civilization::city_construction::city_construction_events::{BuildCity, EndCityConstructionActivity};
+use crate::civilization::general::general_components::{BuiltCity, CitySite, CityTokenStock, PlayerAreas, PlayerCities, Population};
+use crate::civilization::general::general_events::ReturnTokenToStock;
+use crate::GameActivity;
 use crate::player::Player;
 
 pub fn check_if_done_building(

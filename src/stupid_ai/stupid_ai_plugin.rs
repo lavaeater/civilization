@@ -1,8 +1,7 @@
 use bevy::app::{Plugin, Update};
-use bevy::prelude::{in_state, App, Commands, Component, Entity, Event, EventReader, IntoSystemConfigs, Query, Reflect, Res};
-use crate::civilization::census::resources::GameInfoAndStuff;
-use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::GameState;
+use bevy::prelude::{in_state, App, Commands, Component, Entity, Event, EventReader, IntoSystemConfigs, Reflect, Res};
+use crate::civilization::census::census_resources::GameInfoAndStuff;
+use crate::{GameActivity, GameState};
 
 pub struct StupidAiPlugin;
 

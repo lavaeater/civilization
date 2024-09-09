@@ -1,50 +1,10 @@
-use bevy::app::{App, Plugin};
-use bevy::prelude::{in_state, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, NextState, OnEnter, Query, Reflect, ResMut, Update};
+use bevy::prelude::{Commands, EventReader, EventWriter, NextState, Query, ResMut};
 use itertools::Itertools;
-use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::{BuiltCity, CityToken, CityTokenStock, Population, Stock, Treasury};
-use crate::civilization::general::events::MoveTokensFromStockToAreaCommand;
-
-pub struct CitySupportPlugin;
-
-impl Plugin for CitySupportPlugin {
-    fn build(&self, app: &mut App) {
-        app
-            .add_event::<EliminateCity>()
-            .add_event::<CheckPlayerCitySupport>()
-            .add_event::<CheckCitySupportStatus>()
-            .add_systems(OnEnter(GameActivity::CheckCitySupport), check_city_support)
-            .add_systems(Update,
-                         (
-                             eliminate_city.run_if(in_state(GameActivity::CheckCitySupport)),
-                             check_player_city_support.run_if(in_state(GameActivity::CheckCitySupport)),
-                             check_city_support.run_if(in_state(GameActivity::CheckCitySupport)),
-                             check_status.run_if(in_state(GameActivity::CheckCitySupport)),
-                         ),
-            )
-        ;
-    }
-}
-
-#[derive(Component, Debug, Reflect)]
-pub struct HasTooManyCities {
-    pub surplus_count: usize,
-    pub needed_tokens: usize
-}
-
-#[derive(Event, Debug, Reflect)]
-pub struct EliminateCity {
-    pub city: Entity,
-    pub area_entity: Entity,
-}
-
-#[derive(Event, Debug, Reflect)]
-pub struct CheckPlayerCitySupport {
-    pub player: Entity,
-}
-
-#[derive(Event, Debug, Reflect)]
-pub struct CheckCitySupportStatus;
+use crate::civilization::city_support::city_support_components::HasTooManyCities;
+use crate::civilization::city_support::city_support_events::{CheckCitySupportStatus, CheckPlayerCitySupport, EliminateCity};
+use crate::civilization::general::general_components::{BuiltCity, CityToken, CityTokenStock, Population, Stock, Treasury};
+use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
+use crate::GameActivity;
 
 pub fn eliminate_city(
     mut eliminate_city: EventReader<EliminateCity>,

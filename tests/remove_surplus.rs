@@ -1,9 +1,9 @@
 mod common;
 
 use bevy::prelude::{Entity, Events, Update};
-use bevy_game::civilization::general::components::*;
-use bevy_game::civilization::general::events::*;
-use bevy_game::civilization::remove_surplus::systems::remove_surplus_population;
+use bevy_game::civilization::general::general_components::*;
+use bevy_game::civilization::general::general_events::*;
+use bevy_game::civilization::remove_surplus::remove_surplus_systems::remove_surplus_population;
 use crate::common::{create_area, setup_bevy_app, setup_player};
 
 #[test]

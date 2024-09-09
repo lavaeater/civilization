@@ -1,1 +1,1 @@
-pub mod plugin;
+pub mod stupid_ai_plugin;

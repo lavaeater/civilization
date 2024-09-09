@@ -1,7 +1,7 @@
-use crate::civilization::census::components::Census;
-use crate::civilization::census::systems::{check_areas_for_population, perform_census};
-use crate::civilization::game_phases::game_activity::GameActivity;
+use crate::civilization::census::census_components::Census;
+use crate::civilization::census::census_systems::{check_areas_for_population, perform_census};
 use bevy::prelude::{OnEnter, OnExit, Plugin};
+use crate::GameActivity;
 
 pub struct CensusPlugin;
 

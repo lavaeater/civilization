@@ -1,6 +1,6 @@
 use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
-use crate::civilization::general::enums::GameFaction;
+use crate::civilization::general::general_enums::GameFaction;
 
 #[derive(Component, Debug, Reflect)]
 pub struct GameArea;

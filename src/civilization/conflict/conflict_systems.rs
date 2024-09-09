@@ -2,10 +2,10 @@ use bevy::prelude::{Commands, Entity, EventWriter, NextState, Query, ResMut, Wit
 use bevy::core::Name;
 use bevy_console::PrintConsoleLine;
 use clap::builder::StyledStr;
-use crate::civilization::conflict::components::UnresolvedConflict;
-use crate::civilization::game_phases::game_activity::GameActivity;
-use crate::civilization::general::components::Population;
-use crate::civilization::general::events::ReturnTokenToStock;
+use crate::civilization::conflict::conflict_components::UnresolvedConflict;
+use crate::civilization::general::general_components::Population;
+use crate::civilization::general::general_events::ReturnTokenToStock;
+use crate::GameActivity;
 
 pub fn resolve_conflicts(
     mut conflict_zones: Query<(Entity, &Name, &mut Population), With<UnresolvedConflict>>,

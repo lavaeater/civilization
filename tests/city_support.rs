@@ -2,10 +2,11 @@ mod common;
 
 use bevy::prelude::{Events, NextState, Update};
 use bevy::prelude::NextState::Pending;
-use bevy_game::civilization::city_support::plugin::{check_city_support, CheckPlayerCitySupport};
-use bevy_game::civilization::game_phases::game_activity::GameActivity;
-use bevy_game::civilization::general::components::BuiltCity;
-use common::{setup_player, setup_bevy_app};
+use bevy_game::civilization::city_support::city_support_events::CheckPlayerCitySupport;
+use bevy_game::civilization::city_support::city_support_systems::check_city_support;
+use bevy_game::civilization::general::general_enums::GameActivity;
+use bevy_game::civilization::general::general_components::BuiltCity;
+use common::{setup_bevy_app, setup_player};
 use crate::common::create_area;
 
 #[test]

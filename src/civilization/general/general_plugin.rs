@@ -1,21 +1,20 @@
 use bevy::app::{App, Plugin, Update};
-use bevy::prelude::{in_state, IntoSystemConfigs, OnEnter};
+use bevy::prelude::{in_state, AppExtStates, IntoSystemConfigs, OnEnter};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use crate::civilization::census::plugin::CensusPlugin;
-use crate::civilization::census::resources::GameInfoAndStuff;
-use crate::civilization::city_construction::plugin::CityConstructionPlugin;
-use crate::civilization::city_support::plugin::CitySupportPlugin;
-use crate::civilization::conflict::plugin::ConflictPlugin;
-use crate::civilization::console::commands::CommandsPlugin;
-use crate::civilization::game_phases::plugin::GamePhasesPlugin;
-use crate::civilization::general::components::{GameArea, LandPassage, Population, Stock, Token};
-use crate::civilization::general::events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
-use crate::civilization::general::systems::{connect_areas, move_tokens_from_stock_to_area, setup_game, setup_players, return_token_to_stock};
-use crate::civilization::movement::plugin::MovementPlugin;
-use crate::civilization::population_expansion::plugin::PopulationExpansionPlugin;
-use crate::civilization::remove_surplus::plugin::RemoveSurplusPlugin;
-use crate::GameState;
-use crate::stupid_ai::plugin::StupidAiPlugin;
+use crate::civilization::census::census_plugin::CensusPlugin;
+use crate::civilization::census::census_resources::GameInfoAndStuff;
+use crate::civilization::city_construction::city_construction_plugin::CityConstructionPlugin;
+use crate::civilization::city_support::city_support_plugin::CitySupportPlugin;
+use crate::civilization::conflict::conflict_plugin::ConflictPlugin;
+use crate::civilization::console::console_commands::CommandsPlugin;
+use crate::civilization::general::general_components::{GameArea, LandPassage, Population, Stock, Token};
+use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
+use crate::civilization::general::general_systems::{connect_areas, move_tokens_from_stock_to_area, setup_game, setup_players, return_token_to_stock, print_names_of_phases};
+use crate::civilization::movement::movement_plugin::MovementPlugin;
+use crate::civilization::population_expansion::movement_plugin::PopulationExpansionPlugin;
+use crate::civilization::remove_surplus::remove_surplus_plugin::RemoveSurplusPlugin;
+use crate::{GameActivity, GameState};
+use crate::stupid_ai::stupid_ai_plugin::StupidAiPlugin;
 
 pub struct CivilizationPlugin;
 
@@ -31,9 +30,14 @@ impl Plugin for CivilizationPlugin {
             .register_type::<Population>()
             .add_event::<MoveTokensFromStockToAreaCommand>()
             .add_event::<ReturnTokenToStock>()
+            .add_sub_state::<GameActivity>()
+            .add_systems(
+                Update, (
+                    print_names_of_phases.run_if(in_state(GameState::Playing)),
+                ),
+            )
             .add_plugins(
                 (
-                    GamePhasesPlugin,
                     CommandsPlugin,
                     PopulationExpansionPlugin,
                     CensusPlugin,

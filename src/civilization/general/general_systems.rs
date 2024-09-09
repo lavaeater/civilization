@@ -1,11 +1,14 @@
-use crate::civilization::census::components::Census;
-use crate::civilization::general::components::{GameArea, CitySite, CityToken, CityTokenStock, Faction, LandPassage, NeedsConnections, Population, StartArea, Token, Treasury, PlayerAreas, PlayerCities};
-use crate::civilization::general::components::Stock;
+use crate::civilization::census::census_components::Census;
+use crate::civilization::general::general_components::{CitySite, CityToken, CityTokenStock, Faction, GameArea, LandPassage, NeedsConnections, PlayerAreas, PlayerCities, Population, StartArea, Token, Treasury};
+use crate::civilization::general::general_components::Stock;
 use bevy::core::Name;
-use bevy::prelude::{Commands, Entity, EventReader, Query, With};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Query, StateTransitionEvent, With};
 use bevy::utils::HashMap;
-use crate::civilization::general::enums::GameFaction::{Crete, Egypt};
-use crate::civilization::general::events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
+use bevy_console::PrintConsoleLine;
+use clap::builder::StyledStr;
+use crate::civilization::general::general_enums::GameFaction::{Crete, Egypt};
+use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
+use crate::GameActivity;
 use crate::player::Player;
 
 pub fn setup_players(
@@ -211,5 +214,14 @@ pub(crate) fn return_token_to_stock(
                 stock.tokens.push(return_event.token_entity);
             }
         }
+    }
+}
+
+pub fn print_names_of_phases(
+    mut write_line: EventWriter<PrintConsoleLine>,
+    mut state_transition_event: EventReader<StateTransitionEvent<GameActivity>>
+) {
+    for event in state_transition_event.read() {
+        write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Went from: {:?} to {:?}", event.exited, event.entered))));
     }
 }
