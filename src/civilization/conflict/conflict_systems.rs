@@ -26,14 +26,26 @@ pub fn resolve_conflicts(
 
                 if population.all_lengths_equal() {
                     //THey should have ZERO pop left!
-                    population.remove_tokens_from_area(player_one, population.number_of_tokens_for_player(player_one));
-                    population.remove_tokens_from_area(player_two, population.number_of_tokens_for_player(player_two));
+                    for token in population.remove_all_but_n_tokens(player_one, 0).unwrap_or_default() {
+                        return_token.send(ReturnTokenToStock::new(token));
+                    }
+                    for token in population.remove_all_but_n_tokens(player_two, 0).unwrap_or_default() {
+                        return_token.send(ReturnTokenToStock::new(token));
+                    }
                 } else if population.number_of_tokens_for_player(player_one) > population.number_of_tokens_for_player(player_two) {
-                    population.remove_tokens_from_area(player_one, population.number_of_tokens_for_player(player_one) - 2);
-                    population.remove_tokens_from_area(player_two, population.number_of_tokens_for_player(player_two));
+                    for token in population.remove_all_but_n_tokens(player_one, 2).unwrap_or_default() {
+                        return_token.send(ReturnTokenToStock::new(token));
+                    }
+                    for token in population.remove_all_but_n_tokens(player_two, 0).unwrap_or_default() {
+                        return_token.send(ReturnTokenToStock::new(token));
+                    }
                 } else {
-                    population.remove_tokens_from_area(player_one, population.number_of_tokens_for_player(player_one));
-                    population.remove_tokens_from_area(player_two, population.number_of_tokens_for_player(player_two) - 2);
+                    for token in population.remove_all_but_n_tokens(player_one, 0).unwrap_or_default() {
+                        return_token.send(ReturnTokenToStock::new(token));
+                    }
+                    for token in population.remove_all_but_n_tokens(player_two, 2).unwrap_or_default() {
+                        return_token.send(ReturnTokenToStock::new(token));
+                    }
                 }
             } else {
                 //Weird fucking corner case where we have an odd number of players... aaah
@@ -55,11 +67,13 @@ pub fn resolve_conflicts(
                         while token_rounds * population.number_of_players() < must_remove {
                             token_rounds += 1;
                         }
-                        
+
                         let must_remove = token_rounds * population.number_of_players();
-                        
+
                         for player in players {
-                            population.remove_tokens_from_area(player, must_remove);
+                            for token in population.remove_tokens_from_area(player, must_remove).unwrap_or_default() {
+                                return_token.send(ReturnTokenToStock::new(token));
+                            }
                         }
                     } else {
                         
@@ -70,9 +84,10 @@ pub fn resolve_conflicts(
             commands.entity(area_entity).remove::<UnresolvedConflict>();
         }
     }
+}
 
-    pub fn find_conflict_zones(
-        pop_query: Query<(Entity, &Name, &Population)>,
+pub fn find_conflict_zones(
+    pop_query: Query<(Entity, &Name, &Population)>,
         mut commands: Commands,
         mut write_line: EventWriter<PrintConsoleLine>,
         mut next_state: ResMut<NextState<GameActivity>>,
