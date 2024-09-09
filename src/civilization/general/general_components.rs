@@ -1,4 +1,4 @@
-use bevy::prelude::{Component, Entity, Reflect};
+use bevy::prelude::{default, Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
 use crate::civilization::general::general_enums::GameFaction;
 
@@ -16,7 +16,7 @@ pub struct NeedsConnections {
     pub sea_connections: Vec<String>,
 }
 
-#[derive(Component, Debug, Reflect)]
+#[derive(Component, Debug, Reflect, Default)]
 pub struct Population {
     pub player_tokens: HashMap<Entity, Vec<Entity>>,
     pub max_population: usize,
@@ -24,6 +24,13 @@ pub struct Population {
 }
 
 impl Population {
+    pub fn new(max_population: usize) -> Self {
+        Population {
+            max_population,
+            ..default()
+        }
+    }
+    
     pub fn remove_tokens_from_area(&mut self, player: Entity, number_of_tokens: usize) -> Option<Vec<Entity>> {
         if let Some(player_tokens) = self.player_tokens.get_mut(&player) {
             if player_tokens.len() >= number_of_tokens {
@@ -46,14 +53,6 @@ impl Population {
             self.player_tokens.insert(player, vec![token]);
         }
         self.total_population += 1;
-    }
-
-    pub fn new(max_population: usize) -> Self {
-        Population {
-            player_tokens: HashMap::default(),
-            max_population,
-            total_population: 0,
-        }
     }
 }
 
