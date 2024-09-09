@@ -17,7 +17,7 @@ pub fn resolve_conflicts(
     for (area_entity, name, mut population) in conflict_zones.iter_mut() {
         let temp_map = population.player_tokens.clone();
         let mut players = temp_map.keys().map(|k| *k).collect::<Vec<Entity>>();
-        players.sort_by(|a, b| temp_map[a].len().cmp(&temp_map[b].len()));
+        players.sort_by(|a, b| temp_map[b].len().cmp(&temp_map[a].len()));
 
         if population.max_population == 1 {
             if population.number_of_players() == 2 {
@@ -76,7 +76,15 @@ pub fn resolve_conflicts(
                             }
                         }
                     } else {
-                        
+                        while population.total_population() > population.max_population {
+                            let current_player = players.pop().unwrap();
+                            for token in population.remove_tokens_from_area(current_player, 1).unwrap_or_default() {
+                                return_token.send(ReturnTokenToStock::new(token));
+                            }
+                            if population.has_player(current_player) {
+                                players.insert(0, current_player);
+                            }
+                        }
                     }
                 }
                 _ => {}

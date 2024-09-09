@@ -75,29 +75,35 @@ impl Population {
             player_tokens.len()
         } else { 0 }
     }
-    
+
+    pub fn has_player(&self, player: Entity) -> bool {
+        self.player_tokens.contains_key(&player)
+    }
+
     pub fn remove_all_but_n_tokens(&mut self, player: Entity, n: usize) -> Option<Vec<Entity>> {
-        let mut tokens_to_remove:usize = 0;
+        let mut tokens_to_remove: usize = 0;
         if let Some(player_tokens) = self.player_tokens.get(&player) {
-            tokens_to_remove = if player_tokens.len() > n { player_tokens.len() - n } else { player_tokens.len() };
+            tokens_to_remove = if player_tokens.len() > n { player_tokens.len() - n } else { 0 };
         }
         self.remove_tokens_from_area(player, tokens_to_remove)
     }
 
     pub fn remove_tokens_from_area(&mut self, player: Entity, number_of_tokens: usize) -> Option<Vec<Entity>> {
         if let Some(player_tokens) = self.player_tokens.get_mut(&player) {
-            if number_of_tokens > 0 && player_tokens.len() >= number_of_tokens {
-                let tokens = player_tokens.drain(0..number_of_tokens).collect();
-                if player_tokens.is_empty() { self.player_tokens.remove(&player); }
-                Some(tokens)
+            if number_of_tokens > 0 {
+                if player_tokens.len() >= number_of_tokens {
+                    let tokens = player_tokens.drain(0..number_of_tokens).collect();
+                    if player_tokens.is_empty() { self.player_tokens.remove(&player); }
+                    Some(tokens)
+                } else {
+                    let tokens = player_tokens.drain(0..player_tokens.len()).collect();
+                    self.player_tokens.remove(&player);
+                    Some(tokens)
+                }
             } else {
-                let tokens = player_tokens.drain(0..player_tokens.len()).collect();
-                self.player_tokens.remove(&player);
-                Some(tokens)
+                None
             }
-        } else {
-            None
-        }
+        } else { None }
     }
 
     pub fn add_token_to_area(&mut self, player: Entity, token: Entity) {
