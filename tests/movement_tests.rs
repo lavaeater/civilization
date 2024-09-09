@@ -36,7 +36,6 @@ fn moving_token_to_area_adds_area_to_player_areas() {
     let mut population = Population::new(4);
 
     population.player_tokens.insert(player_one, player_one_tokens.drain(0..3).collect());
-    population.total_population = 3;
 
     let from_area = app.world_mut().spawn(
         (
@@ -81,7 +80,6 @@ fn moving_all_tokens_from_area_removes_area_from_player_areas() {
     let mut population = Population::new(4);
 
     population.player_tokens.insert(player_one, player_one_tokens.drain(0..3).collect());
-    population.total_population = 3;
 
     let from_area = app.world_mut().spawn(
         (

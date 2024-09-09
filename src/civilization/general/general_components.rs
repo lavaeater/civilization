@@ -1,7 +1,6 @@
 use bevy::prelude::{default, Component, Entity, Reflect};
 use bevy::render::render_resource::encase::private::RuntimeSizedArray;
 use bevy::utils::{HashMap, HashSet};
-use itertools::Itertools;
 use crate::civilization::general::general_enums::GameFaction;
 
 #[derive(Component, Debug, Reflect, Default)]
@@ -32,8 +31,10 @@ impl Population {
         }
     }
     
-    pub fn remove_surplus(&mut self) {
-        
+    pub fn remove_surplus(&mut self) -> Vec<Entity> {
+        assert_eq!(self.number_of_players(), 1); // this should never, ever, not happen
+        let surplus_count = self.surplus_count();
+        self.player_tokens.values_mut().next().unwrap().drain(0..surplus_count).collect()
     }
     
     pub fn has_surplus(&self)-> bool {
@@ -41,10 +42,7 @@ impl Population {
     }
     
     pub fn surplus_count(&self) -> usize {
-        let surplus: i32 = self.total_population().try_into().unwrap_or(0) - self.max_population.try_into().unwrap_or(0);
-        if surplus > 0 {
-            surplus.into()
-        } else { 0 } 
+        self.total_population().try_into().unwrap_or(0) - self.max_population.try_into().unwrap_or(0).try_into().unwrap_or(0)
     }
     
     pub fn is_conflict_zone(&self) -> bool {
@@ -70,7 +68,7 @@ impl Population {
     pub fn remove_tokens_from_area(&mut self, player: Entity, number_of_tokens: usize) -> Option<Vec<Entity>> {
         if let Some(player_tokens) = self.player_tokens.get_mut(&player) {
             if player_tokens.len() >= number_of_tokens {
-                let mut tokens = player_tokens.drain(0..number_of_tokens).collect();
+                let tokens = player_tokens.drain(0..number_of_tokens).collect();
                 if player_tokens.is_empty() { self.player_tokens.remove(&player); }
                 Some(tokens)
             } else {

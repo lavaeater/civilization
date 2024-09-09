@@ -12,7 +12,7 @@ pub fn check_areas_for_population(
     mut area_query: Query<(Entity, &mut Population)>,
     mut commands: Commands,
 ) {
-    for (area, mut population) in area_query.iter_mut() {
+    for (area, population) in area_query.iter_mut() {
         if population.has_population() {
             commands.entity(area).insert(HasPopulation {});
         } else {

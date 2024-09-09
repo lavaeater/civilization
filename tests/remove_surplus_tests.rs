@@ -23,7 +23,6 @@ fn given_one_player_events_are_sent() {
     let mut population = Population::new(4);
 
     population.player_tokens.insert(player, tokens.drain(0..7).collect());
-    population.total_population = 7;
 
     let area = create_area(&mut app, "Egypt");
 
@@ -41,7 +40,7 @@ fn given_one_player_events_are_sent() {
     assert!(app.world().get::<Population>(area).is_some());
     let population = app.world().get::<Population>(area).unwrap();
 
-    assert_eq!(population.total_population, population.max_population);
+    assert_eq!(population.total_population(), population.max_population);
     assert!(!reader.is_empty(&events));
     assert_eq!(reader.len(&events), 3);
 }

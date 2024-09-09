@@ -45,7 +45,6 @@ fn given_two_players_no_keys_are_left_behind() {
 
     population.player_tokens.insert(player_one, player_one_tokens.drain(0..7).collect());
     population.player_tokens.insert(player_two, player_two_tokens.drain(0..5).collect());
-    population.total_population = 12;
 
     let area = app.world_mut().spawn(
         (
