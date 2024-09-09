@@ -38,7 +38,7 @@ pub fn build_city(
                     });
                 }
             }
-            if let Some(city_token) = city_stock.tokens.pop() {
+            if let Some(city_token) = city_stock.get_token_from_stock() {
                 if let Ok((mut player_areas, mut player_cities)) = player_cities_and_areas.get_mut(build_city.player) {
                     player_areas.remove_area(build_city.area);
                     player_cities.add_city_to_area(build_city.area, city_token);
@@ -61,7 +61,7 @@ pub fn setup_players_and_cities(
     mut commands: Commands,
 ) {
     for (player_entity, city_token_stock) in player_query.iter() {
-        if city_token_stock.tokens.is_empty() {
+        if city_token_stock.is_empty() {
             commands.entity(player_entity)
                 .insert(DoneBuilding {});
             continue;

@@ -30,7 +30,7 @@ impl Population {
             ..default()
         }
     }
-    
+
     pub fn remove_tokens_from_area(&mut self, player: Entity, number_of_tokens: usize) -> Option<Vec<Entity>> {
         if let Some(player_tokens) = self.player_tokens.get_mut(&player) {
             if player_tokens.len() >= number_of_tokens {
@@ -161,7 +161,7 @@ impl PlayerAreas {
     pub fn contains(&self, area: Entity) -> bool {
         self.areas.contains(&area) && self.area_population.contains_key(&area) && !self.area_population.get(&area).unwrap().is_empty()
     }
-    
+
     pub fn add_token_to_area(&mut self, area: Entity, token: Entity) {
         self.areas.insert(area);
         if !self.area_population.contains_key(&area) {
@@ -193,7 +193,7 @@ pub struct Treasury {
 #[derive(Component, Debug, Reflect)]
 pub struct CityTokenStock {
     pub max_tokens: usize,
-    pub tokens: Vec<Entity>,
+    tokens: Vec<Entity>,
 }
 
 impl CityTokenStock {
@@ -202,5 +202,17 @@ impl CityTokenStock {
             max_tokens,
             tokens,
         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.tokens.is_empty()
+    }
+
+    pub fn get_token_from_stock(&mut self) -> Option<Entity> {
+        self.tokens.pop()
+    }
+
+    pub fn return_token_to_stock(&mut self, token: Entity) {
+        self.tokens.push(token);
     }
 }

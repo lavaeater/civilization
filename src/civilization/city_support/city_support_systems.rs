@@ -24,8 +24,8 @@ pub fn eliminate_city(
                         area_entity: eliminate.area_entity,
                         number_of_tokens: population.max_population,
                     });
-                    commands.entity(eliminate.city).remove::<BuiltCity>();
-                    city_stock.tokens.push(eliminate.city);
+                    commands.entity(eliminate.area_entity).remove::<BuiltCity>();
+                    city_stock.return_token_to_stock(eliminate.city);
                     check_player_city_support.send(CheckPlayerCitySupport { player: city_token.player });
                 }
             }
