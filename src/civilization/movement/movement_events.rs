@@ -14,8 +14,19 @@ pub struct InitAllAreas;
 
 #[derive(Event, Debug, Reflect)]
 pub struct MoveTokenFromAreaToAreaCommand {
-    pub source_entity: Entity,
-    pub target_entity: Entity,
+    pub source_area: Entity,
+    pub target_area: Entity,
     pub number_of_tokens: usize,
     pub player: Entity
+}
+
+impl MoveTokenFromAreaToAreaCommand {
+    pub fn new(source_area: Entity, target_area: Entity, number_of_tokens: usize, player:Entity) -> Self {
+        MoveTokenFromAreaToAreaCommand {
+            source_area,
+            target_area,
+            number_of_tokens,
+            player            
+        }
+    }
 }

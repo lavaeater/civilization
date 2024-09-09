@@ -210,8 +210,8 @@ fn perform_move(
             if let Some((target_entity, _)) = target_query.iter().find(|(_, name)| *name == &target_name) {
                 if tokens.tokens.len() >= number_of_tokens {
                     move_command.send(MoveTokenFromAreaToAreaCommand {
-                        source_entity,
-                        target_entity,
+                        source_area: source_entity,
+                        target_area: target_entity,
                         number_of_tokens,
                         player: game_info_and_stuff.current_mover.unwrap(),
                     });

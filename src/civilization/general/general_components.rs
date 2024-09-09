@@ -158,6 +158,10 @@ pub struct PlayerAreas {
 }
 
 impl PlayerAreas {
+    pub fn contains(&self, area: Entity) -> bool {
+        self.areas.contains(&area)
+    }
+    
     pub fn add_token_to_area(&mut self, area: Entity, token: Entity) {
         self.areas.insert(area);
         if !self.area_population.contains_key(&area) {

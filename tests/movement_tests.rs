@@ -1,15 +1,15 @@
 mod common;
 
 use bevy::app::Update;
-use bevy::prelude::{App, AppExtStates, Entity, Name};
+use bevy::prelude::{App, AppExtStates, Entity, Events,  Name};
 use bevy::state::app::StatesPlugin;
 use bevy_console::PrintConsoleLine;
-use bevy_game::civilization::conflict::conflict_components::UnresolvedConflict;
-use bevy_game::civilization::conflict::conflict_systems::find_conflict_zones;
-use bevy_game::civilization::general::general_components::{GameArea, LandPassage, Population};
+use bevy_game::civilization::general::general_components::{GameArea, LandPassage, PlayerAreas, Population};
 use bevy_game::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;
 use bevy_game::{GameActivity, GameState};
 use bevy_game::civilization::general::general_enums::GameFaction;
+use bevy_game::civilization::movement::movement_components::{MoveableTokens, NeedsTocalculateMoves};
+use bevy_game::civilization::movement::movement_systems::move_tokens_from_area_to_area;
 use crate::common::setup_player;
 
 /****************************************************
@@ -23,13 +23,13 @@ fn setup_app() -> App {
     let mut app = App::new();
     app
         .add_plugins(
-            StatesPlugin,
+            StatesPlugin
         )
         .add_event::<MoveTokenFromAreaToAreaCommand>()
         .add_event::<PrintConsoleLine>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
-        .add_systems(Update, find_conflict_zones);
+        .add_systems(Update, move_tokens_from_area_to_area);
     app
 }
 
@@ -64,10 +64,19 @@ fn moving_token_to_area_adds_area_to_player_areas() {
             Population::new(3)
         )
     ).id();
+    let mut events = app.world_mut()
+        .resource_mut::<Events<MoveTokenFromAreaToAreaCommand>>();
 
-
+    events.send(MoveTokenFromAreaToAreaCommand::new(from_area, to_area, 2, player_one));
+    
     // Act
     app.update();
     // Assert
-    assert!(app.world().get::<UnresolvedConflict>(from_area).is_some());
+    assert!(app.world().entity(from_area).get::<MoveableTokens>().is_none());
+    assert!(app.world().entity(from_area).get::<NeedsTocalculateMoves>().is_some());
+    let player_area = app.world().entity(player_one).get::<PlayerAreas>();
+    assert!(player_area.is_some());
+    let player_area = player_area.unwrap();
+    assert!(player_area.contains(to_area));
+
 }
