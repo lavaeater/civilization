@@ -2,7 +2,7 @@ use bevy::prelude::{default, Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
 use crate::civilization::general::general_enums::GameFaction;
 
-#[derive(Component, Debug, Reflect)]
+#[derive(Component, Debug, Reflect, Default)]
 pub struct GameArea;
 
 #[derive(Component, Debug, Reflect, Default)]
@@ -10,7 +10,7 @@ pub struct LandPassage {
     pub to_areas: Vec<Entity>,
 }
 
-#[derive(Component, Debug, Reflect)]
+#[derive(Component, Debug, Reflect, Default)]
 pub struct NeedsConnections {
     pub land_connections: Vec<String>,
     pub sea_connections: Vec<String>,
@@ -159,7 +159,7 @@ pub struct PlayerAreas {
 
 impl PlayerAreas {
     pub fn contains(&self, area: Entity) -> bool {
-        self.areas.contains(&area)
+        self.areas.contains(&area) && self.area_population.contains_key(&area) && !self.area_population.get(&area).unwrap().is_empty()
     }
     
     pub fn add_token_to_area(&mut self, area: Entity, token: Entity) {
@@ -174,8 +174,7 @@ impl PlayerAreas {
         if let Some(tokens) = self.area_population.get_mut(&area) {
             tokens.remove(&token);
             if tokens.is_empty() {
-                self.area_population.remove(&area);
-                self.areas.remove(&area);
+                self.remove_area(area);
             }
         }
     }
