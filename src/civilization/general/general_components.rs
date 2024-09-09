@@ -30,39 +30,50 @@ impl Population {
             ..default()
         }
     }
-    
+
+    pub fn all_lengths_equal(&self) -> bool {
+        let first_length = self.player_tokens.values().next().map(|v| v.len());
+        self.player_tokens.values().all(|v| Some(v.len()) == first_length)
+    }
+
     pub fn remove_surplus(&mut self) -> Vec<Entity> {
         assert_eq!(self.number_of_players(), 1); // this should never, ever, not happen
         let surplus_count = self.surplus_count();
         self.player_tokens.values_mut().next().unwrap().drain(0..surplus_count).collect()
     }
-    
-    pub fn has_surplus(&self)-> bool {
+
+    pub fn has_surplus(&self) -> bool {
         self.surplus_count() > 0
     }
-    
+
     pub fn surplus_count(&self) -> usize {
         self.total_population().try_into().unwrap_or(0) - self.max_population.try_into().unwrap_or(0).try_into().unwrap_or(0)
     }
-    
+
     pub fn is_conflict_zone(&self) -> bool {
         self.number_of_players() > 1 && self.has_too_many_tokens()
     }
-    
+
     pub fn has_too_many_tokens(&self) -> bool {
         self.total_population() > self.max_population
     }
-    
-    pub fn total_population(&self)-> usize {
+
+    pub fn total_population(&self) -> usize {
         self.player_tokens.values().map(|set| set.len()).sum()
     }
 
-    pub fn has_population(&self)-> bool {
+    pub fn has_population(&self) -> bool {
         self.total_population() > 0
     }
-    
+
     pub fn number_of_players(&self) -> usize {
         self.player_tokens.keys().len()
+    }
+
+    pub fn number_of_tokens_for_player(&self, player: Entity) -> usize {
+        if let Some(player_tokens) = self.player_tokens.get(&player) {
+            player_tokens.len()
+        } else { 0 }
     }
 
     pub fn remove_tokens_from_area(&mut self, player: Entity, number_of_tokens: usize) -> Option<Vec<Entity>> {
@@ -72,7 +83,8 @@ impl Population {
                 if player_tokens.is_empty() { self.player_tokens.remove(&player); }
                 Some(tokens)
             } else {
-                None
+                self.player_tokens.remove(&player);
+                Some(player_tokens.iter().cloned().collect())
             }
         } else {
             None
@@ -83,7 +95,7 @@ impl Population {
         if let Some(tokens) = self.player_tokens.get_mut(&player) {
             tokens.push(token);
         } else {
-            self.player_tokens.insert(player,  vec![token]);
+            self.player_tokens.insert(player, vec![token]);
         }
     }
 }
