@@ -40,12 +40,12 @@ fn given_one_city_event_sent_for_player() {
     });
 
     let (player, _tokens, mut city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
- let area = create_area(&mut app, "Egypt");
+    let area = create_area(&mut app, "Egypt");
     app
         .world_mut()
         .entity_mut(area)
         .insert(BuiltCity { city: city_tokens.pop().unwrap(), player });
-    
+
 
     app.update();
     let events = app.world()

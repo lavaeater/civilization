@@ -34,14 +34,12 @@ pub fn eliminate_city(
 }
 
 pub fn check_status(
-    mut check_support_status: EventReader<CheckCitySupportStatus>,
     needs_city_support: Query<&HasTooManyCities>,
-    mut next_state: ResMut<NextState<GameActivity>>
+    needs_to_check_city_support: Query<&NeedsToCheckCitySupport>,
+    mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    for _ in check_support_status.read() {
-        if needs_city_support.is_empty() {
-            next_state.set(GameActivity::PopulationExpansion);
-        }
+    if needs_city_support.is_empty() && needs_to_check_city_support.is_empty() {
+        next_state.set(GameActivity::PopulationExpansion);
     }
 }
 
@@ -65,16 +63,16 @@ pub fn check_player_city_support(
 pub fn check_city_support_gate(
     player_cities_query: Query<(Entity, &PlayerCities)>,
     mut commands: Commands,
-    mut next_state: ResMut<NextState<GameActivity>>
+    mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     if player_cities_query.is_empty() || player_cities_query.iter().all(|(_, player_cities)| player_cities.has_no_cities()) {
         next_state.set(GameActivity::PopulationExpansion);
         return;
     }
-    
+
     for (entity, player_cities) in player_cities_query.iter() {
-        if player_cities.has_cities()  { 
+        if player_cities.has_cities() {
             commands.entity(entity).insert(NeedsToCheckCitySupport {});
-        } 
+        }
     }
 }
