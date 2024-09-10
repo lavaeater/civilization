@@ -1,8 +1,8 @@
-use bevy::prelude::{Commands, EventReader, EventWriter, NextState, Query, ResMut};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
 use itertools::Itertools;
-use crate::civilization::city_support::city_support_components::HasTooManyCities;
+use crate::civilization::city_support::city_support_components::{HasTooManyCities, NeedsToCheckCitySupport};
 use crate::civilization::city_support::city_support_events::{CheckCitySupportStatus, CheckPlayerCitySupport, EliminateCity};
-use crate::civilization::general::general_components::{BuiltCity, CityToken, CityTokenStock, Population, Stock, Treasury};
+use crate::civilization::general::general_components::{BuiltCity, CityToken, CityTokenStock, PlayerAreas, PlayerCities, Population, Stock, Treasury};
 use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
 use crate::GameActivity;
 
@@ -46,52 +46,35 @@ pub fn check_status(
 }
 
 pub fn check_player_city_support(
-    mut check_player_city_support: EventReader<CheckPlayerCitySupport>,
-    city_query: Query<&BuiltCity>,
-    stock_query: Query<(&Stock, &Treasury)>,
+    check_city_support_query: Query<(Entity, &PlayerCities, &PlayerAreas), With<NeedsToCheckCitySupport>>,
     mut commands: Commands,
-    mut check_status: EventWriter<CheckCitySupportStatus>
 ) {
-    for check_player_support in check_player_city_support.read() {
-        let cities = city_query
-            .iter()
-            .filter(|built_city| built_city.player == check_player_support.player)
-            .map(|built_city| built_city.player)
-            .collect::<Vec<_>>();
-
-        let needed_population = cities.len() * 2;
-
-        if let Ok((stock, treasury)) = stock_query.get(check_player_support.player) {
-            let population_count = stock.max_tokens - stock.tokens.len() - treasury.tokens.len();
-            if needed_population > population_count {
-                let needed_tokens = needed_population - population_count;
-                let surplus_count = (needed_population - population_count) / 2;
-                commands.entity(check_player_support.player).insert(HasTooManyCities {
-                    surplus_count,
-                    needed_tokens,
-                });
-                println!("Player {:?} has {} too many cities", check_player_support.player, surplus_count);
-            } else {
-                commands.entity(check_player_support.player).remove::<HasTooManyCities>();
-                check_status.send(CheckCitySupportStatus {});
-            }
+    for (player, cities, areas) in check_city_support_query.iter() {
+        let number_of_cities = cities.number_of_cities();
+        let required_population = number_of_cities * 2;
+        if required_population > areas.total_population() {
+            commands.entity(player).insert(HasTooManyCities {
+                surplus_count: (required_population - areas.total_population()) / 2,
+                needed_tokens: required_population - areas.total_population(),
+            });
         }
+        commands.entity(player).remove::<NeedsToCheckCitySupport>();
     }
 }
 
-pub fn check_city_support(
-    city_query: Query<&BuiltCity>,
-    mut check_player_city_support: EventWriter<CheckPlayerCitySupport>,
+pub fn check_city_support_gate(
+    player_cities_query: Query<(Entity, &PlayerCities)>,
+    mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>
 ) {
-    if city_query.is_empty() {
+    if player_cities_query.is_empty() || player_cities_query.iter().all(|(_, player_cities)| player_cities.has_no_cities()) {
         next_state.set(GameActivity::PopulationExpansion);
         return;
     }
     
-    for (player, _) in city_query
-        .iter()
-        .chunk_by(|city| city.player).into_iter() {
-        check_player_city_support.send(CheckPlayerCitySupport { player });
-    };
+    for (entity, player_cities) in player_cities_query.iter() {
+        if player_cities.has_cities()  { 
+            commands.entity(entity).insert(NeedsToCheckCitySupport {});
+        } 
+    }
 }

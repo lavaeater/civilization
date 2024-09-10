@@ -6,3 +6,6 @@ pub struct HasTooManyCities {
     pub needed_tokens: usize
 }
 
+#[derive(Component, Debug, Reflect)]
+pub struct NeedsToCheckCitySupport;
+

@@ -3,7 +3,7 @@ mod common;
 use bevy::prelude::{Events, NextState, Update};
 use bevy::prelude::NextState::Pending;
 use bevy_game::civilization::city_support::city_support_events::CheckPlayerCitySupport;
-use bevy_game::civilization::city_support::city_support_systems::check_city_support;
+use bevy_game::civilization::city_support::city_support_systems::check_city_support_gate;
 use bevy_game::civilization::general::general_components::BuiltCity;
 use bevy_game::civilization::general::general_enums::GameFaction;
 use bevy_game::GameActivity;
@@ -15,7 +15,7 @@ fn given_no_cities_next_state_is_set() {
     let mut app = setup_bevy_app(|mut app| {
         app
             .add_event::<CheckPlayerCitySupport>()
-            .add_systems(Update, check_city_support)
+            .add_systems(Update, check_city_support_gate)
         ;
         app
     });
@@ -34,7 +34,7 @@ fn given_one_city_event_sent_for_player() {
     let mut app = setup_bevy_app(|mut app| {
         app
             .add_event::<CheckPlayerCitySupport>()
-            .add_systems(Update, check_city_support)
+            .add_systems(Update, check_city_support_gate)
         ;
         app
     });

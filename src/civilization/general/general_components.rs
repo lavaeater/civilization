@@ -191,6 +191,18 @@ pub struct PlayerCities {
 }
 
 impl PlayerCities {
+    pub(crate) fn has_cities(&self) -> bool {
+        !self.has_no_cities()
+    }
+
+    pub(crate) fn has_no_cities(&self) -> bool {
+        self.areas.is_empty()
+    }
+
+    pub(crate) fn number_of_cities(&self) -> usize {
+        self.areas.len()
+    }
+    
     pub fn add_city_to_area(&mut self, area: Entity, city_token: Entity) {
         self.areas.insert(area);
         self.areas_and_cities.insert(area, city_token);
@@ -241,6 +253,10 @@ impl PlayerAreas {
     pub fn remove_area(&mut self, area: Entity) {
         self.areas.remove(&area);
         self.area_population.remove(&area);
+    }
+    
+    pub  fn total_population(&self) -> usize {
+        self.area_population.values().map(|set| set.len()).sum()
     }
 }
 
