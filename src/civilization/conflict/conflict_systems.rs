@@ -14,7 +14,7 @@ pub fn resolve_conflicts(
     name_query: Query<&Name>,
     mut write_line: EventWriter<PrintConsoleLine>,
 ) {
-    for (area_entity, name, mut population) in conflict_zones.iter_mut() {
+    for (area_entity, _name, mut population) in conflict_zones.iter_mut() {
         let temp_map = population.player_tokens.clone();
         let mut players = temp_map.keys().map(|k| *k).collect::<Vec<Entity>>();
         players.sort_by(|a, b| temp_map[b].len().cmp(&temp_map[a].len()));
@@ -68,7 +68,7 @@ pub fn resolve_conflicts(
                             token_rounds += 1;
                         }
 
-                        let must_remove = token_rounds * population.number_of_players();
+                        let must_remove = token_rounds;
 
                         for player in players {
                             for token in population.remove_tokens_from_area(player, must_remove).unwrap_or_default() {
@@ -102,7 +102,7 @@ pub fn resolve_conflicts(
                             token_rounds += 1;
                         }
 
-                        let must_remove = token_rounds * population.number_of_players();
+                        let must_remove = token_rounds;
 
                         for player in players {
                             for token in population.remove_tokens_from_area(player, must_remove).unwrap_or_default() {

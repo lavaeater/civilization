@@ -109,9 +109,9 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
         .add_systems(Update, resolve_conflicts);
     
     let test_cases = vec![
-        // ConflictTestStruct::new(1,1,1,0,0),
-        // ConflictTestStruct::new(2,1,1,2,0),
-        // ConflictTestStruct::new(2,1,2,2,0),
+        ConflictTestStruct::new(1,1,1,0,0),
+        ConflictTestStruct::new(2,1,1,2,0),
+        ConflictTestStruct::new(2,1,2,2,0),
         ConflictTestStruct::new(2,2,2,1,1),
         // ConflictTestStruct::new(3,2,2,2,0),
         // ConflictTestStruct::new(3,2,3,2,1),
