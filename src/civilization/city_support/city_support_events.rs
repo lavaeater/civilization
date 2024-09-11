@@ -6,6 +6,12 @@ pub struct EliminateCity {
     pub area_entity: Entity,
 }
 
+impl EliminateCity {
+    pub fn new(city: Entity, area_entity: Entity) -> Self {
+        EliminateCity { city, area_entity }
+    }
+}
+
 #[derive(Event, Debug, Reflect)]
 pub struct CheckPlayerCitySupport {
     pub player: Entity,
