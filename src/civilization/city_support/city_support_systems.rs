@@ -51,12 +51,15 @@ pub fn check_player_city_support(
         let number_of_cities = cities.number_of_cities();
         let required_population = number_of_cities * 2;
         if required_population > areas.total_population() {
-            commands.entity(player).insert(HasTooManyCities {
-                surplus_count: (required_population - areas.total_population()) / 2,
-                needed_tokens: required_population - areas.total_population(),
-            });
+            commands
+                .entity(player)
+                .insert(HasTooManyCities::new((required_population - areas.total_population()) / 2,
+                                              required_population - areas.total_population())
+                );
         }
-        commands.entity(player).remove::<NeedsToCheckCitySupport>();
+        commands
+            .entity(player)
+            .remove::<NeedsToCheckCitySupport>();
     }
 }
 

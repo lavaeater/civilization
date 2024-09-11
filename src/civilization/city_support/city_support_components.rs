@@ -6,6 +6,15 @@ pub struct HasTooManyCities {
     pub needed_tokens: usize
 }
 
-#[derive(Component, Debug, Reflect)]
+impl HasTooManyCities {
+    pub fn new(surplus_count: usize, needed_tokens: usize) -> Self {
+        HasTooManyCities {
+            surplus_count,
+            needed_tokens
+        }
+    }
+}
+
+#[derive(Component, Debug, Reflect, Default)]
 pub struct NeedsToCheckCitySupport;
 
