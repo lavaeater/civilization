@@ -9,7 +9,7 @@ use crate::GameActivity;
 pub fn eliminate_city(
     mut eliminate_city: EventReader<EliminateCity>,
     mut commands: Commands,
-    mut city_token_stock: Query<(&mut CityTokenStock, &PlayerCities)>,
+    mut city_token_stock: Query<(&mut CityTokenStock, &mut PlayerCities)>,
     area_population: Query<&mut Population>,
     city_token: Query<&CityToken>,
     mut move_tokens: EventWriter<MoveTokensFromStockToAreaCommand>,
