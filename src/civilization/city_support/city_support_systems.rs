@@ -9,7 +9,7 @@ use crate::GameActivity;
 pub fn eliminate_city(
     mut eliminate_city: EventReader<EliminateCity>,
     mut commands: Commands,
-    mut city_token_stock: Query<(&mut CityTokenStock, &PlayerAreas, &PlayerCities)>,
+    mut city_token_stock: Query<(&mut CityTokenStock, &PlayerCities)>,
     area_population: Query<&mut Population>,
     city_token: Query<&CityToken>,
     mut move_tokens: EventWriter<MoveTokensFromStockToAreaCommand>,
@@ -18,7 +18,6 @@ pub fn eliminate_city(
         if let Ok(city_token) = city_token.get(eliminate.city) {
             if let Ok((
                           mut city_stock, 
-                          mut player_areas, 
                           mut player_cities)) = city_token_stock.get_mut(city_token.player) {
 
                 if let Ok(population) = area_population.get(eliminate.area_entity) {
@@ -28,9 +27,13 @@ pub fn eliminate_city(
                         number_of_tokens: population.max_population,
                     });
                     commands.entity(eliminate.area_entity).remove::<BuiltCity>();
+                    player_cities.remove_city_from_area(eliminate.area_entity);
                     city_stock.return_token_to_stock(eliminate.city);
                 }
             }
+            commands
+                .entity(city_token.player)
+                .remove::<NeedsToCheckCitySupport>(); //Start check all over again to update too many cities thingie!
         }
     }
 }
@@ -58,6 +61,10 @@ pub fn check_player_city_support(
                 .insert(HasTooManyCities::new((required_population - areas.total_population()) / 2,
                                               required_population - areas.total_population())
                 );
+        } else {
+            commands
+                .entity(player)
+                .remove::<HasTooManyCities>();
         }
         commands
             .entity(player)

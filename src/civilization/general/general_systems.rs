@@ -184,13 +184,13 @@ pub fn move_tokens_from_stock_to_area(
     mut move_commands: EventReader<MoveTokensFromStockToAreaCommand>,
     mut stock_query: Query<&mut Stock>,
     mut population_query: Query<&mut Population>,
-    mut presence_query: Query<&mut PlayerAreas>,
+    mut player_areas_query: Query<&mut PlayerAreas>,
 ) {
     for ev in move_commands.read() {
         if let Ok(mut stock) = stock_query.get_mut(ev.player_entity) {
             if let Ok(mut population) = population_query.get_mut(ev.area_entity) {
                 if let Some(tokens_to_move) = stock.remove_tokens_from_stock(ev.number_of_tokens) {
-                    let mut player_areas = presence_query.get_mut(ev.player_entity).unwrap();
+                    let mut player_areas = player_areas_query.get_mut(ev.player_entity).unwrap();
                     tokens_to_move
                         .iter()
                         .for_each(|t| {

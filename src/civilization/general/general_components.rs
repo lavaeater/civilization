@@ -185,9 +185,7 @@ impl Stock {
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct PlayerCities {
-    pub areas: HashSet<Entity>,
     pub areas_and_cities: HashMap<Entity, Entity>,
-    pub city_tokens: HashSet<Entity>,
 }
 
 impl PlayerCities {
@@ -196,29 +194,27 @@ impl PlayerCities {
     }
 
     pub(crate) fn has_no_cities(&self) -> bool {
-        self.areas.is_empty()
+        self.areas_and_cities.is_empty()
     }
 
     pub(crate) fn number_of_cities(&self) -> usize {
-        self.areas.len()
+        self.areas_and_cities.len()
     }
-    
+
     pub fn build_city_in_area(&mut self, area: Entity, city_token: Entity) {
-        self.areas.insert(area);
         self.areas_and_cities.insert(area, city_token);
-        self.city_tokens.insert(city_token);
     }
 
     pub fn remove_city_from_area(&mut self, area: Entity) -> Option<Entity> {
         if let Some(city) = self.areas_and_cities.remove(&area) {
-            self.city_tokens.remove(&city);
-            if self.areas_and_cities.is_empty() {
-                self.areas.remove(&area);
-            }
             Some(city)
         } else {
             None
         }
+    }
+    
+    pub fn has_city_in(&self, area: Entity) -> bool {
+        self.areas_and_cities.contains_key(&area)
     }
 }
 
@@ -254,8 +250,8 @@ impl PlayerAreas {
         self.areas.remove(&area);
         self.area_population.remove(&area);
     }
-    
-    pub  fn total_population(&self) -> usize {
+
+    pub fn total_population(&self) -> usize {
         self.area_population.values().map(|set| set.len()).sum()
     }
 }
