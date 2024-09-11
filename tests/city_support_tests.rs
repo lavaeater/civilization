@@ -2,9 +2,10 @@ mod common;
 
 use bevy::prelude::{Events, NextState, Update};
 use bevy::prelude::NextState::Pending;
+use bevy_game::civilization::city_support::city_support_components::NeedsToCheckCitySupport;
 use bevy_game::civilization::city_support::city_support_events::CheckPlayerCitySupport;
 use bevy_game::civilization::city_support::city_support_systems::check_city_support_gate;
-use bevy_game::civilization::general::general_components::BuiltCity;
+use bevy_game::civilization::general::general_components::{BuiltCity, PlayerCities};
 use bevy_game::civilization::general::general_enums::GameFaction;
 use bevy_game::GameActivity;
 use common::{setup_bevy_app, setup_player};
@@ -30,32 +31,34 @@ fn given_no_cities_next_state_is_set() {
 }
 
 #[test]
-fn given_one_city_event_sent_for_player() {
+fn given_one_city_check_component_added_to_player() {
     let mut app = setup_bevy_app(|mut app| {
         app
-            .add_event::<CheckPlayerCitySupport>()
             .add_systems(Update, check_city_support_gate)
         ;
         app
     });
 
     let (player, _tokens, mut city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
+    let mut player_cities = PlayerCities::default();
+    
+    let city_token = city_tokens.pop().unwrap();
+    
+    
     let area = create_area(&mut app, "Egypt");
     app
         .world_mut()
         .entity_mut(area)
-        .insert(BuiltCity { city: city_tokens.pop().unwrap(), player });
-
+        .insert(BuiltCity { city: city_token, player });
+    
+    player_cities.build_city_in_area(area, city_token);
+    app
+        .world_mut()
+        .entity_mut(player)
+        .insert(player_cities);
 
     app.update();
-    let events = app.world()
-        .resource::<Events<CheckPlayerCitySupport>>();
-
-    let mut reader = events.get_reader();
 
     // Assert
-    assert!(!reader.is_empty(&events));
-    assert_eq!(reader.len(&events), 1);
-    let s = reader.read(events).next().unwrap();
-    assert_eq!(s.player, player);
+    assert!(app.world_mut().entity(player).contains::<NeedsToCheckCitySupport>());
 }

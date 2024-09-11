@@ -203,7 +203,7 @@ impl PlayerCities {
         self.areas.len()
     }
     
-    pub fn add_city_to_area(&mut self, area: Entity, city_token: Entity) {
+    pub fn build_city_in_area(&mut self, area: Entity, city_token: Entity) {
         self.areas.insert(area);
         self.areas_and_cities.insert(area, city_token);
         self.city_tokens.insert(city_token);
