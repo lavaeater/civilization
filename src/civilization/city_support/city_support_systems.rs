@@ -9,15 +9,18 @@ use crate::GameActivity;
 pub fn eliminate_city(
     mut eliminate_city: EventReader<EliminateCity>,
     mut commands: Commands,
-    mut city_token_stock: Query<&mut CityTokenStock>,
+    mut city_token_stock: Query<(&mut CityTokenStock, &PlayerAreas, &PlayerCities)>,
     area_population: Query<&mut Population>,
     city_token: Query<&CityToken>,
     mut move_tokens: EventWriter<MoveTokensFromStockToAreaCommand>,
-    mut check_player_city_support: EventWriter<CheckPlayerCitySupport>,
 ) {
     for eliminate in eliminate_city.read() {
         if let Ok(city_token) = city_token.get(eliminate.city) {
-            if let Ok(mut city_stock) = city_token_stock.get_mut(city_token.player) {
+            if let Ok((
+                          mut city_stock, 
+                          mut player_areas, 
+                          mut player_cities)) = city_token_stock.get_mut(city_token.player) {
+
                 if let Ok(population) = area_population.get(eliminate.area_entity) {
                     move_tokens.send(MoveTokensFromStockToAreaCommand {
                         player_entity: city_token.player,
@@ -26,7 +29,6 @@ pub fn eliminate_city(
                     });
                     commands.entity(eliminate.area_entity).remove::<BuiltCity>();
                     city_stock.return_token_to_stock(eliminate.city);
-                    check_player_city_support.send(CheckPlayerCitySupport { player: city_token.player });
                 }
             }
         }
