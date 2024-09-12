@@ -1,18 +1,16 @@
 mod common;
 
-use bevy::prelude::{Events, NextState, Update};
+use crate::common::create_area;
 use bevy::prelude::NextState::Pending;
+use bevy::prelude::{Events, NextState, Update};
 use bevy_game::civilization::city_support::city_support_components::{HasTooManyCities, NeedsToCheckCitySupport};
 use bevy_game::civilization::city_support::city_support_events::{CheckPlayerCitySupport, EliminateCity};
 use bevy_game::civilization::city_support::city_support_systems::{check_city_support_gate, check_player_city_support, eliminate_city};
-use bevy_game::civilization::general::general_components::{BuiltCity, PlayerAreas, PlayerCities, Population};
+use bevy_game::civilization::general::general_components::{BuiltCity, PlayerCities, Population};
 use bevy_game::civilization::general::general_enums::GameFaction;
 use bevy_game::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
-use bevy_game::civilization::movement::movement_components::{MoveableTokens, NeedsTocalculateMoves};
-use bevy_game::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;
 use bevy_game::GameActivity;
 use common::{setup_bevy_app, setup_player};
-use crate::common::create_area;
 
 #[test]
 fn given_no_cities_next_state_is_set() {

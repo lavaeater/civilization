@@ -10,10 +10,7 @@ use crate::GameActivity;
 pub fn resolve_conflicts(
     mut conflict_zones: Query<(Entity, &Name, &mut Population), With<UnresolvedConflict>>,
     mut return_token: EventWriter<ReturnTokenToStock>,
-    mut commands: Commands,
-    name_query: Query<&Name>,
-    mut write_line: EventWriter<PrintConsoleLine>,
-) {
+    mut commands: Commands) {
     for (area_entity, _name, mut population) in conflict_zones.iter_mut() {
         let temp_map = population.player_tokens.clone();
         let mut players = temp_map.keys().map(|k| *k).collect::<Vec<Entity>>();
@@ -129,15 +126,15 @@ pub fn resolve_conflicts(
 
 pub fn find_conflict_zones(
     pop_query: Query<(Entity, &Name, &Population)>,
-        mut commands: Commands,
-        mut write_line: EventWriter<PrintConsoleLine>,
-        mut next_state: ResMut<NextState<GameActivity>>,
-    ) {
-        pop_query.iter().filter(|(_, _, pop)| {
-            pop.is_conflict_zone()
-        }).for_each(|(conflict_zone, name, _)| {
-            write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Conflict zone found: {:?}", name))));
-            commands.entity(conflict_zone).insert(UnresolvedConflict);
-        });
-        next_state.set(GameActivity::CityConstruction);
-    }
+    mut commands: Commands,
+    mut write_line: EventWriter<PrintConsoleLine>,
+    mut next_state: ResMut<NextState<GameActivity>>,
+) {
+    pop_query.iter().filter(|(_, _, pop)| {
+        pop.is_conflict_zone()
+    }).for_each(|(conflict_zone, name, _)| {
+        write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Conflict zone found: {:?}", name))));
+        commands.entity(conflict_zone).insert(UnresolvedConflict);
+    });
+    next_state.set(GameActivity::CityConstruction);
+}

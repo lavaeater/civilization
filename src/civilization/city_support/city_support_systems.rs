@@ -1,10 +1,9 @@
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
-use itertools::Itertools;
 use crate::civilization::city_support::city_support_components::{HasTooManyCities, NeedsToCheckCitySupport};
-use crate::civilization::city_support::city_support_events::{CheckCitySupportStatus, CheckPlayerCitySupport, EliminateCity};
-use crate::civilization::general::general_components::{BuiltCity, CityToken, CityTokenStock, PlayerAreas, PlayerCities, Population, Stock, Treasury};
+use crate::civilization::city_support::city_support_events::EliminateCity;
+use crate::civilization::general::general_components::{BuiltCity, CityToken, CityTokenStock, PlayerAreas, PlayerCities, Population};
 use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
 use crate::GameActivity;
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
 
 pub fn eliminate_city(
     mut eliminate_city: EventReader<EliminateCity>,
