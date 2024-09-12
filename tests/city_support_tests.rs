@@ -5,7 +5,7 @@ use bevy::prelude::NextState::Pending;
 use bevy_game::civilization::city_support::city_support_components::{HasTooManyCities, NeedsToCheckCitySupport};
 use bevy_game::civilization::city_support::city_support_events::{CheckPlayerCitySupport, EliminateCity};
 use bevy_game::civilization::city_support::city_support_systems::{check_city_support_gate, check_player_city_support, eliminate_city};
-use bevy_game::civilization::general::general_components::{BuiltCity, PlayerAreas, PlayerCities};
+use bevy_game::civilization::general::general_components::{BuiltCity, PlayerAreas, PlayerCities, Population};
 use bevy_game::civilization::general::general_enums::GameFaction;
 use bevy_game::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
 use bevy_game::civilization::movement::movement_components::{MoveableTokens, NeedsTocalculateMoves};
@@ -121,7 +121,8 @@ fn given_a_city_to_elimate_the_correct_things_happen() {
     app
         .world_mut()
         .entity_mut(area)
-        .insert(BuiltCity { city: city_token, player });
+        .insert((BuiltCity { city: city_token, player },
+        Population::new(4)));
     
 
     player_cities.build_city_in_area(area, city_token);
@@ -131,7 +132,7 @@ fn given_a_city_to_elimate_the_correct_things_happen() {
         .insert((player_cities, HasTooManyCities::new(1, 2)));
 
     let mut events = app.world_mut()
-        .resource::<Events<EliminateCity>>();
+        .resource_mut::<Events<EliminateCity>>();
 
     events.send(EliminateCity::new(city_token, area));
 
@@ -143,4 +144,8 @@ fn given_a_city_to_elimate_the_correct_things_happen() {
     let reader = events.get_reader();
     assert!(!reader.is_empty(&events));
     app.world_mut().entity(player).contains::<NeedsToCheckCitySupport>();
+    assert!(app.world_mut().entity(player).get::<PlayerCities>().unwrap().has_no_cities());
+    let events = app.world_mut().resource::<Events<MoveTokensFromStockToAreaCommand>>();
+    let reader = events.get_reader();
+    assert!(!reader.is_empty(&events));
 }

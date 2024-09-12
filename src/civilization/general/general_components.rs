@@ -189,15 +189,15 @@ pub struct PlayerCities {
 }
 
 impl PlayerCities {
-    pub(crate) fn has_cities(&self) -> bool {
+    pub fn has_cities(&self) -> bool {
         !self.has_no_cities()
     }
 
-    pub(crate) fn has_no_cities(&self) -> bool {
+    pub fn has_no_cities(&self) -> bool {
         self.areas_and_cities.is_empty()
     }
 
-    pub(crate) fn number_of_cities(&self) -> usize {
+    pub fn number_of_cities(&self) -> usize {
         self.areas_and_cities.len()
     }
 
