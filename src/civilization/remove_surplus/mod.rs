@@ -1,2 +1,2 @@
-pub mod plugin;
-pub mod systems;
+pub mod remove_surplus_plugin;
+pub mod remove_surplus_systems;

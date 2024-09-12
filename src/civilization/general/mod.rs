@@ -1,5 +1,5 @@
-pub mod plugin;
-pub mod systems;
-pub mod components;
-pub mod events;
-pub mod enums;
+pub mod general_plugin;
+pub mod general_systems;
+pub mod general_components;
+pub mod general_events;
+pub mod general_enums;

@@ -2,18 +2,27 @@ use bevy::app::App;
 use bevy::core::Name;
 use bevy::prelude::{AppExtStates, Entity};
 use bevy::state::app::StatesPlugin;
-use bevy_game::civilization::game_phases::game_activity::GameActivity;
-use bevy_game::civilization::general::components::{CityToken, CityTokenStock, GameArea, LandPassage, Stock, Token, Treasury};
+use bevy_game::civilization::census::census_components::Census;
+use bevy_game::civilization::general::general_components::{CityToken, CityTokenStock, Faction, GameArea, LandPassage, PlayerAreas, PlayerCities, Stock, Token, Treasury};
+use bevy_game::civilization::general::general_enums::GameFaction;
 use bevy_game::player::Player;
-use bevy_game::GameState;
+use bevy_game::{GameActivity, GameState};
 
-pub fn setup_player(app: &mut App, name: impl Into<String>) -> (Entity, Vec<Entity>, Vec<Entity>) {
+/*
+Make sure to update this to mirror the method in
+the actual game so that we have the correct components etc.
+ */
+pub fn setup_player(app: &mut App, name: impl Into<String>, faction: GameFaction) -> (Entity, Vec<Entity>, Vec<Entity>) {
     let player = app.world_mut()
         .spawn(
             (
                 Player {},
                 Name::new(name.into()),
-                Treasury { tokens: vec![] },
+                Treasury::default(),
+                Census::default(),
+                Faction { faction },
+                PlayerAreas::default(),
+                PlayerCities::default()
             )
         ).id();
 

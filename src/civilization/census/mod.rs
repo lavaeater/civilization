@@ -1,5 +1,5 @@
-pub mod plugin;
-pub mod systems;
-pub mod events;
-pub mod components;
-pub mod resources;
+pub mod census_plugin;
+pub mod census_systems;
+pub mod census_events;
+pub mod census_components;
+pub mod census_resources;
