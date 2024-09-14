@@ -1,4 +1,4 @@
-pub mod movement_plugin;
-pub mod movement_systems;
-pub mod movement_components;
-pub mod events;
+pub mod population_expansion_plugin;
+pub mod population_expansion_systems;
+pub mod population_expansion_components;
+pub mod population_expansion_events;

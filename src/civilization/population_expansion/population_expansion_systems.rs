@@ -2,7 +2,7 @@ use bevy::prelude::{Commands, Entity, EventWriter, NextState, Query, ResMut, Wit
 use crate::civilization::general::general_components::Population;
 use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::general::general_components::Stock;
-use crate::civilization::population_expansion::movement_components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
+use crate::civilization::population_expansion::population_expansion_components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
 use crate::GameActivity;
 
 pub fn check_population_expansion_eligibility(

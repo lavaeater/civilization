@@ -11,7 +11,7 @@ use crate::civilization::general::general_components::{GameArea, LandPassage, Po
 use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
 use crate::civilization::general::general_systems::{connect_areas, move_tokens_from_stock_to_area, setup_game, setup_players, return_token_to_stock, print_names_of_phases};
 use crate::civilization::movement::movement_plugin::MovementPlugin;
-use crate::civilization::population_expansion::movement_plugin::PopulationExpansionPlugin;
+use crate::civilization::population_expansion::population_expansion_plugin::PopulationExpansionPlugin;
 use crate::civilization::remove_surplus::remove_surplus_plugin::RemoveSurplusPlugin;
 use crate::{GameActivity, GameState};
 use crate::stupid_ai::stupid_ai_plugin::StupidAiPlugin;

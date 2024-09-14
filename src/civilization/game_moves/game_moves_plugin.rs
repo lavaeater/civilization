@@ -1,4 +1,4 @@
-use bevy::prelude::{in_state, App, Component, Entity, Event, EventReader, IntoSystemConfigs, Plugin, Query, Update};
+use bevy::prelude::{in_state, App, Component, Entity, Event, EventReader, IntoSystemConfigs, OnEnter, Plugin, Query, Update};
 use crate::GameActivity;
 
 struct GameMovesPlugin;
@@ -6,20 +6,19 @@ struct GameMovesPlugin;
 impl Plugin for GameMovesPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_event::<RecalculateMoves>()
             .add_event::<RecalculatePlayerMoves>()
             .add_systems(
-                Update, (
-                    recalculate_pop_exp_moves.run_if(in_state(GameActivity::PopulationExpansion)),
+                OnEnter(GameActivity::PopulationExpansion), (
+                    calculate_moves,
                 ),
-            )
+            ).add_systems(
+            Update, (
+                recalculate_pop_exp_moves_for_player.run_if(in_state(GameActivity::PopulationExpansion)),
+            ),
+        )
         ;
     }
 }
-
-#[derive(Event, Debug, Default)]
-pub struct RecalculateMoves;
-
 
 #[derive(Event, Debug)]
 pub struct RecalculatePlayerMoves {
@@ -35,17 +34,17 @@ impl RecalculatePlayerMoves {
 }
 
 #[derive(Component, Debug, Default)]
-pub struct Move {
+pub struct Move {}
+
+pub fn calculate_moves(
+    
+) {
+    
 }
 
-pub fn recalculate_pop_exp_moves(
-    mut recalc_reader: EventReader<RecalculateMoves>,
+pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
     mut player_query: Query<&Move>,
 ) {
-    for event in recalc_reader.read() {
-    }
-
-    for event in recalc_player_reader.read() {
-    }
+    for event in recalc_player_reader.read() {}
 }
