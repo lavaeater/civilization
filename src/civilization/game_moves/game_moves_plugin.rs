@@ -51,7 +51,7 @@ pub enum Move {
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct PopulationExpansionMove {
-    pub id: i32,
+    pub command_index: i32,
     pub area: Entity,
     pub max_tokens: usize,
 }
@@ -76,7 +76,7 @@ pub fn recalculate_pop_exp_moves_for_player(
                 if let Ok(pop) = area_population_query.get(*area) {
                     command_index += 1;
                     moves.push(Move::PopulationExpansion(PopulationExpansionMove {
-                        id: command_index,
+                        command_index,
                         area: *area,
                         max_tokens: pop.max_expansion_for_player(event.player).min(stock.tokens_in_stock()),
                     }));
