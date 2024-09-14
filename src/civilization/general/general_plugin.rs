@@ -14,6 +14,7 @@ use crate::civilization::movement::movement_plugin::MovementPlugin;
 use crate::civilization::population_expansion::population_expansion_plugin::PopulationExpansionPlugin;
 use crate::civilization::remove_surplus::remove_surplus_plugin::RemoveSurplusPlugin;
 use crate::{GameActivity, GameState};
+use crate::civilization::game_moves::game_moves_plugin::GameMovesPlugin;
 use crate::stupid_ai::stupid_ai_plugin::StupidAiPlugin;
 
 pub struct CivilizationPlugin;
@@ -46,7 +47,8 @@ impl Plugin for CivilizationPlugin {
                     CityConstructionPlugin,
                     RemoveSurplusPlugin,
                     CitySupportPlugin,
-                    StupidAiPlugin
+                    StupidAiPlugin,
+                    GameMovesPlugin
                 )
             )
             .add_systems(OnEnter(GameState::Playing), (setup_game, setup_players))

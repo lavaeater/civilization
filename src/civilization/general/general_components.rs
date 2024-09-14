@@ -69,8 +69,18 @@ impl Population {
     pub fn number_of_players(&self) -> usize {
         self.player_tokens.keys().len()
     }
+    
+    pub fn max_expansion_for_player(&self, player: Entity) -> usize {
+        if let Some(player_tokens) = self.player_tokens.get(&player) {
+            match player_tokens.len() {
+                0 => 0,
+                1 => 1,
+                _ => 2,
+            }
+        } else { 0 }
+    }
 
-    pub fn number_of_tokens_for_player(&self, player: Entity) -> usize {
+    pub fn population_for_player(&self, player: Entity) -> usize {
         if let Some(player_tokens) = self.player_tokens.get(&player) {
             player_tokens.len()
         } else { 0 }
@@ -180,6 +190,10 @@ impl Stock {
             None
         }
     }
+    
+    pub fn tokens_in_stock(&self) -> usize {
+        self.tokens.len()
+    }
 }
 
 
@@ -225,6 +239,10 @@ pub struct PlayerAreas {
 }
 
 impl PlayerAreas {
+    pub fn areas(&self) -> HashSet<Entity> {
+        self.areas.clone()
+    }
+    
     pub fn contains(&self, area: Entity) -> bool {
         self.areas.contains(&area) && self.area_population.contains_key(&area) && !self.area_population.get(&area).unwrap().is_empty()
     }

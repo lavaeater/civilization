@@ -47,7 +47,6 @@ pub fn expand_population(
     area_query: Query<(Entity, &Population), With<NeedsExpansion>>,
     to_expand: Query<(Entity, &ExpandAutomatically), With<NeedsExpansion>>,
     mut event_writer: EventWriter<MoveTokensFromStockToAreaCommand>,
-    mut next_state: ResMut<NextState<GameActivity>>,
     mut commands: Commands,
 ) {
     for (pop_entity, pop) in area_query.iter() {
@@ -78,5 +77,13 @@ pub fn expand_population(
         commands.entity(player).remove::<NeedsExpansion>();
         commands.entity(player).remove::<ExpandAutomatically>();
     }
-    next_state.set(GameActivity::Census);
+}
+
+pub fn population_expansion_gate(
+    gate_query: Query<&NeedsExpansion>,
+    mut next_state: ResMut<NextState<GameActivity>>,
+) {
+    if gate_query.is_empty() {
+        next_state.set(GameActivity::Census);
+    }
 }
