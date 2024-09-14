@@ -1,8 +1,7 @@
-use std::cmp;
-use bevy::prelude::{in_state, App, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, Name, OnAdd, OnEnter, Plugin, Query, Trigger, Update, With};
 use crate::civilization::general::general_components::{PlayerAreas, Population, Stock};
 use crate::civilization::population_expansion::population_expansion_components::ExpandManually;
 use crate::GameActivity;
+use bevy::prelude::{in_state, App, Commands, Component, Entity, Event, EventReader, EventWriter, IntoSystemConfigs, OnAdd, Plugin, Query, Trigger, Update};
 
 pub struct GameMovesPlugin;
 
@@ -60,7 +59,7 @@ pub struct PopulationExpansionMove {
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
     player_move_query: Query<(&PlayerAreas, &Stock)>,
-    area_population_query: Query<(&Population)>,
+    area_population_query: Query<&Population>,
     mut commands: Commands,
 ) {
     for event in recalc_player_reader.read() {
@@ -79,7 +78,7 @@ pub fn recalculate_pop_exp_moves_for_player(
                     moves.push(Move::PopulationExpansion(PopulationExpansionMove {
                         id: command_index,
                         area: *area,
-                        max_tokens: cmp::min(pop.max_expansion_for_player(event.player), stock.tokens_in_stock()),
+                        max_tokens: pop.max_expansion_for_player(event.player).min(stock.tokens_in_stock()),
                     }));
                 }
             }
