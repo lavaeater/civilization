@@ -44,6 +44,14 @@ pub struct AvailableMoves {
     pub moves: Vec<Move>,
 }
 
+impl AvailableMoves {
+    pub fn new(moves: Vec<Move>) -> Self {
+        AvailableMoves {
+            moves
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Move {
     PopulationExpansion(PopulationExpansionMove),
@@ -83,5 +91,6 @@ pub fn recalculate_pop_exp_moves_for_player(
                 }
             }
         }
+        commands.entity(event.player).insert(AvailableMoves::new(moves));
     }
 }

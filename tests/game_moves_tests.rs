@@ -47,7 +47,10 @@ fn given_a_player_with_too_few_tokens_for_expansion_the_corrct_moves_are_created
     // Act
     app.update();
     // Assert
-    let player_moves = app.world().entity(player).get::<AvailableMoves>();
+    let player_moves = app
+        .world()
+        .entity(player)
+        .get::<AvailableMoves>();
     assert!(player_moves.is_some());
     let player_moves = player_moves.unwrap();
     assert_eq!(player_moves.moves.len(), 1);
