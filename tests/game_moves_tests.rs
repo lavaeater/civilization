@@ -1,8 +1,10 @@
 mod common;
 
 use bevy::prelude::{Events, Update};
-use bevy_game::civilization::game_moves::game_moves_plugin::{recalculate_pop_exp_moves_for_player, AvailableMoves, Move, RecalculatePlayerMoves};
-use bevy_game::civilization::general::general_components::{PlayerAreas, PlayerCities, Population, Stock};
+use bevy_game::civilization::game_moves::game_moves_components::{AvailableMoves, Move};
+use bevy_game::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
+use bevy_game::civilization::game_moves::game_moves_systems::recalculate_pop_exp_moves_for_player;
+use bevy_game::civilization::general::general_components::{PlayerAreas, Population, Stock};
 use bevy_game::civilization::general::general_enums::GameFaction;
 use crate::common::{create_area, setup_bevy_app, setup_player};
 
