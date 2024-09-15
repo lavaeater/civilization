@@ -182,6 +182,7 @@ impl Stock {
             tokens,
         }
     }
+    
     pub fn remove_tokens_from_stock(&mut self, number_of_tokens: usize) -> Option<Vec<Entity>> {
         if self.tokens.len() >= number_of_tokens {
             let tokens = self.tokens.drain(0..number_of_tokens).collect();
@@ -189,6 +190,10 @@ impl Stock {
         } else {
             None
         }
+    }
+
+    pub fn remove_token_from_stock(&mut self) -> Option<Entity> {
+        self.tokens.pop()
     }
     
     pub fn tokens_in_stock(&self) -> usize {
