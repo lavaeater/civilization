@@ -19,7 +19,7 @@ fn given_a_player_with_too_few_tokens_for_expansion_the_corrct_moves_are_created
     let (player, mut tokens, city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
 
     let mut player_areas = PlayerAreas::default();
-    let mut stock = Stock::new(47, tokens.drain(0..3).collect());
+    let mut stock = Stock::new(47, tokens.drain(0..4).collect());
 
     let area = create_area(&mut app, "Egypt");
     let mut population = Population::new(4);
@@ -55,5 +55,13 @@ fn given_a_player_with_too_few_tokens_for_expansion_the_corrct_moves_are_created
     let player_moves = player_moves.unwrap();
     assert_eq!(player_moves.moves.len(), 1);
     let first_move = player_moves.moves.first().unwrap();
-    assert!(matches!(*first_move, Move::PopulationExpansion(_)));
+    assert!(matches!(*first_move, Move::PopulationExpansion(..)));
+    match *first_move {
+        Move::PopulationExpansion(index, move_area, tokens) => {
+            assert_eq!(index, 1);
+            assert_eq!(tokens, 2);
+            assert_eq!(move_area, area);
+        }
+    };
+    
 }

@@ -54,15 +54,15 @@ impl AvailableMoves {
 
 #[derive(Debug)]
 pub enum Move {
-    PopulationExpansion(PopulationExpansionMove),
+    PopulationExpansion(i32, Entity, usize),
 }
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
-pub struct PopulationExpansionMove {
-    pub command_index: i32,
-    pub area: Entity,
-    pub max_tokens: usize,
-}
+// #[derive(Debug, Eq, PartialEq, Copy, Clone)]
+// pub struct PopulationExpansionMove {
+//     pub command_index: i32,
+//     pub area: Entity,
+//     pub max_tokens: usize,
+// }
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
@@ -83,11 +83,11 @@ pub fn recalculate_pop_exp_moves_for_player(
             for area in player_areas.areas().iter() {
                 if let Ok(pop) = area_population_query.get(*area) {
                     command_index += 1;
-                    moves.push(Move::PopulationExpansion(PopulationExpansionMove {
+                    moves.push(Move::PopulationExpansion(
                         command_index,
-                        area: *area,
-                        max_tokens: pop.max_expansion_for_player(event.player).min(stock.tokens_in_stock()),
-                    }));
+                        *area,
+                        pop.max_expansion_for_player(event.player).min(stock.tokens_in_stock()),
+                    ));
                 }
             }
         }
