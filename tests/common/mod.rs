@@ -26,7 +26,7 @@ pub fn setup_player(app: &mut App, name: impl Into<String>, faction: GameFaction
             )
         ).id();
 
-    let tokens = (0..47).map(|_| {
+    let mut tokens = (0..47).map(|_| {
         app.world_mut()
             .spawn(
                 (
