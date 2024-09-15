@@ -13,7 +13,7 @@ impl AvailableMoves {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Move {
     PopulationExpansion(i32, Entity, usize),
 }

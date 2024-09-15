@@ -12,6 +12,8 @@ use bevy_game::{GameActivity, GameState};
 Make sure to update this to mirror the method in
 the actual game so that we have the correct components etc.
  */
+#[cfg(test)]
+#[allow(dead_code)]
 pub fn setup_player(app: &mut App, name: impl Into<String>, faction: GameFaction) -> (Entity, Vec<Entity>, Vec<Entity>) {
     let player = app.world_mut()
         .spawn(
@@ -26,7 +28,7 @@ pub fn setup_player(app: &mut App, name: impl Into<String>, faction: GameFaction
             )
         ).id();
 
-    let mut tokens = (0..47).map(|_| {
+    let tokens = (0..47).map(|_| {
         app.world_mut()
             .spawn(
                 (
@@ -62,6 +64,8 @@ pub fn setup_player(app: &mut App, name: impl Into<String>, faction: GameFaction
     (player, tokens, city_tokens)
 }
 
+#[cfg(test)]
+#[allow(dead_code)]
 pub fn setup_bevy_app(app_builder: fn(App)->App) -> App {
     let mut app = App::new();
     app
@@ -74,6 +78,8 @@ pub fn setup_bevy_app(app_builder: fn(App)->App) -> App {
     app_builder(app)
 }
 
+#[cfg(test)]
+#[allow(dead_code)]
 pub fn create_area(app: &mut App, name: impl Into<String>) -> Entity {
     let area = app.world_mut().spawn(
         (

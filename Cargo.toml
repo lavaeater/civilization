@@ -89,5 +89,5 @@ rust-fsm-dsl = "0.7.0"
 [build-dependencies]
 embed-resource = "1.8.0"
 
-[dev_dependencies]
+[dev-dependencies]
 rspec = "1.0"

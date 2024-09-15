@@ -18,7 +18,7 @@ fn main() {
     rspec::run(&rspec::given("game_moves_plugin", Environment::default(), |ctx| {
         ctx.when("a player with token in three areas", |ctx| {
             ctx.when("he does not have enought tokens for expansion", |ctx| {
-                ctx.then("the correct moves are created", |ctx| {
+                ctx.then("the correct moves are created", |_| {
                     let mut app = setup_bevy_app(|mut app| {
                         app
                             .add_event::<RecalculatePlayerMoves>()
@@ -67,15 +67,14 @@ fn main() {
                     assert!(player_moves.is_some());
                     let player_moves = player_moves.unwrap();
                     assert_eq!(player_moves.moves.len(), 3);
-                    // let first_move = player_moves.moves.first().unwrap();
-                    // assert!(matches!(*first_move, Move::PopulationExpansion(..)));
-                    // match *first_move {
-                    //     Move::PopulationExpansion(index, move_area, tokens) => {
-                    //         assert_eq!(index, 1);
-                    //         assert_eq!(tokens, 2);
-                    //         assert_eq!(move_area, area_one);
-                    //     }
-                    // };
+                    for p_move in player_moves.moves.iter() {
+                        assert!(matches!(p_move, Move::PopulationExpansion(..)));
+                        match p_move {
+                            Move::PopulationExpansion(_index, _move_area, tokens) => {
+                                assert_eq!(*tokens, 1);
+                            }
+                        };
+                    }
                 });
             });
         });
