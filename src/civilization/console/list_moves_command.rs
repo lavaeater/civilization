@@ -2,9 +2,7 @@ use bevy_console::ConsoleCommand;
 use bevy::prelude::{Query, Res};
 use bevy::core::Name;
 use clap::Parser;
-use crate::civilization::census::census_resources::GameInfoAndStuff;
 use crate::civilization::game_moves::game_moves_components::{AvailableMoves, Move};
-use crate::civilization::movement::movement_components::MoveableTokens;
 
 #[derive(Parser, ConsoleCommand)]
 #[command(name = "moves")]
@@ -27,11 +25,6 @@ pub fn list_moves(
                     }
                 }
             });
-
-            // let message = avail_moves.map(|(from_name, number_of_tokens, targets)| {
-            //     format!("{from_name} can move max {number_of_tokens} to: {:?}", targets.iter().map(|name| name.as_str()).collect::<Vec<&str>>().join(", "))
-            // }).collect::<Vec<String>>().join("\n");
-            command.reply("Moves:".to_string());
         }
     }
 }
