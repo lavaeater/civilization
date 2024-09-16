@@ -6,7 +6,7 @@ use bevy::prelude::{Events, Update};
 use bevy_game::civilization::game_moves::game_moves_components::{AvailableMoves, Move};
 use bevy_game::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use bevy_game::civilization::game_moves::game_moves_systems::recalculate_pop_exp_moves_for_player;
-use bevy_game::civilization::general::general_components::{PlayerAreas, Population, Stock};
+use bevy_game::civilization::general::general_components::{PlayerAreas, Population, PlayerStock};
 use bevy_game::civilization::general::general_enums::GameFaction;
 use crate::common::{create_area, setup_bevy_app, setup_player};
 
@@ -30,7 +30,7 @@ fn main() {
                     let (player, mut tokens, _city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
 
                     let mut player_areas = PlayerAreas::default();
-                    let mut stock = Stock::new(47, tokens.drain(0..4).collect());
+                    let mut stock = PlayerStock::new(47, tokens.drain(0..4).collect());
 
                     let area_one = create_area(&mut app, "Egypt");
                     let area_two = create_area(&mut app, "Thrace");
@@ -95,7 +95,7 @@ fn given_a_player_with_too_few_tokens_for_expansion_the_correct_moves_are_create
     let (player, mut tokens, _city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
 
     let mut player_areas = PlayerAreas::default();
-    let mut stock = Stock::new(47, tokens.drain(0..4).collect());
+    let mut stock = PlayerStock::new(47, tokens.drain(0..4).collect());
 
     let area = create_area(&mut app, "Egypt");
     let mut population = Population::new(4);

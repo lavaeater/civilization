@@ -3,7 +3,7 @@ use bevy::core::Name;
 use bevy::prelude::{AppExtStates, Entity};
 use bevy::state::app::StatesPlugin;
 use bevy_game::civilization::census::census_components::Census;
-use bevy_game::civilization::general::general_components::{CityToken, CityTokenStock, Faction, GameArea, LandPassage, PlayerAreas, PlayerCities, Stock, Token, Treasury};
+use bevy_game::civilization::general::general_components::{CityToken, CityTokenStock, Faction, GameArea, LandPassage, PlayerAreas, PlayerCities, PlayerStock, Token, Treasury};
 use bevy_game::civilization::general::general_enums::GameFaction;
 use bevy_game::player::Player;
 use bevy_game::{GameActivity, GameState};
@@ -52,7 +52,7 @@ pub fn setup_player(app: &mut App, name: impl Into<String>, faction: GameFaction
         .entity_mut(player)
         .insert(
             (
-                Stock::new(
+                PlayerStock::new(
                     47,
                     tokens.clone()),
                 CityTokenStock::new(

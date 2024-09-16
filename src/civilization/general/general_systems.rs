@@ -1,6 +1,6 @@
 use crate::civilization::census::census_components::Census;
 use crate::civilization::general::general_components::{CitySite, CityToken, CityTokenStock, Faction, GameArea, LandPassage, NeedsConnections, PlayerAreas, PlayerCities, Population, StartArea, Token, Treasury};
-use crate::civilization::general::general_components::Stock;
+use crate::civilization::general::general_components::PlayerStock;
 use bevy::core::Name;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Query, StateTransitionEvent, With};
 use bevy::utils::HashMap;
@@ -52,7 +52,7 @@ pub fn setup_players(
             .entity(player)
             .insert(
                 (
-                    Stock::new(
+                    PlayerStock::new(
                         47,
                         tokens),
                     CityTokenStock::new(
@@ -182,7 +182,7 @@ This is 100% needed to be able to test expansion and stuff.
 */
 pub fn move_tokens_from_stock_to_area(
     mut move_commands: EventReader<MoveTokensFromStockToAreaCommand>,
-    mut stock_query: Query<&mut Stock>,
+    mut stock_query: Query<&mut PlayerStock>,
     mut population_query: Query<&mut Population>,
     mut player_areas_query: Query<&mut PlayerAreas>,
 ) {
@@ -205,7 +205,7 @@ pub fn move_tokens_from_stock_to_area(
 
 pub(crate) fn return_token_to_stock(
     mut event: EventReader<ReturnTokenToStock>,
-    mut stock_query: Query<&mut Stock>,
+    mut stock_query: Query<&mut PlayerStock>,
     token_query: Query<&Token>,
 ) {
     for return_event in event.read() {

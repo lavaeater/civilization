@@ -1,12 +1,13 @@
 use bevy::prelude::{Component, Entity};
+use bevy::utils::HashMap;
 
 #[derive(Component, Debug, Default)]
 pub struct AvailableMoves {
-    pub moves: Vec<Move>,
+    pub moves: HashMap<usize, Move>,
 }
 
 impl AvailableMoves {
-    pub fn new(moves: Vec<Move>) -> Self {
+    pub fn new(moves: HashMap<usize, Move>) -> Self {
         AvailableMoves {
             moves
         }
@@ -15,5 +16,5 @@ impl AvailableMoves {
 
 #[derive(Debug, Clone, Copy)]
 pub enum Move {
-    PopulationExpansion(i32, Entity, usize),
+    PopulationExpansion(Entity, usize),
 }

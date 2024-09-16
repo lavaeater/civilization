@@ -174,14 +174,14 @@ impl Token {
 }
 
 #[derive(Component, Debug, Reflect)]
-pub struct Stock {
+pub struct PlayerStock {
     pub max_tokens: usize,
     pub tokens: Vec<Entity>,
 }
 
-impl Stock {
+impl PlayerStock {
     pub fn new(max_tokens: usize, tokens: Vec<Entity>) -> Self {
-        Stock {
+        PlayerStock {
             max_tokens,
             tokens,
         }
@@ -276,6 +276,10 @@ impl PlayerAreas {
     pub fn remove_area(&mut self, area: Entity) {
         self.areas.remove(&area);
         self.area_population.remove(&area);
+    }
+    
+    pub fn has_population(&self) -> bool {
+        !self.areas.is_empty()
     }
 
     pub fn total_population(&self) -> usize {

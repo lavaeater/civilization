@@ -1,8 +1,8 @@
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{in_state, IntoSystemConfigs, OnEnter};
 use crate::civilization::population_expansion::population_expansion_components::ExpandAutomatically;
-use crate::civilization::population_expansion::population_expansion_events::StartManualPopulationExpansionEvent;
-use crate::civilization::population_expansion::population_expansion_systems::{check_population_expansion_eligibility, expand_population, population_expansion_gate};
+use crate::civilization::population_expansion::population_expansion_events::CheckPlayerExpansionEligibility;
+use crate::civilization::population_expansion::population_expansion_systems::{check_area_population_expansion_eligibility, check_population_expansion_eligibility, expand_population, population_expansion_gate};
 use crate::GameActivity;
 
 pub struct PopulationExpansionPlugin;
@@ -11,7 +11,7 @@ impl Plugin for PopulationExpansionPlugin {
     fn build(&self, app: &mut App) {
         app
             .register_type::<ExpandAutomatically>()
-            .add_event::<StartManualPopulationExpansionEvent>()
+            .add_event::<CheckPlayerExpansionEligibility>()
             .add_systems(OnEnter(GameActivity::PopulationExpansion),
                          check_population_expansion_eligibility)
             .add_systems(
@@ -19,6 +19,8 @@ impl Plugin for PopulationExpansionPlugin {
                     expand_population
                         .run_if(in_state(GameActivity::PopulationExpansion)),
                     population_expansion_gate
+                        .run_if(in_state(GameActivity::PopulationExpansion)),
+                    check_area_population_expansion_eligibility
                         .run_if(in_state(GameActivity::PopulationExpansion))
                 ),
             )

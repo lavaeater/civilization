@@ -7,7 +7,7 @@ use crate::civilization::city_construction::city_construction_plugin::CityConstr
 use crate::civilization::city_support::city_support_plugin::CitySupportPlugin;
 use crate::civilization::conflict::conflict_plugin::ConflictPlugin;
 use crate::civilization::console::console_commands::CommandsPlugin;
-use crate::civilization::general::general_components::{GameArea, LandPassage, Population, Stock, Token};
+use crate::civilization::general::general_components::{GameArea, LandPassage, Population, PlayerStock, Token};
 use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
 use crate::civilization::general::general_systems::{connect_areas, move_tokens_from_stock_to_area, setup_game, setup_players, return_token_to_stock, print_names_of_phases};
 use crate::civilization::movement::movement_plugin::MovementPlugin;
@@ -26,7 +26,7 @@ impl Plugin for CivilizationPlugin {
         app
             .register_type::<Token>()
             .register_type::<LandPassage>()
-            .register_type::<Stock>()
+            .register_type::<PlayerStock>()
             .register_type::<GameArea>()
             .register_type::<Population>()
             .add_event::<MoveTokensFromStockToAreaCommand>()
