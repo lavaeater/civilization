@@ -47,7 +47,11 @@ impl Population {
     }
 
     pub fn surplus_count(&self) -> usize {
-        self.total_population().try_into().unwrap_or(0) - self.max_population.try_into().unwrap_or(0).try_into().unwrap_or(0)
+        if self.total_population() > self.max_population {
+            self.total_population() - self.max_population
+        } else {
+            0
+        }
     }
 
     pub fn is_conflict_zone(&self) -> bool {

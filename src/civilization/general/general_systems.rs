@@ -29,7 +29,7 @@ pub fn setup_players(
                 )
             ).id();
 
-        let tokens = (0..47).map(|_| {
+        let tokens = (0..3).map(|_| {
             commands
                 .spawn(
                     (
