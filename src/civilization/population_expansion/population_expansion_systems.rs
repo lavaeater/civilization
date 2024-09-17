@@ -15,9 +15,9 @@ pub fn check_area_population_expansion_eligibility(
 ) {
     for event in expansion_check_event.iter() {
         if let Ok((player_areas, stock)) = player_query.get(event.player) {
+            let mut required_tokens = 0;
             for area in player_areas.areas().iter() {
                 if let Ok(pop) = area_query.get(*area) {
-                    let mut required_tokens = 0;
                     for (pop_entity, pop) in area_query.iter() {
                         if let Some(p) = pop.player_tokens.get(&player) {
                             let rt = match p.len() {
@@ -28,7 +28,7 @@ pub fn check_area_population_expansion_eligibility(
                             if rt > 0 {
                                 commands.entity(pop_entity).insert(NeedsExpansion {});
                             }
-                    
+
                             required_tokens += rt;
                         };
                     }
@@ -48,20 +48,17 @@ pub fn check_area_population_expansion_eligibility(
         }
     }
     // // how many tokens has the player?
-    
+
 }
 
 pub fn check_population_expansion_eligibility(
     player_query: Query<(Entity, &PlayerAreas)>,
     mut commands: Commands,
-    mut checker: EventWriter<CheckPlayerExpansionEligibility>
+    mut checker: EventWriter<CheckPlayerExpansionEligibility>,
 ) {
     for (player, areas) in player_query.iter() {
-        if areas
-        commands.entity(player).insert(NeedsExpansion::default());
-        
-        for area in area_query.iter() {
-            commands.entity(area).insert(NeedsExpansion::default());
+        if areas.has_any_population() {
+            commands.entity(player).insert(NeedsExpansion::default());
             checker.send(CheckPlayerExpansionEligibility::new(player));
         }
     }

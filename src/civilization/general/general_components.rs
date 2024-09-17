@@ -278,7 +278,7 @@ impl PlayerAreas {
         self.area_population.remove(&area);
     }
     
-    pub fn has_population(&self) -> bool {
+    pub fn has_any_population(&self) -> bool {
         !self.areas.is_empty()
     }
 
