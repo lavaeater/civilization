@@ -5,7 +5,6 @@ use crate::civilization::population_expansion::population_expansion_components::
 use crate::civilization::population_expansion::population_expansion_events::{CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand};
 use crate::GameActivity;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
-use crate::player::Player;
 
 pub fn check_area_population_expansion_eligibility(
     mut expansion_check_event: EventReader<CheckPlayerExpansionEligibility>,
@@ -56,7 +55,6 @@ pub fn auto_expand_population(
             let needed_tokens = player_areas.required_tokens_for_expansion_for_area(*area);
             if needed_tokens > 0 {
                 event_writer.send(MoveTokensFromStockToAreaCommand::new(*area, player_entity, needed_tokens));
-                needs_expansion.remove(*area); //Will it work?
                 if let Ok(mut expansion) = area_query.get_mut(*area) {
                     expansion.remove(player_entity);
                     if expansion.expansion_is_done() {
@@ -65,6 +63,7 @@ pub fn auto_expand_population(
                 }
             }
         }
+        needs_expansion.areas_that_need_expansion.clear();
         if needs_expansion.areas_that_need_expansion.is_empty() {
             commands.entity(player_entity).remove::<ExpandAutomatically>();
         }

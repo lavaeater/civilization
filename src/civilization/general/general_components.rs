@@ -1,5 +1,4 @@
 use bevy::prelude::{default, Component, Entity, Reflect};
-use bevy::render::render_resource::encase::private::RuntimeSizedArray;
 use bevy::utils::{HashMap, HashSet};
 use crate::civilization::general::general_enums::GameFaction;
 
@@ -313,7 +312,7 @@ impl PlayerAreas {
     }
 
     pub fn required_tokens_for_expansion_for_area(&self, area: Entity) -> usize {
-        if let Ok(set) = self.area_population.get(&area) {
+        if let Some(set) = self.area_population.get(&area) {
             match set.len() {
                 0 => { 0 }
                 1 => { 1 }
