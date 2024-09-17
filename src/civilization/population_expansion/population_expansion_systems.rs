@@ -2,9 +2,10 @@ use crate::civilization::general::general_components::PlayerStock;
 use crate::civilization::general::general_components::{PlayerAreas, Population};
 use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::population_expansion::population_expansion_components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
-use crate::civilization::population_expansion::population_expansion_events::CheckPlayerExpansionEligibility;
+use crate::civilization::population_expansion::population_expansion_events::{CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand};
 use crate::GameActivity;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
+use crate::player::Player;
 
 pub fn check_area_population_expansion_eligibility(
     mut expansion_check_event: EventReader<CheckPlayerExpansionEligibility>,
@@ -90,10 +91,27 @@ pub fn expand_population(
 }
 
 pub fn population_expansion_gate(
-    gate_query: Query<&NeedsExpansion>,
+    gate_query: Query<(&NeedsExpansion), With<Player>>,
+    area_query: Query<(Entity, &Population), With<NeedsExpansion>>,
+    mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
+    // No players need expansion no more, so remove the NeedsExpansion component from all areas
     if gate_query.is_empty() {
+        for (area, _) in area_query.iter() {
+            commands.entity(area).remove::<NeedsExpansion>();
+        }
         next_state.set(GameActivity::Census);
+    }
+}
+
+pub fn expand_population_manually(
+    mut event_reader: EventReader<ExpandPopulationManuallyCommand>,
+    mut event_writer: EventWriter<MoveTokensFromStockToAreaCommand>,
+    mut checker: EventWriter<CheckPlayerExpansionEligibility>,
+) {
+    for event in event_reader.read() {
+        event_writer.send(MoveTokensFromStockToAreaCommand::new(event.area, event.player, event.number_of_tokens));
+        checker.send(CheckPlayerExpansionEligibility::new(event.player));
     }
 }
