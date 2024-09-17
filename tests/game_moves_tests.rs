@@ -10,7 +10,7 @@ use bevy_game::civilization::general::general_components::{PlayerAreas, Populati
 use bevy_game::civilization::general::general_enums::GameFaction;
 use crate::common::{create_area, setup_bevy_app, setup_player};
 
-#[test]        
+#[test]
 fn main() {
     #[derive(Clone, Default, Debug)]
     struct Environment;
@@ -51,7 +51,7 @@ fn main() {
                         .entity_mut(player)
                         .insert((player_areas, stock));
 
-                    
+
                     let mut events = app.world_mut()
                         .resource_mut::<Events<RecalculatePlayerMoves>>();
 
@@ -67,12 +67,10 @@ fn main() {
                     assert!(player_moves.is_some());
                     let player_moves = player_moves.unwrap();
                     assert_eq!(player_moves.moves.len(), 3);
-                    for (move_index, p_move) in player_moves.moves.iter() {
+                    for (_move_index, p_move) in player_moves.moves.iter() {
                         assert!(matches!(p_move, Move::PopulationExpansion(..)));
-                        match p_move {
-                            Move::PopulationExpansion(_move_area, tokens) => {
-                                assert_eq!(*tokens, 1);
-                            }
+                        if let Move::PopulationExpansion(pop_exp) = p_move {
+                            assert_eq!(pop_exp.max_tokens, 1);
                         };
                     }
                 });
@@ -132,10 +130,8 @@ fn given_a_player_with_too_few_tokens_for_expansion_the_correct_moves_are_create
     assert_eq!(player_moves.moves.len(), 1);
     let (index, first_move) = player_moves.moves.iter().next().unwrap();
     assert!(matches!(*first_move, Move::PopulationExpansion(..)));
-    match *first_move {
-        Move::PopulationExpansion( move_area, tokens) => {
-            assert_eq!(tokens, 2);
-            assert_eq!(move_area, area);
-        }
+    if let Move::PopulationExpansion(pop_exp_move) = *first_move {
+        assert_eq!(pop_exp_move.max_tokens, 2);
+        assert_eq!(pop_exp_move.area, area);
     };
 }
