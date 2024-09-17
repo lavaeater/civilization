@@ -5,33 +5,6 @@ use bevy_console::ConsoleCommand;
 use clap::Parser;
 
 #[derive(Parser, ConsoleCommand)]
-#[command(name = "move")]
-pub struct MakeAMove {
-    pub player: String,
-    pub index: usize,
-    pub number: Option<usize>,
-}
-
-pub fn make_a_move(
-    mut command: ConsoleCommand<MakeAMove>,
-    available_moves: Query<(&Name, &AvailableMoves)>,
-) {
-    if let Some(Ok(MakeAMove { player, index, number })) = command.take() {
-        for (name, avail_moves) in available_moves.iter() {
-            if name.to_string() == player {
-                avail_moves.moves.iter().for_each(|(move_index, game_move)| {
-                    if index.eq(move_index) {
-                        match game_move {
-                            Move::PopulationExpansion(area, max_tokens) => {}
-                        }
-                    }
-                });
-            }
-        }
-    }
-}
-
-#[derive(Parser, ConsoleCommand)]
 #[command(name = "moves")]
 pub struct ListMoves;
 
