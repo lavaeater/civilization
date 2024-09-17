@@ -1,18 +1,8 @@
 use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::HashSet;
 
-#[derive(Component, Debug)]
-pub struct ExpandManually {
-    pub required_tokens: usize,
-}
-
-impl ExpandManually {
-    pub fn new(required_tokens: usize) -> Self {
-        ExpandManually {
-            required_tokens
-        }
-    }
-}
+#[derive(Component, Debug, Default)]
+pub struct ExpandManually;
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct ExpandAutomatically;
