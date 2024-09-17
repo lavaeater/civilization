@@ -68,7 +68,6 @@ fn main() {
                     let player_moves = player_moves.unwrap();
                     assert_eq!(player_moves.moves.len(), 3);
                     for (move_index, p_move) in player_moves.moves.iter() {
-                        assert_eq!(*move_index, 1);
                         assert!(matches!(p_move, Move::PopulationExpansion(..)));
                         match p_move {
                             Move::PopulationExpansion(_move_area, tokens) => {
@@ -131,7 +130,7 @@ fn given_a_player_with_too_few_tokens_for_expansion_the_correct_moves_are_create
     assert!(player_moves.is_some());
     let player_moves = player_moves.unwrap();
     assert_eq!(player_moves.moves.len(), 1);
-    let first_move = player_moves.moves.values().collect().first().unwrap();
+    let (index, first_move) = player_moves.moves.iter().next().unwrap();
     assert!(matches!(*first_move, Move::PopulationExpansion(..)));
     match *first_move {
         Move::PopulationExpansion( move_area, tokens) => {
