@@ -73,7 +73,7 @@ impl Population {
     pub fn number_of_players(&self) -> usize {
         self.player_tokens.keys().len()
     }
-    
+
     pub fn max_expansion_for_player(&self, player: Entity) -> usize {
         if let Some(player_tokens) = self.player_tokens.get(&player) {
             match player_tokens.len() {
@@ -186,7 +186,7 @@ impl PlayerStock {
             tokens,
         }
     }
-    
+
     pub fn remove_tokens_from_stock(&mut self, number_of_tokens: usize) -> Option<Vec<Entity>> {
         if self.tokens.len() >= number_of_tokens {
             let tokens = self.tokens.drain(0..number_of_tokens).collect();
@@ -199,7 +199,7 @@ impl PlayerStock {
     pub fn remove_token_from_stock(&mut self) -> Option<Entity> {
         self.tokens.pop()
     }
-    
+
     pub fn tokens_in_stock(&self) -> usize {
         self.tokens.len()
     }
@@ -235,7 +235,7 @@ impl PlayerCities {
             None
         }
     }
-    
+
     pub fn has_city_in(&self, area: Entity) -> bool {
         self.areas_and_cities.contains_key(&area)
     }
@@ -251,7 +251,7 @@ impl PlayerAreas {
     pub fn areas(&self) -> HashSet<Entity> {
         self.areas.clone()
     }
-    
+
     pub fn contains(&self, area: Entity) -> bool {
         self.areas.contains(&area) && self.area_population.contains_key(&area) && !self.area_population.get(&area).unwrap().is_empty()
     }
@@ -277,13 +277,35 @@ impl PlayerAreas {
         self.areas.remove(&area);
         self.area_population.remove(&area);
     }
-    
+
     pub fn has_any_population(&self) -> bool {
         !self.areas.is_empty()
+    }
+    
+    pub fn areas_with_population(&self) -> HashSet<Entity> {
+        self.area_population.keys().cloned().collect()
     }
 
     pub fn total_population(&self) -> usize {
         self.area_population.values().map(|set| set.len()).sum()
+    }
+
+    pub fn population_in_area(&self, area: Entity) -> usize {
+        if let Some(tokens) = self.area_population.get(&area) {
+            tokens.len()
+        } else {
+            0
+        }
+    }
+
+    pub fn required_tokens_for_expansion(&self) -> usize {
+        self.area_population.values().map(|set| {
+            match set.len() {
+                0 => { 0 }
+                1 => { 1 }
+                _ => { 2 }
+            }
+        }).sum()
     }
 }
 

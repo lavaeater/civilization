@@ -1,54 +1,40 @@
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With, Without};
-use bevy_inspector_egui::egui::Area;
+use crate::civilization::general::general_components::PlayerStock;
 use crate::civilization::general::general_components::{PlayerAreas, Population};
 use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
-use crate::civilization::general::general_components::PlayerStock;
 use crate::civilization::population_expansion::population_expansion_components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
 use crate::civilization::population_expansion::population_expansion_events::CheckPlayerExpansionEligibility;
 use crate::GameActivity;
-use crate::player::Player;
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
 
 pub fn check_area_population_expansion_eligibility(
     mut expansion_check_event: EventReader<CheckPlayerExpansionEligibility>,
-    player_query: Query<(&PlayerAreas, &PlayerStock)>,
-    area_query: Query<&Population>,
+    stock_query: Query<&PlayerStock, With<NeedsExpansion>>,
+    population_query: Query<&Population>,
+    mut commands: Commands,
 ) {
-    for event in expansion_check_event.iter() {
-        if let Ok((player_areas, stock)) = player_query.get(event.player) {
-            let mut required_tokens = 0;
-            for area in player_areas.areas().iter() {
-                if let Ok(pop) = area_query.get(*area) {
-                    for (pop_entity, pop) in area_query.iter() {
-                        if let Some(p) = pop.player_tokens.get(&player) {
-                            let rt = match p.len() {
-                                1 => { 1 }
-                                0 => { 0 }
-                                _ => { 2 }
-                            };
-                            if rt > 0 {
-                                commands.entity(pop_entity).insert(NeedsExpansion {});
-                            }
-
-                            required_tokens += rt;
-                        };
-                    }
-                    if required_tokens > 0 {
-                        if required_tokens <= tokens_in_stock {
-                            commands
-                                .entity(player)
-                                .insert((ExpandAutomatically::new(required_tokens), NeedsExpansion {}));
-                        } else {
-                            commands
-                                .entity(player)
-                                .insert((ExpandManually::new(required_tokens), NeedsExpansion {}));
-                        }
-                    }
+    for event in expansion_check_event.read() {
+        if let Ok(stock) = stock_query.get(event.player) {
+            let required_tokens = population_query
+                .iter()
+                .filter(|pop| pop.has_player(event.player))
+                .map(|pop| pop.max_expansion_for_player(event.player))
+                .sum::<usize>();
+            
+            if required_tokens > 0 {
+                //This player still needs expansion, the area, maybe not
+                commands.entity(event.player).insert(NeedsExpansion::default());
+                if required_tokens <= stock.tokens_in_stock() {
+                    commands
+                        .entity(event.player)
+                        .insert(ExpandAutomatically::new(required_tokens));
+                } else {
+                    commands
+                        .entity(event.player)
+                        .insert(ExpandManually::new(required_tokens));
                 }
             }
         }
     }
-    // // how many tokens has the player?
-
 }
 
 pub fn check_population_expansion_eligibility(
@@ -56,8 +42,11 @@ pub fn check_population_expansion_eligibility(
     mut commands: Commands,
     mut checker: EventWriter<CheckPlayerExpansionEligibility>,
 ) {
-    for (player, areas) in player_query.iter() {
-        if areas.has_any_population() {
+    for (player, player_areas) in player_query.iter() {
+        for area in player_areas.areas() {
+            commands.entity(area).insert(NeedsExpansion::default());
+        }
+        if player_areas.has_any_population() {
             commands.entity(player).insert(NeedsExpansion::default());
             checker.send(CheckPlayerExpansionEligibility::new(player));
         }
