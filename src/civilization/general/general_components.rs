@@ -30,6 +30,10 @@ impl Population {
             ..default()
         }
     }
+    
+    pub fn players(&self) -> HashSet<Entity> {
+        self.player_tokens.keys().cloned().collect()
+    }
 
     pub fn all_lengths_equal(&self) -> bool {
         let first_length = self.player_tokens.values().next().map(|v| v.len());
@@ -306,6 +310,16 @@ impl PlayerAreas {
                 _ => { 2 }
             }
         }).sum()
+    }
+
+    pub fn required_tokens_for_expansion_for_area(&self, area: Entity) -> usize {
+        if let Ok(set) = self.area_population.get(&area) {
+            match set.len() {
+                0 => { 0 }
+                1 => { 1 }
+                _ => { 2 }
+            }
+        } else { 0 }
     }
 }
 
