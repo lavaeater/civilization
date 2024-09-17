@@ -29,7 +29,6 @@ impl Plugin for CommandsPlugin {
             .add_console_command::<ExpandPopulation, _>(expand_population_command::expand_population)
             .add_console_command::<ListMoves, _>(list_moves_command::list_moves)
             .add_console_command::<MakeAMove, _>(make_a_move_command::make_a_move)
-            .add_console_command::<MoveCommand, _>(move_command::perform_move)
             .add_console_command::<EndMoveCommand, _>(end_move_command::end_move)
             .add_console_command::<ShowBoardCommand, _>(show_board_command::show_board)
             .add_console_command::<ListBuildsCommand, _>(list_builds_command::list_builds)
