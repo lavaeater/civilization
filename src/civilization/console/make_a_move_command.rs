@@ -24,9 +24,10 @@ pub fn make_a_move(
                 avail_moves.moves.iter().for_each(|(move_index, game_move)| {
                     if index.eq(move_index) {
                         match game_move {
-                            Move::PopulationExpansion(area, max_tokens) => {
-                                expand_writer.send(ExpandPopulationManuallyCommand::new(player_entity, *area, number.unwrap_or(*max_tokens)));
+                            Move::PopulationExpansion(pop_exp_move) => {
+                                expand_writer.send(ExpandPopulationManuallyCommand::new(player_entity, pop_exp_move.area, number.unwrap_or(pop_exp_move.max_tokens)));
                             }
+                            Move::Movement(_) => {}
                         }
                     }
                 });

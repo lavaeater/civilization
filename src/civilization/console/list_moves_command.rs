@@ -19,10 +19,11 @@ pub fn list_moves(
 
             avail_moves.moves.iter().for_each(|(index, game_move)| {
                 match game_move {
-                    Move::PopulationExpansion(area, max_tokens) => {
-                        let area_name = name_query.get(*area).unwrap();
-                        command.reply(format!("Move {} - Population Expansion in area {} with max tokens {}", index, area_name, max_tokens));
+                    Move::PopulationExpansion(pop_exp_move) => {
+                        let area_name = name_query.get(pop_exp_move.area).unwrap();
+                        command.reply(format!("Move {} - Population Expansion in area {} with max tokens {}", index, area_name, pop_exp_move.max_tokens));
                     }
+                    Move::Movement(_) => {}
                 }
             });
         }

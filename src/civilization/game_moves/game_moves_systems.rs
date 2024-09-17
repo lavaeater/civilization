@@ -1,6 +1,6 @@
 use bevy::prelude::{Commands, EventReader, Query};
 use bevy::utils::HashMap;
-use crate::civilization::game_moves::game_moves_components::{AvailableMoves, Move};
+use crate::civilization::game_moves::game_moves_components::{AvailableMoves, Move, PopExpMove};
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::general::general_components::{PlayerAreas, Population, PlayerStock};
 
@@ -23,10 +23,10 @@ pub fn recalculate_pop_exp_moves_for_player(
             for area in player_areas.areas().iter() {
                 if let Ok(pop) = area_population_query.get(*area) {
                     command_index += 1;
-                    moves.insert(command_index, Move::PopulationExpansion(
+                    moves.insert(command_index, Move::PopulationExpansion(PopExpMove::new(
                         *area,
                         pop.max_expansion_for_player(event.player).min(stock.tokens_in_stock()),
-                    ));
+                    )));
                 }
             }
         }
@@ -34,6 +34,4 @@ pub fn recalculate_pop_exp_moves_for_player(
     }
 }
 
-pub fn recalculate_movement_moves_for_player() {
-    
-}
+pub fn recalculate_movement_moves_for_player() {}

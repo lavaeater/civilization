@@ -16,8 +16,8 @@ pub fn start_game(
     start_area_query: Query<(Entity, &Name, &StartArea)>,
     mut writer: EventWriter<MoveTokensFromStockToAreaCommand>,
     mut next_state: ResMut<NextState<GameActivity>>) {
-    for (player_entity, name, player_faction) in player_query.iter() {
-        if let Some((area_entity, area_name, _)) = start_area_query.iter().find(|(_, _, start_area)| start_area.faction == player_faction.faction) {
+    for (player_entity, _name, player_faction) in player_query.iter() {
+        if let Some((area_entity, _area_name, _)) = start_area_query.iter().find(|(_, _, start_area)| start_area.faction == player_faction.faction) {
             writer.send(
                 MoveTokensFromStockToAreaCommand {
                     area_entity,

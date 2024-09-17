@@ -1,6 +1,6 @@
 use bevy::app::{App, Plugin};
 use bevy_console::{AddConsoleCommand, ConsoleConfiguration, ConsolePlugin};
-use crate::civilization::console::{build_city_command, eliminate_city_command, end_move_command, expand_population_command, list_builds_command, list_moves_command, make_a_move_command, move_command, player_end_building_command, show_board_command, start_command, stupid_ai_command};
+use crate::civilization::console::{build_city_command, eliminate_city_command, end_move_command, expand_population_command, list_builds_command, list_moves_command, make_a_move_command, player_end_building_command, show_board_command, start_command, stupid_ai_command};
 use crate::civilization::console::build_city_command::BuildCityCommand;
 use crate::civilization::console::eliminate_city_command::EliminateCityCommand;
 use crate::civilization::console::end_move_command::EndMoveCommand;
@@ -8,7 +8,6 @@ use crate::civilization::console::expand_population_command::ExpandPopulation;
 use crate::civilization::console::list_builds_command::ListBuildsCommand;
 use crate::civilization::console::list_moves_command::ListMoves;
 use crate::civilization::console::make_a_move_command::MakeAMove;
-use crate::civilization::console::move_command::MoveCommand;
 use crate::civilization::console::player_end_building_command::PlayerEndBuildingCommand;
 use crate::civilization::console::show_board_command::ShowBoardCommand;
 use crate::civilization::console::start_command::StartCommand;
