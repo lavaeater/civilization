@@ -91,7 +91,7 @@ pub fn expand_population(
 }
 
 pub fn population_expansion_gate(
-    gate_query: Query<(&NeedsExpansion), With<Player>>,
+    gate_query: Query<&NeedsExpansion, With<Player>>,
     area_query: Query<(Entity, &Population), With<NeedsExpansion>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
