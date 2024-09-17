@@ -33,3 +33,7 @@ pub fn recalculate_pop_exp_moves_for_player(
         commands.entity(event.player).insert(AvailableMoves::new(moves));
     }
 }
+
+pub fn recalculate_movement_moves_for_player() {
+    
+}
