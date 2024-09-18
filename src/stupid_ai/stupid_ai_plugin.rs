@@ -26,9 +26,12 @@ impl Plugin for StupidAiPlugin {
 
 pub fn on_add_available_moves(
     trigger: Trigger<OnAdd, AvailableMoves>,
+    is_stupid_ai: Query<&StupidAi>,
     mut event_writer: EventWriter<SelectStupidMove>,
 ) {
-    event_writer.send(SelectStupidMove::new(trigger.entity()));
+    if is_stupid_ai.contains(trigger.entity()) {
+        event_writer.send(SelectStupidMove::new(trigger.entity()));
+    }
 }
 
 #[derive(Event, Debug, Reflect)]
@@ -107,7 +110,7 @@ fn select_stupid_move(
                         end_movement_writer.send(PlayerMovementEnded::default());
                     }
                     Move::CityConstruction(build_city_move) => {
-                       build_city_writer.send(BuildCityCommand::new(event.player, build_city_move.target)); 
+                        build_city_writer.send(BuildCityCommand::new(event.player, build_city_move.target));
                     }
                     Move::EndCityConstruction => {
                         end_player_city_construction.send(EndPlayerCityConstruction::new(event.player));
