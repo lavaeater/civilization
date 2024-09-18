@@ -5,6 +5,7 @@ use bevy_game::civilization::game_moves::game_moves_events::RecalculatePlayerMov
 use bevy_game::civilization::game_moves::game_moves_systems::recalculate_movement_moves_for_player;
 use bevy_game::civilization::general::general_components::{LandPassage, PlayerAreas, PlayerStock, Population};
 use bevy_game::civilization::general::general_enums::GameFaction;
+use bevy_game::civilization::movement::movement_events::PlayerMovementEnded;
 use crate::common::{create_area, setup_bevy_app, setup_player};
 
 #[test]
@@ -13,6 +14,7 @@ fn calculate_one_move() {
     let mut app = setup_bevy_app(|mut app| {
         app
             .add_event::<RecalculatePlayerMoves>()
+            .add_event::<PlayerMovementEnded>()
             .add_systems(Update, recalculate_movement_moves_for_player)
         ;
         app
@@ -79,6 +81,7 @@ fn calculate_two_moves() {
     let mut app = setup_bevy_app(|mut app| {
         app
             .add_event::<RecalculatePlayerMoves>()
+            .add_event::<PlayerMovementEnded>()
             .add_systems(Update, recalculate_movement_moves_for_player)
         ;
         app
