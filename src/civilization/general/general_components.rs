@@ -10,6 +10,18 @@ pub struct LandPassage {
     pub to_areas: Vec<Entity>,
 }
 
+impl LandPassage {
+    pub fn new(to_areas: Vec<Entity>) -> Self {
+        LandPassage {
+            to_areas,
+        }
+    }
+
+    pub fn add_passage(&mut self, to_area: Entity) {
+        self.to_areas.push(to_area);
+    }
+}
+
 #[derive(Component, Debug, Reflect, Default)]
 pub struct NeedsConnections {
     pub land_connections: Vec<String>,
@@ -29,7 +41,7 @@ impl Population {
             ..default()
         }
     }
-    
+
     pub fn players(&self) -> HashSet<Entity> {
         self.player_tokens.keys().cloned().collect()
     }
@@ -255,6 +267,14 @@ impl PlayerAreas {
         self.areas.clone()
     }
 
+    pub fn areas_and_population(&self) -> HashMap<Entity, HashSet<Entity>> {
+        self.area_population.clone()
+    }
+
+    pub fn areas_and_population_count(&self) -> HashMap<Entity, usize> {
+        self.area_population.clone().iter().map(|(k, v)| (*k, v.len())).collect()
+    }
+
     pub fn contains(&self, area: Entity) -> bool {
         self.areas.contains(&area) && self.area_population.contains_key(&area) && !self.area_population.get(&area).unwrap().is_empty()
     }
@@ -284,7 +304,7 @@ impl PlayerAreas {
     pub fn has_any_population(&self) -> bool {
         !self.areas.is_empty()
     }
-    
+
     pub fn areas_with_population(&self) -> HashSet<Entity> {
         self.area_population.keys().cloned().collect()
     }

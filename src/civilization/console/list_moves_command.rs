@@ -24,6 +24,7 @@ pub fn list_moves(
                         command.reply(format!("Move {} - Population Expansion in area {} with max tokens {}", index, area_name, pop_exp_move.max_tokens));
                     }
                     Move::Movement(_) => {}
+                    Move::EndMovement => {}
                 }
             });
         }

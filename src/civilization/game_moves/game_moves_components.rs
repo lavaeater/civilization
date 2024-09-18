@@ -18,6 +18,7 @@ impl AvailableMoves {
 pub enum Move {
     PopulationExpansion(PopExpMove),
     Movement(MovementMove),
+    EndMovement,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -26,6 +27,17 @@ pub struct MovementMove {
     pub target: Entity,
     pub player: Entity,
     pub max_tokens: usize
+}
+
+impl MovementMove {
+    pub fn new(source: Entity, target: Entity, player: Entity, max_tokens: usize) -> Self {
+        MovementMove {
+            source,
+            target,
+            player,
+            max_tokens
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
