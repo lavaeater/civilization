@@ -4,9 +4,7 @@ use crate::civilization::general::general_components::{PlayerAreas, Population};
 use crate::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;
 use crate::civilization::movement::movement_events::{NextPlayerStarted, PlayerMovementEnded};
 use crate::GameActivity;
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Name, NextState, Query, ResMut, With};
-use bevy_console::PrintConsoleLine;
-use clap::builder::StyledStr;
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
 use crate::civilization::movement::movement_components::{PerformingMovement, TokenHasMoved};
 
 pub fn start_movement_activity(
@@ -23,17 +21,13 @@ pub fn prepare_next_mover(
     mut game_info: ResMut<GameInfoAndStuff>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
-    mut write_line: EventWriter<PrintConsoleLine>,
-    name_query: Query<&Name>,
 ) {
     for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
             commands.entity(to_move).insert(PerformingMovement::default());
-            write_line.send(PrintConsoleLine::new(StyledStr::from(format!("{} is moving", name_query.get(to_move).unwrap()))));
             game_info.current_mover = Some(to_move);
         } else {
             // All hath moved, move along
-            write_line.send(PrintConsoleLine::new(StyledStr::from("All moves are done".to_string())));
             next_state.set(GameActivity::Conflict);
         }
     }
@@ -67,7 +61,6 @@ pub fn move_tokens_from_area_to_area(
     mut move_events: EventReader<MoveTokenFromAreaToAreaCommand>,
     mut pop_query: Query<&mut Population>,
     mut commands: Commands,
-    mut write_line: EventWriter<PrintConsoleLine>,
     mut player_areas: Query<&mut PlayerAreas>,
     mut recalculate_moves: EventWriter<RecalculatePlayerMoves>,
 ) {
@@ -85,7 +78,6 @@ pub fn move_tokens_from_area_to_area(
                                 player_area.add_token_to_area(ev.target_area, *token);
                             });
                         recalculate_moves.send(RecalculatePlayerMoves::new(ev.player));
-                        write_line.send(PrintConsoleLine::new(StyledStr::from("Moved some tokens!")));
                     }
                 }
             }
