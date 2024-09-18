@@ -67,5 +67,21 @@
             city_site: false,
             start_area: Some(Thrace)
         ),
+                        (
+            id: 8,
+            max_population: 1,
+            land_connections: [9],
+            sea_connections: [7,20,9],
+            city_site: false,
+            start_area: Some(Assyria)
+        ),
+                        (
+            id: 9,
+            max_population: 2,
+            land_connections: [8,10,21],
+            sea_connections: [8,21],
+            city_site: false,
+            start_area: Some(Assyria)
+        ),
     ]
 )
