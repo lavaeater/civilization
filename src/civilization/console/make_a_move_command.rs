@@ -27,7 +27,9 @@ pub fn make_a_move(
                             Move::PopulationExpansion(pop_exp_move) => {
                                 expand_writer.send(ExpandPopulationManuallyCommand::new(player_entity, pop_exp_move.area, number.unwrap_or(pop_exp_move.max_tokens)));
                             }
-                            Move::Movement(_) => { panic!("Cannot make a move of type Movement") }
+                            Move::Movement(movement_move) => { 
+                                
+                            }
                             Move::EndMovement => { panic!("Cannot make a move of type EndMovement") }
                         }
                     }
