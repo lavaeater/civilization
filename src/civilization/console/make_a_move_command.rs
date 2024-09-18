@@ -36,6 +36,9 @@ pub fn make_a_move(
                             Move::EndMovement => {
                                 end_movement_writer.send(PlayerMovementEnded::default());
                             }
+                            Move::CityConstruction(build_city_move) => {
+                                
+                            }
                         }
                     }
                 });

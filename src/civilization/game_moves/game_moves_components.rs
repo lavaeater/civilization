@@ -19,6 +19,22 @@ pub enum Move {
     PopulationExpansion(PopExpMove),
     Movement(MovementMove),
     EndMovement,
+    CityConstruction(BuildCityMove),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct BuildCityMove {
+    pub target: Entity,
+    pub player: Entity
+}
+
+impl BuildCityMove {
+    pub fn new(target: Entity, player: Entity) -> Self {
+        BuildCityMove {
+            target,
+            player
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
