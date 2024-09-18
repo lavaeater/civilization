@@ -1,7 +1,7 @@
 use bevy::core::Name;
 use bevy::prelude::{in_state, App, AssetServer, Assets, Commands, Handle, IntoSystemConfigs, Plugin, Res, ResMut, Resource, Startup, Update};
 use bevy_common_assets::ron::RonAssetPlugin;
-use crate::civilization::general::general_components::{CitySite, Faction, GameArea, LandPassage, NeedsConnections, Population, StartArea};
+use crate::civilization::general::general_components::{CitySite, GameArea, LandPassage, NeedsConnections, Population, StartArea};
 use crate::civilization::general::general_enums::GameFaction;
 use crate::GameState;
 
@@ -32,10 +32,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 #[derive(serde::Deserialize, bevy::asset::Asset, bevy::reflect::TypePath)]
 pub struct Area {
-    pub name: String,
-    pub land_connections: Vec<String>,
+    pub id: i32,
+    pub land_connections: Vec<i32>,
+    pub sea_connections: Vec<i32>,
     pub max_population: usize,
-    pub sea_connections: Vec<String>,
     pub city_site: bool,
     pub start_area: Option<GameFaction>,
 }
@@ -45,8 +45,8 @@ fn load_map(mut commands: Commands,
             mut maps: ResMut<Assets<Map>>, ) {
     if let Some(level) = maps.remove(map.0.id()) {
         for area in level.areas {
-            let entity = commands.spawn((Name::new(area.name),
-                                         GameArea::default(),
+            let entity = commands.spawn((Name::new(format!("Area {}", area.id)),
+                                         GameArea::new(area.id),
                                          LandPassage::default(),
                                          NeedsConnections {
                                              land_connections: area.land_connections,

@@ -2,8 +2,16 @@ use bevy::prelude::{default, Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
 use crate::civilization::general::general_enums::GameFaction;
 
-#[derive(Component, Debug, Reflect, Default)]
-pub struct GameArea;
+#[derive(Component, Debug, Reflect)]
+pub struct GameArea {
+    pub id: i32
+}
+
+impl GameArea {
+    pub fn new(id: i32) -> Self {
+        GameArea { id }
+    }
+}
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct LandPassage {
@@ -24,8 +32,8 @@ impl LandPassage {
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct NeedsConnections {
-    pub land_connections: Vec<String>,
-    pub sea_connections: Vec<String>,
+    pub land_connections: Vec<i32>,
+    pub sea_connections: Vec<i32>,
 }
 
 #[derive(Component, Debug, Reflect, Default)]

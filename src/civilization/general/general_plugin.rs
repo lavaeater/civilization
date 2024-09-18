@@ -9,7 +9,7 @@ use crate::civilization::conflict::conflict_plugin::ConflictPlugin;
 use crate::civilization::console::console_commands::CommandsPlugin;
 use crate::civilization::general::general_components::{GameArea, LandPassage, Population, PlayerStock, Token};
 use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
-use crate::civilization::general::general_systems::{connect_areas, move_tokens_from_stock_to_area, setup_game, setup_players, return_token_to_stock, print_names_of_phases, start_game};
+use crate::civilization::general::general_systems::{connect_areas, move_tokens_from_stock_to_area, setup_players, return_token_to_stock, print_names_of_phases, start_game};
 use crate::civilization::movement::movement_plugin::MovementPlugin;
 use crate::civilization::population_expansion::population_expansion_plugin::PopulationExpansionPlugin;
 use crate::civilization::remove_surplus::remove_surplus_plugin::RemoveSurplusPlugin;
@@ -53,7 +53,7 @@ impl Plugin for CivilizationPlugin {
                     MapPlugin
                 )
             )
-            .add_systems(OnEnter(GameState::Playing), (setup_game, setup_players))
+            .add_systems(OnEnter(GameState::Playing), setup_players)
             .add_systems(OnEnter(GameActivity::StartGame), start_game)
             .add_plugins(WorldInspectorPlugin::new())
             .insert_resource(GameInfoAndStuff::default())

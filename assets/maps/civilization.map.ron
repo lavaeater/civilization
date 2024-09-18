@@ -1,44 +1,71 @@
+/*    Egypt,
+    Crete,
+    Africa,
+    Asia,
+    Assyria,
+    Babylon,
+    Illyria,
+    Iberia,
+    Thrace,
+*/
+
 (
     areas: [
         (
-            name: "egypt",
-            land_connections: ["crete"],
-            max_population: 4,
-            sea_connections: [],
-            city_site: true,
-            start_area: Some(Egypt)
-        ),
-        (
-            name: "crete",
-            land_connections: ["egypt", "mesopotamia"],
-            max_population: 4,
-            sea_connections: [],
-            city_site: true,
+            id: 1,
+            max_population: 1,
+            land_connections: [2],
+            sea_connections: [2],
+            city_site: false,
             start_area: None
         ),
         (
-            name: "mesopotamia",
-            land_connections: ["crete", "indus"],
-            max_population: 4,
-            sea_connections: [],
-            city_site: true,
+            id: 2,
+            max_population: 2,
+            land_connections: [1],
+            sea_connections: [12,3],
+            city_site: false,
             start_area: None
         ),
         (
-            name: "indus",
-            land_connections: ["mesopotamia", "china"],
-            max_population: 4,
-            sea_connections: [],
-            city_site: true,
-            start_area: Some(Crete)
+            id: 3,
+            max_population: 3,
+            land_connections: [13,14,15,4],
+            sea_connections: [2,12,13,4],
+            city_site: false,
+            start_area: None
         ),
         (
-            name: "china",
-            land_connections: ["indus"],
-            max_population: 4,
-            sea_connections: [],
-            city_site: true,
+            id: 4,
+            max_population: 3,
+            land_connections: [3,5,15,16],
+            sea_connections: [3],
+            city_site: false,
             start_area: None
-        )
+        ),
+        (
+            id: 5,
+            max_population: 5,
+            land_connections: [4,16,17,34,18,6],
+            sea_connections: [],
+            city_site: false,
+            start_area: Some(Illyria)
+        ),
+        (
+            id: 6,
+            max_population: 1,
+            land_connections: [5,18,7],
+            sea_connections: [],
+            city_site: false,
+            start_area: Some(Illyria)
+        ),
+                (
+            id: 7,
+            max_population: 3,
+            land_connections: [6,18,19,20],
+            sea_connections: [19,20,8],
+            city_site: false,
+            start_area: Some(Thrace)
+        ),
     ]
 )

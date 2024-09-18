@@ -5,5 +5,12 @@ pub enum GameFaction {
     #[default]
     Egypt,
     Crete,
+    Africa,
+    Asia,
+    Assyria,
+    Babylon,
+    Illyria,
+    Iberia,
+    Thrace,
 }
 

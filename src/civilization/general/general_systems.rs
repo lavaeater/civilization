@@ -1,9 +1,8 @@
 use crate::civilization::census::census_components::Census;
-use crate::civilization::general::general_components::{CitySite, CityToken, CityTokenStock, Faction, GameArea, LandPassage, NeedsConnections, PlayerAreas, PlayerCities, Population, StartArea, Token, Treasury};
+use crate::civilization::general::general_components::{CityToken, CityTokenStock, Faction, GameArea, LandPassage, NeedsConnections, PlayerAreas, PlayerCities, Population, StartArea, Token, Treasury};
 use crate::civilization::general::general_components::PlayerStock;
 use bevy::core::Name;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, StateTransitionEvent, With};
-use bevy::utils::HashMap;
 use bevy_console::PrintConsoleLine;
 use clap::builder::StyledStr;
 use crate::civilization::general::general_enums::GameFaction::{Crete, Egypt};
@@ -47,7 +46,7 @@ pub fn setup_players(
                     PlayerCities::default()
                 )
             ).id();
-        
+
         if n % 2 == 0 {
             commands.entity(player).insert(StupidAi::default());
         }
@@ -87,111 +86,18 @@ pub fn setup_players(
     });
 }
 
-pub fn setup_game(
-    mut commands: Commands,
-) {
-    /*
-    Areas | Connected To
-    ---------------------
-    egypt | numidia, cyprus, syria
-    crete | cyprus, thrace, athens
-    numidia | egypt, iberia
-    cyprus | egypt, crete, syria
-    syria | egypt, cyprus, thrace
-    thrace | syria, crete, athens
-    athens | thrace, crete
-    iberia | numidia
-     */
-    let map: HashMap<String, Vec<String>> = [
-        ("egypt", vec!["alexandria"]),
-        ("crete", vec!["cyprus", "thrace", "athens"]),
-        ("numidia", vec!["alexandria", "iberia"]),
-        ("cyprus", vec!["egypt", "crete", "syria"]),
-        ("syria", vec!["egypt", "cyprus", "thrace"]),
-        ("thrace", vec!["syria", "crete", "athens"]),
-        ("athens", vec!["thrace", "crete"]),
-        ("iberia", vec!["numidia"]),
-        ("alexandria", vec!["egypt", "numidia", "cyprus", "syria"]),
-    ]
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), v.into_iter().map(|s| s.to_string()).collect()))
-        .collect();
-
-    let city_sites = ["crete", "athens", "alexandria", "iberia"];
-
-    for (area, connections) in map {
-        match area.as_str() {
-            "egypt" => {
-                commands
-                    .spawn(
-                        (
-                            Name::new("egypt"),
-                            GameArea {},
-                            LandPassage::default(),
-                            NeedsConnections {
-                                land_connections: connections,
-                                sea_connections: vec!(),
-                            },
-                            StartArea {
-                                faction: Egypt
-                            },
-                            Population::new(4)
-                        )
-                    );
-            }
-            "crete" => {
-                commands
-                    .spawn(
-                        (
-                            Name::new("crete"),
-                            GameArea {},
-                            LandPassage::default(),
-                            NeedsConnections {
-                                land_connections: connections,
-                                sea_connections: vec!(),
-                            },
-                            StartArea {
-                                faction: Crete
-                            },
-                            Population::new(3)
-                        )
-                    );
-            }
-            _ => {
-                let area_id = commands
-                    .spawn(
-                        (
-                            GameArea {},
-                            Name::new(area.clone()),
-                            LandPassage::default(),
-                            NeedsConnections {
-                                land_connections: connections,
-                                sea_connections: vec!(),
-                            },
-                            Population::new(3)
-                        )
-                    ).id();
-                if city_sites.contains(&&*area) {
-                    commands.entity(area_id).insert(CitySite {});
-                }
-            }
-        }
-    }
-}
-
 pub fn connect_areas(
     mut area_query: Query<(Entity, &mut LandPassage, &NeedsConnections)>,
-    named_areas: Query<(Entity, &Name), With<GameArea>>,
+    named_areas: Query<(Entity, &GameArea)>,
     mut commands: Commands,
 ) {
     for (area_entity,
         mut land_passages,
         needed_connections) in area_query.iter_mut() {
-        for named_area in needed_connections.land_connections.clone().into_iter() {
-            let na = Name::new(named_area.clone());
+        for named_area in needed_connections.land_connections.iter() {
             //This is fucking stupid, but who cares?
-            for (target_area_entity, target_name) in named_areas.iter() {
-                if *target_name == na {
+            for (target_area_entity, target_area) in named_areas.iter() {
+                if target_area.id == *named_area {
                     land_passages.to_areas.push(target_area_entity);
                 }
             }
