@@ -595,6 +595,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_common_assets"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f631ce2863f3b6f1af3fa24143363b9fbd21c44218caad495a17b83e6968256"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "ron",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "bevy_console"
 version = "0.12.0"
 source = "git+https://github.com/msklosak/bevy-console.git?branch=bevy_014#53cbb9867b253e0bb50d792752939a3a50e24d38"
@@ -764,6 +777,7 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_asset_loader",
+ "bevy_common_assets",
  "bevy_console",
  "bevy_kira_audio",
  "clap",
@@ -772,8 +786,7 @@ dependencies = [
  "itertools 0.13.0",
  "log",
  "rand 0.9.0-alpha.2",
- "rust-fsm",
- "rust-fsm-dsl",
+ "serde",
  "webbrowser",
  "winit",
 ]
@@ -3746,26 +3759,6 @@ dependencies = [
  "bitflags 2.5.0",
  "serde",
  "serde_derive",
-]
-
-[[package]]
-name = "rust-fsm"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cebef9e69ecb76b3cebbbe9c789f41f4be3402a33dca983c24493f45c92351c9"
-dependencies = [
- "rust-fsm-dsl",
-]
-
-[[package]]
-name = "rust-fsm-dsl"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3adcbccd7feb6960e55a40d116a82ef40281248d630cfa3530586a49efbbd05"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.58",
 ]
 
 [[package]]

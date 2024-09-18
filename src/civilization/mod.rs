@@ -8,3 +8,4 @@ pub mod city_construction;
 pub mod remove_surplus;
 pub mod city_support;
 pub mod game_moves;
+pub mod map;

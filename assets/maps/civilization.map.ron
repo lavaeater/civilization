@@ -1,0 +1,44 @@
+(
+    areas: [
+        (
+            name: "egypt",
+            land_connections: ["crete"],
+            max_population: 4,
+            sea_connections: [],
+            city_site: true,
+            start_area: Some(Egypt)
+        ),
+        (
+            name: "crete",
+            land_connections: ["egypt", "mesopotamia"],
+            max_population: 4,
+            sea_connections: [],
+            city_site: true,
+            start_area: None
+        ),
+        (
+            name: "mesopotamia",
+            land_connections: ["crete", "indus"],
+            max_population: 4,
+            sea_connections: [],
+            city_site: true,
+            start_area: None
+        ),
+        (
+            name: "indus",
+            land_connections: ["mesopotamia", "china"],
+            max_population: 4,
+            sea_connections: [],
+            city_site: true,
+            start_area: Some(Crete)
+        ),
+        (
+            name: "china",
+            land_connections: ["indus"],
+            max_population: 4,
+            sea_connections: [],
+            city_site: true,
+            start_area: None
+        )
+    ]
+)
