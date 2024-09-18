@@ -1,5 +1,5 @@
 use crate::civilization::city_construction::city_construction_components::IsBuilding;
-use crate::civilization::city_construction::city_construction_events::{BuildCity, EndPlayerCityConstruction};
+use crate::civilization::city_construction::city_construction_events::{BuildCityCommand, EndPlayerCityConstruction};
 use crate::civilization::general::general_components::{BuiltCity, CityTokenStock, PlayerAreas, PlayerCities, Population};
 use crate::civilization::general::general_events::ReturnTokenToStock;
 use crate::player::Player;
@@ -17,7 +17,7 @@ pub fn city_building_gate(
 }
 
 pub fn build_city(
-    mut command: EventReader<BuildCity>,
+    mut command: EventReader<BuildCityCommand>,
     mut city_token_stock: Query<&mut CityTokenStock>,
     mut city_population: Query<&mut Population>,
     mut return_tokens: EventWriter<ReturnTokenToStock>,

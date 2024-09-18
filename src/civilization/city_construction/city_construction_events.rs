@@ -14,14 +14,14 @@ impl EndPlayerCityConstruction {
 }
 
 #[derive(Event, Debug, Reflect)]
-pub struct BuildCity {
+pub struct BuildCityCommand {
     pub player: Entity,
     pub area: Entity,
 }
 
-impl BuildCity {
+impl BuildCityCommand {
     pub fn new(player: Entity, area: Entity) -> Self {
-        BuildCity {
+        BuildCityCommand {
             player,
             area
         }
