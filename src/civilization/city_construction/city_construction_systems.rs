@@ -1,5 +1,5 @@
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, NextState, Query, ResMut, With, Without};
-use crate::civilization::city_construction::city_construction_components::{CityBuildTargets, DoneBuilding};
+use crate::civilization::city_construction::city_construction_components::{CityBuildTargets, IsBuilding};
 use crate::civilization::city_construction::city_construction_events::{BuildCity, EndCityConstructionActivity};
 use crate::civilization::general::general_components::{BuiltCity, CitySite, CityTokenStock, PlayerAreas, PlayerCities, Population};
 use crate::civilization::general::general_events::ReturnTokenToStock;
@@ -7,7 +7,7 @@ use crate::GameActivity;
 use crate::player::Player;
 
 pub fn check_if_done_building(
-    query: Query<(Entity, Has<DoneBuilding>), With<Player>>,
+    query: Query<(Entity, Has<IsBuilding>), With<Player>>,
     mut end_activity: EventWriter<EndCityConstructionActivity>
 ) {
     let all_players_count = query.iter().len();
@@ -55,36 +55,13 @@ pub fn build_city(
     }
 }
 
-pub fn setup_players_and_cities(
-    player_query: Query<(Entity, &CityTokenStock), With<Player>>,
-    query: Query<(Entity, &Population, &CitySite), Without<BuiltCity>>,
+pub fn on_enter_city_construction(
+    player_query: Query<Entity, With<Player>>,
     mut commands: Commands,
 ) {
-    for (player_entity, city_token_stock) in player_query.iter() {
-        if city_token_stock.is_empty() {
-            commands.entity(player_entity)
-                .insert(DoneBuilding {});
-            continue;
-        } else {
-            let targets: Vec<Entity> = query.iter().filter(|(_, population, _)| {
-                return if population.player_tokens.contains_key(&player_entity) {
-                    let tokens = population.player_tokens.get(&player_entity).unwrap();
-                    tokens.len() >= 6
-                } else {
-                    false
-                };
-            }).map(|(entity, _, _)| entity).collect();
-
-            if targets.is_empty() {
-                commands.entity(player_entity)
-                    .insert(DoneBuilding {});
-            } else {
-                commands.entity(player_entity)
-                    .insert(CityBuildTargets {
-                        targets
-                    });
-            }
-        }
+    for (player_entity) in player_query.iter() {
+        commands.entity(player_entity)
+            .insert(IsBuilding);
     }
 }
 
@@ -99,7 +76,7 @@ pub fn end_city_construction_activity(
             commands.entity(player_entity)
                 .remove::<CityBuildTargets>();
             commands.entity(player_entity)
-                .remove::<DoneBuilding>();
+                .remove::<IsBuilding>();
         }
         next_state.set(GameActivity::RemoveSurplusPopulation);
     }
