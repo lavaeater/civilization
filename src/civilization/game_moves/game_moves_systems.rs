@@ -1,10 +1,12 @@
-use bevy::prelude::{Commands, Entity, EventReader, Has, Query, Without};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, Query, Without};
 use bevy::utils::HashMap;
 use crate::civilization::city_construction::city_construction_components::IsBuilding;
 use crate::civilization::game_moves::game_moves_components::{AvailableMoves, BuildCityMove, Move, MovementMove, PopExpMove};
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::general::general_components::{PlayerAreas, Population, PlayerStock, LandPassage, Token, CitySite};
 use crate::civilization::movement::movement_components::TokenHasMoved;
+use crate::civilization::movement::movement_events::PlayerMovementEnded;
+use crate::civilization::population_expansion::population_expansion_components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
@@ -32,7 +34,13 @@ pub fn recalculate_pop_exp_moves_for_player(
                 }
             }
         }
-        commands.entity(event.player).insert(AvailableMoves::new(moves));
+        if moves.is_empty() {
+            commands.entity(event.player).remove::<NeedsExpansion>();
+            commands.entity(event.player).remove::<ExpandManually>();
+            commands.entity(event.player).remove::<ExpandAutomatically>();
+        } else {
+            commands.entity(event.player).insert(AvailableMoves::new(moves));
+        }
     }
 }
 
@@ -42,6 +50,7 @@ pub fn recalculate_movement_moves_for_player(
     area_connections_query: Query<&LandPassage>,
     token_filter_query: Query<&Token, Without<TokenHasMoved>>,
     mut commands: Commands,
+    mut end_player_movement: EventWriter<PlayerMovementEnded>,
 ) {
     /*
     It's easier now that we have access to all the player's areas in
@@ -74,8 +83,12 @@ pub fn recalculate_movement_moves_for_player(
                 }
             }
         }
-        moves.insert(command_index + 1, Move::EndMovement);
-        commands.entity(event.player).insert(AvailableMoves::new(moves));
+        if moves.is_empty() {
+            end_player_movement.send(PlayerMovementEnded::default());
+        } else {
+            moves.insert(command_index + 1, Move::EndMovement);
+            commands.entity(event.player).insert(AvailableMoves::new(moves));
+        }
     }
 }
 
@@ -110,7 +123,6 @@ pub fn recalculate_city_construction_moves_for_player(
                 moves.insert(command_index, Move::EndCityConstruction);
                 commands.entity(event.player).insert(AvailableMoves::new(moves));
             }
-
         }
     }
 }
