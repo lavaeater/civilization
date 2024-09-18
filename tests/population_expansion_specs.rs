@@ -24,9 +24,9 @@ fn calculate_game_moves_in_population_expansion() {
     let mut player_areas = PlayerAreas::default();
     let mut stock = PlayerStock::new(47, tokens.drain(0..4).collect());
 
-    let area_one = create_area(&mut app, "Egypt");
-    let area_two = create_area(&mut app, "Thrace");
-    let area_three = create_area(&mut app, "Crete");
+    let area_one = create_area(&mut app, "Egypt", 1);
+    let area_two = create_area(&mut app, "Thrace", 1);
+    let area_three = create_area(&mut app, "Crete", 1);
     let areas = vec![area_one, area_two, area_three];
     for area in areas.iter() {
         let mut population = Population::new(4);
@@ -82,7 +82,7 @@ fn given_a_player_with_too_few_tokens_for_expansion_the_correct_moves_are_create
     let mut player_areas = PlayerAreas::default();
     let mut stock = PlayerStock::new(47, tokens.drain(0..4).collect());
 
-    let area = create_area(&mut app, "Egypt");
+    let area = create_area(&mut app, "Egypt", 1);
     let mut population = Population::new(4);
 
     let tokens_to_add = stock.remove_tokens_from_stock(2).unwrap();

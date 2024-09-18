@@ -23,7 +23,7 @@ fn given_no_cities_next_state_is_set() {
     });
 
     setup_player(&mut app, "Player 1", GameFaction::Egypt);
-    create_area(&mut app, "Egypt");
+    create_area(&mut app, "Egypt",1);
 
     app.update();
 
@@ -46,7 +46,7 @@ fn given_one_city_check_component_added_to_player() {
     let city_token = city_tokens.pop().unwrap();
 
 
-    let area = create_area(&mut app, "Egypt");
+    let area = create_area(&mut app, "Egypt",1);
     app
         .world_mut()
         .entity_mut(area)
@@ -78,7 +78,7 @@ fn given_one_city_no_support_too_many_cities_component_added() {
 
     let city_token = city_tokens.pop().unwrap();
 
-    let area = create_area(&mut app, "Egypt");
+    let area = create_area(&mut app, "Egypt",1);
     app
         .world_mut()
         .entity_mut(area)
@@ -115,7 +115,7 @@ fn given_a_city_to_elimate_the_correct_things_happen() {
 
     let city_token = city_tokens.pop().unwrap();
 
-    let area = create_area(&mut app, "Egypt");
+    let area = create_area(&mut app, "Egypt",1);
     app
         .world_mut()
         .entity_mut(area)

@@ -80,11 +80,11 @@ pub fn setup_bevy_app(app_builder: fn(App)->App) -> App {
 
 #[cfg(test)]
 #[allow(dead_code)]
-pub fn create_area(app: &mut App, name: impl Into<String>) -> Entity {
+pub fn create_area(app: &mut App, name: impl Into<String>, id: i32) -> Entity {
     let area = app.world_mut().spawn(
         (
             Name::new(name.into()),
-            GameArea {},
+            GameArea::new(id),
             LandPassage::default(),
         )
     ).id();

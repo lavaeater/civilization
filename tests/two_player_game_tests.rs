@@ -27,7 +27,7 @@ fn start_game() {
     });
 
     setup_player(&mut app, "Player 1", GameFaction::Egypt);
-    create_area(&mut app, "Egypt");
+    create_area(&mut app, "Egypt", 1);
 
     app.update();
 

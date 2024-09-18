@@ -20,8 +20,8 @@ fn calculate_one_move() {
         app
     });
 
-    let area_one = create_area(&mut app, "Egypt");
-    let area_two = create_area(&mut app, "Thrace");
+    let area_one = create_area(&mut app, "Egypt",1);
+    let area_two = create_area(&mut app, "Thrace",2);
     let mut land_passage = LandPassage::default();
     land_passage.add_passage(area_two);
     app
@@ -87,9 +87,9 @@ fn calculate_two_moves() {
         app
     });
 
-    let area_one = create_area(&mut app, "Egypt");
-    let area_two = create_area(&mut app, "Thrace");
-    let area_three = create_area(&mut app, "Throgdor");
+    let area_one = create_area(&mut app, "Egypt",1);
+    let area_two = create_area(&mut app, "Thrace",2);
+    let area_three = create_area(&mut app, "Throgdor",3);
     let mut land_passage = LandPassage::default();
     land_passage.add_passage(area_two);
     land_passage.add_passage(area_three);

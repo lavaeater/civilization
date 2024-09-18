@@ -49,7 +49,7 @@ fn given_two_players_in_an_area_with_too_much_population_area_is_marked_as_confl
     let area = app.world_mut().spawn(
         (
             Name::new("egypt"),
-            GameArea {},
+            GameArea::new(1),
             LandPassage::default(),
             population
         )
@@ -141,7 +141,7 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
         let area = app.world_mut().spawn(
             (
                 Name::new("egypt"),
-                GameArea::default(),
+                GameArea::new(1),
                 LandPassage::default(),
                 UnresolvedConflict::default(),
                 population

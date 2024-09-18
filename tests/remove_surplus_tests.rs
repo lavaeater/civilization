@@ -24,7 +24,7 @@ fn given_one_player_events_are_sent() {
 
     population.player_tokens.insert(player, tokens.drain(0..7).collect());
 
-    let area = create_area(&mut app, "Egypt");
+    let area = create_area(&mut app, "Egypt", 1);
 
     app.world_mut().entity_mut(area)
         .insert(population);
