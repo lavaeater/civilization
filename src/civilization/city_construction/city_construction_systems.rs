@@ -5,6 +5,7 @@ use crate::civilization::general::general_events::ReturnTokenToStock;
 use crate::player::Player;
 use crate::GameActivity;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
+use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 
 pub fn city_building_gate(
     query: Query<&IsBuilding>,
@@ -22,6 +23,7 @@ pub fn build_city(
     mut return_tokens: EventWriter<ReturnTokenToStock>,
     mut player_cities_and_areas: Query<(&mut PlayerAreas, &mut PlayerCities)>,
     mut commands: Commands,
+    mut recalculate_player_moves: EventWriter<RecalculatePlayerMoves>
 ) {
     for build_city in command.read() {
         if let Ok(mut city_stock) = city_token_stock.get_mut(build_city.player) {
@@ -40,13 +42,12 @@ pub fn build_city(
                     player_areas.remove_area(build_city.area);
                     player_cities.build_city_in_area(build_city.area, city_token);
                 }
-
-                println!("Build city for player {:?} in area {:?}", build_city.player, build_city.area);
                 commands.entity(build_city.area)
                     .insert(BuiltCity {
                         player: build_city.player,
                         city: city_token,
                     });
+                recalculate_player_moves.send(RecalculatePlayerMoves::new(build_city.player));
             }
         }
     }

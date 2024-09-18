@@ -2,7 +2,7 @@ use bevy_console::ConsoleCommand;
 use bevy::prelude::{Entity, EventWriter, Query};
 use bevy::core::Name;
 use clap::Parser;
-use crate::civilization::city_construction::city_construction_events::BuildCity;
+use crate::civilization::city_construction::city_construction_events::{BuildCity, EndPlayerCityConstruction};
 use crate::civilization::game_moves::game_moves_components::{AvailableMoves, Move};
 use crate::civilization::population_expansion::population_expansion_events::ExpandPopulationManuallyCommand;
 use crate::civilization::movement::movement_events::{MoveTokenFromAreaToAreaCommand, PlayerMovementEnded};
@@ -22,6 +22,7 @@ pub fn make_a_move(
     mut move_tokens_writer: EventWriter<MoveTokenFromAreaToAreaCommand>,
     mut end_movement_writer: EventWriter<PlayerMovementEnded>,
     mut build_city_writer: EventWriter<BuildCity>,
+    mut end_player_city_construction: EventWriter<EndPlayerCityConstruction>
 ) {
     if let Some(Ok(MakeAMove { player, index, number })) = command.take() {
         for (name, avail_moves, player_entity) in available_moves.iter() {
@@ -41,7 +42,9 @@ pub fn make_a_move(
                             Move::CityConstruction(build_city_move) => {
                                 build_city_writer.send(BuildCity::new(player_entity, build_city_move.target));
                             }
-                            Move::EndCityConstruction => {}
+                            Move::EndCityConstruction => {
+                                end_player_city_construction.send(EndPlayerCityConstruction::new(player_entity));
+                            }
                         }
                     }
                 });
