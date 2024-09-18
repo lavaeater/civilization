@@ -40,7 +40,6 @@ pub fn setup_players(
                 (
                     Player {},
                     Name::new(format!("p{n}")),
-                    StupidAi::default(),
                     Census { population: 0 },
                     Treasury::default(),
                     Faction { faction: if n % 2 == 0 { Egypt } else { Crete } },
@@ -48,6 +47,10 @@ pub fn setup_players(
                     PlayerCities::default()
                 )
             ).id();
+        
+        if n % 2 == 0 {
+            commands.entity(player).insert(StupidAi::default());
+        }
 
         let tokens = (0..47).map(|_| {
             commands
