@@ -21,10 +21,23 @@ pub fn list_moves(
                 match game_move {
                     Move::PopulationExpansion(pop_exp_move) => {
                         let area_name = name_query.get(pop_exp_move.area).unwrap();
-                        command.reply(format!("Move {} - Population Expansion in area {} with max tokens {}", index, area_name, pop_exp_move.max_tokens));
+                        command.reply(format!("{} - Expand Population in {} with max {}", index, area_name, pop_exp_move.max_tokens));
                     }
-                    Move::Movement(_) => {}
-                    Move::EndMovement => {}
+                    Move::Movement(movement_move) => {
+                        let source_name = name_query.get(movement_move.source).unwrap();
+                        let target_name = name_query.get(movement_move.target).unwrap();
+                        command.reply(format!("{} - Move max {} tokens from {} to {}", index, movement_move.max_tokens, source_name, target_name));
+                    }
+                    Move::EndMovement => {
+                        command.reply(format!("{} - End Current Player Movement", index));
+                    }
+                    Move::CityConstruction(city_build_move) => {
+                        let target_name = name_query.get(city_build_move.target).unwrap();
+                        command.reply(format!("{} - Build city in {}", index, target_name));
+                    }
+                    Move::EndCityConstruction => {
+                        command.reply(format!("{} - End Current Player City Construction", index));
+                    }
                 }
             });
         }

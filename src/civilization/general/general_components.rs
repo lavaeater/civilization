@@ -191,7 +191,7 @@ impl Token {
 #[derive(Component, Debug, Reflect)]
 pub struct PlayerStock {
     pub max_tokens: usize,
-    pub tokens: Vec<Entity>,
+    tokens: Vec<Entity>,
 }
 
 impl PlayerStock {
@@ -200,6 +200,10 @@ impl PlayerStock {
             max_tokens,
             tokens,
         }
+    }
+    
+    pub fn return_token_to_stock(&mut self, token: Entity) {
+        self.tokens.push(token);
     }
 
     pub fn remove_tokens_from_stock(&mut self, number_of_tokens: usize) -> Option<Vec<Entity>> {
@@ -344,7 +348,21 @@ impl PlayerAreas {
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct Treasury {
-    pub tokens: Vec<Entity>,
+    tokens: Vec<Entity>,
+}
+
+impl Treasury {
+    pub fn add_token_to_treasury(&mut self, token: Entity) {
+        self.tokens.push(token);
+    }
+
+    pub fn remove_token_from_treasury(&mut self) -> Option<Entity> {
+        self.tokens.pop()
+    }
+
+    pub fn tokens_in_treasury(&self) -> usize {
+        self.tokens.len()
+    }
 }
 
 #[derive(Component, Debug, Reflect)]

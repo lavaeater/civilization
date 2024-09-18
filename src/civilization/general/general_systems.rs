@@ -10,6 +10,7 @@ use crate::civilization::general::general_enums::GameFaction::{Crete, Egypt};
 use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
 use crate::GameActivity;
 use crate::player::Player;
+use crate::stupid_ai::stupid_ai_plugin::StupidAi;
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
@@ -39,15 +40,16 @@ pub fn setup_players(
                 (
                     Player {},
                     Name::new(format!("p{n}")),
+                    StupidAi::default(),
                     Census { population: 0 },
-                    Treasury { tokens: vec![] },
+                    Treasury::default(),
                     Faction { faction: if n % 2 == 0 { Egypt } else { Crete } },
                     PlayerAreas::default(),
                     PlayerCities::default()
                 )
             ).id();
 
-        let tokens = (0..3).map(|_| {
+        let tokens = (0..47).map(|_| {
             commands
                 .spawn(
                     (
@@ -229,7 +231,7 @@ pub(crate) fn return_token_to_stock(
     for return_event in event.read() {
         if let Ok(token) = token_query.get(return_event.token_entity) {
             if let Ok(mut stock) = stock_query.get_mut(token.player) {
-                stock.tokens.push(return_event.token_entity);
+                stock.return_token_to_stock(return_event.token_entity);
             }
         }
     }

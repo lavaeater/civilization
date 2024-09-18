@@ -1,9 +1,12 @@
-use bevy::prelude::{Commands, Entity, EventReader, Query, Without};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, Query, Without};
 use bevy::utils::HashMap;
-use crate::civilization::game_moves::game_moves_components::{AvailableMoves, Move, MovementMove, PopExpMove};
+use crate::civilization::city_construction::city_construction_components::IsBuilding;
+use crate::civilization::game_moves::game_moves_components::{AvailableMoves, BuildCityMove, Move, MovementMove, PopExpMove};
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use crate::civilization::general::general_components::{PlayerAreas, Population, PlayerStock, LandPassage, Token};
+use crate::civilization::general::general_components::{PlayerAreas, Population, PlayerStock, LandPassage, Token, CitySite};
 use crate::civilization::movement::movement_components::TokenHasMoved;
+use crate::civilization::movement::movement_events::PlayerMovementEnded;
+use crate::civilization::population_expansion::population_expansion_components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
@@ -31,7 +34,13 @@ pub fn recalculate_pop_exp_moves_for_player(
                 }
             }
         }
-        commands.entity(event.player).insert(AvailableMoves::new(moves));
+        if moves.is_empty() {
+            commands.entity(event.player).remove::<NeedsExpansion>();
+            commands.entity(event.player).remove::<ExpandManually>();
+            commands.entity(event.player).remove::<ExpandAutomatically>();
+        } else {
+            commands.entity(event.player).insert(AvailableMoves::new(moves));
+        }
     }
 }
 
@@ -41,6 +50,7 @@ pub fn recalculate_movement_moves_for_player(
     area_connections_query: Query<&LandPassage>,
     token_filter_query: Query<&Token, Without<TokenHasMoved>>,
     mut commands: Commands,
+    mut end_player_movement: EventWriter<PlayerMovementEnded>,
 ) {
     /*
     It's easier now that we have access to all the player's areas in
@@ -55,11 +65,11 @@ pub fn recalculate_movement_moves_for_player(
                 .areas_and_population()
                 .iter()
                 .map(
-                    |(a, p)| 
+                    |(a, p)|
                         (a.clone(), p
                             .iter()
                             .filter(|t| token_filter_query.contains(**t)).count()))
-                .collect::<HashMap<Entity, usize>>() { 
+                .collect::<HashMap<Entity, usize>>() {
                 if let Ok(connections) = area_connections_query.get(area) {
                     for connection in connections.to_areas.iter() {
                         command_index += 1;
@@ -67,15 +77,52 @@ pub fn recalculate_movement_moves_for_player(
                             area,
                             connection.clone(),
                             event.player,
-                            token_count
+                            token_count,
                         )));
                     }
                 }
             }
         }
-        moves.insert(command_index + 1, Move::EndMovement);
-        commands.entity(event.player).insert(AvailableMoves::new(moves));
+        if moves.is_empty() {
+            end_player_movement.send(PlayerMovementEnded::default());
+        } else {
+            moves.insert(command_index + 1, Move::EndMovement);
+            commands.entity(event.player).insert(AvailableMoves::new(moves));
+        }
     }
-    
-    
+}
+
+pub fn recalculate_city_construction_moves_for_player(
+    mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
+    player_move_query: Query<&PlayerAreas>,
+    area_property_query: Query<(&Population, Has<CitySite>)>,
+    mut commands: Commands,
+) {
+    for event in recalc_player_reader.read() {
+        commands.entity(event.player).remove::<AvailableMoves>();
+        let mut moves = HashMap::default();
+        let mut command_index = 0;
+        if let Ok(player_areas) = player_move_query.get(event.player) {
+            for (area, population) in player_areas.areas_and_population_count().iter() {
+                if population >= &6 {
+                    if let Ok((_area_pop, has_city_site)) = area_property_query.get(*area) {
+                        if has_city_site && population >= &6 {
+                            command_index += 1;
+                            moves.insert(command_index, Move::CityConstruction(BuildCityMove::new(*area, event.player)));
+                        } else if population >= &12 {
+                            command_index += 1;
+                            moves.insert(command_index, Move::CityConstruction(BuildCityMove::new(*area, event.player)));
+                        }
+                    }
+                }
+            }
+            if moves.is_empty() {
+                commands.entity(event.player).remove::<IsBuilding>();
+            } else {
+                command_index += 1;
+                moves.insert(command_index, Move::EndCityConstruction);
+                commands.entity(event.player).insert(AvailableMoves::new(moves));
+            }
+        }
+    }
 }
