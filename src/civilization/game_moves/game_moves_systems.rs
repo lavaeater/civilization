@@ -1,6 +1,5 @@
 use bevy::prelude::{Commands, Entity, EventReader, Has, Query, Without};
 use bevy::utils::HashMap;
-use bevy_inspector_egui::egui::Area;
 use crate::civilization::game_moves::game_moves_components::{AvailableMoves, BuildCityMove, Move, MovementMove, PopExpMove};
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::general::general_components::{PlayerAreas, Population, PlayerStock, LandPassage, Token, CitySite};
@@ -92,13 +91,19 @@ pub fn recalculate_city_construction_moves_for_player(
         if let Ok(player_areas) = player_move_query.get(event.player) {
             for (area, population) in player_areas.areas_and_population_count().iter() {
                 if population >= &6 {
-                    if let Ok((area_pop, has_city_site)) = area_property_query.get(*area) {
-                            
-                    command_index += 1;
-                    moves.insert(command_index, Move::CityConstruction(BuildCityMove::new()));
+                    if let Ok((_area_pop, has_city_site)) = area_property_query.get(*area) {
+                        if has_city_site && population >= &6{
+                            command_index += 1;
+                            moves.insert(command_index, Move::CityConstruction(BuildCityMove::new(*area, event.player)));
+                        } else if population >= &12 {
+                            command_index += 1;
+                            moves.insert(command_index, Move::CityConstruction(BuildCityMove::new(*area, event.player)));
+                        }
+                    }
                 }
             }
+            
+            commands.entity(event.player).insert(AvailableMoves::new(moves));
         }
-        commands.entity(event.player).insert(AvailableMoves::new(moves));
     }
 }

@@ -20,6 +20,7 @@ pub enum Move {
     Movement(MovementMove),
     EndMovement,
     CityConstruction(BuildCityMove),
+    EndCityConstruction,
 }
 
 #[derive(Clone, Copy, Debug)]

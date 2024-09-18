@@ -29,7 +29,7 @@ pub fn perform_census(
     census_order.census_order.clear();
     let mut hash_to_sort = HashMap::new();
     for (player, stock, treasury, mut census) in stock_query.iter_mut() {
-        census.population = stock.max_tokens - stock.tokens.len() - treasury.tokens.len();
+        census.population = stock.max_tokens - stock.tokens_in_stock() - treasury.tokens_in_treasury();
         hash_to_sort.insert(player, census.population);
     }
     let mut ordered: Vec<(Entity, usize)> = hash_to_sort.into_iter().collect();

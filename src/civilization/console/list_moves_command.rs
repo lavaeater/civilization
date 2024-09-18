@@ -35,6 +35,9 @@ pub fn list_moves(
                         let target_name = name_query.get(city_build_move.target).unwrap();
                         command.reply(format!("{} - Build city in {}", index, target_name));
                     }
+                    Move::EndCityConstruction => {
+                        command.reply(format!("{} - End Current Player City Construction", index));
+                    }
                 }
             });
         }

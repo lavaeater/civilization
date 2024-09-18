@@ -40,7 +40,7 @@ pub fn setup_players(
                     Player {},
                     Name::new(format!("p{n}")),
                     Census { population: 0 },
-                    Treasury { tokens: vec![] },
+                    Treasury::default(),
                     Faction { faction: if n % 2 == 0 { Egypt } else { Crete } },
                     PlayerAreas::default(),
                     PlayerCities::default()
@@ -229,7 +229,7 @@ pub(crate) fn return_token_to_stock(
     for return_event in event.read() {
         if let Ok(token) = token_query.get(return_event.token_entity) {
             if let Ok(mut stock) = stock_query.get_mut(token.player) {
-                stock.tokens.push(return_event.token_entity);
+                stock.return_token_to_stock(return_event.token_entity);
             }
         }
     }
