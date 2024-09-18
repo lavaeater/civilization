@@ -11,6 +11,7 @@ use crate::common::{create_area, setup_bevy_app, setup_player};
 
 #[test]
 fn calculate_game_moves_in_movement() {
+    
     #[derive(Clone, Default, Debug)]
     struct Environment;
     rspec::run(&rspec::given("the game state Movement", Environment::default(), |ctx| {
@@ -25,6 +26,7 @@ fn calculate_game_moves_in_movement() {
                         ;
                         app
                     });
+    
                     let area_one = create_area(&mut app, "Egypt");
                     let area_two = create_area(&mut app, "Thrace");
                     let mut land_passage = LandPassage::default();
