@@ -7,8 +7,8 @@ use bevy_console::PrintConsoleLine;
 use bevy_game::civilization::general::general_components::{GameArea, LandPassage, PlayerAreas, Population};
 use bevy_game::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;
 use bevy_game::{GameActivity, GameState};
+use bevy_game::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use bevy_game::civilization::general::general_enums::GameFaction;
-use bevy_game::civilization::movement::movement_components::{MoveableTokens, NeedsTocalculateMoves};
 use bevy_game::civilization::movement::movement_systems::move_tokens_from_area_to_area;
 use crate::common::setup_player;
 
@@ -19,6 +19,7 @@ fn setup_app() -> App {
             StatesPlugin
         )
         .add_event::<MoveTokenFromAreaToAreaCommand>()
+        .add_event::<RecalculatePlayerMoves>()
         .add_event::<PrintConsoleLine>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
@@ -62,8 +63,6 @@ fn moving_token_to_area_adds_area_to_player_areas() {
     // Act
     app.update();
     // Assert
-    assert!(app.world().entity(from_area).get::<MoveableTokens>().is_none());
-    assert!(app.world().entity(from_area).get::<NeedsTocalculateMoves>().is_some());
     let player_area = app.world().entity(player_one).get::<PlayerAreas>();
     assert!(player_area.is_some());
     let player_area = player_area.unwrap();
@@ -106,8 +105,6 @@ fn moving_all_tokens_from_area_removes_area_from_player_areas() {
     // Act
     app.update();
     // Assert
-    assert!(app.world().entity(from_area).get::<MoveableTokens>().is_none());
-    assert!(app.world().entity(from_area).get::<NeedsTocalculateMoves>().is_some());
     let player_area = app.world().entity(player_one).get::<PlayerAreas>();
     assert!(player_area.is_some());
     let player_area = player_area.unwrap();

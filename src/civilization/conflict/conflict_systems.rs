@@ -29,7 +29,7 @@ pub fn resolve_conflicts(
                     for token in population.remove_all_but_n_tokens(player_two, 0).unwrap_or_default() {
                         return_token.send(ReturnTokenToStock::new(token));
                     }
-                } else if population.number_of_tokens_for_player(player_one) > population.number_of_tokens_for_player(player_two) {
+                } else if population.population_for_player(player_one) > population.population_for_player(player_two) {
                     for token in population.remove_all_but_n_tokens(player_one, 2).unwrap_or_default() {
                         return_token.send(ReturnTokenToStock::new(token));
                     }

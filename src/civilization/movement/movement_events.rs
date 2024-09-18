@@ -1,16 +1,10 @@
 use bevy::prelude::{Entity, Event, Reflect};
 
-#[derive(Event, Debug, Reflect)]
+#[derive(Event, Debug, Reflect, Default)]
 pub struct PlayerMovementEnded;
 
-#[derive(Event, Debug, Reflect)]
+#[derive(Event, Debug, Reflect, Default)]
 pub struct NextPlayerStarted;
-
-#[derive(Event, Debug, Reflect)]
-pub struct ClearAllMoves;
-
-#[derive(Event, Debug, Reflect)]
-pub struct InitAllAreas;
 
 #[derive(Event, Debug, Reflect)]
 pub struct MoveTokenFromAreaToAreaCommand {

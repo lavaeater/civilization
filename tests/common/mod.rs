@@ -3,7 +3,7 @@ use bevy::core::Name;
 use bevy::prelude::{AppExtStates, Entity};
 use bevy::state::app::StatesPlugin;
 use bevy_game::civilization::census::census_components::Census;
-use bevy_game::civilization::general::general_components::{CityToken, CityTokenStock, Faction, GameArea, LandPassage, PlayerAreas, PlayerCities, Stock, Token, Treasury};
+use bevy_game::civilization::general::general_components::{CityToken, CityTokenStock, Faction, GameArea, LandPassage, PlayerAreas, PlayerCities, PlayerStock, Token, Treasury};
 use bevy_game::civilization::general::general_enums::GameFaction;
 use bevy_game::player::Player;
 use bevy_game::{GameActivity, GameState};
@@ -12,6 +12,8 @@ use bevy_game::{GameActivity, GameState};
 Make sure to update this to mirror the method in
 the actual game so that we have the correct components etc.
  */
+#[cfg(test)]
+#[allow(dead_code)]
 pub fn setup_player(app: &mut App, name: impl Into<String>, faction: GameFaction) -> (Entity, Vec<Entity>, Vec<Entity>) {
     let player = app.world_mut()
         .spawn(
@@ -50,7 +52,7 @@ pub fn setup_player(app: &mut App, name: impl Into<String>, faction: GameFaction
         .entity_mut(player)
         .insert(
             (
-                Stock::new(
+                PlayerStock::new(
                     47,
                     tokens.clone()),
                 CityTokenStock::new(
@@ -62,6 +64,8 @@ pub fn setup_player(app: &mut App, name: impl Into<String>, faction: GameFaction
     (player, tokens, city_tokens)
 }
 
+#[cfg(test)]
+#[allow(dead_code)]
 pub fn setup_bevy_app(app_builder: fn(App)->App) -> App {
     let mut app = App::new();
     app
@@ -74,6 +78,8 @@ pub fn setup_bevy_app(app_builder: fn(App)->App) -> App {
     app_builder(app)
 }
 
+#[cfg(test)]
+#[allow(dead_code)]
 pub fn create_area(app: &mut App, name: impl Into<String>) -> Entity {
     let area = app.world_mut().spawn(
         (

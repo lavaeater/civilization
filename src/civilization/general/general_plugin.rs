@@ -7,13 +7,14 @@ use crate::civilization::city_construction::city_construction_plugin::CityConstr
 use crate::civilization::city_support::city_support_plugin::CitySupportPlugin;
 use crate::civilization::conflict::conflict_plugin::ConflictPlugin;
 use crate::civilization::console::console_commands::CommandsPlugin;
-use crate::civilization::general::general_components::{GameArea, LandPassage, Population, Stock, Token};
+use crate::civilization::general::general_components::{GameArea, LandPassage, Population, PlayerStock, Token};
 use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
-use crate::civilization::general::general_systems::{connect_areas, move_tokens_from_stock_to_area, setup_game, setup_players, return_token_to_stock, print_names_of_phases};
+use crate::civilization::general::general_systems::{connect_areas, move_tokens_from_stock_to_area, setup_game, setup_players, return_token_to_stock, print_names_of_phases, start_game};
 use crate::civilization::movement::movement_plugin::MovementPlugin;
-use crate::civilization::population_expansion::movement_plugin::PopulationExpansionPlugin;
+use crate::civilization::population_expansion::population_expansion_plugin::PopulationExpansionPlugin;
 use crate::civilization::remove_surplus::remove_surplus_plugin::RemoveSurplusPlugin;
 use crate::{GameActivity, GameState};
+use crate::civilization::game_moves::game_moves_plugin::GameMovesPlugin;
 use crate::stupid_ai::stupid_ai_plugin::StupidAiPlugin;
 
 pub struct CivilizationPlugin;
@@ -25,7 +26,7 @@ impl Plugin for CivilizationPlugin {
         app
             .register_type::<Token>()
             .register_type::<LandPassage>()
-            .register_type::<Stock>()
+            .register_type::<PlayerStock>()
             .register_type::<GameArea>()
             .register_type::<Population>()
             .add_event::<MoveTokensFromStockToAreaCommand>()
@@ -46,10 +47,12 @@ impl Plugin for CivilizationPlugin {
                     CityConstructionPlugin,
                     RemoveSurplusPlugin,
                     CitySupportPlugin,
-                    StupidAiPlugin
+                    StupidAiPlugin,
+                    GameMovesPlugin
                 )
             )
             .add_systems(OnEnter(GameState::Playing), (setup_game, setup_players))
+            .add_systems(OnEnter(GameActivity::StartGame), start_game)
             .add_plugins(WorldInspectorPlugin::new())
             .insert_resource(GameInfoAndStuff::default())
             .add_systems(
@@ -58,7 +61,7 @@ impl Plugin for CivilizationPlugin {
                         .run_if(in_state(GameState::Playing)),
                     move_tokens_from_stock_to_area
                         .run_if(in_state(GameState::Playing)),
-                return_token_to_stock
+                    return_token_to_stock
                         .run_if(in_state(GameState::Playing)),
                 ));
     }

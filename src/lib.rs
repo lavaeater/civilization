@@ -33,8 +33,9 @@ pub enum GameState {
 #[derive(SubStates, Clone, PartialEq, Eq, Hash, Debug, Default)]
 #[source(GameState = GameState::Playing)]
 pub enum GameActivity {
-    // CollectTaxes,
     #[default]
+    StartGame,
+    // CollectTaxes,
     PopulationExpansion,
     Census,
     // ShipConstruction,

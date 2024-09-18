@@ -1,5 +1,4 @@
 use bevy::prelude::{default, Component, Entity, Reflect};
-use bevy::render::render_resource::encase::private::RuntimeSizedArray;
 use bevy::utils::{HashMap, HashSet};
 use crate::civilization::general::general_enums::GameFaction;
 
@@ -9,6 +8,18 @@ pub struct GameArea;
 #[derive(Component, Debug, Reflect, Default)]
 pub struct LandPassage {
     pub to_areas: Vec<Entity>,
+}
+
+impl LandPassage {
+    pub fn new(to_areas: Vec<Entity>) -> Self {
+        LandPassage {
+            to_areas,
+        }
+    }
+
+    pub fn add_passage(&mut self, to_area: Entity) {
+        self.to_areas.push(to_area);
+    }
 }
 
 #[derive(Component, Debug, Reflect, Default)]
@@ -31,6 +42,10 @@ impl Population {
         }
     }
 
+    pub fn players(&self) -> HashSet<Entity> {
+        self.player_tokens.keys().cloned().collect()
+    }
+
     pub fn all_lengths_equal(&self) -> bool {
         let first_length = self.player_tokens.values().next().map(|v| v.len());
         self.player_tokens.values().all(|v| Some(v.len()) == first_length)
@@ -47,7 +62,11 @@ impl Population {
     }
 
     pub fn surplus_count(&self) -> usize {
-        self.total_population().try_into().unwrap_or(0) - self.max_population.try_into().unwrap_or(0).try_into().unwrap_or(0)
+        if self.total_population() > self.max_population {
+            self.total_population() - self.max_population
+        } else {
+            0
+        }
     }
 
     pub fn is_conflict_zone(&self) -> bool {
@@ -70,7 +89,17 @@ impl Population {
         self.player_tokens.keys().len()
     }
 
-    pub fn number_of_tokens_for_player(&self, player: Entity) -> usize {
+    pub fn max_expansion_for_player(&self, player: Entity) -> usize {
+        if let Some(player_tokens) = self.player_tokens.get(&player) {
+            match player_tokens.len() {
+                0 => 0,
+                1 => 1,
+                _ => 2,
+            }
+        } else { 0 }
+    }
+
+    pub fn population_for_player(&self, player: Entity) -> usize {
         if let Some(player_tokens) = self.player_tokens.get(&player) {
             player_tokens.len()
         } else { 0 }
@@ -160,18 +189,19 @@ impl Token {
 }
 
 #[derive(Component, Debug, Reflect)]
-pub struct Stock {
+pub struct PlayerStock {
     pub max_tokens: usize,
     pub tokens: Vec<Entity>,
 }
 
-impl Stock {
+impl PlayerStock {
     pub fn new(max_tokens: usize, tokens: Vec<Entity>) -> Self {
-        Stock {
+        PlayerStock {
             max_tokens,
             tokens,
         }
     }
+
     pub fn remove_tokens_from_stock(&mut self, number_of_tokens: usize) -> Option<Vec<Entity>> {
         if self.tokens.len() >= number_of_tokens {
             let tokens = self.tokens.drain(0..number_of_tokens).collect();
@@ -179,6 +209,14 @@ impl Stock {
         } else {
             None
         }
+    }
+
+    pub fn remove_token_from_stock(&mut self) -> Option<Entity> {
+        self.tokens.pop()
+    }
+
+    pub fn tokens_in_stock(&self) -> usize {
+        self.tokens.len()
     }
 }
 
@@ -212,7 +250,7 @@ impl PlayerCities {
             None
         }
     }
-    
+
     pub fn has_city_in(&self, area: Entity) -> bool {
         self.areas_and_cities.contains_key(&area)
     }
@@ -225,6 +263,18 @@ pub struct PlayerAreas {
 }
 
 impl PlayerAreas {
+    pub fn areas(&self) -> HashSet<Entity> {
+        self.areas.clone()
+    }
+
+    pub fn areas_and_population(&self) -> HashMap<Entity, HashSet<Entity>> {
+        self.area_population.clone()
+    }
+
+    pub fn areas_and_population_count(&self) -> HashMap<Entity, usize> {
+        self.area_population.clone().iter().map(|(k, v)| (*k, v.len())).collect()
+    }
+
     pub fn contains(&self, area: Entity) -> bool {
         self.areas.contains(&area) && self.area_population.contains_key(&area) && !self.area_population.get(&area).unwrap().is_empty()
     }
@@ -251,8 +301,44 @@ impl PlayerAreas {
         self.area_population.remove(&area);
     }
 
+    pub fn has_any_population(&self) -> bool {
+        !self.areas.is_empty()
+    }
+
+    pub fn areas_with_population(&self) -> HashSet<Entity> {
+        self.area_population.keys().cloned().collect()
+    }
+
     pub fn total_population(&self) -> usize {
         self.area_population.values().map(|set| set.len()).sum()
+    }
+
+    pub fn population_in_area(&self, area: Entity) -> usize {
+        if let Some(tokens) = self.area_population.get(&area) {
+            tokens.len()
+        } else {
+            0
+        }
+    }
+
+    pub fn required_tokens_for_expansion(&self) -> usize {
+        self.area_population.values().map(|set| {
+            match set.len() {
+                0 => { 0 }
+                1 => { 1 }
+                _ => { 2 }
+            }
+        }).sum()
+    }
+
+    pub fn required_tokens_for_expansion_for_area(&self, area: Entity) -> usize {
+        if let Some(set) = self.area_population.get(&area) {
+            match set.len() {
+                0 => { 0 }
+                1 => { 1 }
+                _ => { 2 }
+            }
+        } else { 0 }
     }
 }
 

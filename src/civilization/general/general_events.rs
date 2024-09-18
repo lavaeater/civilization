@@ -7,6 +7,16 @@ pub struct MoveTokensFromStockToAreaCommand {
     pub number_of_tokens: usize,
 }
 
+impl MoveTokensFromStockToAreaCommand {
+    pub fn new(area_entity: Entity, player_entity: Entity, number_of_tokens: usize) -> Self {
+        MoveTokensFromStockToAreaCommand {
+            area_entity,
+            player_entity,
+            number_of_tokens,
+        }
+    }
+}
+
 #[derive(Event, Debug)]
 pub struct ReturnTokenToStock {
     pub token_entity: Entity,

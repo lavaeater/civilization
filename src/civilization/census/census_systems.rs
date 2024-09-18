@@ -1,6 +1,6 @@
 use crate::civilization::census::census_components::{Census, HasPopulation};
 use crate::civilization::census::census_resources::GameInfoAndStuff;
-use crate::civilization::general::general_components::{Population, Stock, Treasury};
+use crate::civilization::general::general_components::{Population, PlayerStock, Treasury};
 use bevy::prelude::{Commands, Entity, NextState, Query, ResMut};
 use bevy::utils::HashMap;
 use crate::GameActivity;
@@ -22,7 +22,7 @@ pub fn check_areas_for_population(
 }
 
 pub fn perform_census(
-    mut stock_query: Query<(Entity, &Stock, &Treasury, &mut Census)>,
+    mut stock_query: Query<(Entity, &PlayerStock, &Treasury, &mut Census)>,
     mut census_order: ResMut<GameInfoAndStuff>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {

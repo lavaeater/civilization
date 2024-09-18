@@ -1,8 +1,8 @@
 use crate::civilization::census::census_components::Census;
 use crate::civilization::general::general_components::{CitySite, CityToken, CityTokenStock, Faction, GameArea, LandPassage, NeedsConnections, PlayerAreas, PlayerCities, Population, StartArea, Token, Treasury};
-use crate::civilization::general::general_components::Stock;
+use crate::civilization::general::general_components::PlayerStock;
 use bevy::core::Name;
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Query, StateTransitionEvent, With};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, StateTransitionEvent, With};
 use bevy::utils::HashMap;
 use bevy_console::PrintConsoleLine;
 use clap::builder::StyledStr;
@@ -10,6 +10,24 @@ use crate::civilization::general::general_enums::GameFaction::{Crete, Egypt};
 use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
 use crate::GameActivity;
 use crate::player::Player;
+
+pub fn start_game(
+    player_query: Query<(Entity, &Name, &Faction), With<Player>>,
+    start_area_query: Query<(Entity, &Name, &StartArea)>,
+    mut writer: EventWriter<MoveTokensFromStockToAreaCommand>,
+    mut next_state: ResMut<NextState<GameActivity>>) {
+    for (player_entity, _name, player_faction) in player_query.iter() {
+        if let Some((area_entity, _area_name, _)) = start_area_query.iter().find(|(_, _, start_area)| start_area.faction == player_faction.faction) {
+            writer.send(
+                MoveTokensFromStockToAreaCommand {
+                    area_entity,
+                    player_entity,
+                    number_of_tokens: 1,
+                });
+        }
+    }
+    next_state.set(GameActivity::PopulationExpansion);
+}
 
 pub fn setup_players(
     mut commands: Commands
@@ -29,7 +47,7 @@ pub fn setup_players(
                 )
             ).id();
 
-        let tokens = (0..47).map(|_| {
+        let tokens = (0..3).map(|_| {
             commands
                 .spawn(
                     (
@@ -52,7 +70,7 @@ pub fn setup_players(
             .entity(player)
             .insert(
                 (
-                    Stock::new(
+                    PlayerStock::new(
                         47,
                         tokens),
                     CityTokenStock::new(
@@ -182,7 +200,7 @@ This is 100% needed to be able to test expansion and stuff.
 */
 pub fn move_tokens_from_stock_to_area(
     mut move_commands: EventReader<MoveTokensFromStockToAreaCommand>,
-    mut stock_query: Query<&mut Stock>,
+    mut stock_query: Query<&mut PlayerStock>,
     mut population_query: Query<&mut Population>,
     mut player_areas_query: Query<&mut PlayerAreas>,
 ) {
@@ -205,7 +223,7 @@ pub fn move_tokens_from_stock_to_area(
 
 pub(crate) fn return_token_to_stock(
     mut event: EventReader<ReturnTokenToStock>,
-    mut stock_query: Query<&mut Stock>,
+    mut stock_query: Query<&mut PlayerStock>,
     token_query: Query<&Token>,
 ) {
     for return_event in event.read() {
@@ -219,7 +237,7 @@ pub(crate) fn return_token_to_stock(
 
 pub fn print_names_of_phases(
     mut write_line: EventWriter<PrintConsoleLine>,
-    mut state_transition_event: EventReader<StateTransitionEvent<GameActivity>>
+    mut state_transition_event: EventReader<StateTransitionEvent<GameActivity>>,
 ) {
     for event in state_transition_event.read() {
         write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Went from: {:?} to {:?}", event.exited, event.entered))));
