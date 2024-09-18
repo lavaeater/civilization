@@ -119,18 +119,4 @@ fn select_stupid_move(
             }
         }
     }
-    /*
-    If an area that the player has a presence in contains more than max
-    population in that area, move surplus population to other areas,
-    prioritizing empty areas. 
-    
-    This is a bit more advanced than the algorithm below and gives us 
-    opportunity to add some more components to areas and players to
-    make all this easier.
-    
-    Players can have a list of "I have a presence in the following 
-    areas" to simplify iterating over them
-    Areas in turn might have a "I am empty"-component to make it 
-    easy to exclude or include empty areas in queries.
-     */
 }
