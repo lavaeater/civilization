@@ -17,7 +17,7 @@ fn calculate_game_moves_in_movement() {
     rspec::run(&rspec::given("the game state Movement", Environment::default(), |ctx| {
         ctx.when("And area one connects to area two", |ctx| {
             ctx.when("And a player with tokens in area one", |ctx| {
-                ctx.then("two moves are created, one for movement and one for ending movement", |_| {
+                ctx.then("two moves are created, one for movement and one for ending movement", |ctx| {
                     let mut app = setup_bevy_app(|mut app| {
                         app
                             .add_event::<RecalculatePlayerMoves>()
@@ -60,6 +60,7 @@ fn calculate_game_moves_in_movement() {
                         .world()
                         .entity(player)
                         .get::<AvailableMoves>();
+                    
                     assert!(player_moves.is_some(), "Player moves not found");
                     let player_moves = player_moves.unwrap();
                     assert_eq!(player_moves.moves.len(), 2, "Did not find two moves");
@@ -87,7 +88,7 @@ fn calculate_game_moves_in_population_expansion() {
     rspec::run(&rspec::given("game state PopulationExpansion", Environment::default(), |ctx| {
         ctx.when("a player with token in three areas", |ctx| {
             ctx.when("he does not have enought tokens for expansion", |ctx| {
-                ctx.then("the correct moves are created", |_| {
+                ctx.then("the correct moves are created", |ctx| {
                     let mut app = setup_bevy_app(|mut app| {
                         app
                             .add_event::<RecalculatePlayerMoves>()
