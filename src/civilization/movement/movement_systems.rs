@@ -69,13 +69,24 @@ pub fn move_tokens_from_area_to_area(
         if let Ok(mut from_pop) = pop_query.get_mut(ev.source_area) {
             let cloned = from_pop.player_tokens.clone();
             
-            let tokens_that_can_move = cloned.get(&ev.player).unwrap().iter().filter(|t| tokens_that_can_move.get(**t).is_ok()).collect::<Vec<_>>().clone();
+            let tokens_that_can_move = cloned
+                .get(&ev.player)
+                .unwrap()
+                .iter()
+                .filter(|t| tokens_that_can_move.get(**t).is_ok())
+                .collect::<Vec<_>>()
+                .clone();
             if tokens_that_can_move.len() < ev.number_of_tokens {
                 return; //What do we even do here to handle this?
             } else {
+                let tokens_that_can_move = tokens_that_can_move
+                    .iter()
+                    .take(ev.number_of_tokens)
+                    .collect::<Vec<_>>();
+                
                 if let Some(player_tokens) = from_pop.player_tokens.get_mut(&ev.player) {
                     for token in tokens_that_can_move.clone() {
-                        player_tokens.retain(|t| t != token);
+                        player_tokens.retain(|t| t != *token);
                     }
                     if player_tokens.is_empty() {
                         from_pop.player_tokens.remove(&ev.player);
@@ -87,10 +98,10 @@ pub fn move_tokens_from_area_to_area(
                         tokens_that_can_move
                             .iter()
                             .for_each(|token| {
-                                commands.entity(**token).insert(TokenHasMoved::default());
-                                player_area.remove_token_from_area(ev.source_area, **token);
-                                to_pop.add_token_to_area(ev.player, **token);
-                                player_area.add_token_to_area(ev.target_area, **token);
+                                commands.entity(***token).insert(TokenHasMoved::default());
+                                player_area.remove_token_from_area(ev.source_area, ***token);
+                                to_pop.add_token_to_area(ev.player, ***token);
+                                player_area.add_token_to_area(ev.target_area, ***token);
                             });
                         
                     }
