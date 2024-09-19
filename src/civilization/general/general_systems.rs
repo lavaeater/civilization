@@ -2,7 +2,7 @@ use crate::civilization::census::census_components::Census;
 use crate::civilization::general::general_components::{CityToken, CityTokenStock, Faction, GameArea, LandPassage, NeedsConnections, PlayerAreas, PlayerCities, Population, StartArea, Token, Treasury};
 use crate::civilization::general::general_components::PlayerStock;
 use bevy::core::Name;
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, StateTransitionEvent, With};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, StateTransitionEvent, With};
 use bevy_console::PrintConsoleLine;
 use clap::builder::StyledStr;
 use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};

@@ -1,4 +1,4 @@
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, Query, Without};
+use bevy::prelude::{Commands, EventReader, EventWriter, Has, Query, Without};
 use bevy::utils::HashMap;
 use crate::civilization::city_construction::city_construction_components::IsBuilding;
 use crate::civilization::game_moves::game_moves_components::{AvailableMoves, BuildCityMove, Move, MovementMove, PopExpMove};
@@ -61,24 +61,23 @@ pub fn recalculate_movement_moves_for_player(
         let mut moves = HashMap::default();
         let mut command_index = 0;
         if let Ok(player_areas) = player_move_query.get(event.player) {
-            for (area, token_count) in player_areas
-                .areas_and_population()
-                .iter()
-                .map(
-                    |(a, p)|
-                        (a.clone(), p
-                            .iter()
-                            .filter(|t| token_filter_query.contains(**t)).count()))
-                .collect::<HashMap<Entity, usize>>() {
-                if let Ok(connections) = area_connections_query.get(area) {
-                    for connection in connections.to_areas.iter() {
-                        command_index += 1;
-                        moves.insert(command_index, Move::Movement(MovementMove::new(
-                            area,
-                            connection.clone(),
-                            event.player,
-                            token_count,
-                        )));
+            for (area, tokens) in player_areas
+                .areas_and_population() {
+                let tokens_that_can_move = tokens.iter().filter(|t| token_filter_query.get(**t).is_ok()).collect::<Vec<_>>();
+                
+                if tokens_that_can_move.is_empty() {
+                    continue;
+                } else {
+                    if let Ok(connections) = area_connections_query.get(area) {
+                        for connection in connections.to_areas.iter() {
+                            command_index += 1;
+                            moves.insert(command_index, Move::Movement(MovementMove::new(
+                                area,
+                                connection.clone(),
+                                event.player,
+                                tokens.len(),
+                            )));
+                        }
                     }
                 }
             }

@@ -49,6 +49,17 @@ impl Population {
             ..default()
         }
     }
+    
+    pub fn remove_tokens(&mut self, player: Entity, tokens: Vec<Entity>) {
+        if let Some(player_tokens) = self.player_tokens.get_mut(&player) {
+            for token in tokens {
+                player_tokens.retain(|t| *t != token);
+            }
+            if player_tokens.is_empty() {
+                self.player_tokens.remove(&player);
+            }
+        }
+    }
 
     pub fn players(&self) -> HashSet<Entity> {
         self.player_tokens.keys().cloned().collect()
