@@ -92,10 +92,11 @@ pub fn move_tokens_from_area_to_area(
                                 to_pop.add_token_to_area(ev.player, **token);
                                 player_area.add_token_to_area(ev.target_area, **token);
                             });
-                        recalculate_moves.send(RecalculatePlayerMoves::new(ev.player));
+                        
                     }
                 }
             }
         }
+        recalculate_moves.send(RecalculatePlayerMoves::new(ev.player));
     }
 }

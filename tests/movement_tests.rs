@@ -9,6 +9,7 @@ use bevy_game::civilization::movement::movement_events::MoveTokenFromAreaToAreaC
 use bevy_game::{GameActivity, GameState};
 use bevy_game::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use bevy_game::civilization::general::general_enums::GameFaction;
+use bevy_game::civilization::movement::movement_components::TokenHasMoved;
 use bevy_game::civilization::movement::movement_systems::move_tokens_from_area_to_area;
 use crate::common::setup_player;
 
@@ -25,6 +26,55 @@ fn setup_app() -> App {
         .add_sub_state::<GameActivity>()
         .add_systems(Update, move_tokens_from_area_to_area);
     app
+}
+
+#[test]
+fn moved_tokens_get_token_has_moved_component_added() {
+    // Arrange
+    let mut app = setup_app();
+
+    let (player_one, mut player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
+
+    let mut population = Population::new(4);
+
+    population.player_tokens.insert(player_one, player_one_tokens.drain(0..3).collect());
+
+    let from_area = app.world_mut().spawn(
+        (
+            Name::new("egypt"),
+            GameArea::new(1),
+            LandPassage::default(),
+            population
+        )
+    ).id();
+
+    let to_area = app.world_mut().spawn(
+        (
+            Name::new("crete"),
+            GameArea::new(2),
+            LandPassage::default(),
+            Population::new(3)
+        )
+    ).id();
+    let mut events = app.world_mut()
+        .resource_mut::<Events<MoveTokenFromAreaToAreaCommand>>();
+
+    events.send(MoveTokenFromAreaToAreaCommand::new(from_area, to_area, 2, player_one));
+
+    // Act
+    app.update();
+    // Assert
+    let player_area = app.world().entity(player_one).get::<PlayerAreas>();
+    assert!(player_area.is_some());
+    let player_area = player_area.unwrap();
+    assert!(player_area.contains(to_area));
+    let tokens_in_area = player_area.tokens_for_area(to_area);
+    assert!(tokens_in_area.is_some());
+    let tokens_in_area = tokens_in_area.unwrap();
+    assert_eq!(2, tokens_in_area.len());
+    for token in tokens_in_area {
+        assert!(app.world().entity(token).get::<TokenHasMoved>().is_some());
+    }
 }
 
 #[test]

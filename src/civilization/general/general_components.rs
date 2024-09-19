@@ -4,7 +4,7 @@ use crate::civilization::general::general_enums::GameFaction;
 
 #[derive(Component, Debug, Reflect)]
 pub struct GameArea {
-    pub id: i32
+    pub id: i32,
 }
 
 impl GameArea {
@@ -49,7 +49,7 @@ impl Population {
             ..default()
         }
     }
-    
+
     pub fn remove_tokens(&mut self, player: Entity, tokens: Vec<Entity>) {
         if let Some(player_tokens) = self.player_tokens.get_mut(&player) {
             for token in tokens {
@@ -241,7 +241,7 @@ impl PlayerStock {
             tokens,
         }
     }
-    
+
     pub fn return_token_to_stock(&mut self, token: Entity) {
         self.tokens.push(token);
     }
@@ -363,6 +363,12 @@ impl PlayerAreas {
         } else {
             0
         }
+    }
+
+    pub fn tokens_for_area(&self, area: Entity) -> Option<HashSet<Entity>> {
+        if let Some(tokens) = self.area_population.get(&area) {
+            Some(tokens.clone())
+        } else { None }
     }
 
     pub fn required_tokens_for_expansion(&self) -> usize {
