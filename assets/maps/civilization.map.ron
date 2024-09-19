@@ -1638,4 +1638,6 @@
         flood_plain: false,
         city_flood: false,
         volcano: false
-    ),
+    )
+    ]
+)
