@@ -2,14 +2,15 @@ use crate::civilization::census::census_components::Census;
 use crate::civilization::general::general_components::{CityToken, CityTokenStock, Faction, GameArea, LandPassage, NeedsConnections, PlayerAreas, PlayerCities, Population, StartArea, Token, Treasury};
 use crate::civilization::general::general_components::PlayerStock;
 use bevy::core::Name;
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, StateTransitionEvent, With};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, StateTransitionEvent, With};
 use bevy_console::PrintConsoleLine;
 use clap::builder::StyledStr;
-use crate::civilization::general::general_enums::GameFaction::{Crete, Egypt};
 use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
+use crate::civilization::map::map_plugin::AvailableFactions;
 use crate::GameActivity;
 use crate::player::Player;
-use crate::stupid_ai::stupid_ai_plugin::StupidAi;
+use rand::seq::IteratorRandom;
+
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
@@ -30,9 +31,13 @@ pub fn start_game(
 }
 
 pub fn setup_players(
-    mut commands: Commands
+    mut commands: Commands,
+    mut available_factions: ResMut<AvailableFactions>
 ) {
     (1..=2).for_each(|n| {
+        
+        let faction = available_factions.remaining_factions.iter().choose(&mut rand::thread_rng()).unwrap().clone();
+        available_factions.remaining_factions.remove(&faction);
         // Create Player
         let player = commands
             .spawn(
@@ -41,15 +46,15 @@ pub fn setup_players(
                     Name::new(format!("p{n}")),
                     Census { population: 0 },
                     Treasury::default(),
-                    Faction { faction: if n % 2 == 0 { Egypt } else { Crete } },
+                    Faction::new(faction),
                     PlayerAreas::default(),
                     PlayerCities::default()
                 )
             ).id();
 
-        if n % 2 == 0 {
-            commands.entity(player).insert(StupidAi::default());
-        }
+        // if n % 2 == 0 {
+        //     commands.entity(player).insert(StupidAi::default());
+        // }
 
         let tokens = (0..47).map(|_| {
             commands

@@ -153,6 +153,15 @@ impl Population {
 }
 
 #[derive(Component, Debug, Reflect, Default)]
+pub struct FloodPlain;
+
+#[derive(Component, Debug, Reflect, Default)]
+pub struct Volcano;
+
+#[derive(Component, Debug, Reflect, Default)]
+pub struct CityFlood;
+
+#[derive(Component, Debug, Reflect, Default)]
 pub struct CitySite;
 
 #[derive(Component, Debug, Reflect)]
@@ -187,6 +196,12 @@ impl StartArea {
 #[derive(Component, Debug)]
 pub struct Faction {
     pub faction: GameFaction,
+}
+
+impl Faction {
+    pub fn new(faction: GameFaction) -> Self {
+        Faction { faction }
+    }
 }
 
 #[derive(Component, Debug, Reflect)]
