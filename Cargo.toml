@@ -83,8 +83,9 @@ itertools = "0.13.0"
 bevy_console = { git="https://github.com/msklosak/bevy-console.git", branch="bevy_014" }
 clap = { version = "4.5.16", features = ["derive"] }
 bevy-inspector-egui = "0.25.2"
-rust-fsm = "0.7.0"
-rust-fsm-dsl = "0.7.0"
+bevy_common_assets = { version = "0.11.0", features = ["ron"] }
+serde = { version = "1.0.197", features = ["derive"] }
+
 
 [build-dependencies]
 embed-resource = "1.8.0"

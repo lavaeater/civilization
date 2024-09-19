@@ -2,8 +2,16 @@ use bevy::prelude::{default, Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
 use crate::civilization::general::general_enums::GameFaction;
 
-#[derive(Component, Debug, Reflect, Default)]
-pub struct GameArea;
+#[derive(Component, Debug, Reflect)]
+pub struct GameArea {
+    pub id: i32
+}
+
+impl GameArea {
+    pub fn new(id: i32) -> Self {
+        GameArea { id }
+    }
+}
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct LandPassage {
@@ -24,8 +32,8 @@ impl LandPassage {
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct NeedsConnections {
-    pub land_connections: Vec<String>,
-    pub sea_connections: Vec<String>,
+    pub land_connections: Vec<i32>,
+    pub sea_connections: Vec<i32>,
 }
 
 #[derive(Component, Debug, Reflect, Default)]
@@ -39,6 +47,17 @@ impl Population {
         Population {
             max_population,
             ..default()
+        }
+    }
+    
+    pub fn remove_tokens(&mut self, player: Entity, tokens: Vec<Entity>) {
+        if let Some(player_tokens) = self.player_tokens.get_mut(&player) {
+            for token in tokens {
+                player_tokens.retain(|t| *t != token);
+            }
+            if player_tokens.is_empty() {
+                self.player_tokens.remove(&player);
+            }
         }
     }
 
@@ -144,7 +163,16 @@ impl Population {
     }
 }
 
-#[derive(Component, Debug, Reflect)]
+#[derive(Component, Debug, Reflect, Default)]
+pub struct FloodPlain;
+
+#[derive(Component, Debug, Reflect, Default)]
+pub struct Volcano;
+
+#[derive(Component, Debug, Reflect, Default)]
+pub struct CityFlood;
+
+#[derive(Component, Debug, Reflect, Default)]
 pub struct CitySite;
 
 #[derive(Component, Debug, Reflect)]
@@ -169,10 +197,22 @@ pub struct StartArea {
     pub faction: GameFaction,
 }
 
+impl StartArea {
+    pub fn new(faction: GameFaction) -> Self {
+        StartArea { faction }
+    }
+}
+
 
 #[derive(Component, Debug)]
 pub struct Faction {
     pub faction: GameFaction,
+}
+
+impl Faction {
+    pub fn new(faction: GameFaction) -> Self {
+        Faction { faction }
+    }
 }
 
 #[derive(Component, Debug, Reflect)]

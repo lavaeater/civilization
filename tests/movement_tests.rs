@@ -41,7 +41,7 @@ fn moving_token_to_area_adds_area_to_player_areas() {
     let from_area = app.world_mut().spawn(
         (
             Name::new("egypt"),
-            GameArea::default(),
+            GameArea::new(1),
             LandPassage::default(),
             population
         )
@@ -50,7 +50,7 @@ fn moving_token_to_area_adds_area_to_player_areas() {
     let to_area = app.world_mut().spawn(
         (
             Name::new("crete"),
-            GameArea::default(),
+            GameArea::new(2),
             LandPassage::default(),
             Population::new(3)
         )
@@ -83,7 +83,7 @@ fn moving_all_tokens_from_area_removes_area_from_player_areas() {
     let from_area = app.world_mut().spawn(
         (
             Name::new("egypt"),
-            GameArea::default(),
+            GameArea::new(1),
             LandPassage::default(),
             population
         )
@@ -92,7 +92,7 @@ fn moving_all_tokens_from_area_removes_area_from_player_areas() {
     let to_area = app.world_mut().spawn(
         (
             Name::new("crete"),
-            GameArea::default(),
+            GameArea::new(2),
             LandPassage::default(),
             Population::new(3)
         )
