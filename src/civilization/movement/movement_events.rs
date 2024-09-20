@@ -1,7 +1,17 @@
 use bevy::prelude::{Entity, Event, Reflect};
 
-#[derive(Event, Debug, Reflect, Default)]
-pub struct PlayerMovementEnded;
+#[derive(Event, Debug, Reflect)]
+pub struct PlayerMovementEnded {
+    pub player: Entity
+}
+
+impl PlayerMovementEnded {
+    pub fn new(player: Entity) -> Self {
+        PlayerMovementEnded {
+            player
+        }
+    }
+}
 
 #[derive(Event, Debug, Reflect, Default)]
 pub struct NextPlayerStarted;

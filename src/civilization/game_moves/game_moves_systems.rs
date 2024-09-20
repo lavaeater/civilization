@@ -85,7 +85,7 @@ pub fn recalculate_movement_moves_for_player(
             }
         }
         if moves.is_empty() {
-            end_player_movement.send(PlayerMovementEnded);
+            end_player_movement.send(PlayerMovementEnded::new(event.player));
         } else {
             moves.insert(command_index + 1, Move::EndMovement);
             commands.entity(event.player).insert(AvailableMoves::new(moves));

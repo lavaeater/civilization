@@ -13,7 +13,7 @@ pub fn start_movement_activity(
 ) {
     game_info.left_to_move = game_info.census_order.clone();
     game_info.left_to_move.reverse();
-    next_player.send(NextPlayerStarted {});
+    next_player.send(NextPlayerStarted::default());
 }
 
 pub fn prepare_next_mover(

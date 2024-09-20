@@ -107,7 +107,7 @@ fn select_stupid_move(
                         }
                     }
                     Move::EndMovement => {
-                        end_movement_writer.send(PlayerMovementEnded::default());
+                        end_movement_writer.send(PlayerMovementEnded::new(event.player));
                     }
                     Move::CityConstruction(build_city_move) => {
                         build_city_writer.send(BuildCityCommand::new(event.player, build_city_move.target));
