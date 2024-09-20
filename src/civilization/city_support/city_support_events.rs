@@ -2,13 +2,14 @@ use bevy::prelude::{Entity, Event, Reflect};
 
 #[derive(Event, Debug, Reflect)]
 pub struct EliminateCity {
+    pub player: Entity,
     pub city: Entity,
     pub area_entity: Entity,
 }
 
 impl EliminateCity {
-    pub fn new(city: Entity, area_entity: Entity) -> Self {
-        EliminateCity { city, area_entity }
+    pub fn new(player: Entity, city: Entity, area_entity: Entity) -> Self {
+        EliminateCity { player, city, area_entity }
     }
 }
 

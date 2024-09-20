@@ -1,8 +1,7 @@
 use bevy::app::{App, Plugin};
 use bevy_console::{AddConsoleCommand, ConsoleConfiguration, ConsolePlugin};
-use crate::civilization::console::{build_city_console_command, eliminate_city_command, expand_population_command, list_builds_command, list_moves_command, make_a_move_command, player_end_building_command, show_board_command, start_command, stupid_ai_command};
+use crate::civilization::console::{build_city_console_command, expand_population_command, list_builds_command, list_moves_command, make_a_move_command, player_end_building_command, show_board_command, start_command, stupid_ai_command};
 use crate::civilization::console::build_city_console_command::BuildCityConsoleCommand;
-use crate::civilization::console::eliminate_city_command::EliminateCityCommand;
 use crate::civilization::console::expand_population_command::ExpandPopulation;
 use crate::civilization::console::list_builds_command::ListBuildsCommand;
 use crate::civilization::console::list_moves_command::ListMoves;
@@ -31,7 +30,6 @@ impl Plugin for CommandsPlugin {
             .add_console_command::<ListBuildsCommand, _>(list_builds_command::list_builds)
             .add_console_command::<BuildCityConsoleCommand, _>(build_city_console_command::build_city)
             .add_console_command::<PlayerEndBuildingCommand, _>(player_end_building_command::end_building)
-            .add_console_command::<EliminateCityCommand, _>(eliminate_city_command::eliminate_city)
             .add_console_command::<StupidAiCommand, _>(stupid_ai_command::stupid_ai)
         ;
     }

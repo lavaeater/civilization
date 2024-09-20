@@ -5,6 +5,7 @@ use crate::civilization::movement::movement_events::{NextPlayerStarted, PlayerMo
 use crate::GameActivity;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With, Without};
 use crate::civilization::game_moves::game_moves_components::AvailableMoves;
+use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::movement::movement_components::{HasJustMoved, PerformingMovement, TokenHasMoved};
 
 pub fn start_movement_activity(
@@ -58,9 +59,11 @@ pub fn move_tokens_from_area_to_area(
     mut pop_query: Query<&mut Population>,
     mut commands: Commands,
     mut player_areas: Query<&mut PlayerAreas>,
-    tokens_that_can_move: Query<&Token, Without<TokenHasMoved>>
+    tokens_that_can_move: Query<&Token, Without<TokenHasMoved>>,
+    mut recalculate_player_moves: EventWriter<RecalculatePlayerMoves>
 ) {
     for ev in move_events.read() {
+        println!("Lets move some tokens!");
         if let Ok(mut from_pop) = pop_query.get_mut(ev.source_area) {
             let cloned = from_pop.player_tokens.clone();
 
@@ -71,7 +74,8 @@ pub fn move_tokens_from_area_to_area(
                 .filter(|t| tokens_that_can_move.get(**t).is_ok()).copied()
                 .collect::<Vec<_>>();
             if tokens_that_can_move.len() < ev.number_of_tokens {
-                return; //What do we even do here to handle this?
+                println!("Not enough tokens to move, recalculate that son of a bitch!");
+                recalculate_player_moves.send(RecalculatePlayerMoves::new(ev.player));
             } else {
                 let tokens_to_move = tokens_that_can_move
                     .iter()

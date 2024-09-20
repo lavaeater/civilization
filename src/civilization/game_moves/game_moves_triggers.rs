@@ -1,5 +1,6 @@
 use bevy::prelude::{Commands, EventWriter, OnAdd, Trigger};
 use crate::civilization::city_construction::city_construction_components::IsBuilding;
+use crate::civilization::city_support::city_support_components::HasTooManyCities;
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::movement::movement_components::{HasJustMoved, PerformingMovement};
 use crate::civilization::population_expansion::population_expansion_components::ExpandManually;
@@ -24,6 +25,13 @@ pub fn on_add_has_just_moved(
     mut commands: Commands,
 ) {
     commands.entity(trigger.entity()).remove::<HasJustMoved>();
+    event_writer.send(RecalculatePlayerMoves::new(trigger.entity()));
+}
+
+pub fn on_add_has_too_many_cities(
+    trigger: Trigger<OnAdd, HasTooManyCities>,
+    mut event_writer: EventWriter<RecalculatePlayerMoves>,
+) {
     event_writer.send(RecalculatePlayerMoves::new(trigger.entity()));
 }
 

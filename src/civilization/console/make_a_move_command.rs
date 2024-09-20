@@ -45,6 +45,9 @@ pub fn make_a_move(
                             Move::EndCityConstruction => {
                                 end_player_city_construction.send(EndPlayerCityConstruction::new(player_entity));
                             }
+                            Move::EliminateCity(el_move) => {
+                                
+                            }
                         }
                     }
                 });

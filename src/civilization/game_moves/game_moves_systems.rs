@@ -1,12 +1,13 @@
 use crate::civilization::city_construction::city_construction_components::IsBuilding;
-use crate::civilization::game_moves::game_moves_components::{AvailableMoves, BuildCityMove, Move, MovementMove, PopExpMove};
+use crate::civilization::game_moves::game_moves_components::{AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove};
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use crate::civilization::general::general_components::{CitySite, LandPassage, PlayerAreas, PlayerStock, Population};
+use crate::civilization::general::general_components::{CitySite, LandPassage, PlayerAreas, PlayerCities, PlayerStock, Population};
 use crate::civilization::movement::movement_components::TokenHasMoved;
 use crate::civilization::movement::movement_events::PlayerMovementEnded;
 use crate::civilization::population_expansion::population_expansion_components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
 use bevy::prelude::{Commands, EventReader, EventWriter, Has, Query};
 use bevy::utils::HashMap;
+use crate::civilization::city_support::city_support_components::HasTooManyCities;
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
@@ -107,10 +108,7 @@ pub fn recalculate_city_construction_moves_for_player(
             for (area, population) in player_areas.areas_and_population_count().iter() {
                 if population >= &6 {
                     if let Ok((_area_pop, has_city_site)) = area_property_query.get(*area) {
-                        if has_city_site && population >= &6 {
-                            command_index += 1;
-                            moves.insert(command_index, Move::CityConstruction(BuildCityMove::new(*area, event.player)));
-                        } else if population >= &12 {
+                        if (has_city_site && population >= &6) || (population >= &12) {
                             command_index += 1;
                             moves.insert(command_index, Move::CityConstruction(BuildCityMove::new(*area, event.player)));
                         }
@@ -122,6 +120,39 @@ pub fn recalculate_city_construction_moves_for_player(
             } else {
                 command_index += 1;
                 moves.insert(command_index, Move::EndCityConstruction);
+                commands.entity(event.player).insert(AvailableMoves::new(moves));
+            }
+        }
+    }
+}
+
+pub fn recalculate_city_support_moves_for_player(
+    mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
+    player_city_query: Query<(&PlayerCities, &HasTooManyCities)>,
+    area_property_query: Query<&Population>,
+    mut commands: Commands,
+) {
+    for event in recalc_player_reader.read() {
+        commands.entity(event.player).remove::<AvailableMoves>();
+        let mut moves = HashMap::default();
+        let mut command_index = 0;
+        if let Ok((player_cities, has_too_many_cities)) = player_city_query.get(event.player) {
+            for (area, city) in player_cities.areas_and_cities.iter() {
+                if let Ok(pop) = area_property_query.get(*area) {
+                    command_index += 1;
+                    moves.insert(
+                        command_index,
+                        Move::EliminateCity(
+                            EliminateCityMove::new(event.player, 
+                                                   *area, 
+                                                   *city, 
+                                                   pop.max_population,
+                                                   has_too_many_cities.needed_tokens)));
+                }
+            }
+            if moves.is_empty() {
+                commands.entity(event.player).remove::<HasTooManyCities>();
+            } else {
                 commands.entity(event.player).insert(AvailableMoves::new(moves));
             }
         }

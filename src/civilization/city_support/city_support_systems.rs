@@ -30,10 +30,10 @@ pub fn eliminate_city(
                     city_stock.return_token_to_stock(eliminate.city);
                 }
             }
-            commands
-                .entity(city_token.player)
-                .remove::<NeedsToCheckCitySupport>(); //Start check all over again to update too many cities thingie!
         }
+        commands
+            .entity(eliminate.player)
+            .insert(NeedsToCheckCitySupport); //Start check all over again to update too many cities thingie!
     }
 }
 
