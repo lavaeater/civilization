@@ -102,8 +102,9 @@ fn load_map(mut commands: Commands,
         
         
         for area in level.areas {
-            let n = remove_random_place(&mut ancient_places);
-            let entity = commands.spawn((Name::new(format!("{}:{}", area.id, n.unwrap())),
+            let n = remove_random_place(&mut ancient_places).unwrap_or("STANDARD_NAME".to_string());
+            
+            let entity = commands.spawn((Name::new(format!("{}:{}", area.id, n)),
                                          GameArea::new(area.id),
                                          LandPassage::default(),
                                          NeedsConnections {
