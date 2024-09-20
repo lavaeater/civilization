@@ -1,12 +1,11 @@
 use crate::civilization::census::census_resources::GameInfoAndStuff;
-use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::general::general_components::{PlayerAreas, Population, Token};
 use crate::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;
 use crate::civilization::movement::movement_events::{NextPlayerStarted, PlayerMovementEnded};
 use crate::GameActivity;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With, Without};
 use crate::civilization::game_moves::game_moves_components::AvailableMoves;
-use crate::civilization::movement::movement_components::{PerformingMovement, TokenHasMoved};
+use crate::civilization::movement::movement_components::{HasJustMoved, PerformingMovement, TokenHasMoved};
 
 pub fn start_movement_activity(
     mut game_info: ResMut<GameInfoAndStuff>,
@@ -25,7 +24,7 @@ pub fn prepare_next_mover(
 ) {
     for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
-            commands.entity(to_move).insert(PerformingMovement::default());
+            commands.entity(to_move).insert(PerformingMovement);
             game_info.current_mover = Some(to_move);
         } else {
             // All hath moved, move along
@@ -64,8 +63,7 @@ pub fn move_tokens_from_area_to_area(
     mut pop_query: Query<&mut Population>,
     mut commands: Commands,
     mut player_areas: Query<&mut PlayerAreas>,
-    tokens_that_can_move: Query<&Token, Without<TokenHasMoved>>,
-    mut recalculate_moves: EventWriter<RecalculatePlayerMoves>,
+    tokens_that_can_move: Query<&Token, Without<TokenHasMoved>>
 ) {
     for ev in move_events.read() {
         if let Ok(mut from_pop) = pop_query.get_mut(ev.source_area) {
@@ -99,11 +97,13 @@ pub fn move_tokens_from_area_to_area(
                                 player_area.remove_token_from_area(ev.source_area, *token);
                                 to_pop.add_token_to_area(ev.player, *token);
                                 player_area.add_token_to_area(ev.target_area, *token);
+
+                                //Lets send a lot of these events...
                             });
                     }
                 }
             }
         }
-        recalculate_moves.send(RecalculatePlayerMoves::new(ev.player));
+        commands.entity(ev.player).insert(HasJustMoved);
     }
 }

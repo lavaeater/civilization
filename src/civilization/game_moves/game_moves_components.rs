@@ -1,7 +1,7 @@
-use bevy::prelude::{Component, Entity};
+use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::HashMap;
 
-#[derive(Component, Debug, Default)]
+#[derive(Component, Debug, Default, Reflect)]
 pub struct AvailableMoves {
     pub moves: HashMap<usize, Move>,
 }
@@ -14,7 +14,7 @@ impl AvailableMoves {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Reflect)]
 pub enum Move {
     PopulationExpansion(PopExpMove),
     Movement(MovementMove),
@@ -23,7 +23,7 @@ pub enum Move {
     EndCityConstruction,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Reflect)]
 pub struct BuildCityMove {
     pub target: Entity,
     pub player: Entity
@@ -38,7 +38,7 @@ impl BuildCityMove {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Reflect)]
 pub struct MovementMove {
     pub source: Entity,
     pub target: Entity,
@@ -57,7 +57,7 @@ impl MovementMove {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Reflect)]
 pub struct PopExpMove {
     pub area: Entity,
     pub max_tokens: usize,

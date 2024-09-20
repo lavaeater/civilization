@@ -29,7 +29,7 @@ pub fn on_add_available_moves(
     is_stupid_ai: Query<&StupidAi>,
     mut event_writer: EventWriter<SelectStupidMove>,
 ) {
-    if is_stupid_ai.contains(trigger.entity()) {
+    if is_stupid_ai.get(trigger.entity()).is_ok() {
         event_writer.send(SelectStupidMove::new(trigger.entity()));
     }
 }
@@ -56,7 +56,7 @@ impl StupidAiEvent {
     }
 }
 
-#[derive(Component, Debug, Reflect, Default)]
+#[derive(Component, Debug, Reflect)]
 pub struct StupidAi;
 
 fn setup_stupid_ai(
@@ -64,7 +64,7 @@ fn setup_stupid_ai(
     mut commands: Commands,
 ) {
     for e in stupid_ai_event.read() {
-        commands.entity(e.player).insert(StupidAi::default());
+        commands.entity(e.player).insert(StupidAi);
     }
 }
 
