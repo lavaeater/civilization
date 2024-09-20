@@ -105,19 +105,19 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
         .add_systems(Update, resolve_conflicts);
     
     let test_cases = vec![
-        // ConflictTestStruct::new(1,1,1,0,0),
-        // ConflictTestStruct::new(2,1,1,2,0),
-        // ConflictTestStruct::new(2,1,2,2,0),
+        ConflictTestStruct::new(1,1,1,0,0),
+        ConflictTestStruct::new(2,1,1,2,0),
+        ConflictTestStruct::new(2,1,2,2,0),
         ConflictTestStruct::new(2,2,2,1,1),
-        // ConflictTestStruct::new(3,2,2,2,0),
-        // ConflictTestStruct::new(3,2,3,2,1),
-        // ConflictTestStruct::new(3,3,3,1,1),
-        // ConflictTestStruct::new(4,2,3,3,0),
-        // ConflictTestStruct::new(3,3,4,2,2),
-        // ConflictTestStruct::new(4,1,4,4,0),
-        // ConflictTestStruct::new(4,2,4,3,1),
-        // ConflictTestStruct::new(4,3,4,3,1),
-        // ConflictTestStruct::new(5,3,4,3,1),
+        ConflictTestStruct::new(3,2,2,2,0),
+        ConflictTestStruct::new(3,2,3,2,1),
+        ConflictTestStruct::new(3,3,3,1,1),
+        ConflictTestStruct::new(4,2,3,3,0),
+        ConflictTestStruct::new(3,3,4,2,2),
+        ConflictTestStruct::new(4,1,4,4,0),
+        ConflictTestStruct::new(4,2,4,3,1),
+        ConflictTestStruct::new(4,3,4,3,1),
+        ConflictTestStruct::new(5,3,4,3,1),
     ];
 
     let (player_one, mut player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
