@@ -73,7 +73,14 @@ impl Population {
     pub fn remove_surplus(&mut self) -> HashSet<Entity> {
         assert_eq!(self.number_of_players(), 1); // this should never, ever, not happen
         let surplus_count = self.surplus_count();
-        self.player_tokens.values_mut().next().unwrap().drain().take(surplus_count).collect()
+        
+        let player_tokens = self.player_tokens.values_mut().next().unwrap();
+        let tokens: HashSet<Entity> = player_tokens.iter().take(surplus_count).copied().collect();
+        
+        for token in tokens.iter() {
+            player_tokens.remove(token);
+        }
+        tokens
     }
 
     pub fn has_surplus(&self) -> bool {
