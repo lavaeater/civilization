@@ -140,12 +140,14 @@ impl Population {
         if let Some(player_tokens) = self.player_tokens.get_mut(&player) {
             if number_of_tokens > 0 {
                 if player_tokens.len() >= number_of_tokens {
-                    let tokens = player_tokens.drain().take(number_of_tokens).collect();
+                    let tokens: HashSet<Entity> = player_tokens.iter().take(number_of_tokens).copied().collect();
+                    for token in tokens.iter() {
+                        player_tokens.remove(token);
+                    }
                     if player_tokens.is_empty() { self.player_tokens.remove(&player); }
                     Some(tokens)
                 } else {
-                    let tokens = player_tokens.clone();
-                    player_tokens.clear();
+                    let tokens = player_tokens.drain().collect();
                     self.player_tokens.remove(&player);
                     Some(tokens)
                 }

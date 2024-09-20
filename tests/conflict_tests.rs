@@ -135,7 +135,7 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
                 Name::new("egypt"),
                 GameArea::new(1),
                 LandPassage::default(),
-                UnresolvedConflict::default(),
+                UnresolvedConflict,
                 population
             )
         ).id();

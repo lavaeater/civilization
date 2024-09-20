@@ -13,7 +13,7 @@ pub fn resolve_conflicts(
     mut commands: Commands) {
     for (area_entity, _name, mut population) in conflict_zones.iter_mut() {
         let temp_map = population.player_tokens.clone();
-        let mut players = temp_map.keys().map(|k| *k).collect::<Vec<Entity>>();
+        let mut players = temp_map.keys().copied().collect::<Vec<Entity>>();
         players.sort_by(|a, b| temp_map[b].len().cmp(&temp_map[a].len()));
 
         if population.max_population == 1 {
@@ -102,8 +102,10 @@ pub fn resolve_conflicts(
                         let must_remove = token_rounds;
 
                         for player in players {
-                            for token in population.remove_tokens_from_area(player, must_remove).unwrap_or_default() {
-                                return_token.send(ReturnTokenToStock::new(token));
+                            if let Some(tokens) = population.remove_tokens_from_area(player, must_remove) {
+                                for token in tokens {
+                                    return_token.send(ReturnTokenToStock::new(token));
+                                }
                             }
                         }
                     } else {
