@@ -48,7 +48,7 @@ pub fn recalculate_movement_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
     player_move_query: Query<&PlayerAreas>,
     area_connections_query: Query<&LandPassage>,
-    token_filter_query: Query<&Token, Without<TokenHasMoved>>,
+    token_filter_query: Query<Has<TokenHasMoved>>,
     mut commands: Commands,
     mut end_player_movement: EventWriter<PlayerMovementEnded>,
 ) {
@@ -63,27 +63,29 @@ pub fn recalculate_movement_moves_for_player(
         if let Ok(player_areas) = player_move_query.get(event.player) {
             for (area, tokens) in player_areas
                 .areas_and_population() {
-                let tokens_that_can_move = tokens.iter().filter(|t| token_filter_query.get(**t).is_ok()).collect::<Vec<_>>();
-                
+                let tokens_that_can_move =
+                    tokens
+                        .iter()
+                        .filter(|t| !token_filter_query.get(**t).unwrap()).collect::<Vec<_>>();
+
                 if tokens_that_can_move.is_empty() {
                     continue;
-                } else {
-                    if let Ok(connections) = area_connections_query.get(area) {
-                        for connection in connections.to_areas.iter() {
-                            command_index += 1;
-                            moves.insert(command_index, Move::Movement(MovementMove::new(
-                                area,
-                                connection.clone(),
-                                event.player,
-                                tokens.len(),
-                            )));
-                        }
+                } else if let Ok(connections) = area_connections_query.get(area) {
+                    for connection in connections.to_areas.iter() {
+                        command_index += 1;
+                        moves.insert(command_index,
+                                     Move::Movement(MovementMove::new(
+                                         area,
+                                         *connection,
+                                         event.player,
+                                         tokens_that_can_move.len(),
+                                     )));
                     }
                 }
             }
         }
         if moves.is_empty() {
-            end_player_movement.send(PlayerMovementEnded::default());
+            end_player_movement.send(PlayerMovementEnded);
         } else {
             moves.insert(command_index + 1, Move::EndMovement);
             commands.entity(event.player).insert(AvailableMoves::new(moves));

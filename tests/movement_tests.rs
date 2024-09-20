@@ -35,7 +35,7 @@ fn moved_tokens_get_token_has_moved_component_added() {
 
     let (player_one, mut player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
 
-    let mut population = Population::new(4);
+    let mut population = Population::new(6);
 
     population.player_tokens.insert(player_one, player_one_tokens.drain(0..3).collect());
 
@@ -74,6 +74,14 @@ fn moved_tokens_get_token_has_moved_component_added() {
     assert_eq!(2, tokens_in_area.len());
     for token in tokens_in_area {
         assert!(app.world().entity(token).get::<TokenHasMoved>().is_some());
+    }
+
+    let from_tokens = player_area.tokens_for_area(from_area);
+    assert!(from_tokens.is_some());
+    let from_tokens = from_tokens.unwrap();
+    assert_eq!(1, from_tokens.len());
+    for token in from_tokens {
+        assert!(app.world().entity(token).get::<TokenHasMoved>().is_none()); 
     }
 }
 

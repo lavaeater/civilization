@@ -5,6 +5,7 @@ use crate::civilization::movement::movement_events::MoveTokenFromAreaToAreaComma
 use crate::civilization::movement::movement_events::{NextPlayerStarted, PlayerMovementEnded};
 use crate::GameActivity;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With, Without};
+use crate::civilization::game_moves::game_moves_components::AvailableMoves;
 use crate::civilization::movement::movement_components::{PerformingMovement, TokenHasMoved};
 
 pub fn start_movement_activity(
@@ -51,6 +52,7 @@ pub fn player_end_movement(
     for _ in end_event.read() {
         if let Some(player) = game_info_and_stuff.current_mover {
             commands.entity(player).remove::<PerformingMovement>();
+            commands.entity(player).remove::<AvailableMoves>();
             game_info_and_stuff.current_mover = None;
             next_player.send(NextPlayerStarted {});
         }
@@ -98,7 +100,7 @@ pub fn move_tokens_from_area_to_area(
                         tokens_that_can_move
                             .iter()
                             .for_each(|token| {
-                                commands.entity(***token).insert(TokenHasMoved::default());
+                                commands.entity(***token).insert(TokenHasMoved);
                                 player_area.remove_token_from_area(ev.source_area, ***token);
                                 to_pop.add_token_to_area(ev.player, ***token);
                                 player_area.add_token_to_area(ev.target_area, ***token);

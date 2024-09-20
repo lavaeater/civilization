@@ -36,7 +36,7 @@ pub fn setup_players(
 ) {
     (1..=2).for_each(|n| {
         
-        let faction = available_factions.remaining_factions.iter().choose(&mut rand::thread_rng()).unwrap().clone();
+        let faction = *available_factions.remaining_factions.iter().choose(&mut rand::thread_rng()).unwrap();
         available_factions.remaining_factions.remove(&faction);
         // Create Player
         let player = commands
@@ -56,7 +56,7 @@ pub fn setup_players(
         //     commands.entity(player).insert(StupidAi::default());
         // }
 
-        let tokens = (0..47).map(|_| {
+        let tokens = (0..4).map(|_| {
             commands
                 .spawn(
                     (

@@ -366,9 +366,7 @@ impl PlayerAreas {
     }
 
     pub fn tokens_for_area(&self, area: Entity) -> Option<HashSet<Entity>> {
-        if let Some(tokens) = self.area_population.get(&area) {
-            Some(tokens.clone())
-        } else { None }
+        self.area_population.get(&area).cloned()
     }
 
     pub fn required_tokens_for_expansion(&self) -> usize {
