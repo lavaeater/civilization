@@ -1,12 +1,12 @@
-use bevy::prelude::{Commands, EventReader, EventWriter, Has, Query, Without};
-use bevy::utils::HashMap;
 use crate::civilization::city_construction::city_construction_components::IsBuilding;
 use crate::civilization::game_moves::game_moves_components::{AvailableMoves, BuildCityMove, Move, MovementMove, PopExpMove};
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use crate::civilization::general::general_components::{PlayerAreas, Population, PlayerStock, LandPassage, Token, CitySite};
+use crate::civilization::general::general_components::{CitySite, LandPassage, PlayerAreas, PlayerStock, Population};
 use crate::civilization::movement::movement_components::TokenHasMoved;
 use crate::civilization::movement::movement_events::PlayerMovementEnded;
 use crate::civilization::population_expansion::population_expansion_components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
+use bevy::prelude::{Commands, EventReader, EventWriter, Has, Query};
+use bevy::utils::HashMap;
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
