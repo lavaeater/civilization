@@ -25,7 +25,6 @@ pub fn prepare_next_mover(
     for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
             commands.entity(to_move).insert(PerformingMovement);
-            game_info.current_mover = Some(to_move);
         } else {
             // All hath moved, move along
             next_state.set(GameActivity::Conflict);
@@ -44,17 +43,13 @@ pub fn clear_moves(
 
 pub fn player_end_movement(
     mut end_event: EventReader<PlayerMovementEnded>,
-    mut game_info_and_stuff: ResMut<GameInfoAndStuff>,
     mut commands: Commands,
     mut next_player: EventWriter<NextPlayerStarted>,
 ) {
-    for _ in end_event.read() {
-        if let Some(player) = game_info_and_stuff.current_mover {
-            commands.entity(player).remove::<PerformingMovement>();
-            commands.entity(player).remove::<AvailableMoves>();
-            game_info_and_stuff.current_mover = None;
-            next_player.send(NextPlayerStarted {});
-        }
+    for end_movement_event in end_event.read() {
+        commands.entity(end_movement_event.player).remove::<PerformingMovement>();
+        commands.entity(end_movement_event.player).remove::<AvailableMoves>();
+        next_player.send(NextPlayerStarted::default());
     }
 }
 
