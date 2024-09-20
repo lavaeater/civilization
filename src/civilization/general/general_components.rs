@@ -256,6 +256,10 @@ impl PlayerStock {
             tokens,
         }
     }
+    
+    pub fn is_empty(&self) -> bool {
+        self.tokens.is_empty()
+    }
 
     pub fn return_token_to_stock(&mut self, token: Entity) {
         self.tokens.push(token);
