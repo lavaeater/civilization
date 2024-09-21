@@ -88,7 +88,7 @@ fn given_one_city_no_support_too_many_cities_component_added() {
     app
         .world_mut()
         .entity_mut(player)
-        .insert((player_cities, NeedsToCheckCitySupport::default()));
+        .insert((player_cities, NeedsToCheckCitySupport));
 
     app.update();
 
@@ -132,7 +132,7 @@ fn given_a_city_to_elimate_the_correct_things_happen() {
     let mut events = app.world_mut()
         .resource_mut::<Events<EliminateCity>>();
 
-    events.send(EliminateCity::new(city_token, area));
+    events.send(EliminateCity::new(player, city_token, area));
 
     // Act
     app.update();
@@ -140,7 +140,7 @@ fn given_a_city_to_elimate_the_correct_things_happen() {
     // Assert
     let events = app.world_mut().resource::<Events<EliminateCity>>();
     let reader = events.get_reader();
-    assert!(!reader.is_empty(&events));
+    assert!(!reader.is_empty(events));
     app.world_mut().entity(player).contains::<NeedsToCheckCitySupport>();
     assert!(app.world_mut().entity(player).get::<PlayerCities>().unwrap().has_no_cities());
     let events = app.world_mut().resource::<Events<MoveTokensFromStockToAreaCommand>>();
