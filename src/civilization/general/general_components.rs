@@ -219,7 +219,7 @@ impl StartArea {
 }
 
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
 pub struct Faction {
     pub faction: GameFaction,
 }
@@ -307,11 +307,7 @@ impl PlayerCities {
     }
 
     pub fn remove_city_from_area(&mut self, area: Entity) -> Option<Entity> {
-        if let Some(city) = self.areas_and_cities.remove(&area) {
-            Some(city)
-        } else {
-            None
-        }
+        self.areas_and_cities.remove(&area)
     }
 
     pub fn has_city_in(&self, area: Entity) -> bool {

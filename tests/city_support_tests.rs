@@ -100,7 +100,7 @@ fn given_one_city_no_support_too_many_cities_component_added() {
 }
 
 #[test]
-fn given_a_city_to_elimate_the_correct_things_happen() {
+fn given_a_city_to_eliminate_the_correct_things_happen() {
     let mut app = setup_bevy_app(|mut app| {
         app
             .add_event::<EliminateCity>()
@@ -145,5 +145,5 @@ fn given_a_city_to_elimate_the_correct_things_happen() {
     assert!(app.world_mut().entity(player).get::<PlayerCities>().unwrap().has_no_cities());
     let events = app.world_mut().resource::<Events<MoveTokensFromStockToAreaCommand>>();
     let reader = events.get_reader();
-    assert!(!reader.is_empty(&events));
+    assert!(!reader.is_empty(events));
 }

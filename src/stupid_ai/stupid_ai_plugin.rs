@@ -86,11 +86,15 @@ fn select_stupid_move(
     for event in event_reader.read() {
         println!("Selecting stupid AI move for player {:?}", event.player);
         if let Ok((available_moves, _player_areas)) = player_moves.get(event.player) {
-            /*
+            /*  
             So, the moves will always really be of maximum one or two types (for now). 
             One is ending the moves, like, not building a city or something like that.
             The other is simply to do something. So, for our first iteration of all this, 
             the stupid stupid AI will always do a random move.
+            
+            
+            Random moves will do for now but won't cut it in the long run - we have to make the non-
+            stupid AI make its moves in a more sophisticated manner.
              */
             let mut rng = rand::thread_rng();
             if let Some(selected_move) = available_moves.moves.values().choose(&mut rng) {
