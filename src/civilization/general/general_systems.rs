@@ -34,7 +34,7 @@ pub fn setup_players(
     mut commands: Commands,
     mut available_factions: ResMut<AvailableFactions>
 ) {
-    (1..=4).for_each(|n| {
+    (1..=2).for_each(|n| {
         
         let faction = *available_factions.remaining_factions.iter().choose(&mut rand::thread_rng()).unwrap();
         available_factions.remaining_factions.remove(&faction);
