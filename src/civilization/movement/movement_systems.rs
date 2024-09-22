@@ -63,7 +63,7 @@ pub fn move_tokens_from_area_to_area(
     mut recalculate_player_moves: EventWriter<RecalculatePlayerMoves>
 ) {
     for ev in move_events.read() {
-        println!("Lets move some tokens!");
+        debug!("Lets move some tokens!");
         if let Ok(mut from_pop) = pop_query.get_mut(ev.source_area) {
             let cloned = from_pop.player_tokens.clone();
 
@@ -74,7 +74,7 @@ pub fn move_tokens_from_area_to_area(
                 .filter(|t| tokens_that_can_move.get(**t).is_ok()).copied()
                 .collect::<Vec<_>>();
             if tokens_that_can_move.len() < ev.number_of_tokens {
-                println!("Not enough tokens to move, recalculate that son of a bitch!");
+                debug!("Not enough tokens to move, recalculate that son of a bitch!");
                 recalculate_player_moves.send(RecalculatePlayerMoves::new(ev.player));
             } else {
                 let tokens_to_move = tokens_that_can_move

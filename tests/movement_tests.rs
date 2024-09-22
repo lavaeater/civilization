@@ -4,13 +4,13 @@ use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Events, Name};
 use bevy::state::app::StatesPlugin;
 use bevy_console::PrintConsoleLine;
-use bevy_game::civilization::general::general_components::{GameArea, LandPassage, PlayerAreas, Population};
-use bevy_game::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;
-use bevy_game::{GameActivity, GameState};
-use bevy_game::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use bevy_game::civilization::general::general_enums::GameFaction;
-use bevy_game::civilization::movement::movement_components::TokenHasMoved;
-use bevy_game::civilization::movement::movement_systems::move_tokens_from_area_to_area;
+use adv_civ::civilization::general::general_components::{GameArea, LandPassage, PlayerAreas, Population};
+use adv_civ::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;
+use adv_civ::{GameActivity, GameState};
+use adv_civ::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
+use adv_civ::civilization::general::general_enums::GameFaction;
+use adv_civ::civilization::movement::movement_components::TokenHasMoved;
+use adv_civ::civilization::movement::movement_systems::move_tokens_from_area_to_area;
 use crate::common::setup_player;
 
 fn setup_app() -> App {

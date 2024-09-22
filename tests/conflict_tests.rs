@@ -5,12 +5,12 @@ use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Name};
 use bevy::state::app::StatesPlugin;
 use bevy_console::PrintConsoleLine;
-use bevy_game::civilization::conflict::conflict_components::UnresolvedConflict;
-use bevy_game::civilization::conflict::conflict_systems::{find_conflict_zones, resolve_conflicts};
-use bevy_game::civilization::general::general_components::{GameArea, LandPassage, Population};
-use bevy_game::civilization::general::general_enums::GameFaction;
-use bevy_game::civilization::general::general_events::*;
-use bevy_game::{GameActivity, GameState};
+use adv_civ::civilization::conflict::conflict_components::UnresolvedConflict;
+use adv_civ::civilization::conflict::conflict_systems::{find_conflict_zones, resolve_conflicts};
+use adv_civ::civilization::general::general_components::{GameArea, LandPassage, Population};
+use adv_civ::civilization::general::general_enums::GameFaction;
+use adv_civ::civilization::general::general_events::*;
+use adv_civ::{GameActivity, GameState};
 
 /****************************************************
 Test for the find_conflict_zones system

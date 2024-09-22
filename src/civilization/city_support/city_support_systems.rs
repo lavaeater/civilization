@@ -71,19 +71,18 @@ pub fn check_player_city_support(
     }
 }
 
-pub fn check_city_support_gate(
+pub fn start_check_city_support(
     player_cities_query: Query<(Entity, &PlayerCities)>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     if player_cities_query.is_empty() || player_cities_query.iter().all(|(_, player_cities)| player_cities.has_no_cities()) {
         next_state.set(GameActivity::PopulationExpansion);
-        return;
-    }
-
-    for (entity, player_cities) in player_cities_query.iter() {
-        if player_cities.has_cities() {
-            commands.entity(entity).insert(NeedsToCheckCitySupport {});
+    } else {
+        for (entity, player_cities) in player_cities_query.iter() {
+            if player_cities.has_cities() {
+                commands.entity(entity).insert(NeedsToCheckCitySupport {});
+            }
         }
     }
 }

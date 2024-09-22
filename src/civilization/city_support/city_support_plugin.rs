@@ -12,12 +12,11 @@ impl Plugin for CitySupportPlugin {
             .add_event::<EliminateCity>()
             .add_event::<CheckPlayerCitySupport>()
             .add_event::<CheckCitySupportStatus>()
-            .add_systems(OnEnter(GameActivity::CheckCitySupport), city_support_systems::check_city_support_gate)
+            .add_systems(OnEnter(GameActivity::CheckCitySupport), city_support_systems::start_check_city_support)
             .add_systems(Update,
                          (
                              city_support_systems::eliminate_city.run_if(in_state(GameActivity::CheckCitySupport)),
                              city_support_systems::check_player_city_support.run_if(in_state(GameActivity::CheckCitySupport)),
-                             city_support_systems::check_city_support_gate.run_if(in_state(GameActivity::CheckCitySupport)),
                              city_support_systems::check_status.run_if(in_state(GameActivity::CheckCitySupport)),
                          ),
             )

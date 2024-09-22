@@ -1,11 +1,11 @@
 mod common;
 use bevy::prelude::{Events, Update};
-use bevy_game::civilization::game_moves::game_moves_components::{AvailableMoves, Move};
-use bevy_game::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use bevy_game::civilization::game_moves::game_moves_systems::recalculate_movement_moves_for_player;
-use bevy_game::civilization::general::general_components::{LandPassage, PlayerAreas, PlayerStock, Population};
-use bevy_game::civilization::general::general_enums::GameFaction;
-use bevy_game::civilization::movement::movement_events::PlayerMovementEnded;
+use adv_civ::civilization::game_moves::game_moves_components::{AvailableMoves, Move};
+use adv_civ::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
+use adv_civ::civilization::game_moves::game_moves_systems::recalculate_movement_moves_for_player;
+use adv_civ::civilization::general::general_components::{LandPassage, PlayerAreas, PlayerStock, Population};
+use adv_civ::civilization::general::general_enums::GameFaction;
+use adv_civ::civilization::movement::movement_events::PlayerMovementEnded;
 use crate::common::{create_area, setup_bevy_app, setup_player};
 
 #[test]

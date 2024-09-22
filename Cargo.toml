@@ -1,10 +1,10 @@
 cargo-features = ["codegen-backend"]
 
 [package]
-name = "bevy_game" # ToDo
+name = "adv_civ"
 version = "0.1.0"
 publish = false
-authors = ["Niklas Eicker <git@nikl.me>"] # ToDo: you are the author ;)
+authors = ["Tommie Nygren <tommie.nygren@gmail.com>"] # ToDo: you are the author ;)
 edition = "2021"
 exclude = ["dist", "build", "assets", "credits"]
 

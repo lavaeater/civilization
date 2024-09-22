@@ -1,4 +1,4 @@
-use bevy::prelude::{EventWriter, NextState, Query, ResMut};
+use bevy::prelude::{debug, EventWriter, NextState, Query, ResMut};
 use crate::civilization::general::general_components::Population;
 use crate::civilization::general::general_events::ReturnTokenToStock;
 use crate::GameActivity;
@@ -11,14 +11,14 @@ pub fn remove_surplus_population(
     for mut area in areas.iter_mut() {
         if area.has_surplus() {
             if area.number_of_players() > 1 {
-                println!("Area {:?} has surplus population", area);
+                debug!("Area {:?} has surplus population", area);
             } else {
                 for token in area.remove_surplus() {
                     return_token.send(ReturnTokenToStock {
                         token_entity: token,
                     });
                 }
-                println!("Removed surplus population from area {:?}", area);
+                debug!("Removed surplus population from area {:?}", area);
             }
         }
     }

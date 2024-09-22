@@ -31,10 +31,10 @@ pub fn on_add_available_moves(
     mut event_writer: EventWriter<SelectStupidMove>,
 ) {
     if is_stupid_ai.contains(trigger.entity()) { 
-        println!("Stupid AI detected");
+        debug!("Stupid AI detected");
         event_writer.send(SelectStupidMove::new(trigger.entity()));
     } else {
-        println!("Not a stupid AI");
+        debug!("Not a stupid AI");
     }
 }
 
@@ -84,7 +84,7 @@ fn select_stupid_move(
     mut eliminate_city: EventWriter<EliminateCity>
 ) {
     for event in event_reader.read() {
-        println!("Selecting stupid AI move for player {:?}", event.player);
+        debug!("Selecting stupid AI move for player {:?}", event.player);
         if let Ok((available_moves, _player_areas)) = player_moves.get(event.player) {
             /*  
             So, the moves will always really be of maximum one or two types (for now). 
@@ -98,7 +98,7 @@ fn select_stupid_move(
              */
             let mut rng = rand::thread_rng();
             if let Some(selected_move) = available_moves.moves.values().choose(&mut rng) {
-                println!("Selected move: {:?}", selected_move);
+                debug!("Selected move: {:?}", selected_move);
                 match selected_move {
                     Move::PopulationExpansion(pop_exp_move) => {
                         expand_writer.send(ExpandPopulationManuallyCommand::new(event.player, pop_exp_move.area, pop_exp_move.max_tokens));
@@ -113,25 +113,25 @@ fn select_stupid_move(
                                 move_tokens_writer.send(MoveTokenFromAreaToAreaCommand::new(movement_move.source, movement_move.target, 1, event.player));
                             }
                             _ => {
-                                println!("This is a move with more than 2 tokens, so we always move two");
+                                debug!("This is a move with more than 2 tokens, so we always move two");
                                 move_tokens_writer.send(MoveTokenFromAreaToAreaCommand::new(movement_move.source, movement_move.target, 2, event.player));
                             }
                         }
                     }
                     Move::EndMovement => {
-                        println!("Ending movement for player {:?}", event.player);
+                        debug!("Ending movement for player {:?}", event.player);
                         end_movement_writer.send(PlayerMovementEnded::new(event.player));
                     }
                     Move::CityConstruction(build_city_move) => {
-                        println!("Building city for player {:?}", event.player);
+                        debug!("Building city for player {:?}", event.player);
                         build_city_writer.send(BuildCityCommand::new(event.player, build_city_move.target));
                     }
                     Move::EndCityConstruction => {
-                        println!("End City Construction {:?}", event.player);
+                        debug!("End City Construction {:?}", event.player);
                         end_player_city_construction.send(EndPlayerCityConstruction::new(event.player));
                     }
                     Move::EliminateCity(el_move) => {
-                        println!("Eliminating city for player {:?}", event.player);
+                        debug!("Eliminating city for player {:?}", event.player);
                         eliminate_city.send(EliminateCity::new(el_move.player, el_move.city, el_move.area));
                     }
                 }

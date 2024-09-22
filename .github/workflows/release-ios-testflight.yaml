@@ -19,7 +19,7 @@ on:
 # ToDo: adapt names
 env:
   # used for uploading the app to a GitHub release
-  GAME_EXECUTABLE_NAME: bevy_game
+  GAME_EXECUTABLE_NAME: adv_civ
   XCODE_PROJECT: mobile
   MOBILE_DIRECTORY: mobile
 

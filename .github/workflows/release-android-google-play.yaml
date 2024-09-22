@@ -17,7 +17,7 @@ on:
 # ToDo: adapt names
 env:
   # used for uploading the app to a GitHub release
-  GAME_EXECUTABLE_NAME: bevy_game
+  GAME_EXECUTABLE_NAME: adv_civ
   BUNDLE_PATH: "target/x/release/android/mobile.aab"
   PACKAGE_NAME: "me.nikl.bevygame"
   # release track; you can promote a build to "higher" tracks in the play console or publish to a different track directly

@@ -2,10 +2,10 @@ mod common;
 
 use bevy::prelude::{NextState, Update};
 use bevy::prelude::NextState::Pending;
-use bevy_game::civilization::city_support::city_support_events::CheckPlayerCitySupport;
-use bevy_game::civilization::city_support::city_support_systems::check_city_support_gate;
-use bevy_game::civilization::general::general_enums::GameFaction;
-use bevy_game::GameActivity;
+use adv_civ::civilization::city_support::city_support_events::CheckPlayerCitySupport;
+use adv_civ::civilization::city_support::city_support_systems::start_check_city_support;
+use adv_civ::civilization::general::general_enums::GameFaction;
+use adv_civ::GameActivity;
 use common::{setup_bevy_app, setup_player};
 use crate::common::create_area;
 
@@ -21,7 +21,7 @@ fn start_game() {
     let mut app = setup_bevy_app(|mut app| {
         app
             .add_event::<CheckPlayerCitySupport>()
-            .add_systems(Update, check_city_support_gate)
+            .add_systems(Update, start_check_city_support)
         ;
         app
     });
