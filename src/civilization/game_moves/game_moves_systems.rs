@@ -69,22 +69,23 @@ pub fn recalculate_movement_moves_for_player(
                         .iter()
                         .filter(|t| !token_filter_query.get(**t).unwrap()).collect::<Vec<_>>();
 
-                if tokens_that_can_move.is_empty() {
-                    continue;
-                } else if let Ok(connections) = area_connections_query.get(area) {
-                    for connection in connections.to_areas.iter() {
-                        command_index += 1;
-                        moves.insert(command_index,
-                                     Move::Movement(MovementMove::new(
-                                         area,
-                                         *connection,
-                                         event.player,
-                                         tokens_that_can_move.len(),
-                                     )));
+                if !tokens_that_can_move.is_empty() {
+                    if let Ok(connections) = area_connections_query.get(area) {
+                        for connection in connections.to_areas.iter() {
+                            command_index += 1;
+                            moves.insert(command_index,
+                                         Move::Movement(MovementMove::new(
+                                             area,
+                                             *connection,
+                                             event.player,
+                                             tokens_that_can_move.len(),
+                                         )));
+                        }
                     }
                 }
             }
         }
+        
         if moves.is_empty() {
             end_player_movement.send(PlayerMovementEnded::new(event.player));
         } else {
@@ -143,9 +144,9 @@ pub fn recalculate_city_support_moves_for_player(
                     moves.insert(
                         command_index,
                         Move::EliminateCity(
-                            EliminateCityMove::new(event.player, 
-                                                   *area, 
-                                                   *city, 
+                            EliminateCityMove::new(event.player,
+                                                   *area,
+                                                   *city,
                                                    pop.max_population,
                                                    has_too_many_cities.needed_tokens)));
                 }

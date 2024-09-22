@@ -45,6 +45,7 @@ pub fn resolve_conflicts(
                     }
                 }
             } else {
+                println!("This is a weird corner case. We have a conflict zone with more than 2 players");
                 //Weird fucking corner case where we have an odd number of players... aaah
             }
         } else {

@@ -10,12 +10,16 @@ pub fn remove_surplus_population(
 ) {
     for mut area in areas.iter_mut() {
         if area.has_surplus() {
-            for token in area.remove_surplus() {
-                return_token.send(ReturnTokenToStock {
-                    token_entity: token,
-                });
+            if area.number_of_players() > 1 {
+                println!("Area {:?} has surplus population", area);
+            } else {
+                for token in area.remove_surplus() {
+                    return_token.send(ReturnTokenToStock {
+                        token_entity: token,
+                    });
+                }
+                println!("Removed surplus population from area {:?}", area);
             }
-            println!("Removed surplus population from area {:?}", area);
         }
     }
     next_state.set(GameActivity::CheckCitySupport);

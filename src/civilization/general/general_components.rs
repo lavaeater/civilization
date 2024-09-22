@@ -64,6 +64,10 @@ impl Population {
     pub fn players(&self) -> HashSet<Entity> {
         self.player_tokens.keys().cloned().collect()
     }
+    
+    pub fn number_of_players(&self) -> usize {
+        self.player_tokens.keys().len()
+    }
 
     pub fn all_lengths_equal(&self) -> bool {
         let first_length = self.player_tokens.values().next().map(|v| v.len());
@@ -110,11 +114,7 @@ impl Population {
     pub fn has_population(&self) -> bool {
         self.total_population() > 0
     }
-
-    pub fn number_of_players(&self) -> usize {
-        self.player_tokens.keys().len()
-    }
-
+    
     pub fn max_expansion_for_player(&self, player: Entity) -> usize {
         if let Some(player_tokens) = self.player_tokens.get(&player) {
             match player_tokens.len() {

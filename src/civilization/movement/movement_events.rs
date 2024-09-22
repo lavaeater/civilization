@@ -13,7 +13,7 @@ impl PlayerMovementEnded {
     }
 }
 
-#[derive(Event, Debug, Reflect, Default)]
+#[derive(Event, Debug, Reflect)]
 pub struct NextPlayerStarted;
 
 #[derive(Event, Debug, Reflect)]

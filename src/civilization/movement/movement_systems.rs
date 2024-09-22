@@ -14,7 +14,7 @@ pub fn start_movement_activity(
 ) {
     game_info.left_to_move = game_info.census_order.clone();
     game_info.left_to_move.reverse();
-    next_player.send(NextPlayerStarted::default());
+    next_player.send(NextPlayerStarted);
 }
 
 pub fn prepare_next_mover(
@@ -50,7 +50,7 @@ pub fn player_end_movement(
     for end_movement_event in end_event.read() {
         commands.entity(end_movement_event.player).remove::<PerformingMovement>();
         commands.entity(end_movement_event.player).remove::<AvailableMoves>();
-        next_player.send(NextPlayerStarted::default());
+        next_player.send(NextPlayerStarted);
     }
 }
 
