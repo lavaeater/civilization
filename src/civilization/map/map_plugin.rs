@@ -5,6 +5,8 @@ use bevy_common_assets::ron::RonAssetPlugin;
 use crate::civilization::general::general_components::{CityFlood, CitySite, FloodPlain, GameArea, LandPassage, NeedsConnections, Population, StartArea, Volcano};
 use crate::civilization::general::general_enums::GameFaction;
 use crate::GameState;
+use rand::seq::IteratorRandom;
+
 
 pub struct MapPlugin;
 
@@ -39,6 +41,20 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(map);
 }
 
+fn remove_random_place(places: &mut HashSet<String>) -> Option<String> {
+    // Randomly pick an item from the HashSet
+    let selected_place = places.iter().choose(&mut rand::thread_rng()).cloned();
+
+    if let Some(place) = selected_place {
+        // Remove it from the HashSet
+        places.remove(&place);
+        // Return the removed item
+        Some(place)
+    } else {
+        None
+    }
+}
+
 #[derive(serde::Deserialize, bevy::asset::Asset, bevy::reflect::TypePath)]
 pub struct Area {
     pub id: i32,
@@ -58,8 +74,37 @@ fn load_map(mut commands: Commands,
             mut available_factions: ResMut<AvailableFactions>,
 ) {
     if let Some(level) = maps.remove(map.0.id()) {
+        let mut ancient_places: HashSet<String> = vec!["Assyria", "Numidia", "Carthage", "Troy", "Sparta", "Babylon", "Thebes",
+            "Alexandria", "Athens", "Byzantium", "Pompeii", "Ephesus", "Ctesiphon",
+            "Jerusalem", "Nineveh", "Sidon", "Tyre", "Memphis", "Heliopolis",
+            "Pergamum", "Delphi", "Corinth", "Argos", "Syracuse", "Palmyra", "Damascus",
+            "Antioch", "Petra", "Gadara", "Sidonia", "Susa", "Knossos", "Rhodes",
+            "Pella", "Gortyn", "Leptis Magna", "Cyrene", "Tingis", "Volubilis", "Utica",
+            "Sabratha", "Tanais", "Amarna", "Hattusa", "Ugarit", "Mari", "Arpad",
+            "Qatna", "Alalakh", "Emar", "Aleppo", "Homs", "Edessa", "Tarsus",
+            "Miletus", "Pergamon", "Amphipolis", "Mycenae", "Abydos", "Phaselis",
+            "Halicarnassus", "Hierapolis", "Sardis", "Perge", "Gades", "Saguntum",
+            "Tarraco", "Corduba", "Emerita Augusta", "Hispalis", "Lusitania", "Aquae Sulis",
+            "Lutetia", "Massilia", "Nemausus", "Arelate", "Arretium", "Capua", "Neapolis",
+            "Ravenna", "Tarentum", "Brundisium", "Venusia", "Cremona", "Mediolanum",
+            "Patavium", "Aquileia", "Polis", "Teotoburgum", "Vindobona", "Carnuntum",
+            "Sirmium", "Trebizond", "Chalcedon", "Nicopolis", "Heraclea", "Philippi",
+            "Beroea", "Dura-Europos", "Seleucia", "Apamea", "Raphia", "Avaris",
+            "Tanis", "Bubastis", "Herakleopolis", "Olynthus", "Thapsus", "Bulla Regia",
+            "Hippo Regius", "Lepcis Magna", "Cirta", "Timgad", "Zama", "Thugga",
+            "Kart Hadasht", "Rhegium", "Croton", "Selinus", "Acragas", "Himera",
+            "Naxos", "Messina", "Segesta", "Catana", "Syracuse", "Thasos", "Amphipolis",
+            "Potidaea", "Apollonia", "Abdera", "Athribis", "Berenice", "Oxyrhynchus",
+            "Hermopolis", "Canopus", "Thonis", "Heracleion", "Marsa Matruh", "Baalbek",
+            "Ebla", "Arwad", "Ashkelon", "Ascalon", "Gaza", "Megiddo", "Joppa",
+            "Beersheba", "Hebron", "Aelia Capitolina", "Neapolis", "Hierapolis"
+        ].into_iter().map(|s| s.to_string()).collect();
+        
+        
         for area in level.areas {
-            let entity = commands.spawn((Name::new(format!("Area {}", area.id)),
+            let n = remove_random_place(&mut ancient_places).unwrap_or("STANDARD_NAME".to_string());
+            
+            let entity = commands.spawn((Name::new(format!("{}:{}", area.id, n)),
                                          GameArea::new(area.id),
                                          LandPassage::default(),
                                          NeedsConnections {

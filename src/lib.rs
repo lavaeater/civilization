@@ -19,7 +19,7 @@ use bevy::app::App;
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 
-#[derive(States, Clone, PartialEq, Eq, Hash, Debug, Default)]
+#[derive(States, Clone, PartialEq, Eq, Hash, Debug, Default, Reflect)]
 pub enum GameState {
     // During the loading State the LoadingPlugin will load our assets
     #[default]
@@ -30,7 +30,7 @@ pub enum GameState {
     Menu,
 }
 
-#[derive(SubStates, Clone, PartialEq, Eq, Hash, Debug, Default)]
+#[derive(SubStates, Clone, PartialEq, Eq, Hash, Debug, Default, Reflect)]
 #[source(GameState = GameState::Playing)]
 pub enum GameActivity {
     #[default]

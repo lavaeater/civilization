@@ -37,13 +37,16 @@ pub fn make_a_move(
                                 move_tokens_writer.send(MoveTokenFromAreaToAreaCommand::new(movement_move.source, movement_move.target, number.unwrap_or(movement_move.max_tokens), player_entity));
                             }
                             Move::EndMovement => {
-                                end_movement_writer.send(PlayerMovementEnded::default());
+                                end_movement_writer.send(PlayerMovementEnded::new(player_entity));
                             }
                             Move::CityConstruction(build_city_move) => {
                                 build_city_writer.send(BuildCityCommand::new(player_entity, build_city_move.target));
                             }
                             Move::EndCityConstruction => {
                                 end_player_city_construction.send(EndPlayerCityConstruction::new(player_entity));
+                            }
+                            Move::EliminateCity(_el_move) => {
+                                
                             }
                         }
                     }

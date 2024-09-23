@@ -3,6 +3,7 @@ use bevy::core::Name;
 use bevy::prelude::Query;
 use bevy_console::ConsoleCommand;
 use clap::Parser;
+use itertools::Itertools;
 
 #[derive(Parser, ConsoleCommand)]
 #[command(name = "moves")]
@@ -17,7 +18,7 @@ pub fn list_moves(
         for (name, avail_moves) in available_moves.iter() {
             command.reply(format!("Player {} can perform the following moves", name));
 
-            avail_moves.moves.iter().for_each(|(index, game_move)| {
+            avail_moves.moves.iter().sorted_by(|(a,_),(b,_)|Ord::cmp(a,b)).for_each(|(index, game_move)| {
                 match game_move {
                     Move::PopulationExpansion(pop_exp_move) => {
                         let area_name = name_query.get(pop_exp_move.area).unwrap();
@@ -37,6 +38,10 @@ pub fn list_moves(
                     }
                     Move::EndCityConstruction => {
                         command.reply(format!("{} - End Current Player City Construction", index));
+                    }
+                    Move::EliminateCity(elimintation_move) => {
+                        let target_name = name_query.get(elimintation_move.area).unwrap();
+                        command.reply(format!("{} - Eliminate city at {}, gain {} tokens of the needed {}", index, target_name, elimintation_move.tokens_gained, elimintation_move.tokens_needed));
                     }
                 }
             });

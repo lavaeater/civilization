@@ -3,13 +3,13 @@ mod common;
 use crate::common::create_area;
 use bevy::prelude::NextState::Pending;
 use bevy::prelude::{Events, NextState, Update};
-use bevy_game::civilization::city_support::city_support_components::{HasTooManyCities, NeedsToCheckCitySupport};
-use bevy_game::civilization::city_support::city_support_events::{CheckPlayerCitySupport, EliminateCity};
-use bevy_game::civilization::city_support::city_support_systems::{check_city_support_gate, check_player_city_support, eliminate_city};
-use bevy_game::civilization::general::general_components::{BuiltCity, PlayerCities, Population};
-use bevy_game::civilization::general::general_enums::GameFaction;
-use bevy_game::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
-use bevy_game::GameActivity;
+use adv_civ::civilization::city_support::city_support_components::{HasTooManyCities, NeedsToCheckCitySupport};
+use adv_civ::civilization::city_support::city_support_events::{CheckPlayerCitySupport, EliminateCity};
+use adv_civ::civilization::city_support::city_support_systems::{start_check_city_support, check_player_city_support, eliminate_city};
+use adv_civ::civilization::general::general_components::{BuiltCity, PlayerCities, Population};
+use adv_civ::civilization::general::general_enums::GameFaction;
+use adv_civ::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
+use adv_civ::GameActivity;
 use common::{setup_bevy_app, setup_player};
 
 #[test]
@@ -17,7 +17,7 @@ fn given_no_cities_next_state_is_set() {
     let mut app = setup_bevy_app(|mut app| {
         app
             .add_event::<CheckPlayerCitySupport>()
-            .add_systems(Update, check_city_support_gate)
+            .add_systems(Update, start_check_city_support)
         ;
         app
     });
@@ -35,7 +35,7 @@ fn given_no_cities_next_state_is_set() {
 fn given_one_city_check_component_added_to_player() {
     let mut app = setup_bevy_app(|mut app| {
         app
-            .add_systems(Update, check_city_support_gate)
+            .add_systems(Update, start_check_city_support)
         ;
         app
     });
@@ -88,7 +88,7 @@ fn given_one_city_no_support_too_many_cities_component_added() {
     app
         .world_mut()
         .entity_mut(player)
-        .insert((player_cities, NeedsToCheckCitySupport::default()));
+        .insert((player_cities, NeedsToCheckCitySupport));
 
     app.update();
 
@@ -100,7 +100,7 @@ fn given_one_city_no_support_too_many_cities_component_added() {
 }
 
 #[test]
-fn given_a_city_to_elimate_the_correct_things_happen() {
+fn given_a_city_to_eliminate_the_correct_things_happen() {
     let mut app = setup_bevy_app(|mut app| {
         app
             .add_event::<EliminateCity>()
@@ -132,7 +132,7 @@ fn given_a_city_to_elimate_the_correct_things_happen() {
     let mut events = app.world_mut()
         .resource_mut::<Events<EliminateCity>>();
 
-    events.send(EliminateCity::new(city_token, area));
+    events.send(EliminateCity::new(player, city_token, area));
 
     // Act
     app.update();
@@ -140,10 +140,10 @@ fn given_a_city_to_elimate_the_correct_things_happen() {
     // Assert
     let events = app.world_mut().resource::<Events<EliminateCity>>();
     let reader = events.get_reader();
-    assert!(!reader.is_empty(&events));
+    assert!(!reader.is_empty(events));
     app.world_mut().entity(player).contains::<NeedsToCheckCitySupport>();
     assert!(app.world_mut().entity(player).get::<PlayerCities>().unwrap().has_no_cities());
     let events = app.world_mut().resource::<Events<MoveTokensFromStockToAreaCommand>>();
     let reader = events.get_reader();
-    assert!(!reader.is_empty(&events));
+    assert!(!reader.is_empty(events));
 }

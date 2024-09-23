@@ -4,7 +4,7 @@ use crate::civilization::general::general_enums::GameFaction;
 
 #[derive(Component, Debug, Reflect)]
 pub struct GameArea {
-    pub id: i32
+    pub id: i32,
 }
 
 impl GameArea {
@@ -38,7 +38,7 @@ pub struct NeedsConnections {
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct Population {
-    pub player_tokens: HashMap<Entity, Vec<Entity>>,
+    pub player_tokens: HashMap<Entity, HashSet<Entity>>,
     pub max_population: usize,
 }
 
@@ -49,7 +49,7 @@ impl Population {
             ..default()
         }
     }
-    
+
     pub fn remove_tokens(&mut self, player: Entity, tokens: Vec<Entity>) {
         if let Some(player_tokens) = self.player_tokens.get_mut(&player) {
             for token in tokens {
@@ -64,16 +64,27 @@ impl Population {
     pub fn players(&self) -> HashSet<Entity> {
         self.player_tokens.keys().cloned().collect()
     }
+    
+    pub fn number_of_players(&self) -> usize {
+        self.player_tokens.keys().len()
+    }
 
     pub fn all_lengths_equal(&self) -> bool {
         let first_length = self.player_tokens.values().next().map(|v| v.len());
         self.player_tokens.values().all(|v| Some(v.len()) == first_length)
     }
 
-    pub fn remove_surplus(&mut self) -> Vec<Entity> {
+    pub fn remove_surplus(&mut self) -> HashSet<Entity> {
         assert_eq!(self.number_of_players(), 1); // this should never, ever, not happen
         let surplus_count = self.surplus_count();
-        self.player_tokens.values_mut().next().unwrap().drain(0..surplus_count).collect()
+        
+        let player_tokens = self.player_tokens.values_mut().next().unwrap();
+        let tokens: HashSet<Entity> = player_tokens.iter().take(surplus_count).copied().collect();
+        
+        for token in tokens.iter() {
+            player_tokens.remove(token);
+        }
+        tokens
     }
 
     pub fn has_surplus(&self) -> bool {
@@ -103,11 +114,7 @@ impl Population {
     pub fn has_population(&self) -> bool {
         self.total_population() > 0
     }
-
-    pub fn number_of_players(&self) -> usize {
-        self.player_tokens.keys().len()
-    }
-
+    
     pub fn max_expansion_for_player(&self, player: Entity) -> usize {
         if let Some(player_tokens) = self.player_tokens.get(&player) {
             match player_tokens.len() {
@@ -128,7 +135,7 @@ impl Population {
         self.player_tokens.contains_key(&player)
     }
 
-    pub fn remove_all_but_n_tokens(&mut self, player: Entity, n: usize) -> Option<Vec<Entity>> {
+    pub fn remove_all_but_n_tokens(&mut self, player: Entity, n: usize) -> Option<HashSet<Entity>> {
         let mut tokens_to_remove: usize = 0;
         if let Some(player_tokens) = self.player_tokens.get(&player) {
             tokens_to_remove = if player_tokens.len() > n { player_tokens.len() - n } else { 0 };
@@ -136,15 +143,18 @@ impl Population {
         self.remove_tokens_from_area(player, tokens_to_remove)
     }
 
-    pub fn remove_tokens_from_area(&mut self, player: Entity, number_of_tokens: usize) -> Option<Vec<Entity>> {
+    pub fn remove_tokens_from_area(&mut self, player: Entity, number_of_tokens: usize) -> Option<HashSet<Entity>> {
         if let Some(player_tokens) = self.player_tokens.get_mut(&player) {
             if number_of_tokens > 0 {
                 if player_tokens.len() >= number_of_tokens {
-                    let tokens = player_tokens.drain(0..number_of_tokens).collect();
+                    let tokens: HashSet<Entity> = player_tokens.iter().take(number_of_tokens).copied().collect();
+                    for token in tokens.iter() {
+                        player_tokens.remove(token);
+                    }
                     if player_tokens.is_empty() { self.player_tokens.remove(&player); }
                     Some(tokens)
                 } else {
-                    let tokens = player_tokens.drain(0..player_tokens.len()).collect();
+                    let tokens = player_tokens.drain().collect();
                     self.player_tokens.remove(&player);
                     Some(tokens)
                 }
@@ -156,9 +166,14 @@ impl Population {
 
     pub fn add_token_to_area(&mut self, player: Entity, token: Entity) {
         if let Some(tokens) = self.player_tokens.get_mut(&player) {
-            tokens.push(token);
+            tokens.insert(token);
         } else {
-            self.player_tokens.insert(player, vec![token]);
+            self.player_tokens.insert(player, HashSet::from([token]));
+        }
+    }
+    pub fn remove_token_from_area(&mut self, player: Entity, token: Entity) {
+        if let Some(tokens) = self.player_tokens.get_mut(&player) {
+            tokens.remove(&token);
         }
     }
 }
@@ -204,7 +219,7 @@ impl StartArea {
 }
 
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
 pub struct Faction {
     pub faction: GameFaction,
 }
@@ -242,6 +257,10 @@ impl PlayerStock {
         }
     }
     
+    pub fn is_empty(&self) -> bool {
+        self.tokens.is_empty()
+    }
+
     pub fn return_token_to_stock(&mut self, token: Entity) {
         self.tokens.push(token);
     }
@@ -288,11 +307,7 @@ impl PlayerCities {
     }
 
     pub fn remove_city_from_area(&mut self, area: Entity) -> Option<Entity> {
-        if let Some(city) = self.areas_and_cities.remove(&area) {
-            Some(city)
-        } else {
-            None
-        }
+        self.areas_and_cities.remove(&area)
     }
 
     pub fn has_city_in(&self, area: Entity) -> bool {
@@ -363,6 +378,10 @@ impl PlayerAreas {
         } else {
             0
         }
+    }
+
+    pub fn tokens_for_area(&self, area: Entity) -> Option<HashSet<Entity>> {
+        self.area_population.get(&area).cloned()
     }
 
     pub fn required_tokens_for_expansion(&self) -> usize {

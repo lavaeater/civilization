@@ -6,9 +6,11 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy::winit::WinitWindows;
 use bevy::DefaultPlugins;
-use bevy_game::GamePlugin;
+use adv_civ::GamePlugin;
 use std::io::Cursor;
+use bevy::log::LogPlugin;
 use winit::window::Icon;
+
 
 fn main() {
     App::new()
@@ -31,8 +33,13 @@ fn main() {
                 .set(AssetPlugin {
                     meta_check: AssetMetaCheck::Never,
                     ..default()
-                }),
-        )
+                }).set(
+                LogPlugin {
+                filter: "info,wgpu_core=warn,wgpu_hal=warn,adv_civ=debug".into(),
+                level: bevy::log::Level::DEBUG,
+                    custom_layer: |_| None,
+                },
+        ))
         .add_plugins(GamePlugin)
         .add_systems(Startup, set_window_icon)
         .run();

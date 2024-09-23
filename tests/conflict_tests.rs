@@ -1,16 +1,16 @@
 mod common;
 
+use crate::common::setup_player;
 use bevy::app::Update;
-use bevy::prelude::{App, AppExtStates, Entity, Name};
+use bevy::prelude::{App, AppExtStates, Name};
 use bevy::state::app::StatesPlugin;
 use bevy_console::PrintConsoleLine;
-use bevy_game::civilization::conflict::conflict_components::UnresolvedConflict;
-use bevy_game::civilization::general::general_components::{GameArea, LandPassage, Population};
-use bevy_game::civilization::general::general_events::*;
-use bevy_game::{GameActivity, GameState};
-use bevy_game::civilization::conflict::conflict_systems::{find_conflict_zones, resolve_conflicts};
-use bevy_game::civilization::general::general_enums::GameFaction;
-use crate::common::setup_player;
+use adv_civ::civilization::conflict::conflict_components::UnresolvedConflict;
+use adv_civ::civilization::conflict::conflict_systems::{find_conflict_zones, resolve_conflicts};
+use adv_civ::civilization::general::general_components::{GameArea, LandPassage, Population};
+use adv_civ::civilization::general::general_enums::GameFaction;
+use adv_civ::civilization::general::general_events::*;
+use adv_civ::{GameActivity, GameState};
 
 /****************************************************
 Test for the find_conflict_zones system
@@ -33,13 +33,9 @@ fn given_two_players_in_an_area_with_too_much_population_area_is_marked_as_confl
         .add_sub_state::<GameActivity>()
         .add_systems(Update, find_conflict_zones);
 
-    let player_one: Entity;
-    let mut player_one_tokens: Vec<Entity>;
-    (player_one, player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
+    let (player_one, mut player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
 
-    let player_two: Entity;
-    let mut player_two_tokens: Vec<Entity>;
-    (player_two, player_two_tokens, _) = setup_player(&mut  app, "player two", GameFaction::Crete);
+    let (player_two, mut player_two_tokens, _) = setup_player(&mut  app, "player two", GameFaction::Crete);
 
     let mut population = Population::new(4);
 
@@ -124,13 +120,9 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
         ConflictTestStruct::new(5,3,4,3,1),
     ];
 
-    let player_one: Entity;
-    let mut player_one_tokens: Vec<Entity>;
-    (player_one, player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
+    let (player_one, mut player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
 
-    let player_two: Entity;
-    let mut player_two_tokens: Vec<Entity>;
-    (player_two, player_two_tokens, _) = setup_player(&mut  app, "player two", GameFaction::Crete);
+    let (player_two, mut player_two_tokens, _) = setup_player(&mut  app, "player two", GameFaction::Crete);
 
     for test_case in test_cases {
         let mut population = Population::new(test_case.area_max_population);
@@ -143,7 +135,7 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
                 Name::new("egypt"),
                 GameArea::new(1),
                 LandPassage::default(),
-                UnresolvedConflict::default(),
+                UnresolvedConflict,
                 population
             )
         ).id();

@@ -10,7 +10,7 @@ use crate::civilization::map::map_plugin::AvailableFactions;
 use crate::GameActivity;
 use crate::player::Player;
 use rand::seq::IteratorRandom;
-
+use crate::stupid_ai::stupid_ai_plugin::StupidAi;
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
@@ -36,19 +36,20 @@ pub fn setup_players(
 ) {
     (1..=2).for_each(|n| {
         
-        let faction = available_factions.remaining_factions.iter().choose(&mut rand::thread_rng()).unwrap().clone();
+        let faction = *available_factions.remaining_factions.iter().choose(&mut rand::thread_rng()).unwrap();
         available_factions.remaining_factions.remove(&faction);
         // Create Player
         let player = commands
             .spawn(
                 (
-                    Player {},
-                    Name::new(format!("p{n}")),
+                    Player,
+                    Name::new(format!("p_{n}")),
                     Census { population: 0 },
                     Treasury::default(),
                     Faction::new(faction),
                     PlayerAreas::default(),
-                    PlayerCities::default()
+                    PlayerCities::default(),
+                    StupidAi
                 )
             ).id();
 

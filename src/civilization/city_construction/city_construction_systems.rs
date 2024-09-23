@@ -5,6 +5,7 @@ use crate::civilization::general::general_events::ReturnTokenToStock;
 use crate::player::Player;
 use crate::GameActivity;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
+use crate::civilization::game_moves::game_moves_components::AvailableMoves;
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 
 pub fn city_building_gate(
@@ -70,5 +71,7 @@ pub fn end_player_city_construction(
     for event in end_activity.read() {
         commands.entity(event.player)
             .remove::<IsBuilding>();
+        commands.entity(event.player)
+            .remove::<AvailableMoves>();
     }
 }

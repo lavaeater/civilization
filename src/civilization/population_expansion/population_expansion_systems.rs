@@ -13,21 +13,19 @@ pub fn check_area_population_expansion_eligibility(
 ) {
     for event in expansion_check_event.read() {
         if let Ok((stock, player_areas, needs_expansion)) = stock_query.get(event.player) {
-            if needs_expansion.areas_that_need_expansion.is_empty() {
+            if needs_expansion.areas_that_need_expansion.is_empty() || stock.is_empty() {
                 commands.entity(event.player).remove::<NeedsExpansion>();
                 commands.entity(event.player).remove::<ExpandManually>();
                 commands.entity(event.player).remove::<ExpandAutomatically>();
-            } else {
-                if player_areas.required_tokens_for_expansion() > 0 {
-                    if player_areas.required_tokens_for_expansion() <= stock.tokens_in_stock() {
-                        commands
-                            .entity(event.player)
-                            .insert(ExpandAutomatically::default());
-                    } else {
-                        commands
-                            .entity(event.player)
-                            .insert(ExpandManually::default());
-                    }
+            } else if player_areas.required_tokens_for_expansion() > 0 {
+                if player_areas.required_tokens_for_expansion() <= stock.tokens_in_stock() {
+                    commands
+                        .entity(event.player)
+                        .insert(ExpandAutomatically::default());
+                } else {
+                    commands
+                        .entity(event.player)
+                        .insert(ExpandManually::default());
                 }
             }
         }
