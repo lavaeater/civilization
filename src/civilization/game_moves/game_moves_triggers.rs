@@ -26,6 +26,7 @@ pub fn on_add_has_just_moved(
     mut event_writer: EventWriter<RecalculatePlayerMoves>,
     mut commands: Commands,
 ) {
+    debug!("on_add_has_just_moved");
     commands.entity(trigger.entity()).remove::<HasJustMoved>();
     event_writer.send(RecalculatePlayerMoves::new(trigger.entity()));
 }

@@ -5,6 +5,7 @@ use crate::civilization::population_expansion::population_expansion_components::
 use crate::civilization::population_expansion::population_expansion_events::{CheckGate, CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand};
 use crate::GameActivity;
 use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
+use crate::civilization::census::census_resources::GameInfoAndStuff;
 
 pub fn check_area_population_expansion_eligibility(
     mut expansion_check_event: EventReader<CheckPlayerExpansionEligibility>,
@@ -42,9 +43,12 @@ pub fn check_area_population_expansion_eligibility(
 pub fn enter_population_expansion(
     player_query: Query<(Entity, &PlayerAreas)>,
     area: Query<(Entity, &Population)>,
+    mut game_info: ResMut<GameInfoAndStuff>,
     mut commands: Commands,
     mut checker: EventWriter<CheckPlayerExpansionEligibility>,
 ) {
+    game_info.round += 1;
+    debug!("Entering population expansion round {}", game_info.round);
     for (area_entity, pop) in area.iter() {
         commands.entity(area_entity).insert(AreaIsExpanding::new(pop.players()));
     }
