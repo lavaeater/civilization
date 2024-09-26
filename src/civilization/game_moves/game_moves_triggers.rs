@@ -1,4 +1,4 @@
-use bevy::prelude::{Commands, EventWriter, OnAdd, Trigger};
+use bevy::prelude::{debug, Commands, EventWriter, OnAdd, Trigger};
 use crate::civilization::city_construction::city_construction_components::IsBuilding;
 use crate::civilization::city_support::city_support_components::HasTooManyCities;
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
@@ -9,6 +9,7 @@ pub fn on_add_manual_expansion(
     trigger: Trigger<OnAdd, ExpandManually>,
     mut event_writer: EventWriter<RecalculatePlayerMoves>,
 ) {
+    debug!("on_add_manual_expansion");
     event_writer.send(RecalculatePlayerMoves::new(trigger.entity()));
 }
 

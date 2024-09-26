@@ -1,10 +1,10 @@
 use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::HashSet;
 
-#[derive(Component, Debug, Default)]
+#[derive(Component, Debug, Reflect)]
 pub struct ExpandManually;
 
-#[derive(Component, Debug, Reflect, Default)]
+#[derive(Component, Debug, Reflect)]
 pub struct ExpandAutomatically;
 
 #[derive(Component, Debug)]

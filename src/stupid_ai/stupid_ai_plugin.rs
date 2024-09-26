@@ -31,7 +31,7 @@ pub fn on_add_available_moves(
     mut event_writer: EventWriter<SelectStupidMove>,
 ) {
     if is_stupid_ai.contains(trigger.entity()) { 
-        debug!("Stupid AI detected");
+        // debug!("Stupid AI detected");
         event_writer.send(SelectStupidMove::new(trigger.entity()));
     } else {
         debug!("Not a stupid AI");
@@ -84,7 +84,7 @@ fn select_stupid_move(
     mut eliminate_city: EventWriter<EliminateCity>
 ) {
     for event in event_reader.read() {
-        debug!("Selecting stupid AI move for player {:?}", event.player);
+        // debug!("Selecting stupid AI move for player {:?}", event.player);
         if let Ok((available_moves, _player_areas)) = player_moves.get(event.player) {
             /*  
             So, the moves will always really be of maximum one or two types (for now). 

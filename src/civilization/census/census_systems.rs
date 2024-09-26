@@ -1,7 +1,7 @@
 use crate::civilization::census::census_components::{Census, HasPopulation};
 use crate::civilization::census::census_resources::GameInfoAndStuff;
 use crate::civilization::general::general_components::{Population, PlayerStock, Treasury};
-use bevy::prelude::{Commands, Entity, NextState, Query, ResMut};
+use bevy::prelude::{debug, Commands, Entity, NextState, Query, ResMut};
 use bevy::utils::HashMap;
 use crate::GameActivity;
 /***
@@ -26,6 +26,7 @@ pub fn perform_census(
     mut census_order: ResMut<GameInfoAndStuff>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
+    debug!("Performing Census");
     census_order.census_order.clear();
     let mut hash_to_sort = HashMap::new();
     for (player, stock, treasury, mut census) in stock_query.iter_mut() {

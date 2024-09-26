@@ -27,3 +27,6 @@ impl CheckPlayerExpansionEligibility {
         CheckPlayerExpansionEligibility { player }
     }
 }
+
+#[derive(Event, Debug, Default)]
+pub struct CheckGate;
