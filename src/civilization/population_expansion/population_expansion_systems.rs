@@ -88,6 +88,8 @@ pub fn population_expansion_gate(
     }
 }
 
+// We hang here, bro!
+
 pub fn expand_population_manually(
     mut area_query: Query<&mut AreaIsExpanding>,
     mut player_query: Query<&mut NeedsExpansion, With<ExpandManually>>,

@@ -96,6 +96,8 @@ fn select_stupid_move(
             Random moves will do for now but won't cut it in the long run - we have to make the non-
             stupid AI make its moves in a more sophisticated manner.
              */
+            debug!("Available moves: {:?}", available_moves);
+            
             let mut rng = rand::thread_rng();
             if let Some(selected_move) = available_moves.moves.values().choose(&mut rng) {
                 debug!("Selected move: {:?}", selected_move);
