@@ -25,9 +25,13 @@ pub fn prepare_next_mover(
 ) {
     for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
+            debug!("Player {} is moving", to_move);
+            debug!("Before adding components");
+            commands.entity(to_move).log_components();
             commands.entity(to_move).insert(PerformingMovement);
+            commands.entity(to_move).log_components();
         } else {
-            // All hath moved, move along
+            debug!("All hath moved");
             next_state.set(GameActivity::Conflict);
         }
     }
@@ -48,8 +52,11 @@ pub fn player_end_movement(
     mut next_player: EventWriter<NextPlayerStarted>,
 ) {
     for end_movement_event in end_event.read() {
+        commands.entity(end_movement_event.player).log_components();
+        debug!("Player {} has ended movement", end_movement_event.player);
         commands.entity(end_movement_event.player).remove::<PerformingMovement>();
         commands.entity(end_movement_event.player).remove::<AvailableMoves>();
+        commands.entity(end_movement_event.player).log_components();
         next_player.send(NextPlayerStarted);
     }
 }
@@ -96,8 +103,7 @@ pub fn move_tokens_from_area_to_area(
                                 player_area.remove_token_from_area(ev.source_area, *token);
                                 to_pop.add_token_to_area(ev.player, *token);
                                 player_area.add_token_to_area(ev.target_area, *token);
-
-                                //Lets send a lot of these events...
+                                
                             });
                     }
                 }

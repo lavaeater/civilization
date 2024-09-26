@@ -30,6 +30,7 @@ pub fn on_add_available_moves(
     is_stupid_ai: Query<&StupidAi>,
     mut event_writer: EventWriter<SelectStupidMove>,
 ) {
+    debug!("on_add_available_moves");
     if is_stupid_ai.contains(trigger.entity()) { 
         // debug!("Stupid AI detected");
         event_writer.send(SelectStupidMove::new(trigger.entity()));
