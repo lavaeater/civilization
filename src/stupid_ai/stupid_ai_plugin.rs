@@ -1,5 +1,5 @@
 use bevy::app::{Plugin, Update};
-use bevy::prelude::{in_state, App, Commands, Component, Entity, Event, EventReader, EventWriter, Has, IntoSystemConfigs, OnAdd, Query, Reflect, Trigger};
+use bevy::prelude::{debug, in_state, App, Commands, Component, Entity, Event, EventReader, EventWriter, Has, IntoSystemConfigs, OnAdd, Query, Reflect, Trigger};
 use crate::GameState;
 use crate::civilization::game_moves::game_moves_components::{AvailableMoves, Move};
 use crate::civilization::general::general_components::{BuiltCity, PlayerAreas, Population};

@@ -1,4 +1,4 @@
-use bevy::prelude::{Commands, Entity, EventWriter, NextState, Query, ResMut, With};
+use bevy::prelude::{debug, Commands, Entity, EventWriter, NextState, Query, ResMut, With};
 use bevy::core::Name;
 use bevy_console::PrintConsoleLine;
 use clap::builder::StyledStr;
