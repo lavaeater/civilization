@@ -58,7 +58,7 @@ pub fn recalculate_movement_moves_for_player(
     the PlayerAreas component. We can just iterate over them and when we
      */
     for event in recalc_player_reader.read() {
-        debug!("Recalculating movement moves for player {:?}", event.player);
+        // debug!("Recalculating movement moves for player {:?}", event.player);
         commands.entity(event.player).remove::<AvailableMoves>();
         let mut moves = HashMap::default();
         let mut command_index = 0;

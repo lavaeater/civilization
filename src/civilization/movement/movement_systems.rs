@@ -26,13 +26,13 @@ pub fn prepare_next_mover(
 ) {
     for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
-            debug!("Player {} is moving", to_move);
-            debug!("Before adding components");
-            commands.entity(to_move).log_components();
+            // debug!("Player {} is moving", to_move);
+            // debug!("Before adding components");
+            // commands.entity(to_move).log_components();
             commands.entity(to_move).insert(PerformingMovement);
-            commands.entity(to_move).log_components();
+            // commands.entity(to_move).log_components();
         } else {
-            debug!("All hath moved");
+            // debug!("All hath moved");
             next_state.set(GameActivity::Conflict);
         }
     }
@@ -58,12 +58,12 @@ pub fn player_end_movement(
     mut next_player: EventWriter<NextPlayerStarted>,
 ) {
     for end_movement_event in end_event.read() {
-        debug!("Player {} has ended movement", end_movement_event.player);
-        commands.entity(end_movement_event.player).log_components();
+        // debug!("Player {} has ended movement", end_movement_event.player);
+        // commands.entity(end_movement_event.player).log_components();
         commands.entity(end_movement_event.player).remove::<PerformingMovement>();
         commands.entity(end_movement_event.player).remove::<AvailableMoves>();
-        debug!("After removing components");
-        commands.entity(end_movement_event.player).log_components();
+        // debug!("After removing components");
+        // commands.entity(end_movement_event.player).log_components();
         next_player.send(NextPlayerStarted);
     }
 }
@@ -88,7 +88,7 @@ pub fn move_tokens_from_area_to_area(
                 .filter(|t| tokens_that_can_move.get(**t).is_ok()).copied()
                 .collect::<Vec<_>>();
             if tokens_that_can_move.len() < ev.number_of_tokens {
-                debug!("Not enough tokens to move, recalculate that son of a bitch!");
+                // debug!("Not enough tokens to move, recalculate that son of a bitch!");
                 recalculate_player_moves.send(RecalculatePlayerMoves::new(ev.player));
             } else {
                 let tokens_to_move = tokens_that_can_move
