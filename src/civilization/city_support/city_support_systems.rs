@@ -3,7 +3,7 @@ use crate::civilization::city_support::city_support_events::EliminateCity;
 use crate::civilization::general::general_components::{BuiltCity, CityToken, CityTokenStock, PlayerAreas, PlayerCities, Population};
 use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
 use crate::GameActivity;
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
+use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
 
 pub fn eliminate_city(
     mut eliminate_city: EventReader<EliminateCity>,
@@ -16,8 +16,11 @@ pub fn eliminate_city(
     for eliminate in eliminate_city.read() {
         commands.entity(eliminate.city).log_components();
         if let Ok(city_token) = city_token.get(eliminate.city) {
+            debug!("Got City Token");
             if let Ok((mut city_stock, mut player_cities)) = city_token_stock.get_mut(city_token.player) {
+                debug!("Got Player City Stock");
                 if let Ok(population) = area_population.get(eliminate.area_entity) {
+                    debug!("Got Area Population");
                     move_tokens.send(MoveTokensFromStockToAreaCommand {
                         player_entity: city_token.player,
                         area_entity: eliminate.area_entity,
