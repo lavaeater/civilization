@@ -14,7 +14,7 @@ pub fn eliminate_city(
     mut move_tokens: EventWriter<MoveTokensFromStockToAreaCommand>,
 ) {
     for eliminate in eliminate_city.read() {
-        commands.entity(eliminate.city).log_components();
+        // commands.entity(eliminate.city).log_components();
         if let Ok(city_token) = city_token.get(eliminate.city) {
             debug!("Got City Token");
             if let Ok((mut city_stock, mut player_cities)) = city_token_stock.get_mut(city_token.player) {
