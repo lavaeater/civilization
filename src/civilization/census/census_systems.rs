@@ -26,7 +26,7 @@ pub fn perform_census(
     mut census_order: ResMut<GameInfoAndStuff>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    debug!("Performing Census");
+    // debug!("Performing Census");
     census_order.census_order.clear();
     let mut hash_to_sort = HashMap::new();
     for (player, stock, treasury, mut census) in stock_query.iter_mut() {

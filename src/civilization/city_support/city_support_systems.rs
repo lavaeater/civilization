@@ -14,6 +14,8 @@ pub fn eliminate_city(
     mut move_tokens: EventWriter<MoveTokensFromStockToAreaCommand>,
 ) {
     for eliminate in eliminate_city.read() {
+        //Remove TooManyCities
+        commands.entity(eliminate.player).remove::<HasTooManyCities>();
         // commands.entity(eliminate.city).log_components();
         if let Ok(city_token) = city_token.get(eliminate.city) {
             debug!("Got City Token");
@@ -32,6 +34,7 @@ pub fn eliminate_city(
                 }
             }
         }
+        debug!("Eliminated a city, now let's check Support again");
         commands
             .entity(eliminate.player)
             .insert(NeedsToCheckCitySupport); //Start check all over again to update too many cities thingie!
@@ -55,13 +58,17 @@ pub fn check_player_city_support(
     for (player, cities, areas) in check_city_support_query.iter() {
         let number_of_cities = cities.number_of_cities();
         let required_population = number_of_cities * 2;
+        
+        debug!("CCS: {}:{}", number_of_cities, required_population);
         if required_population > areas.total_population() {
+            debug!("Too many cities");
             commands
                 .entity(player)
                 .insert(HasTooManyCities::new((required_population - areas.total_population()) / 2,
                                               required_population - areas.total_population())
                 );
         } else {
+            debug!("Enough Population, we're good!");
             commands
                 .entity(player)
                 .remove::<HasTooManyCities>();

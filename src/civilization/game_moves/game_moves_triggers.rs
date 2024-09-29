@@ -35,6 +35,7 @@ pub fn on_add_has_too_many_cities(
     trigger: Trigger<OnAdd, HasTooManyCities>,
     mut event_writer: EventWriter<RecalculatePlayerMoves>,
 ) {
+    debug!("on_add_has_too_many_cities");
     event_writer.send(RecalculatePlayerMoves::new(trigger.entity()));
 }
 

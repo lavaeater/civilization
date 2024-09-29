@@ -81,14 +81,14 @@ pub fn move_tokens_from_area_to_area(
         if let Ok(mut from_pop) = pop_query.get_mut(ev.source_area) {
             let cloned = from_pop.player_tokens.clone();
             if let Some(mut player_tokens) = cloned.get(&ev.player) {
-                debug!("Player has tokens in the area");
+                // debug!("Player has tokens in the area");
                 // debug!("Player tokens: {:?}", player_tokens);
                 let tokens_that_can_move = player_tokens
                     .iter()
                     .filter(|t| tokens_that_can_move.get(**t).is_ok()).copied()
                     .collect::<Vec<_>>();
                 if tokens_that_can_move.len() < ev.number_of_tokens {
-                    debug!("Not enough tokens to move, recalculate that son of a bitch!");
+                    // debug!("Not enough tokens to move, recalculate that son of a bitch!");
                     recalculate_player_moves.send(RecalculatePlayerMoves::new(ev.player));
                 } else {
                     let tokens_to_move = tokens_that_can_move
@@ -115,7 +115,7 @@ pub fn move_tokens_from_area_to_area(
                     }
                 }
             } else {
-                debug!("Player has no tokens in the area");
+                // debug!("Player has no tokens in the area");
             }
             
         }

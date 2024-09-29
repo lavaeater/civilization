@@ -11,14 +11,14 @@ pub fn remove_surplus_population(
     for mut area in areas.iter_mut() {
         if area.has_surplus() {
             if area.number_of_players() > 1 {
-                debug!("Area {:?} has surplus population", area);
+                // debug!("Area {:?} has surplus population", area);
             } else {
                 for token in area.remove_surplus() {
                     return_token.send(ReturnTokenToStock {
                         token_entity: token,
                     });
                 }
-                debug!("Removed surplus population from area {:?}", area);
+                // debug!("Removed surplus population from area {:?}", area);
             }
         }
     }

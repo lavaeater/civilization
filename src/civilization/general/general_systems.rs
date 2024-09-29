@@ -2,7 +2,7 @@ use crate::civilization::census::census_components::Census;
 use crate::civilization::general::general_components::{CityToken, CityTokenStock, Faction, GameArea, LandPassage, NeedsConnections, PlayerAreas, PlayerCities, Population, StartArea, Token, Treasury};
 use crate::civilization::general::general_components::PlayerStock;
 use bevy::core::Name;
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, StateTransitionEvent, With};
+use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, StateTransitionEvent, With};
 use bevy_console::PrintConsoleLine;
 use clap::builder::StyledStr;
 use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
@@ -145,7 +145,9 @@ pub(crate) fn return_token_to_stock(
 ) {
     for return_event in event.read() {
         if let Ok(token) = token_query.get(return_event.token_entity) {
+            debug!("we have token component!");
             if let Ok(mut stock) = stock_query.get_mut(token.player) {
+                debug!("we return it");
                 stock.return_token_to_stock(return_event.token_entity);
             }
         }
