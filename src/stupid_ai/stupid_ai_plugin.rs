@@ -30,8 +30,9 @@ pub fn on_add_available_moves(
     is_stupid_ai: Query<&StupidAi>,
     mut event_writer: EventWriter<SelectStupidMove>,
 ) {
+    debug!("on_add_available_moves");
     if is_stupid_ai.contains(trigger.entity()) { 
-        debug!("Stupid AI detected");
+        // debug!("Stupid AI detected");
         event_writer.send(SelectStupidMove::new(trigger.entity()));
     } else {
         debug!("Not a stupid AI");
@@ -84,7 +85,7 @@ fn select_stupid_move(
     mut eliminate_city: EventWriter<EliminateCity>
 ) {
     for event in event_reader.read() {
-        debug!("Selecting stupid AI move for player {:?}", event.player);
+        // debug!("Selecting stupid AI move for player {:?}", event.player);
         if let Ok((available_moves, _player_areas)) = player_moves.get(event.player) {
             /*  
             So, the moves will always really be of maximum one or two types (for now). 
@@ -96,6 +97,8 @@ fn select_stupid_move(
             Random moves will do for now but won't cut it in the long run - we have to make the non-
             stupid AI make its moves in a more sophisticated manner.
              */
+            debug!("Available moves: {:?}", available_moves);
+            
             let mut rng = rand::thread_rng();
             if let Some(selected_move) = available_moves.moves.values().choose(&mut rng) {
                 debug!("Selected move: {:?}", selected_move);

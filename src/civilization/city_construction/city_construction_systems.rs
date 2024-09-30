@@ -4,7 +4,7 @@ use crate::civilization::general::general_components::{BuiltCity, CityTokenStock
 use crate::civilization::general::general_events::ReturnTokenToStock;
 use crate::player::Player;
 use crate::GameActivity;
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
+use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
 use crate::civilization::game_moves::game_moves_components::AvailableMoves;
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 
@@ -28,18 +28,24 @@ pub fn build_city(
 ) {
     for build_city in command.read() {
         if let Ok(mut city_stock) = city_token_stock.get_mut(build_city.player) {
+            debug!("We have city stock!");
             if let Ok(mut population) = city_population.get_mut(build_city.area) {
+                debug!("We have area population!");
                 // we shall return all tokens
-                let tokens_to_return = population.player_tokens.values().flatten().map(|t| t.clone()).collect::<Vec<Entity>>();
+                let tokens_to_return = population.player_tokens.values().flatten().copied().collect::<Vec<Entity>>();
+                debug!("We have tokens to return: {:?}", tokens_to_return.len());
                 population.player_tokens.clear();
                 for token in tokens_to_return {
+                    debug!("RETURN RETURN");
                     return_tokens.send(ReturnTokenToStock {
                         token_entity: token,
                     });
                 }
             }
             if let Some(city_token) = city_stock.get_token_from_stock() {
+                debug!("We have a city token!!");
                 if let Ok((mut player_areas, mut player_cities)) = player_cities_and_areas.get_mut(build_city.player) {
+                    debug!("We have player areas and player cities!");
                     player_areas.remove_area(build_city.area);
                     player_cities.build_city_in_area(build_city.area, city_token);
                 }
@@ -48,6 +54,7 @@ pub fn build_city(
                         player: build_city.player,
                         city: city_token,
                     });
+                debug!("Now recalculate player moves");
                 recalculate_player_moves.send(RecalculatePlayerMoves::new(build_city.player));
             }
         }

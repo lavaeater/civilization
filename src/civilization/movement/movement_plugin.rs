@@ -1,5 +1,5 @@
 use crate::civilization::movement::movement_events::{PlayerMovementEnded, MoveTokenFromAreaToAreaCommand, NextPlayerStarted};
-use crate::civilization::movement::movement_systems::{clear_moves, move_tokens_from_area_to_area, player_end_movement, prepare_next_mover, start_movement_activity};
+use crate::civilization::movement::movement_systems::{on_exit_movement, move_tokens_from_area_to_area, player_end_movement, prepare_next_mover, start_movement_activity};
 use bevy::app::App;
 use bevy::prelude::{in_state, IntoSystemConfigs, OnEnter, OnExit, Plugin, Update};
 use crate::GameActivity;
@@ -23,7 +23,7 @@ impl Plugin for MovementPlugin {
                          ),
             )
             .add_systems(
-                OnExit(GameActivity::Movement), clear_moves,
+                OnExit(GameActivity::Movement), on_exit_movement,
             )
         ;
     }

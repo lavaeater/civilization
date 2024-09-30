@@ -3,10 +3,11 @@ use crate::civilization::general::general_components::{PlayerAreas, Population, 
 use crate::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;
 use crate::civilization::movement::movement_events::{NextPlayerStarted, PlayerMovementEnded};
 use crate::GameActivity;
-use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With, Without};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With, Without};
 use crate::civilization::game_moves::game_moves_components::AvailableMoves;
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::movement::movement_components::{HasJustMoved, PerformingMovement, TokenHasMoved};
+use crate::player::Player;
 
 pub fn start_movement_activity(
     mut game_info: ResMut<GameInfoAndStuff>,
@@ -25,18 +26,27 @@ pub fn prepare_next_mover(
 ) {
     for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
+            // debug!("Player {} is moving", to_move);
+            // debug!("Before adding components");
+            // commands.entity(to_move).log_components();
             commands.entity(to_move).insert(PerformingMovement);
+            // commands.entity(to_move).log_components();
         } else {
-            // All hath moved, move along
+            // debug!("All hath moved");
             next_state.set(GameActivity::Conflict);
         }
     }
 }
 
-pub fn clear_moves(
+pub fn on_exit_movement(
     token_query: Query<Entity, With<TokenHasMoved>>,
+    player_query: Query<Entity, With<Player>>,
     mut commands: Commands,
 ) {
+    for player in player_query.iter() {
+        commands.entity(player).remove::<PerformingMovement>();
+    }
+    
     for token in token_query.iter() {
         commands.entity(token).remove::<TokenHasMoved>();
     }
@@ -48,8 +58,12 @@ pub fn player_end_movement(
     mut next_player: EventWriter<NextPlayerStarted>,
 ) {
     for end_movement_event in end_event.read() {
+        // debug!("Player {} has ended movement", end_movement_event.player);
+        // commands.entity(end_movement_event.player).log_components();
         commands.entity(end_movement_event.player).remove::<PerformingMovement>();
         commands.entity(end_movement_event.player).remove::<AvailableMoves>();
+        // debug!("After removing components");
+        // commands.entity(end_movement_event.player).log_components();
         next_player.send(NextPlayerStarted);
     }
 }
@@ -63,45 +77,47 @@ pub fn move_tokens_from_area_to_area(
     mut recalculate_player_moves: EventWriter<RecalculatePlayerMoves>
 ) {
     for ev in move_events.read() {
-        debug!("Lets move some tokens!");
+        // debug!("Lets move some tokens!");
         if let Ok(mut from_pop) = pop_query.get_mut(ev.source_area) {
             let cloned = from_pop.player_tokens.clone();
-
-            let tokens_that_can_move = cloned
-                .get(&ev.player)
-                .unwrap()
-                .iter()
-                .filter(|t| tokens_that_can_move.get(**t).is_ok()).copied()
-                .collect::<Vec<_>>();
-            if tokens_that_can_move.len() < ev.number_of_tokens {
-                debug!("Not enough tokens to move, recalculate that son of a bitch!");
-                recalculate_player_moves.send(RecalculatePlayerMoves::new(ev.player));
-            } else {
-                let tokens_to_move = tokens_that_can_move
+            if let Some(player_tokens) = cloned.get(&ev.player) {
+                // debug!("Player has tokens in the area");
+                // debug!("Player tokens: {:?}", player_tokens);
+                let tokens_that_can_move = player_tokens
                     .iter()
-                    .take(ev.number_of_tokens).copied()
+                    .filter(|t| tokens_that_can_move.get(**t).is_ok()).copied()
                     .collect::<Vec<_>>();
+                if tokens_that_can_move.len() < ev.number_of_tokens {
+                    // debug!("Not enough tokens to move, recalculate that son of a bitch!");
+                    recalculate_player_moves.send(RecalculatePlayerMoves::new(ev.player));
+                } else {
+                    let tokens_to_move = tokens_that_can_move
+                        .iter()
+                        .take(ev.number_of_tokens).copied()
+                        .collect::<Vec<_>>();
+                    for token in tokens_to_move.iter() {
+                        from_pop.remove_token_from_area(ev.player, *token);
+                    }
 
-                for token in tokens_to_move.iter() {
-                    from_pop.remove_token_from_area(ev.player, *token);
-                }
+                    if let Ok(mut to_pop) = pop_query.get_mut(ev.target_area) {
+                        if let Ok(mut player_area) = player_areas.get_mut(ev.player) {
+                            tokens_to_move
+                                .iter()
+                                .for_each(|token| {
+                                    commands.entity(*token).insert(TokenHasMoved);
 
-                if let Ok(mut to_pop) = pop_query.get_mut(ev.target_area) {
-                    if let Ok(mut player_area) = player_areas.get_mut(ev.player) {
-                        tokens_to_move
-                            .iter()
-                            .for_each(|token| {
-                                commands.entity(*token).insert(TokenHasMoved);
+                                    player_area.remove_token_from_area(ev.source_area, *token);
+                                    to_pop.add_token_to_area(ev.player, *token);
+                                    player_area.add_token_to_area(ev.target_area, *token);
 
-                                player_area.remove_token_from_area(ev.source_area, *token);
-                                to_pop.add_token_to_area(ev.player, *token);
-                                player_area.add_token_to_area(ev.target_area, *token);
-
-                                //Lets send a lot of these events...
-                            });
+                                });
+                        }
                     }
                 }
+            } else {
+                // debug!("Player has no tokens in the area");
             }
+            
         }
         commands.entity(ev.player).insert(HasJustMoved);
     }

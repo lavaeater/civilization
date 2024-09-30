@@ -2,9 +2,10 @@ use crate::civilization::general::general_components::PlayerStock;
 use crate::civilization::general::general_components::{PlayerAreas, Population};
 use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::population_expansion::population_expansion_components::{AreaIsExpanding, ExpandAutomatically, ExpandManually, NeedsExpansion};
-use crate::civilization::population_expansion::population_expansion_events::{CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand};
+use crate::civilization::population_expansion::population_expansion_events::{CheckGate, CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand};
 use crate::GameActivity;
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
+use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
+use crate::civilization::census::census_resources::GameInfoAndStuff;
 
 pub fn check_area_population_expansion_eligibility(
     mut expansion_check_event: EventReader<CheckPlayerExpansionEligibility>,
@@ -12,20 +13,27 @@ pub fn check_area_population_expansion_eligibility(
     mut commands: Commands,
 ) {
     for event in expansion_check_event.read() {
+        // debug!("Checking player expansion eligibility: {:?}", event);
         if let Ok((stock, player_areas, needs_expansion)) = stock_query.get(event.player) {
             if needs_expansion.areas_that_need_expansion.is_empty() || stock.is_empty() {
+                // debug!("Player does not need expansion");
+                // commands.entity(event.player).log_components();
                 commands.entity(event.player).remove::<NeedsExpansion>();
                 commands.entity(event.player).remove::<ExpandManually>();
                 commands.entity(event.player).remove::<ExpandAutomatically>();
             } else if player_areas.required_tokens_for_expansion() > 0 {
+                // debug!("Player needs expansion");
                 if player_areas.required_tokens_for_expansion() <= stock.tokens_in_stock() {
+                    // debug!("Automatic Expansion");
                     commands
                         .entity(event.player)
-                        .insert(ExpandAutomatically::default());
+                        .insert(ExpandAutomatically);
                 } else {
+                    // debug!("Manual Expansion");
+                    // commands.entity(event.player).log_components();
                     commands
                         .entity(event.player)
-                        .insert(ExpandManually::default());
+                        .insert(ExpandManually);
                 }
             }
         }
@@ -35,9 +43,12 @@ pub fn check_area_population_expansion_eligibility(
 pub fn enter_population_expansion(
     player_query: Query<(Entity, &PlayerAreas)>,
     area: Query<(Entity, &Population)>,
+    mut game_info: ResMut<GameInfoAndStuff>,
     mut commands: Commands,
     mut checker: EventWriter<CheckPlayerExpansionEligibility>,
 ) {
+    game_info.round += 1;
+    // debug!("Entering population expansion round {}", game_info.round);
     for (area_entity, pop) in area.iter() {
         commands.entity(area_entity).insert(AreaIsExpanding::new(pop.players()));
     }
@@ -60,9 +71,9 @@ pub fn auto_expand_population(
             let needed_tokens = player_areas.required_tokens_for_expansion_for_area(*area);
             if needed_tokens > 0 {
                 event_writer.send(MoveTokensFromStockToAreaCommand::new(*area, player_entity, needed_tokens));
-                if let Ok(mut expansion) = area_query.get_mut(*area) {
-                    expansion.remove(player_entity);
-                    if expansion.expansion_is_done() {
+                if let Ok(mut area_expansion) = area_query.get_mut(*area) {
+                    area_expansion.remove(player_entity);
+                    if area_expansion.expansion_is_done() {
                         commands.entity(*area).remove::<AreaIsExpanding>();
                     }
                 }
@@ -74,17 +85,24 @@ pub fn auto_expand_population(
 }
 
 pub fn population_expansion_gate(
-    player_gate_query: Query<&NeedsExpansion>,
+    mut check_gate: EventReader<CheckGate>,
+    player_gate_query: Query<Entity, With<NeedsExpansion>>,
     area_gate_query: Query<Entity, With<AreaIsExpanding>>,
     mut commands: Commands,
-    mut next_state: ResMut<NextState<GameActivity>>,
+    mut next_state: ResMut<NextState<GameActivity>>
 ) {
-    // No players need expansion no more, so remove the NeedsExpansion component from all areas
-    if player_gate_query.is_empty() {
-        for area in area_gate_query.iter() {
-            commands.entity(area).remove::<AreaIsExpanding>();
+    for _ in check_gate.read() {
+        // debug!("Checking gate");
+        // No players need expansion no more, so remove the NeedsExpansion component from all areas
+        if player_gate_query.is_empty() {
+            // debug!("No players need expansion, let's do census!");
+            for area in area_gate_query.iter() {
+                commands.entity(area).remove::<AreaIsExpanding>();
+            }
+            next_state.set(GameActivity::Census);
+        } else {
+            // debug!("Players still need expansion");
         }
-        next_state.set(GameActivity::Census);
     }
 }
 
@@ -97,16 +115,31 @@ pub fn expand_population_manually(
     mut commands: Commands,
 ) {
     for event in event_reader.read() {
+        // debug!("Expanding population manually: {:?}", event);
+        // debug!("Player components:");
+        // commands.entity(event.player).log_components();
+        // debug!("Area components:");
+        // commands.entity(event.area).log_components();
         event_writer.send(MoveTokensFromStockToAreaCommand::new(event.area, event.player, event.number_of_tokens));
-        if let Ok(mut expansion) = area_query.get_mut(event.area) {
-            expansion.remove(event.player);
-            if expansion.expansion_is_done() {
-                commands.entity(event.area).remove::<AreaIsExpanding>();
+        
+        /*
+        The missing piece of the puzzle is that we must remove the expandmanually component from the player
+        to make sure we generate the available moves for the player again!
+         */
+        commands.entity(event.player).remove::<ExpandManually>();
+        if let Ok(mut area_expansion) = area_query.get_mut(event.area) {
+            // debug!("Removing player from expansion list");
+            area_expansion.remove(event.player);
+            if area_expansion.expansion_is_done() {
+                // debug!("Area expansion is done but we don't remove the component");
+                // commands.entity(event.area).remove::<AreaIsExpanding>();
             }
         }
         if let Ok(mut needs_expansion) = player_query.get_mut(event.player) {
+            // debug!("Remove area from player's expansion list");
             needs_expansion.remove(event.area);
         }
+        // debug!("Checking player expansion eligibility");
         checker.send(CheckPlayerExpansionEligibility::new(event.player));
     }
 }
