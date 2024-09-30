@@ -1,5 +1,5 @@
 use bevy::core::Name;
-use bevy::prelude::{in_state, App, AssetServer, Assets, Commands, Handle, IntoSystemConfigs, Plugin, Res, ResMut, Resource, Startup, Update};
+use bevy::prelude::{in_state, App, AssetServer, Assets, Commands, Handle, IntoSystemConfigs, Plugin, Res, ResMut, Resource, SpriteBundle, Startup, Update};
 use bevy::utils::HashSet;
 use bevy_common_assets::ron::RonAssetPlugin;
 use crate::civilization::general::general_components::{CityFlood, CitySite, FloodPlain, GameArea, LandPassage, NeedsConnections, Population, StartArea, Volcano};
@@ -58,6 +58,8 @@ fn remove_random_place(places: &mut HashSet<String>) -> Option<String> {
 #[derive(serde::Deserialize, bevy::asset::Asset, bevy::reflect::TypePath)]
 pub struct Area {
     pub id: i32,
+    pub x: f32,
+    pub y: f32,
     pub max_population: usize,
     pub land_connections: Vec<i32>,
     pub sea_connections: Vec<i32>,
@@ -66,12 +68,14 @@ pub struct Area {
     pub flood_plain: bool,
     pub city_flood: bool,
     pub volcano: bool,
+    has_texture: bool,
 }
 
 fn load_map(mut commands: Commands,
             map: Res<MapHandle>,
             mut maps: ResMut<Assets<Map>>,
             mut available_factions: ResMut<AvailableFactions>,
+            mut asset_server: ResMut<AssetServer>
 ) {
     if let Some(level) = maps.remove(map.0.id()) {
         let mut ancient_places: HashSet<String> = vec!["Assyria", "Numidia", "Carthage", "Troy", "Sparta", "Babylon", "Thebes",
@@ -113,19 +117,26 @@ fn load_map(mut commands: Commands,
                                          },
                                          Population::new(area.max_population))).id();
             if area.city_site {
-                commands.entity(entity).insert(CitySite::default());
+                commands.entity(entity).insert(CitySite);
             }
 
             if area.city_flood {
-                commands.entity(entity).insert(CityFlood::default());
+                commands.entity(entity).insert(CityFlood);
             }
 
             if area.flood_plain {
-                commands.entity(entity).insert(FloodPlain::default());
+                commands.entity(entity).insert(FloodPlain);
             }
             if area.volcano {
-                commands.entity(entity).insert(Volcano::default());
+                commands.entity(entity).insert(Volcano);
             }
+            if area.has_texture {
+                commands.entity(entity).insert(SpriteBundle {
+                    texture: asset_server.load(format!("textures/{}.png",  area.id)),
+                    ..Default::default()
+                });
+            }
+            
             if let Some(faction) = area.start_area {
                 available_factions.factions.insert(faction);
                 available_factions.remaining_factions.insert(faction);

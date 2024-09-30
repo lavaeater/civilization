@@ -2,6 +2,9 @@
     areas: [
     (
         id: 1,
+        x: 0.0,
+        y: 0.0,
+        has_texture: true,
         max_population: 1,
         land_connections: [2],
         sea_connections: [2],
@@ -9,10 +12,13 @@
         city_site: false,
         flood_plain: false,
         city_flood: false,
-        volcano: false
+        volcano: false,
     ),
     (
         id: 2,
+        x: 0.0,
+        y: 0.0,
+        has_texture: true,
         max_population: 2,
         land_connections: [1],
         sea_connections: [1,12,3],
@@ -24,6 +30,9 @@
     ),
     (
         id: 3,
+        x: 0.0,
+        y: 0.0,
+        has_texture: true,
         max_population: 3,
         land_connections: [13,14,15,4],
         sea_connections: [2,12,13,4],
@@ -35,6 +44,9 @@
     ),
     (
         id: 4,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [3,15,16,5],
         sea_connections: [3],
@@ -46,6 +58,9 @@
     ),
     (
         id: 5,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 5,
         land_connections: [4,16,17,34,18,6],
         sea_connections: [],
@@ -57,6 +72,9 @@
     ),
     (
         id: 6,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [5,18,7],
         sea_connections: [],
@@ -68,6 +86,9 @@
     ),
     (
         id: 7,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [6,18,19,20],
         sea_connections: [19,20,8],
@@ -79,6 +100,9 @@
     ),
     (
         id: 8,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [9],
         sea_connections: [7,20,9],
@@ -90,6 +114,9 @@
     ),
     (
         id: 9,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [8,10,21],
         sea_connections: [8,21],
@@ -101,6 +128,9 @@
     ),
     (
         id: 10,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [9,21,22,11],
         sea_connections: [],
@@ -112,6 +142,9 @@
     ),
     (
         id: 11,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [10,22,23],
         sea_connections: [23],
@@ -123,6 +156,9 @@
     ),
     (
         id: 12,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [13],
         sea_connections: [2,13,3],
@@ -134,6 +170,9 @@
     ),
     (
         id: 13,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [12,25,26,27,14,3],
         sea_connections: [12,25,3],
@@ -145,6 +184,9 @@
     ),
     (
         id: 14,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [3,13,27,28,30,29,15],
         sea_connections: [],
@@ -156,6 +198,9 @@
     ),
     (
         id: 15,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [3,14,29,16,4],
         sea_connections: [],
@@ -167,6 +212,9 @@
     ),
     (
         id: 16,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [4,15,29,31,17,5],
         sea_connections: [],
@@ -178,6 +226,9 @@
     ),
     (
         id: 17,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 4,
         land_connections: [5,16,31,32,33,34],
         sea_connections: [32,33],
@@ -189,6 +240,9 @@
     ),
     (
         id: 18,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [5,34,35,19,7,6],
         sea_connections: [],
@@ -200,6 +254,9 @@
     ),
     (
         id: 19,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 5,
         land_connections: [7,18,35,36],
         sea_connections: [7,20,36],
@@ -211,6 +268,9 @@
     ),
     (
         id: 20,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [7],
         sea_connections: [7,19,8],
@@ -222,6 +282,9 @@
     ),
     (
         id: 21,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [9,10,22,38,37],
         sea_connections: [9,37],
@@ -233,6 +296,9 @@
     ),
     (
         id: 22,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [11,10,21,38,39,23],
         sea_connections: [],
@@ -244,6 +310,9 @@
     ),
     (
         id: 23,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [11,22,39,40,41],
         sea_connections: [11,41],
@@ -255,6 +324,9 @@
     ),
     (
         id: 24,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [25,42,43],
         sea_connections: [25],
@@ -266,6 +338,9 @@
     ),
     (
         id: 25,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [13,24,43,26],
         sea_connections: [24,13],
@@ -277,6 +352,9 @@
     ),
     (
         id: 26,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [13,25,44,27],
         sea_connections: [27,44],
@@ -288,6 +366,9 @@
     ),
     (
         id: 27,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [14,13,26,28],
         sea_connections: [26,28],
@@ -299,6 +380,9 @@
     ),
     (
         id: 28,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [14,27,30],
         sea_connections: [27,45,30],
@@ -310,6 +394,9 @@
     ),
     (
         id: 29,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [16,15,14,30,31],
         sea_connections: [],
@@ -321,6 +408,9 @@
     ),
     (
         id: 30,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [31,29,14,28,46,32],
         sea_connections: [28,45,46],
@@ -332,6 +422,9 @@
     ),
     (
         id: 31,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [17,16,29,30,32],
         sea_connections: [],
@@ -343,6 +436,9 @@
     ),
     (
         id: 32,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [31,30,46,47,17],
         sea_connections: [17,47],
@@ -354,6 +450,9 @@
     ),
     (
         id: 33,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [17,34],
         sea_connections: [17,34],
@@ -365,6 +464,9 @@
     ),
     (
         id: 34,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [5,17,33,48,49,35,18],
         sea_connections: [33,48],
@@ -376,6 +478,9 @@
     ),
     (
         id: 35,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 4,
         land_connections: [36,19,18,34,49,51,52],
         sea_connections: [36,52],
@@ -387,6 +492,9 @@
     ),
     (
         id: 36,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [19,35],
         sea_connections: [19,35],
@@ -398,6 +506,9 @@
     ),
     (
         id: 37,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [21,55,56,57,38],
         sea_connections: [21,55],
@@ -409,6 +520,9 @@
     ),
     (
         id: 38,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [21,37,57,58,59,39,22],
         sea_connections: [],
@@ -420,6 +534,9 @@
     ),
     (
         id: 39,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [22,38,59,60,61,62,40,23],
         sea_connections: [],
@@ -431,6 +548,9 @@
     ),
     (
         id: 40,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [23,39,62,63,41],
         sea_connections: [],
@@ -442,6 +562,9 @@
     ),
     (
         id: 41,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [23,40,63],
         sea_connections: [23],
@@ -453,6 +576,9 @@
     ),
     (
         id: 42,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [24,43,65],
         sea_connections: [],
@@ -464,6 +590,9 @@
     ),
     (
         id: 43,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [42,24,25,44,66,65],
         sea_connections: [],
@@ -475,6 +604,9 @@
     ),
     (
         id: 44,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [25,43,66,26],
         sea_connections: [66,26,67],
@@ -486,6 +618,9 @@
     ),
     (
         id: 45,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [],
         sea_connections: [28,30,46,69],
@@ -497,6 +632,9 @@
     ),
     (
         id: 46,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [30,32,47,71],
         sea_connections: [30,45,71],
@@ -508,6 +646,9 @@
     ),
     (
         id: 47,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [32,46,71,72,73],
         sea_connections: [32,73],
@@ -519,6 +660,9 @@
     ),
     (
         id: 48,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [34,49,50,75],
         sea_connections: [73,34,75,74],
@@ -530,6 +674,9 @@
     ),
     (
         id: 49,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [35,34,48,50,51],
         sea_connections: [],
@@ -541,6 +688,9 @@
     ),
     (
         id: 50,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [49,48,75,76,77,51],
         sea_connections: [],
@@ -552,6 +702,9 @@
     ),
     (
         id: 51,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [35,49,50,77,52],
         sea_connections: [77,78,52],
@@ -563,6 +716,9 @@
     ),
     (
         id: 52,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [35,51],
         sea_connections: [51,78,53,35],
@@ -574,6 +730,9 @@
     ),
     (
         id: 53,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [54,80],
         sea_connections: [52,78,79,80,54],
@@ -585,6 +744,9 @@
     ),
     (
         id: 54,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [53,80,81,56,55],
         sea_connections: [53,55],
@@ -596,6 +758,9 @@
     ),
     (
         id: 55,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [54,56,37],
         sea_connections: [54,37],
@@ -607,6 +772,9 @@
     ),
     (
         id: 56,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [55,54,81,57,37],
         sea_connections: [],
@@ -618,6 +786,9 @@
     ),
     (
         id: 57,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [37,56,82,81,58,38],
         sea_connections: [],
@@ -629,6 +800,9 @@
     ),
     (
         id: 58,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [38,57,82,83,84,59],
         sea_connections: [82,83],
@@ -640,6 +814,9 @@
     ),
     (
         id: 59,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 4,
         land_connections: [38,58,84,85,60,39],
         sea_connections: [],
@@ -651,6 +828,9 @@
     ),
     (
         id: 60,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [39,59,85,86,61],
         sea_connections: [],
@@ -662,6 +842,9 @@
     ),
     (
         id: 61,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [39,60,86,87,88,62],
         sea_connections: [],
@@ -673,6 +856,9 @@
     ),
     (
         id: 62,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 4,
         land_connections: [40,39,61,88,89,64,63],
         sea_connections: [],
@@ -684,6 +870,9 @@
     ),
     (
         id: 63,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [41,40,62,64],
         sea_connections: [],
@@ -695,6 +884,9 @@
     ),
     (
         id: 64,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [63,62],
         sea_connections: [149,62,89],
@@ -706,6 +898,9 @@
     ),
     (
         id: 65,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [42,43,66],
         sea_connections: [90,66],
@@ -717,6 +912,9 @@
     ),
     (
         id: 66,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [44,43,65],
         sea_connections: [44,65,67],
@@ -728,6 +926,9 @@
     ),
     (
         id: 67,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [],
         sea_connections: [44,66,68],
@@ -739,6 +940,9 @@
     ),
     (
         id: 68,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [],
         sea_connections: [67],
@@ -750,6 +954,9 @@
     ),
     (
         id: 69,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [70],
         sea_connections: [45,70],
@@ -761,6 +968,9 @@
     ),
     (
         id: 70,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [69],
         sea_connections: [69],
@@ -772,6 +982,9 @@
     ),
     (
         id: 71,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [47,46,72],
         sea_connections: [46,72],
@@ -783,6 +996,9 @@
     ),
     (
         id: 72,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [73,71],
         sea_connections: [71,98,73],
@@ -794,6 +1010,9 @@
     ),
     (
         id: 73,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [47,72],
         sea_connections: [47,48,74,72],
@@ -805,6 +1024,9 @@
     ),
     (
         id: 74,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [],
         sea_connections: [48,73,75,100],
@@ -816,6 +1038,9 @@
     ),
     (
         id: 75,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [50,48,76,100],
         sea_connections: [48,74,100],
@@ -827,6 +1052,9 @@
     ),
     (
         id: 76,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [77,50,75,100],
         sea_connections: [77,103,100],
@@ -838,6 +1066,9 @@
     ),
     (
         id: 77,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [51,50,76],
         sea_connections: [51,78,76,103],
@@ -849,6 +1080,9 @@
     ),
     (
         id: 78,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [],
         sea_connections: [52,51,77,53],
@@ -860,6 +1094,9 @@
     ),
     (
         id: 79,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [],
         sea_connections: [53,80,112],
@@ -871,6 +1108,9 @@
     ),
     (
         id: 80,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [54,53,112,81],
         sea_connections: [53,79,112],
@@ -882,6 +1122,9 @@
     ),
     (
         id: 81,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [56,54,80,112,82,57],
         sea_connections: [],
@@ -893,6 +1136,9 @@
     ),
     (
         id: 82,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [57,81,112,113],
         sea_connections: [113,114,115,58,83],
@@ -904,6 +1150,9 @@
     ),
     (
         id: 83,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [58,84,116],
         sea_connections: [58,82,115,116],
@@ -915,6 +1164,9 @@
     ),
     (
         id: 84,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [59,58,83,116,85],
         sea_connections: [],
@@ -926,6 +1178,9 @@
     ),
     (
         id: 85,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [60,59,84,116,118,121,145,147,87,86],
         sea_connections: [],
@@ -937,6 +1192,9 @@
     ),
     (
         id: 86,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [60,85,87,61],
         sea_connections: [],
@@ -948,6 +1206,9 @@
     ),
     (
         id: 87,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [61,86,85,147,149,148,88],
         sea_connections: [],
@@ -959,6 +1220,9 @@
     ),
     (
         id: 88,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [62,61,87,148,89],
         sea_connections: [],
@@ -970,6 +1234,9 @@
     ),
     (
         id: 89,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [62,88,148],
         sea_connections: [62,64,149,148],
@@ -981,6 +1248,9 @@
     ),
     (
         id: 90,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [91],
         sea_connections: [65,91],
@@ -992,6 +1262,9 @@
     ),
     (
         id: 91,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [90,92],
         sea_connections: [90,92],
@@ -1003,6 +1276,9 @@
     ),
     (
         id: 92,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [91,93],
         sea_connections: [91,93],
@@ -1014,6 +1290,9 @@
     ),
     (
         id: 93,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [92,94,95],
         sea_connections: [92,94],
@@ -1025,6 +1304,9 @@
     ),
     (
         id: 94,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [93,96,124,95],
         sea_connections: [93,96],
@@ -1036,6 +1318,9 @@
     ),
     (
         id: 95,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [93,94,124,123,122],
         sea_connections: [],
@@ -1047,6 +1332,9 @@
     ),
     (
         id: 96,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [94,124],
         sea_connections: [94,124,97],
@@ -1058,6 +1346,9 @@
     ),
     (
         id: 97,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [98,99],
         sea_connections: [96,99,98],
@@ -1069,6 +1360,9 @@
     ),
     (
         id: 98,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [97,99],
         sea_connections: [72,97,99],
@@ -1080,6 +1374,9 @@
     ),
     (
         id: 99,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [98,97],
         sea_connections: [97,98,72],
@@ -1091,6 +1388,9 @@
     ),
     (
         id: 100,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [75,76,105,101],
         sea_connections: [75,74,101,76,105,103],
@@ -1102,6 +1402,9 @@
     ),
     (
         id: 101,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [100,105,106,102],
         sea_connections: [100,102],
@@ -1113,6 +1416,9 @@
     ),
     (
         id: 102,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [101,106],
         sea_connections: [101,106,108],
@@ -1124,6 +1430,9 @@
     ),
     (
         id: 103,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [104],
         sea_connections: [77,76,100,105,104],
@@ -1135,6 +1444,9 @@
     ),
     (
         id: 104,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [103],
         sea_connections: [103,105,107],
@@ -1146,6 +1458,9 @@
     ),
     (
         id: 105,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [100,101,106],
         sea_connections: [103,100,106,107,104],
@@ -1157,6 +1472,9 @@
     ),
     (
         id: 106,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [105,101,102],
         sea_connections: [102,108,107,105],
@@ -1168,6 +1486,9 @@
     ),
     (
         id: 107,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [],
         sea_connections: [104,105,106,108,109],
@@ -1179,6 +1500,9 @@
     ),
     (
         id: 108,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [109],
         sea_connections: [102,106,107],
@@ -1190,6 +1514,9 @@
     ),
     (
         id: 109,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [108],
         sea_connections: [107,108,110],
@@ -1201,6 +1528,9 @@
     ),
     (
         id: 110,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [],
         sea_connections: [109,111,113],
@@ -1212,6 +1542,9 @@
     ),
     (
         id: 111,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [112,113],
         sea_connections: [112,110,113],
@@ -1223,6 +1556,9 @@
     ),
     (
         id: 112,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [81,80,111,113,82],
         sea_connections: [80,79,111,],
@@ -1234,6 +1570,9 @@
     ),
     (
         id: 113,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [82,112,111],
         sea_connections: [111,110,114,82],
@@ -1245,6 +1584,9 @@
     ),
     (
         id: 114,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [115],
         sea_connections: [113,82,115],
@@ -1256,6 +1598,9 @@
     ),
     (
         id: 115,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [114],
         sea_connections: [83,82,114,116],
@@ -1267,6 +1612,9 @@
     ),
     (
         id: 116,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [84,83,117,118,85],
         sea_connections: [23],
@@ -1278,6 +1626,9 @@
     ),
     (
         id: 117,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [116,118,119],
         sea_connections: [116,119],
@@ -1289,6 +1640,9 @@
     ),
     (
         id: 118,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [85,116,117,119,121],
         sea_connections: [],
@@ -1300,6 +1654,9 @@
     ),
     (
         id: 119,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [117,118,121,120],
         sea_connections: [117,120],
@@ -1311,6 +1668,9 @@
     ),
     (
         id: 120,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [119,121,143,144,145],
         sea_connections: [119,143],
@@ -1322,6 +1682,9 @@
     ),
     (
         id: 121,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [85,118,119,120,145],
         sea_connections: [23],
@@ -1333,6 +1696,9 @@
     ),
     (
         id: 122,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [95,123,126],
         sea_connections: [23],
@@ -1344,6 +1710,9 @@
     ),
     (
         id: 123,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [124,95,122,126,125],
         sea_connections: [124,125],
@@ -1355,6 +1724,9 @@
     ),
     (
         id: 124,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [96,94,95,123],
         sea_connections: [96,123,125],
@@ -1366,6 +1738,9 @@
     ),
     (
         id: 125,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [123,126,127],
         sea_connections: [124,123,127],
@@ -1377,6 +1752,9 @@
     ),
     (
         id: 126,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [122,123,125,127,129],
         sea_connections: [],
@@ -1388,6 +1766,9 @@
     ),
     (
         id: 127,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [125,126,129,128],
         sea_connections: [125,128],
@@ -1399,6 +1780,9 @@
     ),
     (
         id: 128,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [127,130,129],
         sea_connections: [],
@@ -1410,6 +1794,9 @@
     ),
     (
         id: 129,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [127,126,130,131],
         sea_connections: [],
@@ -1421,6 +1808,9 @@
     ),
     (
         id: 130,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [128,129,131,132],
         sea_connections: [128,132],
@@ -1432,6 +1822,9 @@
     ),
     (
         id: 131,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [130,129,132,135,136],
         sea_connections: [23],
@@ -1443,6 +1836,9 @@
     ),
     (
         id: 132,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [130,131,135,134,133],
         sea_connections: [130,133],
@@ -1454,6 +1850,9 @@
     ),
     (
         id: 133,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 4,
         land_connections: [132,134,142],
         sea_connections: [132,142],
@@ -1465,6 +1864,9 @@
     ),
     (
         id: 134,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [142,133,132,135,141],
         sea_connections: [],
@@ -1476,6 +1878,9 @@
     ),
     (
         id: 135,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 5,
         land_connections: [134,132,131,136,141],
         sea_connections: [],
@@ -1487,6 +1892,9 @@
     ),
     (
         id: 136,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 4,
         land_connections: [141,135,137,140],
         sea_connections: [],
@@ -1498,6 +1906,9 @@
     ),
     (
         id: 137,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [140,136,138],
         sea_connections: [],
@@ -1509,6 +1920,9 @@
     ),
     (
         id: 138,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [140,137,139],
         sea_connections: [],
@@ -1520,6 +1934,9 @@
     ),
     (
         id: 139,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [140,138],
         sea_connections: [140],
@@ -1531,6 +1948,9 @@
     ),
     (
         id: 140,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [141,136,137,138,139],
         sea_connections: [146,144,141,139],
@@ -1542,6 +1962,9 @@
     ),
     (
         id: 141,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [144,142,134,135,136,140],
         sea_connections: [144,140],
@@ -1553,6 +1976,9 @@
     ),
     (
         id: 142,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [143,133,134,141,144],
         sea_connections: [133,143],
@@ -1564,6 +1990,9 @@
     ),
     (
         id: 143,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [142,144,120],
         sea_connections: [142,120],
@@ -1575,6 +2004,9 @@
     ),
     (
         id: 144,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [143,142,141,145,120],
         sea_connections: [145,146,140,141],
@@ -1586,6 +2018,9 @@
     ),
     (
         id: 145,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [121,120,144,146,147],
         sea_connections: [144,146],
@@ -1597,6 +2032,9 @@
     ),
     (
         id: 146,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [145,147],
         sea_connections: [145,144,140],
@@ -1608,6 +2046,9 @@
     ),
     (
         id: 147,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 1,
         land_connections: [149,87,85,145,146],
         sea_connections: [],
@@ -1619,6 +2060,9 @@
     ),
     (
         id: 148,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 3,
         land_connections: [89,88,87,149],
         sea_connections: [149,89],
@@ -1630,6 +2074,9 @@
     ),
     (
         id: 149,
+        x: 0.0,
+        y: 0.0,
+        has_texture: false,
         max_population: 2,
         land_connections: [148,87,147],
         sea_connections: [148,89,64],

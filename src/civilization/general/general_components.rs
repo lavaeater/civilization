@@ -178,16 +178,16 @@ impl Population {
     }
 }
 
-#[derive(Component, Debug, Reflect, Default)]
+#[derive(Component, Debug, Reflect)]
 pub struct FloodPlain;
 
-#[derive(Component, Debug, Reflect, Default)]
+#[derive(Component, Debug, Reflect)]
 pub struct Volcano;
 
-#[derive(Component, Debug, Reflect, Default)]
+#[derive(Component, Debug, Reflect)]
 pub struct CityFlood;
 
-#[derive(Component, Debug, Reflect, Default)]
+#[derive(Component, Debug, Reflect)]
 pub struct CitySite;
 
 #[derive(Component, Debug, Reflect)]
