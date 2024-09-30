@@ -1,5 +1,5 @@
 use bevy::core::Name;
-use bevy::prelude::{in_state, App, AssetServer, Assets, Commands, Handle, IntoSystemConfigs, Plugin, Res, ResMut, Resource, SpriteBundle, Startup, Update};
+use bevy::prelude::{in_state, App, AssetServer, Assets, Commands, Handle, IntoSystemConfigs, Plugin, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Update};
 use bevy::utils::HashSet;
 use bevy_common_assets::ron::RonAssetPlugin;
 use crate::civilization::general::general_components::{CityFlood, CitySite, FloodPlain, GameArea, LandPassage, NeedsConnections, Population, StartArea, Volcano};
@@ -75,7 +75,7 @@ fn load_map(mut commands: Commands,
             map: Res<MapHandle>,
             mut maps: ResMut<Assets<Map>>,
             mut available_factions: ResMut<AvailableFactions>,
-            mut asset_server: ResMut<AssetServer>
+            asset_server: Res<AssetServer>
 ) {
     if let Some(level) = maps.remove(map.0.id()) {
         let mut ancient_places: HashSet<String> = vec!["Assyria", "Numidia", "Carthage", "Troy", "Sparta", "Babylon", "Thebes",
@@ -132,7 +132,8 @@ fn load_map(mut commands: Commands,
             }
             if area.has_texture {
                 commands.entity(entity).insert(SpriteBundle {
-                    texture: asset_server.load(format!("textures/{}.png",  area.id)),
+                    texture: asset_server.load(format!("maps/{}.png",  area.id)),
+                    transform: Transform::from_xyz(area.x, area.y, 0.),
                     ..Default::default()
                 });
             }

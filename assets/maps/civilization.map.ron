@@ -2,8 +2,8 @@
     areas: [
     (
         id: 1,
-        x: 0.0,
-        y: 0.0,
+        x: 100.0,
+        y: 47.5,
         has_texture: true,
         max_population: 1,
         land_connections: [2],
@@ -16,8 +16,8 @@
     ),
     (
         id: 2,
-        x: 0.0,
-        y: 0.0,
+        x: 202.0,
+        y: 94.0,
         has_texture: true,
         max_population: 2,
         land_connections: [1],
@@ -30,8 +30,8 @@
     ),
     (
         id: 3,
-        x: 0.0,
-        y: 0.0,
+        x: 361.0,
+        y: 166.5,
         has_texture: true,
         max_population: 3,
         land_connections: [13,14,15,4],
