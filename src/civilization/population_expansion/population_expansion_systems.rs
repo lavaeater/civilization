@@ -13,24 +13,19 @@ pub fn check_area_population_expansion_eligibility(
     mut commands: Commands,
 ) {
     for event in expansion_check_event.read() {
-        // debug!("Checking player expansion eligibility: {:?}", event);
         if let Ok((stock, player_areas, needs_expansion)) = stock_query.get(event.player) {
             if needs_expansion.areas_that_need_expansion.is_empty() || stock.is_empty() {
-                // debug!("Player does not need expansion");
-                // commands.entity(event.player).log_components();
                 commands.entity(event.player).remove::<NeedsExpansion>();
                 commands.entity(event.player).remove::<ExpandManually>();
                 commands.entity(event.player).remove::<ExpandAutomatically>();
             } else if player_areas.required_tokens_for_expansion() > 0 {
-                // debug!("Player needs expansion");
                 if player_areas.required_tokens_for_expansion() <= stock.tokens_in_stock() {
-                    // debug!("Automatic Expansion");
+                    debug!("Automatic Expansion with {} tokens", player_areas.required_tokens_for_expansion());
                     commands
                         .entity(event.player)
                         .insert(ExpandAutomatically);
                 } else {
-                    // debug!("Manual Expansion");
-                    // commands.entity(event.player).log_components();
+                    debug!("Manual Expansion, missing {} tokens", player_areas.required_tokens_for_expansion() - stock.tokens_in_stock());
                     commands
                         .entity(event.player)
                         .insert(ExpandManually);
