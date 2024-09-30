@@ -437,6 +437,10 @@ impl CityTokenStock {
             tokens,
         }
     }
+    
+    pub fn has_tokens(&self) -> bool {
+        !self.tokens.is_empty()
+    }
 
     pub fn is_empty(&self) -> bool {
         self.tokens.is_empty()

@@ -1,7 +1,7 @@
 use crate::civilization::city_construction::city_construction_components::IsBuilding;
 use crate::civilization::game_moves::game_moves_components::{AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove};
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use crate::civilization::general::general_components::{CitySite, LandPassage, PlayerAreas, PlayerCities, PlayerStock, Population};
+use crate::civilization::general::general_components::{CitySite, CityTokenStock, LandPassage, PlayerAreas, PlayerCities, PlayerStock, Population};
 use crate::civilization::movement::movement_components::TokenHasMoved;
 use crate::civilization::movement::movement_events::PlayerMovementEnded;
 use crate::civilization::population_expansion::population_expansion_components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
@@ -98,7 +98,7 @@ pub fn recalculate_movement_moves_for_player(
 
 pub fn recalculate_city_construction_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
-    player_move_query: Query<&PlayerAreas>,
+    player_move_query: Query<(&PlayerAreas, &CityTokenStock)>,
     area_property_query: Query<(&Population, Has<CitySite>)>,
     mut commands: Commands,
 ) {
@@ -106,20 +106,24 @@ pub fn recalculate_city_construction_moves_for_player(
         commands.entity(event.player).remove::<AvailableMoves>();
         let mut moves = HashMap::default();
         let mut command_index = 0;
-        if let Ok(player_areas) = player_move_query.get(event.player) {
-            for (area, population) in player_areas.areas_and_population_count().iter() {
-                if population >= &6 {
-                    if let Ok((_area_pop, has_city_site)) = area_property_query.get(*area) {
-                        if (has_city_site && population >= &6) || (population >= &12) {
-                            command_index += 1;
-                            moves.insert(command_index, Move::CityConstruction(BuildCityMove::new(*area, event.player)));
+        if let Ok((player_areas, city_token_stock)) = player_move_query.get(event.player) {
+            if city_token_stock.has_tokens() {
+                for (area, population) in player_areas.areas_and_population_count().iter() {
+                    if population >= &6 {
+                        if let Ok((_area_pop, has_city_site)) = area_property_query.get(*area) {
+                            if (has_city_site && population >= &6) || (population >= &12) {
+                                command_index += 1;
+                                moves.insert(command_index, Move::CityConstruction(BuildCityMove::new(*area, event.player)));
+                            }
                         }
                     }
                 }
             }
             if moves.is_empty() {
+                debug!("Player can't build any cities");
                 commands.entity(event.player).remove::<IsBuilding>();
             } else {
+                debug!("Player can build cities, add end-city-construction move");
                 command_index += 1;
                 moves.insert(command_index, Move::EndCityConstruction);
                 commands.entity(event.player).insert(AvailableMoves::new(moves));

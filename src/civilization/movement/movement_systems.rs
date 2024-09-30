@@ -3,7 +3,7 @@ use crate::civilization::general::general_components::{PlayerAreas, Population, 
 use crate::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;
 use crate::civilization::movement::movement_events::{NextPlayerStarted, PlayerMovementEnded};
 use crate::GameActivity;
-use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With, Without};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With, Without};
 use crate::civilization::game_moves::game_moves_components::AvailableMoves;
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::movement::movement_components::{HasJustMoved, PerformingMovement, TokenHasMoved};
@@ -80,7 +80,7 @@ pub fn move_tokens_from_area_to_area(
         // debug!("Lets move some tokens!");
         if let Ok(mut from_pop) = pop_query.get_mut(ev.source_area) {
             let cloned = from_pop.player_tokens.clone();
-            if let Some(mut player_tokens) = cloned.get(&ev.player) {
+            if let Some(player_tokens) = cloned.get(&ev.player) {
                 // debug!("Player has tokens in the area");
                 // debug!("Player tokens: {:?}", player_tokens);
                 let tokens_that_can_move = player_tokens
