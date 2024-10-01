@@ -1,5 +1,5 @@
 use bevy::core::Name;
-use bevy::prelude::{in_state, App, AssetServer, Assets, Commands, Handle, IntoSystemConfigs, Plugin, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Update};
+use bevy::prelude::{in_state, App, AssetServer, Assets, Commands, Handle, IntoSystemConfigs, OnEnter, Plugin, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Update};
 use bevy::utils::HashSet;
 use bevy_common_assets::ron::RonAssetPlugin;
 use crate::civilization::general::general_components::{CityFlood, CitySite, FloodPlain, GameArea, LandPassage, NeedsConnections, Population, StartArea, Volcano};
@@ -17,7 +17,7 @@ impl Plugin for MapPlugin {
             .add_plugins(
                 RonAssetPlugin::<Map>::new(&["map.ron"]))
             .add_systems(Startup, setup)
-            .add_systems(Update, load_map.run_if(in_state(GameState::Loading)))
+            .add_systems(OnEnter(GameState::Playing), load_map)
         ;
     }
 }
@@ -105,8 +105,8 @@ fn load_map(mut commands: Commands,
 
 
         commands.spawn(SpriteBundle {
-            texture: textures.map.clone().into(),
-            transform: Transform::from_xyz(0., 0., 0.),
+            texture: textures.map.clone(),
+            transform: Transform::from_xyz(1250.0, 662.5, 0.0),
             ..Default::default()
         });
 
@@ -124,8 +124,8 @@ fn load_map(mut commands: Commands,
                     },
                     Population::new(area.max_population),
                     SpriteBundle {
-                        texture: textures.dot.clone().into(),
-                        transform: Transform::from_xyz(area.x, area.y, 0.),
+                        texture: textures.dot.clone(),
+                        transform: Transform::from_xyz(area.x, area.y, 1.),
                         ..Default::default()
                     }
                 )
