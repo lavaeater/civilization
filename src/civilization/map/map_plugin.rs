@@ -6,7 +6,7 @@ use crate::civilization::general::general_components::{CityFlood, CitySite, Floo
 use crate::civilization::general::general_enums::GameFaction;
 use crate::GameState;
 use rand::seq::IteratorRandom;
-
+use crate::loading::TextureAssets;
 
 pub struct MapPlugin;
 
@@ -68,54 +68,68 @@ pub struct Area {
     pub flood_plain: bool,
     pub city_flood: bool,
     pub volcano: bool,
-    has_texture: bool,
 }
 
 fn load_map(mut commands: Commands,
             map: Res<MapHandle>,
             mut maps: ResMut<Assets<Map>>,
             mut available_factions: ResMut<AvailableFactions>,
-            asset_server: Res<AssetServer>
+            textures: Res<TextureAssets>,
 ) {
     if let Some(level) = maps.remove(map.0.id()) {
         let mut ancient_places: HashSet<String> = vec!["Assyria", "Numidia", "Carthage", "Troy", "Sparta", "Babylon", "Thebes",
-            "Alexandria", "Athens", "Byzantium", "Pompeii", "Ephesus", "Ctesiphon",
-            "Jerusalem", "Nineveh", "Sidon", "Tyre", "Memphis", "Heliopolis",
-            "Pergamum", "Delphi", "Corinth", "Argos", "Syracuse", "Palmyra", "Damascus",
-            "Antioch", "Petra", "Gadara", "Sidonia", "Susa", "Knossos", "Rhodes",
-            "Pella", "Gortyn", "Leptis Magna", "Cyrene", "Tingis", "Volubilis", "Utica",
-            "Sabratha", "Tanais", "Amarna", "Hattusa", "Ugarit", "Mari", "Arpad",
-            "Qatna", "Alalakh", "Emar", "Aleppo", "Homs", "Edessa", "Tarsus",
-            "Miletus", "Pergamon", "Amphipolis", "Mycenae", "Abydos", "Phaselis",
-            "Halicarnassus", "Hierapolis", "Sardis", "Perge", "Gades", "Saguntum",
-            "Tarraco", "Corduba", "Emerita Augusta", "Hispalis", "Lusitania", "Aquae Sulis",
-            "Lutetia", "Massilia", "Nemausus", "Arelate", "Arretium", "Capua", "Neapolis",
-            "Ravenna", "Tarentum", "Brundisium", "Venusia", "Cremona", "Mediolanum",
-            "Patavium", "Aquileia", "Polis", "Teotoburgum", "Vindobona", "Carnuntum",
-            "Sirmium", "Trebizond", "Chalcedon", "Nicopolis", "Heraclea", "Philippi",
-            "Beroea", "Dura-Europos", "Seleucia", "Apamea", "Raphia", "Avaris",
-            "Tanis", "Bubastis", "Herakleopolis", "Olynthus", "Thapsus", "Bulla Regia",
-            "Hippo Regius", "Lepcis Magna", "Cirta", "Timgad", "Zama", "Thugga",
-            "Kart Hadasht", "Rhegium", "Croton", "Selinus", "Acragas", "Himera",
-            "Naxos", "Messina", "Segesta", "Catana", "Syracuse", "Thasos", "Amphipolis",
-            "Potidaea", "Apollonia", "Abdera", "Athribis", "Berenice", "Oxyrhynchus",
-            "Hermopolis", "Canopus", "Thonis", "Heracleion", "Marsa Matruh", "Baalbek",
-            "Ebla", "Arwad", "Ashkelon", "Ascalon", "Gaza", "Megiddo", "Joppa",
-            "Beersheba", "Hebron", "Aelia Capitolina", "Neapolis", "Hierapolis"
+                                                       "Alexandria", "Athens", "Byzantium", "Pompeii", "Ephesus", "Ctesiphon",
+                                                       "Jerusalem", "Nineveh", "Sidon", "Tyre", "Memphis", "Heliopolis",
+                                                       "Pergamum", "Delphi", "Corinth", "Argos", "Syracuse", "Palmyra", "Damascus",
+                                                       "Antioch", "Petra", "Gadara", "Sidonia", "Susa", "Knossos", "Rhodes",
+                                                       "Pella", "Gortyn", "Leptis Magna", "Cyrene", "Tingis", "Volubilis", "Utica",
+                                                       "Sabratha", "Tanais", "Amarna", "Hattusa", "Ugarit", "Mari", "Arpad",
+                                                       "Qatna", "Alalakh", "Emar", "Aleppo", "Homs", "Edessa", "Tarsus",
+                                                       "Miletus", "Pergamon", "Amphipolis", "Mycenae", "Abydos", "Phaselis",
+                                                       "Halicarnassus", "Hierapolis", "Sardis", "Perge", "Gades", "Saguntum",
+                                                       "Tarraco", "Corduba", "Emerita Augusta", "Hispalis", "Lusitania", "Aquae Sulis",
+                                                       "Lutetia", "Massilia", "Nemausus", "Arelate", "Arretium", "Capua", "Neapolis",
+                                                       "Ravenna", "Tarentum", "Brundisium", "Venusia", "Cremona", "Mediolanum",
+                                                       "Patavium", "Aquileia", "Polis", "Teotoburgum", "Vindobona", "Carnuntum",
+                                                       "Sirmium", "Trebizond", "Chalcedon", "Nicopolis", "Heraclea", "Philippi",
+                                                       "Beroea", "Dura-Europos", "Seleucia", "Apamea", "Raphia", "Avaris",
+                                                       "Tanis", "Bubastis", "Herakleopolis", "Olynthus", "Thapsus", "Bulla Regia",
+                                                       "Hippo Regius", "Lepcis Magna", "Cirta", "Timgad", "Zama", "Thugga",
+                                                       "Kart Hadasht", "Rhegium", "Croton", "Selinus", "Acragas", "Himera",
+                                                       "Naxos", "Messina", "Segesta", "Catana", "Syracuse", "Thasos", "Amphipolis",
+                                                       "Potidaea", "Apollonia", "Abdera", "Athribis", "Berenice", "Oxyrhynchus",
+                                                       "Hermopolis", "Canopus", "Thonis", "Heracleion", "Marsa Matruh", "Baalbek",
+                                                       "Ebla", "Arwad", "Ashkelon", "Ascalon", "Gaza", "Megiddo", "Joppa",
+                                                       "Beersheba", "Hebron", "Aelia Capitolina", "Neapolis", "Hierapolis"
         ].into_iter().map(|s| s.to_string()).collect();
-        
-        
+
+
+        commands.spawn(SpriteBundle {
+            texture: textures.map.clone().into(),
+            transform: Transform::from_xyz(0., 0., 0.),
+            ..Default::default()
+        });
+
         for area in level.areas {
             let n = remove_random_place(&mut ancient_places).unwrap_or("STANDARD_NAME".to_string());
-            
-            let entity = commands.spawn((Name::new(format!("{}:{}", area.id, n)),
-                                         GameArea::new(area.id),
-                                         LandPassage::default(),
-                                         NeedsConnections {
-                                             land_connections: area.land_connections,
-                                             sea_connections: area.sea_connections,
-                                         },
-                                         Population::new(area.max_population))).id();
+
+            let entity = commands.spawn(
+                (
+                    Name::new(format!("{}:{}", area.id, n)),
+                    GameArea::new(area.id),
+                    LandPassage::default(),
+                    NeedsConnections {
+                        land_connections: area.land_connections,
+                        sea_connections: area.sea_connections,
+                    },
+                    Population::new(area.max_population),
+                    SpriteBundle {
+                        texture: textures.dot.clone().into(),
+                        transform: Transform::from_xyz(area.x, area.y, 0.),
+                        ..Default::default()
+                    }
+                )
+            ).id();
             if area.city_site {
                 commands.entity(entity).insert(CitySite);
             }
@@ -130,14 +144,7 @@ fn load_map(mut commands: Commands,
             if area.volcano {
                 commands.entity(entity).insert(Volcano);
             }
-            if area.has_texture {
-                commands.entity(entity).insert(SpriteBundle {
-                    texture: asset_server.load(format!("maps/{}.png",  area.id)),
-                    transform: Transform::from_xyz(area.x, area.y, 0.),
-                    ..Default::default()
-                });
-            }
-            
+
             if let Some(faction) = area.start_area {
                 available_factions.factions.insert(faction);
                 available_factions.remaining_factions.insert(faction);
