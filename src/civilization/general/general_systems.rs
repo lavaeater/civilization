@@ -4,7 +4,6 @@ use crate::civilization::general::general_components::PlayerStock;
 use bevy::core::Name;
 use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, StateTransitionEvent, With};
 use bevy_console::PrintConsoleLine;
-use clap::builder::StyledStr;
 use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
 use crate::civilization::map::map_plugin::AvailableFactions;
 use crate::GameActivity;
@@ -159,6 +158,6 @@ pub fn print_names_of_phases(
     mut state_transition_event: EventReader<StateTransitionEvent<GameActivity>>,
 ) {
     for event in state_transition_event.read() {
-        write_line.send(PrintConsoleLine::new(StyledStr::from(format!("Went from: {:?} to {:?}", event.exited, event.entered))));
+        write_line.send(PrintConsoleLine::new(format!("Went from: {:?} to {:?}", event.exited, event.entered)));
     }
 }

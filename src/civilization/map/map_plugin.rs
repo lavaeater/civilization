@@ -1,6 +1,7 @@
 use bevy::core::Name;
-use bevy::prelude::{App, AssetServer, Assets, Camera, Commands, Handle, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Vec3};
+use bevy::prelude::{debug, in_state, App, AssetServer, Assets, ButtonInput, Camera, Commands, GlobalTransform, Handle, IntoSystemConfigs, Local, MouseButton, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Update, Vec3, Window, With};
 use bevy::utils::HashSet;
+use bevy::window::PrimaryWindow;
 use bevy_common_assets::ron::RonAssetPlugin;
 use crate::civilization::general::general_components::{CityFlood, CitySite, FloodPlain, GameArea, LandPassage, NeedsConnections, Population, StartArea, Volcano};
 use crate::civilization::general::general_enums::GameFaction;
@@ -18,11 +19,51 @@ impl Plugin for MapPlugin {
                 RonAssetPlugin::<Map>::new(&["map.ron"]))
             .add_systems(Startup, setup)
             .add_systems(OnEnter(GameState::Playing), load_map)
+            .add_systems(Update, mouse_button_input.run_if(in_state(GameState::Playing)))
         ;
     }
 }
 
-#[derive(serde::Deserialize, bevy::asset::Asset, bevy::reflect::TypePath)]
+#[derive(Default)]
+struct MyState {
+    id: i32,
+}
+
+fn mouse_button_input(
+    buttons: Res<ButtonInput<MouseButton>>,
+    q_windows: Query<&Window, With<PrimaryWindow>>,
+    map: Res<MapHandle>,
+    mut maps: ResMut<Assets<Map>>,
+    q_camera: Query<(&Camera, &GlobalTransform)>,
+    mut local: Local<MyState>,
+) {
+    if buttons.just_pressed(MouseButton::Left) {
+        if local.id == 0 {
+            local.id = 1;
+        } else {
+            local.id += 1;
+        }
+        let (camera, camera_transform) = q_camera.single();
+        if let Some(position) = q_windows.single().cursor_position()
+            .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor))
+            .map(|ray| ray.origin.truncate())
+        {
+            if let Some(level) = maps.get_mut(map.0.id()) {
+                if let Some(area) = level.areas.iter_mut().find(|a| a.id == local.id) {
+                    area.x = position.x;
+                    area.y = position.y;
+                }
+            }
+        }
+    } else if buttons.just_pressed(MouseButton::Right) {
+        if let Some(level) = maps.get(map.0.id()) {
+            debug!("{}", ron::ser::to_string_pretty(&level, Default::default()).unwrap());
+        }
+    }
+}
+
+
+#[derive(serde::Deserialize, serde::Serialize, bevy::asset::Asset, bevy::reflect::TypePath, Clone)]
 pub struct Map {
     pub areas: Vec<Area>,
 }
@@ -55,7 +96,7 @@ fn remove_random_place(places: &mut HashSet<String>) -> Option<String> {
     }
 }
 
-#[derive(serde::Deserialize, bevy::asset::Asset, bevy::reflect::TypePath)]
+#[derive(serde::Deserialize, serde::Serialize, bevy::asset::Asset, bevy::reflect::TypePath, Clone, Debug)]
 pub struct Area {
     pub id: i32,
     pub x: f32,
@@ -72,12 +113,12 @@ pub struct Area {
 
 fn load_map(mut commands: Commands,
             map: Res<MapHandle>,
-            mut maps: ResMut<Assets<Map>>,
+            maps: Res<Assets<Map>>,
             mut available_factions: ResMut<AvailableFactions>,
             textures: Res<TextureAssets>,
-            mut camera: Query<(&Camera, &mut Transform)>
+            mut camera: Query<(&Camera, &mut Transform)>,
 ) {
-    if let Some(level) = maps.remove(map.0.id()) {
+    if let Some(level) = maps.get(map.0.id()).clone() {
         let mut ancient_places: HashSet<String> = vec!["Assyria", "Numidia", "Carthage", "Troy", "Sparta", "Babylon", "Thebes",
                                                        "Alexandria", "Athens", "Byzantium", "Pompeii", "Ephesus", "Ctesiphon",
                                                        "Jerusalem", "Nineveh", "Sidon", "Tyre", "Memphis", "Heliopolis",
@@ -105,16 +146,16 @@ fn load_map(mut commands: Commands,
         ].into_iter().map(|s| s.to_string()).collect();
 
 
-        let (_, mut transform) = camera.single_mut(); 
+        let (_, mut transform) = camera.single_mut();
         transform.translation = Vec3::new(1250.0, 662.5, 0.0);
-        
+
         commands.spawn(SpriteBundle {
             texture: textures.map.clone(),
             transform: Transform::from_xyz(1250.0, 662.5, 0.0),
             ..Default::default()
         });
 
-        for area in level.areas {
+        for area in level.areas.clone() {
             let n = remove_random_place(&mut ancient_places).unwrap_or("STANDARD_NAME".to_string());
 
             let entity = commands.spawn(
