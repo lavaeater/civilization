@@ -1,15 +1,17 @@
 use crate::civilization::census::census_components::Census;
-use crate::civilization::general::general_components::{CityToken, CityTokenStock, Faction, GameArea, LandPassage, NeedsConnections, PlayerAreas, PlayerCities, Population, StartArea, Token, Treasury};
 use crate::civilization::general::general_components::PlayerStock;
-use bevy::core::Name;
-use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, StateTransitionEvent, With};
-use bevy_console::PrintConsoleLine;
+use crate::civilization::general::general_components::{CityToken, CityTokenStock, Faction, FixTokenPositions, GameArea, LandPassage, NeedsConnections, PlayerAreas, PlayerCities, Population, StartArea, Token, Treasury};
 use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
 use crate::civilization::map::map_plugin::AvailableFactions;
-use crate::GameActivity;
 use crate::player::Player;
+use crate::stupid_ai::stupid_ai_components::StupidAi;
+use crate::GameActivity;
+use bevy::core::Name;
+use bevy::math::{vec3, Vec3};
+use bevy::prelude::{debug, default, Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, StateTransitionEvent, Transform, With, Without};
+use bevy::sprite::SpriteBundle;
+use bevy_console::PrintConsoleLine;
 use rand::seq::IteratorRandom;
-use crate::stupid_ai::stupid_ai_plugin::StupidAi;
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
@@ -31,10 +33,9 @@ pub fn start_game(
 
 pub fn setup_players(
     mut commands: Commands,
-    mut available_factions: ResMut<AvailableFactions>
+    mut available_factions: ResMut<AvailableFactions>,
 ) {
-    (1..=2).for_each(|n| {
-        
+    (1..=8).for_each(|n| {
         let faction = *available_factions.remaining_factions.iter().choose(&mut rand::thread_rng()).unwrap();
         available_factions.remaining_factions.remove(&faction);
         // Create Player
@@ -111,29 +112,56 @@ pub fn connect_areas(
     }
 }
 
+pub fn fix_token_positions(
+    population_query: Query<(Entity, &Population, &Transform, &FixTokenPositions), Without<Token>>,
+    mut token_transform_query: Query<&mut Transform, With<Token>>,
+    mut commands: Commands,
+) {
+    for (area_entity, pop, area_transform, _) in population_query.iter() {
+        for (player_index, (_, tokens)) in pop.player_tokens.iter().enumerate() {
+            for (token_index, token) in tokens.iter().enumerate() {
+                if let Ok(mut token_transform) = token_transform_query.get_mut(*token) {
+                    token_transform.translation = area_transform.translation + vec3(
+                        (player_index * 15) as f32,
+                        ((token_index as i32) * -5) as f32,
+                        0.0);
+                }
+            }
+        }
+        commands.entity(area_entity).remove::<FixTokenPositions>();
+    }
+}
+
 /**
 This is 100% needed to be able to test expansion and stuff.
 */
 pub fn move_tokens_from_stock_to_area(
     mut move_commands: EventReader<MoveTokensFromStockToAreaCommand>,
-    mut stock_query: Query<&mut PlayerStock>,
-    mut population_query: Query<&mut Population>,
-    mut player_areas_query: Query<&mut PlayerAreas>,
+    mut population_query: Query<(&mut Population, &Transform)>,
+    mut player_query: Query<(&mut PlayerAreas, &mut PlayerStock, &Faction)>,
+    mut commands: Commands,
+    game_factions: Res<AvailableFactions>,
 ) {
     for ev in move_commands.read() {
-        if let Ok(mut stock) = stock_query.get_mut(ev.player_entity) {
-            if let Ok(mut population) = population_query.get_mut(ev.area_entity) {
+        if let Ok((mut player_areas, mut stock, faction)) = player_query.get_mut(ev.player_entity) {
+            if let Ok((mut population, area_transform)) = population_query.get_mut(ev.area_entity) {
                 if let Some(tokens_to_move) = stock.remove_tokens_from_stock(ev.number_of_tokens) {
-                    let mut player_areas = player_areas_query.get_mut(ev.player_entity).unwrap();
                     tokens_to_move
                         .iter()
                         .for_each(|t| {
                             population.add_token_to_area(ev.player_entity, *t);
                             player_areas.add_token_to_area(ev.area_entity, *t);
+                            commands.entity(*t).insert(SpriteBundle {
+                                texture: game_factions.faction_icons.get(&faction.faction).unwrap().clone(),
+                                transform: Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
+                                    .with_translation(area_transform.translation),
+                                ..default()
+                            });
                         });
                 }
             }
         }
+        commands.entity(ev.area_entity).insert(FixTokenPositions);
     }
 }
 
@@ -141,6 +169,7 @@ pub(crate) fn return_token_to_stock(
     mut event: EventReader<ReturnTokenToStock>,
     mut stock_query: Query<&mut PlayerStock>,
     token_query: Query<&Token>,
+    mut commands: Commands,
 ) {
     for return_event in event.read() {
         if let Ok(token) = token_query.get(return_event.token_entity) {
@@ -148,6 +177,7 @@ pub(crate) fn return_token_to_stock(
             if let Ok(mut stock) = stock_query.get_mut(token.player) {
                 debug!("we return it");
                 stock.return_token_to_stock(return_event.token_entity);
+                commands.entity(return_event.token_entity).remove::<SpriteBundle>();
             }
         }
     }

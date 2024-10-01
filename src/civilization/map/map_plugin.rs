@@ -1,13 +1,13 @@
-use bevy::core::Name;
-use bevy::prelude::{in_state, info, App, AssetServer, Assets, ButtonInput, Camera, Commands, GlobalTransform, Handle, IntoSystemConfigs, Local, MouseButton, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Update, Vec3, Window, With};
-use bevy::utils::HashSet;
-use bevy::window::PrimaryWindow;
-use bevy_common_assets::ron::RonAssetPlugin;
 use crate::civilization::general::general_components::{CityFlood, CitySite, FloodPlain, GameArea, LandPassage, NeedsConnections, Population, StartArea, Volcano};
 use crate::civilization::general::general_enums::GameFaction;
-use crate::GameState;
-use rand::seq::IteratorRandom;
 use crate::loading::TextureAssets;
+use crate::GameState;
+use bevy::core::Name;
+use bevy::prelude::{info, App, AssetServer, Assets, ButtonInput, Camera, Commands, GlobalTransform, Handle, Image, Local, MouseButton, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Vec3, Window, With};
+use bevy::utils::{HashMap, HashSet};
+use bevy::window::PrimaryWindow;
+use bevy_common_assets::ron::RonAssetPlugin;
+use rand::seq::IteratorRandom;
 
 pub struct MapPlugin;
 
@@ -19,7 +19,6 @@ impl Plugin for MapPlugin {
                 RonAssetPlugin::<Map>::new(&["map.ron"]))
             .add_systems(Startup, setup)
             .add_systems(OnEnter(GameState::Playing), load_map)
-            .add_systems(Update, mouse_button_input.run_if(in_state(GameState::Playing)))
         ;
     }
 }
@@ -75,6 +74,7 @@ struct MapHandle(Handle<Map>);
 pub struct AvailableFactions {
     factions: HashSet<GameFaction>,
     pub remaining_factions: HashSet<GameFaction>,
+    pub faction_icons: HashMap<GameFaction, Handle<Image>>,
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -96,7 +96,14 @@ fn remove_random_place(places: &mut HashSet<String>) -> Option<String> {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, bevy::asset::Asset, bevy::reflect::TypePath, Clone, Debug)]
+#[derive(
+    serde::Deserialize,
+    serde::Serialize,
+    bevy::asset::Asset,
+    bevy::reflect::TypePath,
+    Clone,
+    Debug
+)]
 pub struct Area {
     pub id: i32,
     pub x: f32,
@@ -151,7 +158,7 @@ fn load_map(mut commands: Commands,
 
         commands.spawn(SpriteBundle {
             texture: textures.map.clone(),
-            transform: Transform::from_xyz(1250.0, 662.5, 0.0),
+            transform: Transform::from_xyz(1250.0, 662.5, -1.0),
             ..Default::default()
         });
 
@@ -168,11 +175,12 @@ fn load_map(mut commands: Commands,
                         sea_connections: area.sea_connections,
                     },
                     Population::new(area.max_population),
-                    SpriteBundle {
-                        texture: textures.dot.clone(),
-                        transform: Transform::from_xyz(area.x, area.y, 1.),
-                        ..Default::default()
-                    }
+                    Transform::from_xyz(area.x, area.y, 1.),
+                    // SpriteBundle {
+                    //     texture: textures.dot.clone(),
+                    //     transform: Transform::from_xyz(area.x, area.y, 1.),
+                    //     ..Default::default()
+                    // }
                 )
             ).id();
             if area.city_site {
@@ -194,6 +202,35 @@ fn load_map(mut commands: Commands,
                 available_factions.factions.insert(faction);
                 available_factions.remaining_factions.insert(faction);
                 commands.entity(entity).insert(StartArea::new(faction));
+                match faction {
+                    GameFaction::Egypt => {
+                        available_factions.faction_icons.insert(GameFaction::Egypt, textures.egypt.clone());
+                    }
+                    GameFaction::Crete => {
+                        available_factions.faction_icons.insert(GameFaction::Crete, textures.crete.clone());
+                    }
+                    GameFaction::Africa => {
+                        available_factions.faction_icons.insert(GameFaction::Africa, textures.africa.clone());
+                    }
+                    GameFaction::Asia => {
+                        available_factions.faction_icons.insert(GameFaction::Asia, textures.asia.clone());
+                    }
+                    GameFaction::Assyria => {
+                        available_factions.faction_icons.insert(GameFaction::Assyria, textures.assyria.clone());
+                    }
+                    GameFaction::Babylon => {
+                        available_factions.faction_icons.insert(GameFaction::Babylon, textures.babylon.clone());
+                    }
+                    GameFaction::Illyria => {
+                        available_factions.faction_icons.insert(GameFaction::Illyria, textures.illyria.clone());
+                    }
+                    GameFaction::Iberia => {
+                        available_factions.faction_icons.insert(GameFaction::Iberia, textures.iberia.clone());
+                    }
+                    GameFaction::Thrace => {
+                        available_factions.faction_icons.insert(GameFaction::Thrace, textures.thrace.clone());
+                    }
+                }
             }
         }
     }

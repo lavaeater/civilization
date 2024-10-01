@@ -1,9 +1,9 @@
-use clap::Parser;
-use bevy_console::ConsoleCommand;
-use bevy::prelude::{Entity, EventWriter, Query, With};
-use bevy::core::Name;
 use crate::player::Player;
-use crate::stupid_ai::stupid_ai_plugin::StupidAiEvent;
+use crate::stupid_ai::stupid_ai_events::StupidAiEvent;
+use bevy::core::Name;
+use bevy::prelude::{Entity, EventWriter, Query, With};
+use bevy_console::ConsoleCommand;
+use clap::Parser;
 
 #[derive(Parser, ConsoleCommand)]
 #[command(name = "sa")]

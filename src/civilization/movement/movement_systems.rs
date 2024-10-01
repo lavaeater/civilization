@@ -1,9 +1,9 @@
 use crate::civilization::census::census_resources::GameInfoAndStuff;
-use crate::civilization::general::general_components::{PlayerAreas, Population, Token};
+use crate::civilization::general::general_components::{FixTokenPositions, PlayerAreas, Population, Token};
 use crate::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;
 use crate::civilization::movement::movement_events::{NextPlayerStarted, PlayerMovementEnded};
 use crate::GameActivity;
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With, Without};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, Transform, With, Without};
 use crate::civilization::game_moves::game_moves_components::AvailableMoves;
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::movement::movement_components::{HasJustMoved, PerformingMovement, TokenHasMoved};
@@ -70,15 +70,16 @@ pub fn player_end_movement(
 
 pub fn move_tokens_from_area_to_area(
     mut move_events: EventReader<MoveTokenFromAreaToAreaCommand>,
-    mut pop_query: Query<&mut Population>,
+    mut pop_query: Query<(&mut Population, &Transform), Without<Token>>,
     mut commands: Commands,
     mut player_areas: Query<&mut PlayerAreas>,
     tokens_that_can_move: Query<&Token, Without<TokenHasMoved>>,
+    mut token_transform: Query<&mut Transform, With<Token>>,
     mut recalculate_player_moves: EventWriter<RecalculatePlayerMoves>
 ) {
     for ev in move_events.read() {
         // debug!("Lets move some tokens!");
-        if let Ok(mut from_pop) = pop_query.get_mut(ev.source_area) {
+        if let Ok((mut from_pop,_)) = pop_query.get_mut(ev.source_area) {
             let cloned = from_pop.player_tokens.clone();
             if let Some(player_tokens) = cloned.get(&ev.player) {
                 // debug!("Player has tokens in the area");
@@ -99,13 +100,15 @@ pub fn move_tokens_from_area_to_area(
                         from_pop.remove_token_from_area(ev.player, *token);
                     }
 
-                    if let Ok(mut to_pop) = pop_query.get_mut(ev.target_area) {
+                    if let Ok((mut to_pop, target_transform)) = pop_query.get_mut(ev.target_area) {
                         if let Ok(mut player_area) = player_areas.get_mut(ev.player) {
                             tokens_to_move
                                 .iter()
                                 .for_each(|token| {
                                     commands.entity(*token).insert(TokenHasMoved);
-
+                                    if let Ok(mut token_transform) = token_transform.get_mut(*token) {
+                                        token_transform.translation = target_transform.translation;
+                                    }
                                     player_area.remove_token_from_area(ev.source_area, *token);
                                     to_pop.add_token_to_area(ev.player, *token);
                                     player_area.add_token_to_area(ev.target_area, *token);
@@ -120,5 +123,7 @@ pub fn move_tokens_from_area_to_area(
             
         }
         commands.entity(ev.player).insert(HasJustMoved);
+        commands.entity(ev.source_area).insert(FixTokenPositions);
+        commands.entity(ev.target_area).insert(FixTokenPositions);
     }
 }
