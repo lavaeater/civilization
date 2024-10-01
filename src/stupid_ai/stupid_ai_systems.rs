@@ -29,6 +29,7 @@ pub fn select_stupid_move(
     mut build_city_writer: EventWriter<BuildCityCommand>,
     mut end_player_city_construction: EventWriter<EndPlayerCityConstruction>,
     mut eliminate_city: EventWriter<EliminateCity>,
+    target_area_info_query: Query<(&Population, Has<BuiltCity>)>,
 ) {
     for event in event_reader.read() {
         // debug!("Selecting stupid AI move for player {:?}", event.player);
@@ -43,11 +44,20 @@ pub fn select_stupid_move(
             Random moves will do for now but won't cut it in the long run - we have to make the non-
             stupid AI make its moves in a more sophisticated manner.
              */
-            debug!("Available moves: {:?}", available_moves);
+            debug!("number of moves before filter: {}", available_moves.moves.len());
+            let available_moves = available_moves.moves.values().filter(|m| 
+                match m {
+                    Move::Movement(move_ment) => {
+                        let (_population, has_city) = target_area_info_query.get(move_ment.target).unwrap();
+                        !has_city 
+                    }
+                    // population.has_player(move_ment.player) && 
+                    _ => true,
+                }).collect::<Vec<_>>();
+            debug!("number of moves after filter: {}", available_moves.len());
 
             let mut rng = rand::thread_rng();
-            if let Some(selected_move) = available_moves.moves.values().choose(&mut rng) {
-                debug!("Selected move: {:?}", selected_move);
+            if let Some(selected_move) = available_moves.into_iter().choose(&mut rng) {
                 match selected_move {
                     Move::PopulationExpansion(pop_exp_move) => {
                         expand_writer.send(ExpandPopulationManuallyCommand::new(event.player, pop_exp_move.area, pop_exp_move.max_tokens));

@@ -1,8 +1,8 @@
-use bevy::prelude::{debug, Commands, Entity, EventWriter, NextState, Query, ResMut, With};
+use bevy::prelude::{debug, Commands, Entity, EventWriter, Has, NextState, Query, ResMut, With};
 use bevy::core::Name;
 use bevy_console::PrintConsoleLine;
 use crate::civilization::conflict::conflict_components::UnresolvedConflict;
-use crate::civilization::general::general_components::Population;
+use crate::civilization::general::general_components::{BuiltCity, Population};
 use crate::civilization::general::general_events::ReturnTokenToStock;
 use crate::GameActivity;
 
@@ -127,14 +127,14 @@ pub fn resolve_conflicts(
 }
 
 pub fn find_conflict_zones(
-    pop_query: Query<(Entity, &Name, &Population)>,
+    pop_query: Query<(Entity, &Name, &Population, Has<BuiltCity>)>,
     mut commands: Commands,
     mut write_line: EventWriter<PrintConsoleLine>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    pop_query.iter().filter(|(_, _, pop)| {
+    pop_query.iter().filter(|(_, _, pop, _)| {
         pop.is_conflict_zone()
-    }).for_each(|(conflict_zone, name, _)| {
+    }).for_each(|(conflict_zone, name, _, _)| {
         write_line.send(PrintConsoleLine::new(format!("Conflict zone found: {:?}", name)));
         commands.entity(conflict_zone).insert(UnresolvedConflict);
     });
