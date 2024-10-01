@@ -1,5 +1,5 @@
 use bevy::core::Name;
-use bevy::prelude::{in_state, App, AssetServer, Assets, Commands, Handle, IntoSystemConfigs, OnEnter, Plugin, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Update};
+use bevy::prelude::{in_state, App, AssetServer, Assets, Camera, Commands, Handle, IntoSystemConfigs, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Update, Vec3};
 use bevy::utils::HashSet;
 use bevy_common_assets::ron::RonAssetPlugin;
 use crate::civilization::general::general_components::{CityFlood, CitySite, FloodPlain, GameArea, LandPassage, NeedsConnections, Population, StartArea, Volcano};
@@ -75,6 +75,7 @@ fn load_map(mut commands: Commands,
             mut maps: ResMut<Assets<Map>>,
             mut available_factions: ResMut<AvailableFactions>,
             textures: Res<TextureAssets>,
+            mut camera: Query<(&Camera, &mut Transform)>
 ) {
     if let Some(level) = maps.remove(map.0.id()) {
         let mut ancient_places: HashSet<String> = vec!["Assyria", "Numidia", "Carthage", "Troy", "Sparta", "Babylon", "Thebes",
@@ -104,6 +105,9 @@ fn load_map(mut commands: Commands,
         ].into_iter().map(|s| s.to_string()).collect();
 
 
+        let (_, mut transform) = camera.single_mut(); 
+        transform.translation = Vec3::new(1250.0, 662.5, 0.0);
+        
         commands.spawn(SpriteBundle {
             texture: textures.map.clone(),
             transform: Transform::from_xyz(1250.0, 662.5, 0.0),
