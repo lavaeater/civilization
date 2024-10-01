@@ -1,5 +1,5 @@
 use bevy::core::Name;
-use bevy::prelude::{debug, in_state, App, AssetServer, Assets, ButtonInput, Camera, Commands, GlobalTransform, Handle, IntoSystemConfigs, Local, MouseButton, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Update, Vec3, Window, With};
+use bevy::prelude::{in_state, info, App, AssetServer, Assets, ButtonInput, Camera, Commands, GlobalTransform, Handle, IntoSystemConfigs, Local, MouseButton, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Update, Vec3, Window, With};
 use bevy::utils::HashSet;
 use bevy::window::PrimaryWindow;
 use bevy_common_assets::ron::RonAssetPlugin;
@@ -57,7 +57,7 @@ fn mouse_button_input(
         }
     } else if buttons.just_pressed(MouseButton::Right) {
         if let Some(level) = maps.get(map.0.id()) {
-            debug!("{}", ron::ser::to_string_pretty(&level, Default::default()).unwrap());
+            info!("{}", ron::ser::to_string_pretty(&level, Default::default()).unwrap());
         }
     }
 }
