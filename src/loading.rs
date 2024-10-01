@@ -56,4 +56,22 @@ pub struct TextureAssets {
     pub illyria: Handle<Image>,
     #[asset(path = "textures/thrace.png")]
     pub thrace: Handle<Image>,
+    #[asset(path = "textures/africa-city.png")]
+    pub africa_city: Handle<Image>,
+    #[asset(path = "textures/asia-city.png")]
+    pub asia_city: Handle<Image>,
+    #[asset(path = "textures/assyria-city.png")]
+    pub assyria_city: Handle<Image>,
+    #[asset(path = "textures/babylon-city.png")]
+    pub babylon_city: Handle<Image>,
+    #[asset(path = "textures/crete-city.png")]
+    pub crete_city: Handle<Image>,
+    #[asset(path = "textures/egypt-city.png")]
+    pub egypt_city: Handle<Image>,
+    #[asset(path = "textures/iberia-city.png")]
+    pub iberia_city: Handle<Image>,
+    #[asset(path = "textures/illyria-city.png")]
+    pub illyria_city: Handle<Image>,
+    #[asset(path = "textures/thrace-city.png")]
+    pub thrace_city: Handle<Image>,
 }

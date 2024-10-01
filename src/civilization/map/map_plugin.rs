@@ -3,7 +3,7 @@ use crate::civilization::general::general_enums::GameFaction;
 use crate::loading::TextureAssets;
 use crate::GameState;
 use bevy::core::Name;
-use bevy::prelude::{info, App, AssetServer, Assets, ButtonInput, Camera, Commands, GlobalTransform, Handle, Image, Local, MouseButton, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Vec3, Window, With};
+use bevy::prelude::{info, App, AssetServer, Assets, ButtonInput, Camera, Commands, GlobalTransform, Handle, Has, Image, Local, MouseButton, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Vec3, Window, With};
 use bevy::utils::{HashMap, HashSet};
 use bevy::window::PrimaryWindow;
 use bevy_common_assets::ron::RonAssetPlugin;
@@ -75,6 +75,7 @@ pub struct AvailableFactions {
     factions: HashSet<GameFaction>,
     pub remaining_factions: HashSet<GameFaction>,
     pub faction_icons: HashMap<GameFaction, Handle<Image>>,
+    pub faction_city_icons: HashMap<GameFaction, Handle<Image>>
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -205,30 +206,39 @@ fn load_map(mut commands: Commands,
                 match faction {
                     GameFaction::Egypt => {
                         available_factions.faction_icons.insert(GameFaction::Egypt, textures.egypt.clone());
+                        available_factions.faction_city_icons.insert(GameFaction::Egypt, textures.egypt_city.clone());
                     }
                     GameFaction::Crete => {
                         available_factions.faction_icons.insert(GameFaction::Crete, textures.crete.clone());
+                        available_factions.faction_city_icons.insert(GameFaction::Crete, textures.crete_city.clone());
                     }
                     GameFaction::Africa => {
                         available_factions.faction_icons.insert(GameFaction::Africa, textures.africa.clone());
+                        available_factions.faction_city_icons.insert(GameFaction::Africa, textures.africa_city.clone());
                     }
                     GameFaction::Asia => {
                         available_factions.faction_icons.insert(GameFaction::Asia, textures.asia.clone());
+                        available_factions.faction_city_icons.insert(GameFaction::Asia, textures.asia_city.clone());
                     }
                     GameFaction::Assyria => {
                         available_factions.faction_icons.insert(GameFaction::Assyria, textures.assyria.clone());
+                        available_factions.faction_city_icons.insert(GameFaction::Assyria, textures.assyria_city.clone());
                     }
                     GameFaction::Babylon => {
                         available_factions.faction_icons.insert(GameFaction::Babylon, textures.babylon.clone());
+                        available_factions.faction_city_icons.insert(GameFaction::Babylon, textures.babylon_city.clone());
                     }
                     GameFaction::Illyria => {
                         available_factions.faction_icons.insert(GameFaction::Illyria, textures.illyria.clone());
+                        available_factions.faction_city_icons.insert(GameFaction::Illyria, textures.illyria_city.clone());
                     }
                     GameFaction::Iberia => {
                         available_factions.faction_icons.insert(GameFaction::Iberia, textures.iberia.clone());
+                        available_factions.faction_city_icons.insert(GameFaction::Iberia, textures.iberia_city.clone());
                     }
                     GameFaction::Thrace => {
                         available_factions.faction_icons.insert(GameFaction::Thrace, textures.thrace.clone());
+                        available_factions.faction_city_icons.insert(GameFaction::Thrace, textures.thrace_city.clone());
                     }
                 }
             }
