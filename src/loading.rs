@@ -34,4 +34,26 @@ pub struct TextureAssets {
     pub bevy: Handle<Image>,
     #[asset(path = "textures/github.png")]
     pub github: Handle<Image>,
+    #[asset(path = "maps/adv_civ_map.png")]
+    pub map: Handle<Image>,
+    #[asset(path = "textures/dot.png")]
+    pub dot: Handle<Image>,
+    #[asset(path = "textures/africa.png")]
+    pub africa: Handle<Image>,
+    #[asset(path = "textures/asia.png")]
+    pub asia: Handle<Image>,
+    #[asset(path = "textures/assyria.png")]
+    pub assyria: Handle<Image>,
+    #[asset(path = "textures/babylon.png")]
+    pub babylon: Handle<Image>,
+    #[asset(path = "textures/crete.png")]
+    pub crete: Handle<Image>,
+    #[asset(path = "textures/egypt.png")]
+    pub egypt: Handle<Image>,
+    #[asset(path = "textures/iberia.png")]
+    pub iberia: Handle<Image>,
+    #[asset(path = "textures/illyria.png")]
+    pub illyria: Handle<Image>,
+    #[asset(path = "textures/thrace.png")]
+    pub thrace: Handle<Image>,
 }

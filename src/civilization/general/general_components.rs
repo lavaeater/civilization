@@ -60,6 +60,10 @@ impl Population {
             }
         }
     }
+    
+    pub fn has_more_than_one_player(&self) -> bool {
+        self.player_tokens.len() > 1
+    }
 
     pub fn players(&self) -> HashSet<Entity> {
         self.player_tokens.keys().cloned().collect()
@@ -178,16 +182,19 @@ impl Population {
     }
 }
 
-#[derive(Component, Debug, Reflect, Default)]
+#[derive(Component, Debug, Reflect)]
+pub struct FixTokenPositions;
+
+#[derive(Component, Debug, Reflect)]
 pub struct FloodPlain;
 
-#[derive(Component, Debug, Reflect, Default)]
+#[derive(Component, Debug, Reflect)]
 pub struct Volcano;
 
-#[derive(Component, Debug, Reflect, Default)]
+#[derive(Component, Debug, Reflect)]
 pub struct CityFlood;
 
-#[derive(Component, Debug, Reflect, Default)]
+#[derive(Component, Debug, Reflect)]
 pub struct CitySite;
 
 #[derive(Component, Debug, Reflect)]
