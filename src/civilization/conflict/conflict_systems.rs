@@ -7,14 +7,15 @@ use crate::civilization::general::general_events::ReturnTokenToStock;
 use crate::GameActivity;
 
 pub fn resolve_conflicts(
-    mut conflict_zones: Query<(Entity, &Name, &mut Population), With<UnresolvedConflict>>,
+    mut conflict_zones: Query<(Entity, &Name, &mut Population, Has<BuiltCity>), With<UnresolvedConflict>>,
     mut return_token: EventWriter<ReturnTokenToStock>,
     mut commands: Commands) {
-    for (area_entity, _name, mut population) in conflict_zones.iter_mut() {
+    for (area_entity, _name, mut population, has_city) in conflict_zones.iter_mut() {
         let temp_map = population.player_tokens.clone();
         let mut players = temp_map.keys().copied().collect::<Vec<Entity>>();
         players.sort_by(|a, b| temp_map[b].len().cmp(&temp_map[a].len()));
 
+        // This is conflict zone with just a city, yay
         if population.max_population == 1 {
             if population.number_of_players() == 2 {
                 let player_one = players.pop().unwrap();
@@ -121,10 +122,11 @@ pub fn resolve_conflicts(
                     }
                 }
             }
-            commands.entity(area_entity).remove::<UnresolvedConflict>();
         }
+        commands.entity(area_entity).remove::<UnresolvedConflict>();
     }
 }
+
 
 pub fn find_conflict_zones(
     pop_query: Query<(Entity, &Name, &Population, Has<BuiltCity>)>,
@@ -132,8 +134,8 @@ pub fn find_conflict_zones(
     mut write_line: EventWriter<PrintConsoleLine>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    pop_query.iter().filter(|(_, _, pop, _)| {
-        pop.is_conflict_zone()
+    pop_query.iter().filter(|(_, _, pop, has_city)| {
+        pop.is_conflict_zone(*has_city)
     }).for_each(|(conflict_zone, name, _, _)| {
         write_line.send(PrintConsoleLine::new(format!("Conflict zone found: {:?}", name)));
         commands.entity(conflict_zone).insert(UnresolvedConflict);
