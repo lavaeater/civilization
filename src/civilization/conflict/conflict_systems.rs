@@ -3,7 +3,7 @@ use crate::civilization::general::general_components::{BuiltCity, Population};
 use crate::civilization::general::general_events::ReturnTokenToStock;
 use crate::GameActivity;
 use bevy::core::Name;
-use bevy::prelude::{debug, Commands, Entity, EventWriter, Has, NextState, Query, ResMut, With};
+use bevy::prelude::{Commands, Entity, EventWriter, Has, NextState, Query, ResMut, With};
 use bevy_console::PrintConsoleLine;
 
 pub fn resolve_conflicts(
@@ -51,10 +51,11 @@ fn handle_unequal_lengths(
     return_token: &mut EventWriter<ReturnTokenToStock>,
 ) {
     // Sort players by their token count (from most to least)
-    players.sort_by_key(|b| std::cmp::Reverse(population.population_for_player(*b)));
+    players.sort_by(|a, b| population.population_for_player(*b).cmp(&population.population_for_player(*a)));
 
-    // We will continue to remove tokens until only the player with the most tokens has non-zero tokens
-    while players.len() > 1 {
+    // Continue removing tokens while the total population is greater than max_population
+    // and more than one player still has tokens
+    while population.total_population() > population.max_population && players.len() > 1 {
         let current_player = players.pop().unwrap();
 
         // Remove 1 token from the current player
@@ -62,13 +63,18 @@ fn handle_unequal_lengths(
             return_token.send(ReturnTokenToStock::new(token));
         }
 
-        // Check if the current player still has tokens
+        // Check if the current player still has tokens, if so, put them back in the queue
         if population.population_for_player(current_player) > 0 {
             players.insert(0, current_player); // Put back in the queue if they still have tokens
         }
 
-        // If only one player remains in the list, stop the process
+        // If only one player remains with tokens, stop the process
         if players.len() == 1 && population.population_for_player(players[0]) > 0 {
+            break;
+        }
+
+        // Stop if the total population is now less than or equal to the max_population
+        if population.total_population() <= population.max_population {
             break;
         }
     }

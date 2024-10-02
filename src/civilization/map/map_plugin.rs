@@ -3,9 +3,8 @@ use crate::civilization::general::general_enums::GameFaction;
 use crate::loading::TextureAssets;
 use crate::GameState;
 use bevy::core::Name;
-use bevy::prelude::{info, App, AssetServer, Assets, ButtonInput, Camera, Commands, GlobalTransform, Handle, Image, Local, MouseButton, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Vec3, Window, With};
+use bevy::prelude::{App, AssetServer, Assets, Camera, Commands, Handle, Image,   OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Vec3};
 use bevy::utils::{HashMap, HashSet};
-use bevy::window::PrimaryWindow;
 use bevy_common_assets::ron::RonAssetPlugin;
 use rand::seq::IteratorRandom;
 
@@ -23,43 +22,43 @@ impl Plugin for MapPlugin {
     }
 }
 
-#[derive(Default)]
-struct MyState {
-    id: i32,
-}
-
-fn mouse_button_input(
-    buttons: Res<ButtonInput<MouseButton>>,
-    q_windows: Query<&Window, With<PrimaryWindow>>,
-    map: Res<MapHandle>,
-    mut maps: ResMut<Assets<Map>>,
-    q_camera: Query<(&Camera, &GlobalTransform)>,
-    mut local: Local<MyState>,
-) {
-    if buttons.just_pressed(MouseButton::Left) {
-        if local.id == 0 {
-            local.id = 1;
-        } else {
-            local.id += 1;
-        }
-        let (camera, camera_transform) = q_camera.single();
-        if let Some(position) = q_windows.single().cursor_position()
-            .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor))
-            .map(|ray| ray.origin.truncate())
-        {
-            if let Some(level) = maps.get_mut(map.0.id()) {
-                if let Some(area) = level.areas.iter_mut().find(|a| a.id == local.id) {
-                    area.x = position.x;
-                    area.y = position.y;
-                }
-            }
-        }
-    } else if buttons.just_pressed(MouseButton::Right) {
-        if let Some(level) = maps.get(map.0.id()) {
-            info!("{}", ron::ser::to_string_pretty(&level, Default::default()).unwrap());
-        }
-    }
-}
+// #[derive(Default)]
+// struct MyState {
+//     id: i32,
+// }
+// 
+// fn mouse_button_input(
+//     buttons: Res<ButtonInput<MouseButton>>,
+//     q_windows: Query<&Window, With<PrimaryWindow>>,
+//     map: Res<MapHandle>,
+//     mut maps: ResMut<Assets<Map>>,
+//     q_camera: Query<(&Camera, &GlobalTransform)>,
+//     mut local: Local<MyState>,
+// ) {
+//     if buttons.just_pressed(MouseButton::Left) {
+//         if local.id == 0 {
+//             local.id = 1;
+//         } else {
+//             local.id += 1;
+//         }
+//         let (camera, camera_transform) = q_camera.single();
+//         if let Some(position) = q_windows.single().cursor_position()
+//             .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor))
+//             .map(|ray| ray.origin.truncate())
+//         {
+//             if let Some(level) = maps.get_mut(map.0.id()) {
+//                 if let Some(area) = level.areas.iter_mut().find(|a| a.id == local.id) {
+//                     area.x = position.x;
+//                     area.y = position.y;
+//                 }
+//             }
+//         }
+//     } else if buttons.just_pressed(MouseButton::Right) {
+//         if let Some(level) = maps.get(map.0.id()) {
+//             info!("{}", ron::ser::to_string_pretty(&level, Default::default()).unwrap());
+//         }
+//     }
+// }
 
 
 #[derive(serde::Deserialize, serde::Serialize, bevy::asset::Asset, bevy::reflect::TypePath, Clone)]

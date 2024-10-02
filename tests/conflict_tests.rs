@@ -212,7 +212,8 @@ fn given_three_conflicteers_the_correct_result_is_obtained() {
         ThreePlayerTestStruct::new(1, 1, 1, 1, 0, 0, 0),
         ThreePlayerTestStruct::new(4, 2, 1, 3, 3, 0, 0),
         ThreePlayerTestStruct::new(4, 4, 4, 3, 1, 1, 1),
-        ThreePlayerTestStruct::new(2, 5, 1, 2, 1, 1, 1),
+        ThreePlayerTestStruct::new(2, 5, 1, 2, 0, 4, 0),
+        ThreePlayerTestStruct::new(2, 5, 1, 3, 0, 4, 0),
     ];
 
     let (player_one, mut player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
