@@ -10,7 +10,7 @@ pub fn resolve_conflicts(
     mut conflict_zones: Query<(Entity, &Name, &mut Population, Has<BuiltCity>), With<UnresolvedConflict>>,
     mut return_token: EventWriter<ReturnTokenToStock>,
     mut commands: Commands) {
-    for (area_entity, _name, mut population, _has_city) in conflict_zones.iter_mut() {
+    for (area_entity, _name, mut population, has_city) in conflict_zones.iter_mut() {
         let temp_map = population.player_tokens.clone();
         let mut players = temp_map.keys().copied().collect::<Vec<Entity>>();
         players.sort_by(|a, b| temp_map[b].len().cmp(&temp_map[a].len()));
