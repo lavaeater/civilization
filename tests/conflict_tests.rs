@@ -1,16 +1,16 @@
 mod common;
 
 use crate::common::setup_player;
-use bevy::app::Update;
-use bevy::prelude::{App, AppExtStates, Name};
-use bevy::state::app::StatesPlugin;
-use bevy_console::PrintConsoleLine;
 use adv_civ::civilization::conflict::conflict_components::UnresolvedConflict;
 use adv_civ::civilization::conflict::conflict_systems::{find_conflict_zones, resolve_conflicts};
 use adv_civ::civilization::general::general_components::{GameArea, LandPassage, Population};
 use adv_civ::civilization::general::general_enums::GameFaction;
 use adv_civ::civilization::general::general_events::*;
 use adv_civ::{GameActivity, GameState};
+use bevy::app::Update;
+use bevy::prelude::{App, AppExtStates, Name};
+use bevy::state::app::StatesPlugin;
+use bevy_console::PrintConsoleLine;
 
 /****************************************************
 Test for the find_conflict_zones system
@@ -35,7 +35,7 @@ fn given_two_players_in_an_area_with_too_much_population_area_is_marked_as_confl
 
     let (player_one, mut player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
 
-    let (player_two, mut player_two_tokens, _) = setup_player(&mut  app, "player two", GameFaction::Crete);
+    let (player_two, mut player_two_tokens, _) = setup_player(&mut app, "player two", GameFaction::Crete);
 
     let mut population = Population::new(4);
 
@@ -70,22 +70,21 @@ pub struct ConflictTestStruct {
     pub player_two_tokens: usize,
     pub area_max_population: usize,
     pub player_one_expected: usize,
-    pub player_two_expected: usize
+    pub player_two_expected: usize,
 }
 
 impl ConflictTestStruct {
-    fn new(player_one_tokens: usize, 
-           player_two_tokens: usize, 
+    fn new(player_one_tokens: usize,
+           player_two_tokens: usize,
            area_max_population: usize,
            player_one_expected: usize,
            player_two_expected: usize) -> Self {
-        
         ConflictTestStruct {
             player_one_tokens,
             player_two_tokens,
             area_max_population,
             player_one_expected,
-            player_two_expected
+            player_two_expected,
         }
     }
 }
@@ -103,26 +102,26 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .add_systems(Update, resolve_conflicts);
-    
+
     let test_cases = vec![
-        ConflictTestStruct::new(1,1,1,0,0),
-        ConflictTestStruct::new(2,1,1,2,0),
-        ConflictTestStruct::new(2,1,2,2,0),
-        ConflictTestStruct::new(2,2,2,1,1),
-        ConflictTestStruct::new(3,2,2,2,0),
-        ConflictTestStruct::new(3,2,3,2,1),
-        ConflictTestStruct::new(3,3,3,1,1),
-        ConflictTestStruct::new(4,2,3,3,0),
-        ConflictTestStruct::new(3,3,4,2,2),
-        ConflictTestStruct::new(4,1,4,4,0),
-        ConflictTestStruct::new(4,2,4,3,1),
-        ConflictTestStruct::new(4,3,4,3,1),
-        ConflictTestStruct::new(5,3,4,3,1),
+        ConflictTestStruct::new(1, 1, 1, 0, 0),
+        ConflictTestStruct::new(2, 1, 1, 2, 0),
+        ConflictTestStruct::new(2, 1, 2, 2, 0),
+        ConflictTestStruct::new(2, 2, 2, 1, 1),
+        ConflictTestStruct::new(3, 2, 2, 2, 0),
+        ConflictTestStruct::new(3, 2, 3, 2, 1),
+        ConflictTestStruct::new(3, 3, 3, 1, 1),
+        ConflictTestStruct::new(4, 2, 3, 3, 0),
+        ConflictTestStruct::new(3, 3, 4, 2, 2),
+        ConflictTestStruct::new(4, 1, 4, 4, 0),
+        ConflictTestStruct::new(4, 2, 4, 3, 1),
+        ConflictTestStruct::new(4, 3, 4, 3, 1),
+        ConflictTestStruct::new(5, 3, 4, 3, 1),
     ];
 
     let (player_one, mut player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
 
-    let (player_two, mut player_two_tokens, _) = setup_player(&mut  app, "player two", GameFaction::Crete);
+    let (player_two, mut player_two_tokens, _) = setup_player(&mut app, "player two", GameFaction::Crete);
 
     for test_case in test_cases {
         let mut population = Population::new(test_case.area_max_population);
@@ -146,8 +145,8 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
         // Assert
         let population = app.world().get::<Population>(area).unwrap();
         assert_eq!(
-            population.total_population(), 
-            test_case.player_two_expected + test_case.player_one_expected, 
+            population.total_population(),
+            test_case.player_two_expected + test_case.player_one_expected,
             "Conflict resolution with p1: {}, p2: {}, max_pop: {}, exp: {}",
             test_case.player_one_tokens,
             test_case.player_two_tokens,
@@ -155,6 +154,4 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
             test_case.player_one_expected + test_case.player_two_expected
         );
     }
-
-    
 }

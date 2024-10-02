@@ -3,7 +3,7 @@ use crate::civilization::general::general_enums::GameFaction;
 use crate::loading::TextureAssets;
 use crate::GameState;
 use bevy::core::Name;
-use bevy::prelude::{info, App, AssetServer, Assets, ButtonInput, Camera, Commands, GlobalTransform, Handle, Has, Image, Local, MouseButton, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Vec3, Window, With};
+use bevy::prelude::{info, App, AssetServer, Assets, ButtonInput, Camera, Commands, GlobalTransform, Handle, Image, Local, MouseButton, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Vec3, Window, With};
 use bevy::utils::{HashMap, HashSet};
 use bevy::window::PrimaryWindow;
 use bevy_common_assets::ron::RonAssetPlugin;

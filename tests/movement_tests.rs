@@ -1,17 +1,17 @@
 mod common;
 
-use bevy::app::Update;
-use bevy::prelude::{App, AppExtStates, Events, Name};
-use bevy::state::app::StatesPlugin;
-use bevy_console::PrintConsoleLine;
-use adv_civ::civilization::general::general_components::{GameArea, LandPassage, PlayerAreas, Population};
-use adv_civ::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;
-use adv_civ::{GameActivity, GameState};
+use crate::common::setup_player;
 use adv_civ::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
+use adv_civ::civilization::general::general_components::{GameArea, LandPassage, PlayerAreas, Population};
 use adv_civ::civilization::general::general_enums::GameFaction;
 use adv_civ::civilization::movement::movement_components::TokenHasMoved;
+use adv_civ::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;
 use adv_civ::civilization::movement::movement_systems::move_tokens_from_area_to_area;
-use crate::common::setup_player;
+use adv_civ::{GameActivity, GameState};
+use bevy::app::Update;
+use bevy::prelude::{App, AppExtStates, Bundle, Entity, Events, Name, Transform};
+use bevy::state::app::StatesPlugin;
+use bevy_console::PrintConsoleLine;
 
 fn setup_app() -> App {
     let mut app = App::new();
@@ -44,7 +44,8 @@ fn moved_tokens_get_token_has_moved_component_added() {
             Name::new("egypt"),
             GameArea::new(1),
             LandPassage::default(),
-            population
+            population,
+            Transform::from_xyz(0.0, 0.0, 0.0)
         )
     ).id();
 
@@ -53,7 +54,8 @@ fn moved_tokens_get_token_has_moved_component_added() {
             Name::new("crete"),
             GameArea::new(2),
             LandPassage::default(),
-            Population::new(3)
+            Population::new(3),
+            Transform::from_xyz(0.0, 0.0, 0.0)
         )
     ).id();
     let mut events = app.world_mut()
@@ -75,7 +77,7 @@ fn moved_tokens_get_token_has_moved_component_added() {
     for token in tokens_in_area {
         assert!(app.world().entity(token).get::<TokenHasMoved>().is_some());
     }
-    
+
     let from_pop = app.world().entity(from_area).get::<Population>();
 
     let from_tokens = from_pop.unwrap().player_tokens.get(&player_one);
@@ -98,23 +100,10 @@ fn moving_token_to_area_adds_area_to_player_areas() {
 
     population.player_tokens.insert(player_one, player_one_tokens.drain(0..3).collect());
 
-    let from_area = app.world_mut().spawn(
-        (
-            Name::new("egypt"),
-            GameArea::new(1),
-            LandPassage::default(),
-            population
-        )
-    ).id();
+    let from_area = create_area(&mut app, "egypt", Some(population));
 
-    let to_area = app.world_mut().spawn(
-        (
-            Name::new("crete"),
-            GameArea::new(2),
-            LandPassage::default(),
-            Population::new(3)
-        )
-    ).id();
+    let to_area = create_area(&mut app, "crete", None::<()>);
+    
     let mut events = app.world_mut()
         .resource_mut::<Events<MoveTokenFromAreaToAreaCommand>>();
 
@@ -127,6 +116,22 @@ fn moving_token_to_area_adds_area_to_player_areas() {
     assert!(player_area.is_some());
     let player_area = player_area.unwrap();
     assert!(player_area.contains(to_area));
+}
+
+fn create_area<T: Bundle>(app: &mut App, name: &str, components: Option<T>) -> Entity {
+    let area = app.world_mut().spawn(
+        (
+            Name::new(name.to_string()),
+            GameArea::new(1),
+            LandPassage::default(),
+            Transform::from_xyz(0.0, 0.0, 0.0),
+            Population::new(3)
+        )
+    ).id();
+    if let Some(components) = components {
+        app.world_mut().entity_mut(area).insert(components);
+    }
+    area
 }
 
 #[test]
