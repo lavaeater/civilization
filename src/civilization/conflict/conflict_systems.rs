@@ -1,16 +1,16 @@
-use crate::civilization::conflict::conflict_components::UnresolvedConflict;
+use crate::civilization::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
 use crate::civilization::general::general_components::{BuiltCity, Population};
 use crate::civilization::general::general_events::ReturnTokenToStock;
 use crate::GameActivity;
 use bevy::core::Name;
-use bevy::prelude::{Commands, Entity, EventWriter, Has, NextState, Query, ResMut, With};
+use bevy::prelude::{Commands, Entity, EventWriter, Has, NextState, Query, ResMut, With, Without};
 use bevy_console::PrintConsoleLine;
 
 pub fn resolve_conflicts(
-    mut conflict_zones: Query<(Entity, &Name, &mut Population, Has<BuiltCity>), With<UnresolvedConflict>>,
+    mut conflict_zones: Query<(Entity, &Name, &mut Population), With<UnresolvedConflict>>,
     mut return_token: EventWriter<ReturnTokenToStock>,
     mut commands: Commands) {
-    for (area_entity, _name, mut population, has_city) in conflict_zones.iter_mut() {
+    for (area_entity, _name, mut population) in conflict_zones.iter_mut() {
         let temp_map = population.player_tokens.clone();
         let mut players = temp_map.keys().copied().collect::<Vec<Entity>>();
         players.sort_by(|a, b| temp_map[b].len().cmp(&temp_map[a].len()));
@@ -122,9 +122,13 @@ pub fn find_conflict_zones(
 ) {
     pop_query.iter().filter(|(_, _, pop, has_city)| {
         pop.is_conflict_zone(*has_city)
-    }).for_each(|(conflict_zone, name, _, _)| {
+    }).for_each(|(conflict_zone, name, _, has_city)| {
         write_line.send(PrintConsoleLine::new(format!("Conflict zone found: {:?}", name)));
-        commands.entity(conflict_zone).insert(UnresolvedConflict);
+        if has_city {
+            commands.entity(conflict_zone).insert(UnresolvedCityConflict);
+        } else {
+            commands.entity(conflict_zone).insert(UnresolvedConflict);
+        }
     });
     next_state.set(GameActivity::CityConstruction);
 }
