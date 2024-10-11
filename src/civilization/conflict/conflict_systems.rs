@@ -6,6 +6,25 @@ use bevy::core::Name;
 use bevy::prelude::{Commands, Entity, EventWriter, Has, NextState, Query, ResMut, With, Without};
 use bevy_console::PrintConsoleLine;
 
+pub fn resolve_city_conflicts(
+    mut conflict_zones: Query<(Entity, &Name, &mut Population, BuiltCity), With<UnresolvedCityConflict>>,
+    mut return_token: EventWriter<ReturnTokenToStock>,
+    mut commands: Commands) {
+    for (area_entity, _name, mut population, built_city) in conflict_zones.iter_mut() {
+        /*
+        1. Does the non-city players have 7 or more tokens in this area?
+            ## No: 
+                1. Eliminate all these tokens, return them to the player's stock
+            ## Yes: 
+                1. Eliminate the city, return to stock
+                2. Get six (or fewer if player does not have six tokens in stock)
+                3. Mark as a completely regular conflict zone.
+         2. Profit!
+         */
+        commands.entity(area_entity).remove::<UnresolvedCityConflict>();
+    }
+}
+
 pub fn resolve_conflicts(
     mut conflict_zones: Query<(Entity, &Name, &mut Population), With<UnresolvedConflict>>,
     mut return_token: EventWriter<ReturnTokenToStock>,
