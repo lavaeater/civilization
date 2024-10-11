@@ -1,9 +1,8 @@
 use crate::civilization::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
 use crate::civilization::general::general_components::{BuiltCity, Population};
-use crate::civilization::general::general_events::ReturnTokenToStock;
 use crate::GameActivity;
 use bevy::core::Name;
-use bevy::prelude::{Commands, Entity, EventWriter, Has, NextState, Query, ResMut, With, Without};
+use bevy::prelude::{Commands, Entity, EventWriter, Has, NextState, Query, ResMut};
 use bevy_console::PrintConsoleLine;
 
 pub fn conflict_gate(

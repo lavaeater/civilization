@@ -104,7 +104,8 @@ impl Population {
     }
 
     pub fn is_conflict_zone(&self, has_city: bool) -> bool {
-        (self.number_of_players() > 1 && self.has_too_many_tokens()) || (has_city && self.player_tokens.keys().len() > 1)
+        (self.number_of_players() > 1 && self.has_too_many_tokens())
+            || (has_city && self.number_of_players() > 1)
     }
 
     pub fn has_too_many_tokens(&self) -> bool {

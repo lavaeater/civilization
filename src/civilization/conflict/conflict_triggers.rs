@@ -124,6 +124,13 @@ pub fn on_add_unresolved_city_conflict(
                   _name,
                   mut population,
                   built_city)) = areas.get_mut(trigger.entity()) {
+        let mut other_players = population.players();
+        other_players.remove(&built_city.player);
+        for player in other_players {
+            if population.population_for_player(player) > 6 {
+                
+            }
+        }
         /*
         1. Does the non-city players have 7 or more tokens in this area?
             ## No: 
