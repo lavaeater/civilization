@@ -1,17 +1,16 @@
-use crate::civilization::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
-use crate::civilization::general::general_components::{BuiltCity, Population};
-use crate::civilization::general::general_events::ReturnTokenToStock;
-use crate::GameActivity;
 use bevy::core::Name;
-use bevy::prelude::{Commands, Entity, EventWriter, Has, NextState, Query, ResMut, With, Without};
-use bevy_console::PrintConsoleLine;
+use bevy::prelude::{Commands, Entity, EventWriter, OnAdd, Query, Trigger, With};
+use crate::civilization::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
+use crate::civilization::general::general_components::Population;
+use crate::civilization::general::general_events::ReturnTokenToStock;
 
-
-pub fn resolve_conflicts(
-    mut conflict_zones: Query<(Entity, &Name, &mut Population), With<UnresolvedConflict>>,
+pub fn on_add_unresolved_conflict(
+    trigger: Trigger<OnAdd, UnresolvedConflict>,
+    mut areas: Query<(Entity, &Name, &mut Population)>,
     mut return_token: EventWriter<ReturnTokenToStock>,
-    mut commands: Commands) {
-    for (area_entity, _name, mut population) in conflict_zones.iter_mut() {
+    mut commands: Commands
+) {
+    if let Ok((area_entity, _name, mut population)) = areas.get_mut(trigger.entity()) {
         let temp_map = population.player_tokens.clone();
         let mut players = temp_map.keys().copied().collect::<Vec<Entity>>();
         players.sort_by(|a, b| temp_map[b].len().cmp(&temp_map[a].len()));
@@ -27,6 +26,8 @@ pub fn resolve_conflicts(
         commands.entity(area_entity).remove::<UnresolvedConflict>();
     }
 }
+
+
 
 fn handle_all_lengths_equal(
     players: &Vec<Entity>,
@@ -115,31 +116,23 @@ fn handle_max_pop_is_one_conflicts(
     }
 }
 
-pub fn conflict_gate(
-    conflicts: Query<&UnresolvedConflict>,
-    city_conflicts: Query<&UnresolvedCityConflict>,
-    mut next_state: ResMut<NextState<GameActivity>>,
-) {
-    if conflicts.is_empty() {
-        if city_conflicts.is_empty() {
-            next_state.set(GameActivity::CheckCitySupport)
-        }
-    }
-}
 
-pub fn find_conflict_zones(
-    pop_query: Query<(Entity, &Name, &Population, Has<BuiltCity>)>,
-    mut commands: Commands,
-    mut write_line: EventWriter<PrintConsoleLine>
-) {
-    pop_query.iter().filter(|(_, _, pop, has_city)| {
-        pop.is_conflict_zone(*has_city)
-    }).for_each(|(conflict_zone, name, _, has_city)| {
-        write_line.send(PrintConsoleLine::new(format!("Conflict zone found: {:?}", name)));
-        if has_city {
-            commands.entity(conflict_zone).insert(UnresolvedCityConflict);
-        } else {
-            commands.entity(conflict_zone).insert(UnresolvedConflict);
-        }
-    });
+pub fn on_add_unresolved_city_conflict(
+    trigger: Trigger<OnAdd, UnresolvedCityConflict>,
+    mut areas: Query<(Entity, &Name, &mut Population)>,
+    mut return_token: EventWriter<ReturnTokenToStock>,
+    mut commands: Commands) {
+    if let Ok((area_entity, _name, mut population)) =  areas.get_mut(trigger.entity()) {
+        /*
+        1. Does the non-city players have 7 or more tokens in this area?
+            ## No: 
+                1. Eliminate all these tokens, return them to the player's stock
+            ## Yes: 
+                1. Eliminate the city, return to stock
+                2. Get six (or fewer if player does not have six tokens in stock)
+                3. Mark as a completely regular conflict zone.
+         2. Profit!
+         */
+        commands.entity(area_entity).remove::<UnresolvedCityConflict>();
+    }
 }
