@@ -128,23 +128,23 @@ pub fn on_add_unresolved_city_conflict(
         let mut other_players = population.players();
         other_players.remove(&built_city.player);
         if other_players.iter().any(|p| population.population_for_player(*p) > 6) {
-            
+            match other_players.len().cmp(&1) {
+                Ordering::Less => {
+
+                }
+                Ordering::Equal => {
+
+
+                }
+                Ordering::Greater => {
+
+                }
+            }            
         } else {
             // Kill them all
         }
         
-        match other_players.len().cmp(&1) {
-            Ordering::Less => {
-                
-            }
-            Ordering::Equal => {
-                
-                
-            }
-            Ordering::Greater => {
-                
-            }
-        }
+
         for player in other_players {
             if population.population_for_player(player) > 6 {
                 
