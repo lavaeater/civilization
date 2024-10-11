@@ -23,10 +23,11 @@ pub fn find_conflict_zones(
     pop_query.iter().filter(|(_, _, pop, has_city)| {
         pop.is_conflict_zone(*has_city)
     }).for_each(|(conflict_zone, name, _, has_city)| {
-        write_line.send(PrintConsoleLine::new(format!("Conflict zone found: {:?}", name)));
         if has_city {
+            write_line.send(PrintConsoleLine::new(format!("City Conflict Zone found: {:?}", name)));
             commands.entity(conflict_zone).insert(UnresolvedCityConflict);
         } else {
+            write_line.send(PrintConsoleLine::new(format!("Conflict Zone found: {:?}", name)));
             commands.entity(conflict_zone).insert(UnresolvedConflict);
         }
     });
