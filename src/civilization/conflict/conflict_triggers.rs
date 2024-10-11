@@ -1,10 +1,10 @@
-use std::cmp::Ordering;
+use crate::civilization::city_support::city_support_events::EliminateCity;
 use crate::civilization::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
 use crate::civilization::general::general_components::{BuiltCity, Population};
-use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
+use crate::civilization::general::general_events::ReturnTokenToStock;
 use bevy::core::Name;
 use bevy::prelude::{Commands, Entity, EventWriter, OnAdd, Query, Trigger};
-use crate::civilization::city_support::city_support_events::EliminateCity;
+use std::cmp::Ordering;
 
 pub fn on_add_unresolved_conflict(
     trigger: Trigger<OnAdd, UnresolvedConflict>,
@@ -122,11 +122,10 @@ pub fn on_add_unresolved_city_conflict(
     mut areas: Query<(Entity, &Name, &mut Population, &BuiltCity)>,
     mut return_token: EventWriter<ReturnTokenToStock>,
     mut eliminate_city: EventWriter<EliminateCity>,
-    mut move_tokens_from_stock_to_area_command: EventWriter<MoveTokensFromStockToAreaCommand>,
     mut commands: Commands) {
     if let Ok((area_entity,
                   _name,
-                  mut population,
+                  population,
                   built_city)) = areas.get_mut(trigger.entity()) {
         let mut other_players = population.players();
         other_players.remove(&built_city.player);

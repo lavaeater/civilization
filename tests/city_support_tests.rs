@@ -132,7 +132,7 @@ fn given_a_city_to_eliminate_the_correct_things_happen() {
     let mut events = app.world_mut()
         .resource_mut::<Events<EliminateCity>>();
 
-    events.send(EliminateCity::new(player, city_token, area));
+    events.send(EliminateCity::new(player, city_token, area, false));
 
     // Act
     app.update();
