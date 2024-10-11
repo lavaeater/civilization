@@ -26,7 +26,7 @@ pub fn eliminate_city(
                     move_tokens.send(MoveTokensFromStockToAreaCommand {
                         player_entity: city_token.player,
                         area_entity: eliminate.area_entity,
-                        number_of_tokens: population.max_population,
+                        number_of_tokens: if eliminate.conflict { 6 } else { population.max_population },
                     });
                     commands.entity(eliminate.area_entity).remove::<BuiltCity>();
                     player_cities.remove_city_from_area(eliminate.area_entity);

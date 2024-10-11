@@ -91,7 +91,7 @@ pub fn select_stupid_move(
                     }
                     Move::EliminateCity(el_move) => {
                         debug!("Eliminating city for player {:?}", event.player);
-                        eliminate_city.send(EliminateCity::new(el_move.player, el_move.city, el_move.area));
+                        eliminate_city.send(EliminateCity::new(el_move.player, el_move.city, el_move.area, false));
                     }
                 }
             }

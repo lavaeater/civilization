@@ -1,9 +1,10 @@
 use std::cmp::Ordering;
 use crate::civilization::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
 use crate::civilization::general::general_components::{BuiltCity, Population};
-use crate::civilization::general::general_events::ReturnTokenToStock;
+use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
 use bevy::core::Name;
 use bevy::prelude::{Commands, Entity, EventWriter, OnAdd, Query, Trigger};
+use crate::civilization::city_support::city_support_events::EliminateCity;
 
 pub fn on_add_unresolved_conflict(
     trigger: Trigger<OnAdd, UnresolvedConflict>,
@@ -120,6 +121,8 @@ pub fn on_add_unresolved_city_conflict(
     trigger: Trigger<OnAdd, UnresolvedCityConflict>,
     mut areas: Query<(Entity, &Name, &mut Population, &BuiltCity)>,
     mut return_token: EventWriter<ReturnTokenToStock>,
+    mut eliminate_city: EventWriter<EliminateCity>,
+    mut move_tokens_from_stock_to_area_command: EventWriter<MoveTokensFromStockToAreaCommand>,
     mut commands: Commands) {
     if let Ok((area_entity,
                   _name,
@@ -130,25 +133,25 @@ pub fn on_add_unresolved_city_conflict(
         if other_players.iter().any(|p| population.population_for_player(*p) > 6) {
             match other_players.len().cmp(&1) {
                 Ordering::Less => {
-
+                    // So, what, no players other than the city owner? Weird
                 }
                 Ordering::Equal => {
-
-
+                    eliminate_city.send(EliminateCity::new(built_city.player, built_city.city, trigger.entity(), true));
+                    commands.entity(trigger.entity()).insert(UnresolvedConflict);
                 }
                 Ordering::Greater => {
-
+                    //Gaah...
                 }
-            }            
+            }
         } else {
             // Kill them all
-        }
-        
-
-        for player in other_players {
-            if population.population_for_player(player) > 6 {
-                
-            }
+            population.players().iter().for_each(|player| {
+                if let Some(tokens) = population.player_tokens.get(player) {
+                    tokens.iter().for_each(|token| {
+                        return_token.send(ReturnTokenToStock::new(*token));
+                    })                    
+                }
+            });
         }
         /*
         1. Does the non-city players have 7 or more tokens in this area?
