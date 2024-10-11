@@ -1,14 +1,14 @@
-use bevy::core::Name;
-use bevy::prelude::{Commands, Entity, EventWriter, OnAdd, Query, Trigger, With};
 use crate::civilization::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
-use crate::civilization::general::general_components::Population;
+use crate::civilization::general::general_components::{BuiltCity, Population};
 use crate::civilization::general::general_events::ReturnTokenToStock;
+use bevy::core::Name;
+use bevy::prelude::{Commands, Entity, EventWriter, OnAdd, Query, Trigger};
 
 pub fn on_add_unresolved_conflict(
     trigger: Trigger<OnAdd, UnresolvedConflict>,
     mut areas: Query<(Entity, &Name, &mut Population)>,
     mut return_token: EventWriter<ReturnTokenToStock>,
-    mut commands: Commands
+    mut commands: Commands,
 ) {
     if let Ok((area_entity, _name, mut population)) = areas.get_mut(trigger.entity()) {
         let temp_map = population.player_tokens.clone();
@@ -26,7 +26,6 @@ pub fn on_add_unresolved_conflict(
         commands.entity(area_entity).remove::<UnresolvedConflict>();
     }
 }
-
 
 
 fn handle_all_lengths_equal(
@@ -116,13 +115,15 @@ fn handle_max_pop_is_one_conflicts(
     }
 }
 
-
 pub fn on_add_unresolved_city_conflict(
     trigger: Trigger<OnAdd, UnresolvedCityConflict>,
-    mut areas: Query<(Entity, &Name, &mut Population)>,
+    mut areas: Query<(Entity, &Name, &mut Population, &BuiltCity)>,
     mut return_token: EventWriter<ReturnTokenToStock>,
     mut commands: Commands) {
-    if let Ok((area_entity, _name, mut population)) =  areas.get_mut(trigger.entity()) {
+    if let Ok((area_entity,
+                  _name,
+                  mut population,
+                  built_city)) = areas.get_mut(trigger.entity()) {
         /*
         1. Does the non-city players have 7 or more tokens in this area?
             ## No: 

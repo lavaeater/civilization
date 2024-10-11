@@ -6,124 +6,13 @@ use bevy::core::Name;
 use bevy::prelude::{Commands, Entity, EventWriter, Has, NextState, Query, ResMut, With, Without};
 use bevy_console::PrintConsoleLine;
 
-
-pub fn resolve_conflicts(
-    mut conflict_zones: Query<(Entity, &Name, &mut Population), With<UnresolvedConflict>>,
-    mut return_token: EventWriter<ReturnTokenToStock>,
-    mut commands: Commands) {
-    for (area_entity, _name, mut population) in conflict_zones.iter_mut() {
-        let temp_map = population.player_tokens.clone();
-        let mut players = temp_map.keys().copied().collect::<Vec<Entity>>();
-        players.sort_by(|a, b| temp_map[b].len().cmp(&temp_map[a].len()));
-
-        if population.max_population == 1 {
-            handle_max_pop_is_one_conflicts(&mut players, &mut population, &mut return_token);
-        } else if population.all_lengths_equal() {
-            handle_all_lengths_equal(&players, &mut population, &mut return_token);
-        } else {
-            handle_unequal_lengths(&mut players, &mut population, &mut return_token);
-        }
-
-        commands.entity(area_entity).remove::<UnresolvedConflict>();
-    }
-}
-
-fn handle_all_lengths_equal(
-    players: &Vec<Entity>,
-    population: &mut Population,
-    return_token: &mut EventWriter<ReturnTokenToStock>,
-) {
-    let mut token_rounds = 1;
-    let must_remove = population.total_population() - population.max_population;
-    while token_rounds * population.number_of_players() < must_remove {
-        token_rounds += 1;
-    }
-
-    for player in players {
-        for token in population.remove_tokens_from_area(*player, token_rounds).unwrap_or_default() {
-            return_token.send(ReturnTokenToStock::new(token));
-        }
-    }
-}
-
-fn handle_unequal_lengths(
-    players: &mut Vec<Entity>,
-    population: &mut Population,
-    return_token: &mut EventWriter<ReturnTokenToStock>,
-) {
-    // Sort players by their token count (from most to least)
-    players.sort_by(|a, b| population.population_for_player(*b).cmp(&population.population_for_player(*a)));
-
-    // Continue removing tokens while the total population is greater than max_population
-    // and more than one player still has tokens
-    while population.total_population() > population.max_population && players.len() > 1 {
-        let current_player = players.pop().unwrap();
-
-        // Remove 1 token from the current player
-        for token in population.remove_tokens_from_area(current_player, 1).unwrap_or_default() {
-            return_token.send(ReturnTokenToStock::new(token));
-        }
-
-        // Check if the current player still has tokens, if so, put them back in the queue
-        if population.population_for_player(current_player) > 0 {
-            players.insert(0, current_player); // Put back in the queue if they still have tokens
-        }
-
-        // If only one player remains with tokens, stop the process
-        if players.len() == 1 && population.population_for_player(players[0]) > 0 {
-            break;
-        }
-
-        // Stop if the total population is now less than or equal to the max_population
-        if population.total_population() <= population.max_population {
-            break;
-        }
-    }
-}
-
-fn handle_max_pop_is_one_conflicts(
-    players: &mut Vec<Entity>,
-    population: &mut Population,
-    return_token: &mut EventWriter<ReturnTokenToStock>,
-) {
-    // Sort players by their population size (from highest to lowest)
-    players.sort_by(|a, b| population.population_for_player(*b).cmp(&population.population_for_player(*a)));
-
-    // If all players have the same number of tokens
-    if population.all_lengths_equal() {
-        // Remove all tokens from every player
-        for player in players.iter() {
-            for token in population.remove_all_but_n_tokens(*player, 0).unwrap_or_default() {
-                return_token.send(ReturnTokenToStock::new(token));
-            }
-        }
-    } else {
-        // Find the player with the highest population
-        let largest_player = players[0];
-
-        // Remove all but 2 tokens from the player with the largest population
-        for token in population.remove_all_but_n_tokens(largest_player, 2).unwrap_or_default() {
-            return_token.send(ReturnTokenToStock::new(token));
-        }
-
-        // Remove all tokens from all other players
-        for player in players.iter().skip(1) { // Skip the largest player
-            for token in population.remove_all_but_n_tokens(*player, 0).unwrap_or_default() {
-                return_token.send(ReturnTokenToStock::new(token));
-            }
-        }
-    }
-}
-
 pub fn conflict_gate(
     conflicts: Query<&UnresolvedConflict>,
     city_conflicts: Query<&UnresolvedCityConflict>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    if conflicts.is_empty() {
-        if city_conflicts.is_empty() {
-            next_state.set(GameActivity::CheckCitySupport)
-        }
+    if conflicts.is_empty() && city_conflicts.is_empty() {
+        next_state.set(GameActivity::CheckCitySupport)
     }
 }
 
