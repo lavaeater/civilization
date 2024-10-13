@@ -36,7 +36,7 @@ fn main() {
                 }).set(
                 LogPlugin {
                 filter: "info,wgpu_core=warn,wgpu_hal=warn,adv_civ=debug".into(),
-                level: bevy::log::Level::INFO,
+                level: bevy::log::Level::DEBUG,
                     custom_layer: |_| None,
                 },
         ))

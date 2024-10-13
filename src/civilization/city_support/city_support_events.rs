@@ -5,11 +5,12 @@ pub struct EliminateCity {
     pub player: Entity,
     pub city: Entity,
     pub area_entity: Entity,
+    pub conflict: bool
 }
 
 impl EliminateCity {
-    pub fn new(player: Entity, city: Entity, area_entity: Entity) -> Self {
-        EliminateCity { player, city, area_entity }
+    pub fn new(player: Entity, city: Entity, area_entity: Entity, conflict:bool) -> Self {
+        EliminateCity { player, city, area_entity, conflict }
     }
 }
 

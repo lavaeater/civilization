@@ -1,7 +1,8 @@
-use bevy::app::App;
-use bevy::prelude::{OnEnter, OnExit, Plugin};
 use crate::civilization::conflict::conflict_systems::*;
+use crate::civilization::conflict::conflict_triggers::{on_add_unresolved_city_conflict, on_add_unresolved_conflict};
 use crate::GameActivity;
+use bevy::app::App;
+use bevy::prelude::{in_state, IntoSystemConfigs, OnEnter, Plugin, Update};
 
 pub struct ConflictPlugin;
 
@@ -10,8 +11,9 @@ impl Plugin for ConflictPlugin {
         app
             .add_systems(
                 OnEnter(GameActivity::Conflict), find_conflict_zones)
-            .add_systems(
-                OnExit(GameActivity::Conflict), resolve_conflicts)
+            .add_systems(Update, (conflict_gate).run_if(in_state(GameActivity::Conflict)))
+            .observe(on_add_unresolved_conflict)
+            .observe(on_add_unresolved_city_conflict)
         ;
     }
 }

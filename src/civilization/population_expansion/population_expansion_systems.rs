@@ -1,11 +1,11 @@
+use crate::civilization::census::census_resources::GameInfoAndStuff;
 use crate::civilization::general::general_components::PlayerStock;
 use crate::civilization::general::general_components::{PlayerAreas, Population};
 use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::population_expansion::population_expansion_components::{AreaIsExpanding, ExpandAutomatically, ExpandManually, NeedsExpansion};
 use crate::civilization::population_expansion::population_expansion_events::{CheckGate, CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand};
 use crate::GameActivity;
-use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
-use crate::civilization::census::census_resources::GameInfoAndStuff;
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
 
 pub fn check_area_population_expansion_eligibility(
     mut expansion_check_event: EventReader<CheckPlayerExpansionEligibility>,
@@ -20,12 +20,10 @@ pub fn check_area_population_expansion_eligibility(
                 commands.entity(event.player).remove::<ExpandAutomatically>();
             } else if player_areas.required_tokens_for_expansion() > 0 {
                 if player_areas.required_tokens_for_expansion() <= stock.tokens_in_stock() {
-                    debug!("Automatic Expansion with {} tokens", player_areas.required_tokens_for_expansion());
                     commands
                         .entity(event.player)
                         .insert(ExpandAutomatically);
                 } else {
-                    debug!("Manual Expansion, missing {} tokens", player_areas.required_tokens_for_expansion() - stock.tokens_in_stock());
                     commands
                         .entity(event.player)
                         .insert(ExpandManually);

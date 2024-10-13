@@ -1,12 +1,12 @@
-use bevy::app::App;
-use bevy::core::Name;
-use bevy::prelude::{AppExtStates, Entity};
-use bevy::state::app::StatesPlugin;
 use adv_civ::civilization::census::census_components::Census;
 use adv_civ::civilization::general::general_components::{CityToken, CityTokenStock, Faction, GameArea, LandPassage, PlayerAreas, PlayerCities, PlayerStock, Token, Treasury};
 use adv_civ::civilization::general::general_enums::GameFaction;
 use adv_civ::player::Player;
 use adv_civ::{GameActivity, GameState};
+use bevy::app::App;
+use bevy::core::Name;
+use bevy::prelude::{AppExtStates, Entity, Transform};
+use bevy::state::app::StatesPlugin;
 
 /*
 Make sure to update this to mirror the method in
@@ -33,7 +33,9 @@ pub fn setup_player(app: &mut App, name: impl Into<String>, faction: GameFaction
             .spawn(
                 (
                     Name::new("Token 1"),
-                    Token::new(player))).id()
+                    Token::new(player),
+                    Transform::from_xyz(0.0, 0.0, 0.0),
+                )).id()
     })
         .collect::<Vec<Entity>>();
 
@@ -42,7 +44,10 @@ pub fn setup_player(app: &mut App, name: impl Into<String>, faction: GameFaction
             .spawn(
                 (
                     Name::new("City 1"),
-                    CityToken::new(player))).id()
+                    CityToken::new(player),
+                    Transform::from_xyz(0.0, 0.0, 0.0)
+                )
+            ).id()
     }
     )
         .collect::<Vec<Entity>>();
@@ -66,7 +71,7 @@ pub fn setup_player(app: &mut App, name: impl Into<String>, faction: GameFaction
 
 #[cfg(test)]
 #[allow(dead_code)]
-pub fn setup_bevy_app(app_builder: fn(App)->App) -> App {
+pub fn setup_bevy_app(app_builder: fn(App) -> App) -> App {
     let mut app = App::new();
     app
         .add_plugins(
@@ -74,7 +79,7 @@ pub fn setup_bevy_app(app_builder: fn(App)->App) -> App {
         )
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>();
-    
+
     app_builder(app)
 }
 

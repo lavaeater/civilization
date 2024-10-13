@@ -1,9 +1,9 @@
 use crate::civilization::census::census_components::{Census, HasPopulation};
 use crate::civilization::census::census_resources::GameInfoAndStuff;
-use crate::civilization::general::general_components::{Population, PlayerStock, Treasury};
-use bevy::prelude::{debug, Commands, Entity, Name, NextState, Query, ResMut};
-use bevy::utils::HashMap;
+use crate::civilization::general::general_components::{PlayerStock, Population, Treasury};
 use crate::GameActivity;
+use bevy::prelude::{Commands, Entity, Name, NextState, Query, ResMut};
+use bevy::utils::HashMap;
 /***
 Checks and marks areas / populations with HasPopulation to
 simplify queries later. This is normal
@@ -26,12 +26,10 @@ pub fn perform_census(
     mut census_order: ResMut<GameInfoAndStuff>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    debug!("Performing Census");
     census_order.census_order.clear();
     let mut hash_to_sort = HashMap::new();
-    for (player, name, stock, treasury, mut census) in stock_query.iter_mut() {
+    for (player, _name, stock, treasury, mut census) in stock_query.iter_mut() {
         census.population = stock.max_tokens - stock.tokens_in_stock() - treasury.tokens_in_treasury();
-        debug!("{:?} has a population of {}", name, census.population);
         hash_to_sort.insert(player, census.population);
     }
     let mut ordered: Vec<(Entity, usize)> = hash_to_sort.into_iter().collect();
