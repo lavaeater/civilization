@@ -8,7 +8,7 @@ use crate::stupid_ai::stupid_ai_components::StupidAi;
 use crate::GameActivity;
 use bevy::core::Name;
 use bevy::math::{vec3, Vec3};
-use bevy::prelude::{default, Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, StateTransitionEvent, Transform, With, Without};
+use bevy::prelude::{default, info, Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, StateTransitionEvent, Transform, With, Without};
 use bevy::sprite::SpriteBundle;
 use bevy_console::PrintConsoleLine;
 use rand::seq::IteratorRandom;
@@ -186,6 +186,7 @@ pub fn print_names_of_phases(
     mut state_transition_event: EventReader<StateTransitionEvent<GameActivity>>,
 ) {
     for event in state_transition_event.read() {
+        info!("Went from: {:?} to {:?}", event.exited, event.entered);
         write_line.send(PrintConsoleLine::new(format!("Went from: {:?} to {:?}", event.exited, event.entered)));
     }
 }
