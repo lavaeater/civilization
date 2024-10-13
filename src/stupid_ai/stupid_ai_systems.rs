@@ -6,7 +6,6 @@ use crate::civilization::movement::movement_events::{MoveTokenFromAreaToAreaComm
 use crate::civilization::population_expansion::population_expansion_events::ExpandPopulationManuallyCommand;
 use crate::stupid_ai::stupid_ai_components::StupidAi;
 use crate::stupid_ai::stupid_ai_events::{SelectStupidMove, StupidAiEvent};
-use bevy::log::debug;
 use bevy::prelude::{Commands, EventReader, EventWriter, Has, Query};
 use rand::prelude::IteratorRandom;
 
@@ -44,7 +43,6 @@ pub fn select_stupid_move(
             Random moves will do for now but won't cut it in the long run - we have to make the non-
             stupid AI make its moves in a more sophisticated manner.
              */
-            debug!("number of moves before filter: {}", available_moves.moves.len());
             let available_moves = available_moves.moves.values().filter(|m| 
                 match m {
                     Move::Movement(move_ment) => {
@@ -54,8 +52,7 @@ pub fn select_stupid_move(
                     // population.has_player(move_ment.player) && 
                     _ => true,
                 }).collect::<Vec<_>>();
-            debug!("number of moves after filter: {}", available_moves.len());
-
+           
             let mut rng = rand::thread_rng();
             if let Some(selected_move) = available_moves.into_iter().choose(&mut rng) {
                 match selected_move {
@@ -72,25 +69,20 @@ pub fn select_stupid_move(
                                 move_tokens_writer.send(MoveTokenFromAreaToAreaCommand::new(movement_move.source, movement_move.target, 1, event.player));
                             }
                             _ => {
-                                debug!("This is a move with more than 2 tokens, so we always move two");
                                 move_tokens_writer.send(MoveTokenFromAreaToAreaCommand::new(movement_move.source, movement_move.target, 2, event.player));
                             }
                         }
                     }
                     Move::EndMovement => {
-                        debug!("Ending movement for player {:?}", event.player);
                         end_movement_writer.send(PlayerMovementEnded::new(event.player));
                     }
                     Move::CityConstruction(build_city_move) => {
-                        debug!("Building city for player {:?}", event.player);
                         build_city_writer.send(BuildCityCommand::new(event.player, build_city_move.target));
                     }
                     Move::EndCityConstruction => {
-                        debug!("End City Construction {:?}", event.player);
                         end_player_city_construction.send(EndPlayerCityConstruction::new(event.player));
                     }
                     Move::EliminateCity(el_move) => {
-                        debug!("Eliminating city for player {:?}", event.player);
                         eliminate_city.send(EliminateCity::new(el_move.player, el_move.city, el_move.area, false));
                     }
                 }

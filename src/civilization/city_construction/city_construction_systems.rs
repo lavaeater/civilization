@@ -14,6 +14,7 @@ pub fn city_building_gate(
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     if query.is_empty() {
+        debug!("No one is building cities, moving on!");
         next_state.set(GameActivity::RemoveSurplusPopulation);
     }
 }
@@ -29,22 +30,17 @@ pub fn build_city(
 ) {
     for build_city in command.read() {
         if let Ok((mut city_stock, mut player_areas, mut player_cities, faction)) = player_query.get_mut(build_city.player) {
-            debug!("We have city stock and everything else!");
             if let Ok((mut population, area_transform)) = city_population.get_mut(build_city.area) {
-                debug!("We have area population!");
                 // we shall return all tokens
                 let tokens_to_return = population.player_tokens.values().flatten().copied().collect::<Vec<Entity>>();
-                debug!("We have tokens to return: {:?}", tokens_to_return.len());
                 population.player_tokens.clear();
                 for token in tokens_to_return {
-                    debug!("RETURN RETURN");
                     return_tokens.send(ReturnTokenToStock {
                         token_entity: token,
                     });
                 }
 
                 if let Some(city_token) = city_stock.get_token_from_stock() {
-                    debug!("We have a city token!!");
                     player_areas.remove_area(build_city.area);
                     player_cities.build_city_in_area(build_city.area, city_token);
                     commands.entity(build_city.area)
@@ -59,7 +55,6 @@ pub fn build_city(
                                 .with_translation(area_transform.translation),
                             ..default()
                         });
-                    debug!("Now recalculate player moves");
                     recalculate_player_moves.send(RecalculatePlayerMoves::new(build_city.player));
                 }
             }

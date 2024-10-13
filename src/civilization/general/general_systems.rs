@@ -8,7 +8,7 @@ use crate::stupid_ai::stupid_ai_components::StupidAi;
 use crate::GameActivity;
 use bevy::core::Name;
 use bevy::math::{vec3, Vec3};
-use bevy::prelude::{debug, default, Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, StateTransitionEvent, Transform, With, Without};
+use bevy::prelude::{default, Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, StateTransitionEvent, Transform, With, Without};
 use bevy::sprite::SpriteBundle;
 use bevy_console::PrintConsoleLine;
 use rand::seq::IteratorRandom;
@@ -173,9 +173,7 @@ pub(crate) fn return_token_to_stock(
 ) {
     for return_event in event.read() {
         if let Ok(token) = token_query.get(return_event.token_entity) {
-            debug!("we have token component!");
             if let Ok(mut stock) = stock_query.get_mut(token.player) {
-                debug!("we return it");
                 stock.return_token_to_stock(return_event.token_entity);
                 commands.entity(return_event.token_entity).remove::<SpriteBundle>();
             }

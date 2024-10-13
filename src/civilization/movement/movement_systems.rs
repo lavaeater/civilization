@@ -26,13 +26,8 @@ pub fn prepare_next_mover(
 ) {
     for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
-            // debug!("Player {} is moving", to_move);
-            // debug!("Before adding components");
-            // commands.entity(to_move).log_components();
             commands.entity(to_move).insert(PerformingMovement);
-            // commands.entity(to_move).log_components();
         } else {
-            // debug!("All hath moved");
             next_state.set(GameActivity::Conflict);
         }
     }

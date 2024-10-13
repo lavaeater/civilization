@@ -1,9 +1,9 @@
-use bevy::prelude::{debug, Commands, EventWriter, OnAdd, Trigger};
 use crate::civilization::city_construction::city_construction_components::IsBuilding;
 use crate::civilization::city_support::city_support_components::HasTooManyCities;
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::movement::movement_components::{HasJustMoved, PerformingMovement};
 use crate::civilization::population_expansion::population_expansion_components::ExpandManually;
+use bevy::prelude::{Commands, EventWriter, OnAdd, Trigger};
 
 pub fn on_add_manual_expansion(
     trigger: Trigger<OnAdd, ExpandManually>,
@@ -35,7 +35,6 @@ pub fn on_add_has_too_many_cities(
     trigger: Trigger<OnAdd, HasTooManyCities>,
     mut event_writer: EventWriter<RecalculatePlayerMoves>,
 ) {
-    debug!("on_add_has_too_many_cities");
     event_writer.send(RecalculatePlayerMoves::new(trigger.entity()));
 }
 
