@@ -3,7 +3,7 @@ use crate::civilization::city_support::city_support_events::EliminateCity;
 use crate::civilization::general::general_components::{BuiltCity, CityToken, CityTokenStock, PlayerAreas, PlayerCities, Population};
 use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
 use crate::GameActivity;
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
+use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
 
 pub fn eliminate_city(
     mut eliminate_city: EventReader<EliminateCity>,
@@ -19,10 +19,11 @@ pub fn eliminate_city(
         if let Ok(city_token) = city_token.get(eliminate.city) {
             if let Ok((mut city_stock, mut player_cities)) = city_token_stock.get_mut(city_token.player) {
                 if let Ok(population) = area_population.get(eliminate.area_entity) {
+                    debug!("Eliminating city, conflict: {}, max_pop: {}", eliminate.is_conflict, population.max_population);
                     move_tokens.send(MoveTokensFromStockToAreaCommand {
                         player_entity: city_token.player,
                         area_entity: eliminate.area_entity,
-                        number_of_tokens: if eliminate.conflict { 6 } else { population.max_population },
+                        number_of_tokens: if eliminate.is_conflict { 6 } else { population.max_population },
                     });
                     commands.entity(eliminate.area_entity).remove::<BuiltCity>();
                     player_cities.remove_city_from_area(eliminate.area_entity);
@@ -55,6 +56,7 @@ pub fn check_player_city_support(
         let required_population = number_of_cities * 2;
         
         if required_population > areas.total_population() {
+            debug!("A player has too many cities");
             commands
                 .entity(player)
                 .insert(HasTooManyCities::new((required_population - areas.total_population()) / 2,

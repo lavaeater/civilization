@@ -10,6 +10,7 @@ pub fn conflict_gate(
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     if conflicts.is_empty() && city_conflicts.is_empty() {
+        debug!("No conflicts found, moving to next state");
         next_state.set(GameActivity::CityConstruction);
     }
 }

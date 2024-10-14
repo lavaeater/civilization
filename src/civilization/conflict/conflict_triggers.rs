@@ -3,7 +3,7 @@ use crate::civilization::conflict::conflict_components::{UnresolvedCityConflict,
 use crate::civilization::general::general_components::{BuiltCity, Population};
 use crate::civilization::general::general_events::ReturnTokenToStock;
 use bevy::core::Name;
-use bevy::prelude::{Commands, Entity, EventWriter, OnAdd, Query, Trigger};
+use bevy::prelude::{debug, Commands, Entity, EventWriter, OnAdd, Query, Trigger};
 use std::cmp::Ordering;
 
 pub fn on_add_unresolved_conflict(
@@ -12,7 +12,9 @@ pub fn on_add_unresolved_conflict(
     mut return_token: EventWriter<ReturnTokenToStock>,
     mut commands: Commands,
 ) {
+    debug!("On Add Triggered");
     if let Ok((area_entity, _name, mut population)) = areas.get_mut(trigger.entity()) {
+        debug!("Lets resolve a regular conflict");
         let temp_map = population.player_tokens.clone();
         let mut players = temp_map.keys().copied().collect::<Vec<Entity>>();
         players.sort_by(|a, b| temp_map[b].len().cmp(&temp_map[a].len()));
@@ -123,6 +125,7 @@ pub fn on_add_unresolved_city_conflict(
     mut return_token: EventWriter<ReturnTokenToStock>,
     mut eliminate_city: EventWriter<EliminateCity>,
     mut commands: Commands) {
+    debug!("Lets resolve a City Conflict found");
     if let Ok((area_entity,
                   _name,
                   population,
@@ -132,17 +135,21 @@ pub fn on_add_unresolved_city_conflict(
         if other_players.iter().any(|p| population.population_for_player(*p) > 6) {
             match other_players.len().cmp(&1) {
                 Ordering::Less => {
-                    // So, what, no players other than the city owner? Weird
+                    debug!("There are no other players here, bro");
                 }
                 Ordering::Equal => {
+                    debug!("There is one other player, we wliminate the city and resolve a regular conflict");
                     eliminate_city.send(EliminateCity::new(built_city.player, built_city.city, trigger.entity(), true));
                     commands.entity(trigger.entity()).insert(UnresolvedConflict);
                 }
                 Ordering::Greater => {
-                    //Gaah...
+                    debug!("There are more other players with six or more tokens!");
+                    eliminate_city.send(EliminateCity::new(built_city.player, built_city.city, trigger.entity(), true));
+                    commands.entity(trigger.entity()).insert(UnresolvedConflict);
                 }
             }
         } else {
+            debug!("There are no other players with six or more tokens, we eliminate all tokens");
             // Kill them all
             population.players().iter().for_each(|player| {
                 if let Some(tokens) = population.player_tokens.get(player) {
@@ -152,16 +159,6 @@ pub fn on_add_unresolved_city_conflict(
                 }
             });
         }
-        /*
-        1. Does the non-city players have 7 or more tokens in this area?
-            ## No: 
-                1. Eliminate all these tokens, return them to the player's stock
-            ## Yes: 
-                1. Eliminate the city, return to stock
-                2. Get six (or fewer if player does not have six tokens in stock)
-                3. Mark as a completely regular conflict zone.
-         2. Profit!
-         */
         commands.entity(area_entity).remove::<UnresolvedCityConflict>();
     }
 }

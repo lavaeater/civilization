@@ -11,16 +11,15 @@ pub fn remove_surplus_population(
     for (mut area, has_city) in areas.iter_mut() {
         if area.has_surplus(has_city) {
             if has_city {
+                debug!("Area has a city, so we remove all tokens");
                 for token in area.remove_all_tokens() {
                     return_token.send(ReturnTokenToStock {
                         token_entity: token,
                     });
                 }
-                debug!("Area has a city, so we remove all tokens");
             } else if area.number_of_players() > 1 {
-                debug!("Area has more than two players which should be impossible - but perhaps not if city");
+                debug!("More than two players and city: {}, {}", area.number_of_players(), has_city);
             } else {
-                debug!("Area has one player, lets remove surplus");
                 for token in area.remove_surplus() {
                     return_token.send(ReturnTokenToStock {
                         token_entity: token,
