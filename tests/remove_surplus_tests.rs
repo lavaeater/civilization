@@ -83,7 +83,7 @@ fn given_city_area_with_tokens_all_are_removed() {
     let population = app.world().get::<Population>(area).unwrap();
 
     assert_eq!(population.total_population(), 0);
-    assert!(!reader.is_empty(&events));
-    assert_eq!(reader.len(&events), 4);
+    assert!(!reader.is_empty(events));
+    assert_eq!(reader.len(events), 4);
 }
 
