@@ -32,9 +32,7 @@ pub fn build_city(
         if let Ok((mut city_stock, mut player_areas, mut player_cities, faction)) = player_query.get_mut(build_city.player) {
             if let Ok((mut population, area_transform)) = city_population.get_mut(build_city.area) {
                 // we shall return all tokens
-                let tokens_to_return = population.player_tokens.values().flatten().copied().collect::<Vec<Entity>>();
-                population.player_tokens.clear();
-                for token in tokens_to_return {
+                for token in population.remove_all_tokens() {
                     return_tokens.send(ReturnTokenToStock {
                         token_entity: token,
                     });
