@@ -95,13 +95,13 @@ fn handle_max_pop_is_one_conflicts(
 
     // If all players have the same number of tokens
     if population.all_lengths_equal() {
+        debug!("All players have the same number of tokens - we remove all tokens!");
         // Remove all tokens from every player
-        for player in players.iter() {
-            for token in population.remove_all_but_n_tokens(*player, 0).unwrap_or_default() {
-                return_token.send(ReturnTokenToStock::new(token));
-            }
+        for token in population.remove_all_tokens() {
+            return_token.send(ReturnTokenToStock::new(token));
         }
     } else {
+        debug!("All players do not have the same number of tokens");
         // Find the player with the highest population
         let largest_player = players[0];
 
@@ -155,7 +155,7 @@ pub fn on_add_unresolved_city_conflict(
                 if let Some(tokens) = population.player_tokens.get(player) {
                     tokens.iter().for_each(|token| {
                         return_token.send(ReturnTokenToStock::new(*token));
-                    })                    
+                    })
                 }
             });
         }

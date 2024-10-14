@@ -18,7 +18,7 @@ pub fn remove_surplus_population(
                     });
                 }
             } else if area.number_of_players() > 1 {
-                debug!("More than two players and city: {}, {}", area.number_of_players(), has_city);
+                debug!("More than two players and city: {}, total_pop: {}, max_pop: {}", area.number_of_players(), area.total_population(), area.max_population);
             } else {
                 for token in area.remove_surplus() {
                     return_token.send(ReturnTokenToStock {
