@@ -1,12 +1,12 @@
 mod common;
-use bevy::prelude::{Events, Update};
+use crate::common::{create_area, setup_bevy_app, setup_player};
 use adv_civ::civilization::game_moves::game_moves_components::{AvailableMoves, Move};
 use adv_civ::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use adv_civ::civilization::game_moves::game_moves_systems::recalculate_movement_moves_for_player;
 use adv_civ::civilization::general::general_components::{LandPassage, PlayerAreas, PlayerStock, Population};
 use adv_civ::civilization::general::general_enums::GameFaction;
 use adv_civ::civilization::movement::movement_events::PlayerMovementEnded;
-use crate::common::{create_area, setup_bevy_app, setup_player};
+use bevy::prelude::{Events, Update};
 
 #[test]
 fn calculate_one_move() {
@@ -46,6 +46,11 @@ fn calculate_one_move() {
     app.world_mut()
         .entity_mut(player)
         .insert((player_areas, stock));
+
+    app
+        .world_mut()
+        .entity_mut(area_two)
+        .insert(Population::new(3));
 
     let mut events = app.world_mut()
         .resource_mut::<Events<RecalculatePlayerMoves>>();
@@ -115,6 +120,16 @@ fn calculate_two_moves() {
     app.world_mut()
         .entity_mut(player)
         .insert((player_areas, stock));
+
+    app
+        .world_mut()
+        .entity_mut(area_two)
+        .insert(Population::new(3));
+
+    app
+        .world_mut()
+        .entity_mut(area_three)
+        .insert(Population::new(2));
 
     let mut events = app.world_mut()
         .resource_mut::<Events<RecalculatePlayerMoves>>();
@@ -191,11 +206,23 @@ fn calculate_moves_after_having_moved() {
     let token = stock.remove_token_from_stock().unwrap();
     player_areas.add_token_to_area(area_one, token);
     population.add_token_to_area(player, token);
+    
+    
 
     app
         .world_mut()
         .entity_mut(area_one)
         .insert(population);
+
+    app
+        .world_mut()
+        .entity_mut(area_two)
+        .insert(Population::new(3));
+
+    app
+        .world_mut()
+        .entity_mut(area_three)
+        .insert(Population::new(2));
 
     app.world_mut()
         .entity_mut(player)
