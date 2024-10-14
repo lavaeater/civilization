@@ -1,6 +1,6 @@
+use crate::civilization::general::general_enums::GameFaction;
 use bevy::prelude::{default, Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
-use crate::civilization::general::general_enums::GameFaction;
 
 #[derive(Component, Debug, Reflect)]
 pub struct GameArea {
@@ -91,8 +91,19 @@ impl Population {
         tokens
     }
 
-    pub fn has_surplus(&self) -> bool {
-        self.surplus_count() > 0
+    pub fn remove_all_tokens(&mut self) -> HashSet<Entity> {
+        let mut flattened_set = HashSet::new();
+
+        for set in self.player_tokens.clone().into_values() {
+            flattened_set.extend(set);
+        }
+        self.player_tokens.clear();
+
+        flattened_set
+    }
+
+    pub fn has_surplus(&self, has_city: bool) -> bool {
+        (has_city && self.has_population()) || self.surplus_count() > 0
     }
 
     pub fn surplus_count(&self) -> usize {
@@ -213,6 +224,12 @@ impl CityToken {
 pub struct BuiltCity {
     pub city: Entity,
     pub player: Entity,
+}
+
+impl BuiltCity {
+    pub fn new(city: Entity, player: Entity) -> Self {
+        BuiltCity { city, player }
+    }
 }
 
 #[derive(Component, Debug)]
