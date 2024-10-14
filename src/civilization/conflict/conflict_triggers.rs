@@ -43,6 +43,7 @@ fn handle_all_lengths_equal(
         token_rounds += 1;
     }
 
+    debug!("Removing {} tokens from each player", token_rounds);
     for player in players {
         for token in population.remove_tokens_from_area(*player, token_rounds).unwrap_or_default() {
             return_token.send(ReturnTokenToStock::new(token));
@@ -61,7 +62,9 @@ fn handle_unequal_lengths(
     // Continue removing tokens while the total population is greater than max_population
     // and more than one player still has tokens
     while population.total_population() > population.max_population && players.len() > 1 {
+        debug!("Total Population: {}, Max Population: {}", population.total_population(), population.max_population);
         let current_player = players.pop().unwrap();
+        debug!("current player has {} tokens", population.population_for_player(current_player));
 
         // Remove 1 token from the current player
         for token in population.remove_tokens_from_area(current_player, 1).unwrap_or_default() {
@@ -70,16 +73,19 @@ fn handle_unequal_lengths(
 
         // Check if the current player still has tokens, if so, put them back in the queue
         if population.population_for_player(current_player) > 0 {
+            debug!("Player still has tokens {}, putting them back in the queue", population.population_for_player(current_player));
             players.insert(0, current_player); // Put back in the queue if they still have tokens
         }
 
         // If only one player remains with tokens, stop the process
         if players.len() == 1 && population.population_for_player(players[0]) > 0 {
+            debug!("Only one player remains with tokens, stopping the process");
             break;
         }
 
         // Stop if the total population is now less than or equal to the max_population
         if population.total_population() <= population.max_population {
+            debug!("Total population is now less than or equal to the max population, stopping the process");
             break;
         }
     }
@@ -92,7 +98,7 @@ fn handle_max_pop_is_one_conflicts(
 ) {
     // Sort players by their population size (from highest to lowest)
     players.sort_by(|a, b| population.population_for_player(*b).cmp(&population.population_for_player(*a)));
-
+    debug!("Max pop one conflict!");
     // If all players have the same number of tokens
     if population.all_lengths_equal() {
         debug!("All players have the same number of tokens - we remove all tokens!");
@@ -107,12 +113,14 @@ fn handle_max_pop_is_one_conflicts(
 
         // Remove all but 2 tokens from the player with the largest population
         for token in population.remove_all_but_n_tokens(largest_player, 2).unwrap_or_default() {
+            debug!("Removing token from largest player");
             return_token.send(ReturnTokenToStock::new(token));
         }
 
         // Remove all tokens from all other players
         for player in players.iter().skip(1) { // Skip the largest player
-            for token in population.remove_all_but_n_tokens(*player, 0).unwrap_or_default() {
+            debug!("Removing all tokens from other players");
+            for token in population.remove_all_tokens_for_player(*player) {
                 return_token.send(ReturnTokenToStock::new(token));
             }
         }

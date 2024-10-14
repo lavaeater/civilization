@@ -102,6 +102,10 @@ impl Population {
         flattened_set
     }
 
+    pub fn remove_all_tokens_for_player(&mut self, player: Entity) -> HashSet<Entity> {
+        self.player_tokens.remove(&player).unwrap_or_default()
+    }
+
     pub fn has_surplus(&self, has_city: bool) -> bool {
         (has_city && self.has_population()) || self.surplus_count() > 0
     }
