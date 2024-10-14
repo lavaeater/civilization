@@ -31,10 +31,7 @@ fn given_two_players_in_an_area_with_too_much_population_area_is_marked_as_confl
         .add_event::<PrintConsoleLine>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
-        .add_systems(Update, find_conflict_zones)
-        .observe(on_add_unresolved_conflict)
-        .observe(on_add_unresolved_city_conflict)
-    ;
+        .add_systems(Update, find_conflict_zones);
 
     let (player_one, mut player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
 
