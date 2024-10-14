@@ -48,6 +48,12 @@ pub fn make_a_move(
                             Move::EliminateCity(_el_move) => {
                                 
                             }
+                            Move::AttackArea(movement_move) => {
+                                move_tokens_writer.send(MoveTokenFromAreaToAreaCommand::new(movement_move.source, movement_move.target, number.unwrap_or(movement_move.max_tokens), player_entity));
+                            }
+                            Move::AttackCity(movement_move) => {
+                                move_tokens_writer.send(MoveTokenFromAreaToAreaCommand::new(movement_move.source, movement_move.target, number.unwrap_or(movement_move.max_tokens), player_entity));
+                            }
                         }
                     }
                 });

@@ -1,6 +1,6 @@
 use crate::civilization::city_construction::city_construction_events::{BuildCityCommand, EndPlayerCityConstruction};
 use crate::civilization::city_support::city_support_events::EliminateCity;
-use crate::civilization::game_moves::game_moves_components::{AvailableMoves, Move};
+use crate::civilization::game_moves::game_moves_components::{AvailableMoves, Move, MovementMove};
 use crate::civilization::general::general_components::{BuiltCity, PlayerAreas, Population};
 use crate::civilization::movement::movement_events::{MoveTokenFromAreaToAreaCommand, PlayerMovementEnded};
 use crate::civilization::population_expansion::population_expansion_events::ExpandPopulationManuallyCommand;
@@ -61,17 +61,7 @@ pub fn select_stupid_move(
                     }
                     Move::Movement(movement_move) => {
                         //A little complexity here: If possible, leave two, but also, always make a move
-                        match movement_move.max_tokens {
-                            1 => {
-                                move_tokens_writer.send(MoveTokenFromAreaToAreaCommand::new(movement_move.source, movement_move.target, 1, event.player));
-                            }
-                            2 => {
-                                move_tokens_writer.send(MoveTokenFromAreaToAreaCommand::new(movement_move.source, movement_move.target, 1, event.player));
-                            }
-                            _ => {
-                                move_tokens_writer.send(MoveTokenFromAreaToAreaCommand::new(movement_move.source, movement_move.target, 2, event.player));
-                            }
-                        }
+                        send_movement_move(&mut move_tokens_writer, event, movement_move, false);
                     }
                     Move::EndMovement => {
                         end_movement_writer.send(PlayerMovementEnded::new(event.player));
@@ -85,7 +75,33 @@ pub fn select_stupid_move(
                     Move::EliminateCity(el_move) => {
                         eliminate_city.send(EliminateCity::new(el_move.player, el_move.city, el_move.area, false));
                     }
+                    Move::AttackArea(movement_move) => {
+                        //A little complexity here: If possible, leave two, but also, always make a move
+                        send_movement_move(&mut move_tokens_writer, event, movement_move, true);
+                    }
+                    Move::AttackCity(movement_move) => {
+                        //A little complexity here: If possible, leave two, but also, always make a move
+                        send_movement_move(&mut move_tokens_writer, event, movement_move, true);
+                    }
                 }
+            }
+        }
+    }
+}
+
+fn send_movement_move(move_tokens_writer: &mut EventWriter<MoveTokenFromAreaToAreaCommand>, event: &SelectStupidMove, movement_move: &MovementMove, is_attack: bool) {
+    if is_attack {
+        move_tokens_writer.send(MoveTokenFromAreaToAreaCommand::new(movement_move.source, movement_move.target, movement_move.max_tokens - 1, event.player));
+    } else {
+        match movement_move.max_tokens {
+            1 => {
+                move_tokens_writer.send(MoveTokenFromAreaToAreaCommand::new(movement_move.source, movement_move.target, 1, event.player));
+            }
+            2 => {
+                move_tokens_writer.send(MoveTokenFromAreaToAreaCommand::new(movement_move.source, movement_move.target, 1, event.player));
+            }
+            _ => {
+                move_tokens_writer.send(MoveTokenFromAreaToAreaCommand::new(movement_move.source, movement_move.target, 2, event.player));
             }
         }
     }

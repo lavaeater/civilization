@@ -151,6 +151,10 @@ impl Population {
         self.player_tokens.contains_key(&player)
     }
 
+    pub fn has_other_players(&self, player: &Entity) -> bool {
+        self.player_tokens.keys().filter(|k| *k == player).count() > 0
+    }
+
     pub fn remove_all_but_n_tokens(&mut self, player: Entity, n: usize) -> Option<HashSet<Entity>> {
         let mut tokens_to_remove: usize = 0;
         if let Some(player_tokens) = self.player_tokens.get(&player) {

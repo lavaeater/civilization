@@ -43,6 +43,16 @@ pub fn list_moves(
                         let target_name = name_query.get(elimintation_move.area).unwrap();
                         command.reply(format!("{} - Eliminate city at {}, gain {} tokens of the needed {}", index, target_name, elimintation_move.tokens_gained, elimintation_move.tokens_needed));
                     }
+                    Move::AttackArea(movement_move) => {
+                        let source_name = name_query.get(movement_move.source).unwrap();
+                        let target_name = name_query.get(movement_move.target).unwrap();
+                        command.reply(format!("{} - Attack with max {} tokens from {} to {}", index, movement_move.max_tokens, source_name, target_name));
+                    }
+                    Move::AttackCity(movement_move) => {
+                        let source_name = name_query.get(movement_move.source).unwrap();
+                        let target_name = name_query.get(movement_move.target).unwrap();
+                        command.reply(format!("{} - Attack city with max {} tokens from {} to {}", index, movement_move.max_tokens, source_name, target_name));
+                    }
                 }
             });
         }

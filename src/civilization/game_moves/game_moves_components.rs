@@ -18,6 +18,8 @@ impl AvailableMoves {
 pub enum Move {
     PopulationExpansion(PopExpMove),
     Movement(MovementMove),
+    AttackArea(MovementMove),
+    AttackCity(MovementMove),
     EndMovement,
     CityConstruction(BuildCityMove),
     EndCityConstruction,
