@@ -147,6 +147,7 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
     let test_cases = vec![
         TwoPlayerTestStruct::new(1, 1, 1, 0, 0),
         TwoPlayerTestStruct::new(2, 1, 1, 2, 0),
+        TwoPlayerTestStruct::new(2, 2, 1, 0, 0),
         TwoPlayerTestStruct::new(2, 1, 2, 2, 0),
         TwoPlayerTestStruct::new(2, 2, 2, 1, 1),
         TwoPlayerTestStruct::new(3, 2, 2, 2, 0),
