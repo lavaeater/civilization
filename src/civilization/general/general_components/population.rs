@@ -118,7 +118,7 @@ impl Population {
     }
 
     pub fn has_other_players(&self, player: &Entity) -> bool {
-        self.player_tokens.keys().filter(|k| *k == player).count() > 0
+        self.player_tokens.keys().filter(|k| *k != player).count() > 0
     }
 
     pub fn remove_all_but_n_tokens(&mut self, player: Entity, n: usize) -> Option<HashSet<Entity>> {
@@ -169,9 +169,9 @@ impl Population {
 
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
     use super::*;
     use bevy::ecs::entity::Entity;
+    use std::cell::RefCell;
     thread_local! {
     static ENTITY_COUNTER: RefCell<u32> = RefCell::new(0);
 }
@@ -229,7 +229,19 @@ mod tests {
         population.add_token_to_area(player2, token2);
         assert!(population.has_more_than_one_player());
     }
+    
+    #[test]
+    fn test_has_other_players() {
+        let mut population = Population::new(10);
+        let player1 = create_entity();
+        let player2 = create_entity();
 
+        population.add_token_to_area(player1, create_entity());
+        assert!(!population.has_other_players(&player1));
+
+        population.add_token_to_area(player2, create_entity());
+        assert!(population.has_other_players(&player1));
+    }
     #[test]
     fn test_all_lengths_equal() {
         let mut population = Population::new(10);
@@ -306,14 +318,16 @@ mod tests {
         let token1 = create_entity();
         let token2 = create_entity();
         let token3 = create_entity();
+        let token4 = create_entity();
 
         population.add_token_to_area(player, token1);
         population.add_token_to_area(player, token2);
         population.add_token_to_area(player, token3);
+        population.add_token_to_area(player, token4);
 
-        let removed_tokens = population.remove_all_but_n_tokens(player, 1).unwrap();
-        assert!(removed_tokens.contains(&token1) || removed_tokens.contains(&token2) || removed_tokens.contains(&token3));
-        assert_eq!(population.population_for_player(player), 1);
+        let removed_tokens = population.remove_all_but_n_tokens(player, 2).unwrap();
+        assert!(removed_tokens.contains(&token1) || removed_tokens.contains(&token2) || removed_tokens.contains(&token3) || removed_tokens.contains(&token4));
+        assert_eq!(population.population_for_player(player), 2);
     }
 
     #[test]
