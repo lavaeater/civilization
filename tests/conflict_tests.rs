@@ -15,6 +15,51 @@ when the system is run, that area should have a component
 added indicating that it has a conflict.
 *****************************************************/
 
+
+#[test]
+fn given_a_city_conflict_with_too_few_tokens() {
+    // Arrange
+    let mut app = App::new();
+    app
+        .add_plugins(
+            StatesPlugin,
+        )
+        .add_event::<ReturnTokenToStock>()
+        .add_event::<PrintConsoleLine>()
+        .insert_state(GameState::Playing)
+        .add_sub_state::<GameActivity>()
+        .add_systems(Update, find_conflict_zones);
+
+    let (player_one, _, mut p_one_cities) = setup_player(&mut app, "player one", GameFaction::Egypt);
+
+    let (player_two, mut player_two_tokens, _) = setup_player(&mut app, "player two", GameFaction::Crete);
+
+    let mut population = Population::new(4);
+
+    // for token in player_one_tokens.drain(0..7).collect::<Vec<_>>() {
+    //     population.add_token_to_area(player_one, token);
+    // }
+    for token in player_two_tokens.drain(0..5).collect::<Vec<_>>() {
+        population.add_token_to_area(player_two, token);
+    }
+
+    let area = app.world_mut().spawn(
+        (
+            Name::new("egypt"),
+            GameArea::new(1),
+            LandPassage::default(),
+            population,
+            BuiltCity::new(player_one, p_one_cities.pop().unwrap())
+        )
+    ).id();
+
+
+    // Act
+    app.update();
+    // Assert
+    assert!(app.world().get::<UnresolvedCityConflict>(area).is_some());
+}
+
 #[test]
 fn given_two_players_in_an_area_with_too_much_population_area_is_marked_as_conflict_zone() {
     // Arrange
@@ -57,13 +102,6 @@ fn given_two_players_in_an_area_with_too_much_population_area_is_marked_as_confl
     // Assert
     assert!(app.world().get::<UnresolvedConflict>(area).is_some());
 }
-/*
-    mut conflict_zones: Query<(Entity, &Name, &mut Population), With<UnresolvedConflict>>,
-    mut return_token: EventWriter<ReturnTokenToStock>,
-    mut commands: Commands,
-    name_query: Query<&Name>,
-    mut write_line: EventWriter<PrintConsoleLine>,
- */
 
 pub struct TwoPlayerTestStruct {
     pub player_one_tokens: usize,
