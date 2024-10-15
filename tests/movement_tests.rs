@@ -199,7 +199,7 @@ fn calculate_one_move() {
     let (player, mut tokens, _city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
 
     let mut player_areas = PlayerAreas::default();
-    let mut stock = PlayerStock::new(47, tokens.drain(0..4).collect());
+    let mut stock = TokenStock::new(47, tokens.drain(0..4).collect());
 
     let mut population = Population::new(4);
     let token = stock.remove_token_from_stock().unwrap();
@@ -273,7 +273,7 @@ fn calculate_two_moves() {
     let (player, mut tokens, _city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
 
     let mut player_areas = PlayerAreas::default();
-    let mut stock = PlayerStock::new(47, tokens.drain(0..4).collect());
+    let mut stock = TokenStock::new(47, tokens.drain(0..4).collect());
 
     let mut population = Population::new(4);
     let token = stock.remove_token_from_stock().unwrap();
@@ -360,7 +360,7 @@ fn calculate_moves_after_having_moved() {
     let (player, mut tokens, _city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
 
     let mut player_areas = PlayerAreas::default();
-    let mut stock = PlayerStock::new(47, tokens.drain(0..4).collect());
+    let mut stock = TokenStock::new(47, tokens.drain(0..4).collect());
 
     let mut population = Population::new(4);
     let token = stock.remove_token_from_stock().unwrap();

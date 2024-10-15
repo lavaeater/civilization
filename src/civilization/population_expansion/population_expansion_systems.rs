@@ -9,7 +9,7 @@ use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query
 
 pub fn check_area_population_expansion_eligibility(
     mut expansion_check_event: EventReader<CheckPlayerExpansionEligibility>,
-    stock_query: Query<(&PlayerStock, &PlayerAreas, &NeedsExpansion)>,
+    stock_query: Query<(&TokenStock, &PlayerAreas, &NeedsExpansion)>,
     mut commands: Commands,
 ) {
     for event in expansion_check_event.read() {

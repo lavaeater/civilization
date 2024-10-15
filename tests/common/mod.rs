@@ -56,7 +56,7 @@ pub fn setup_player(app: &mut App, name: impl Into<String>, faction: GameFaction
         .entity_mut(player)
         .insert(
             (
-                PlayerStock::new(
+                TokenStock::new(
                     47,
                     tokens.clone()),
                 CityTokenStock::new(

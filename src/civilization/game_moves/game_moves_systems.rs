@@ -12,7 +12,7 @@ use bevy::utils::HashMap;
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
-    player_move_query: Query<(&PlayerAreas, &PlayerStock)>,
+    player_move_query: Query<(&PlayerAreas, &TokenStock)>,
     area_population_query: Query<&Population>,
     mut commands: Commands,
 ) {

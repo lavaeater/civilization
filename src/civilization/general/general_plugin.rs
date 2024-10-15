@@ -24,7 +24,7 @@ impl Plugin for CivilizationPlugin {
         app
             .register_type::<Token>()
             .register_type::<LandPassage>()
-            .register_type::<PlayerStock>()
+            .register_type::<TokenStock>()
             .register_type::<GameArea>()
             .register_type::<Population>()
             .register_type::<PlayerAreas>()

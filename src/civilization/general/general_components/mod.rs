@@ -113,14 +113,14 @@ impl Token {
 }
 
 #[derive(Component, Debug, Reflect)]
-pub struct PlayerStock {
+pub struct TokenStock {
     pub max_tokens: usize,
     tokens: Vec<Entity>,
 }
 
-impl PlayerStock {
+impl TokenStock {
     pub fn new(max_tokens: usize, tokens: Vec<Entity>) -> Self {
-        PlayerStock {
+        TokenStock {
             max_tokens,
             tokens,
         }
@@ -140,6 +140,18 @@ impl PlayerStock {
             Some(tokens)
         } else {
             None
+        }
+    }
+
+    pub fn remove_at_most_n_tokens_from_stock(&mut self, number_of_tokens: usize) -> Option<Vec<Entity>> {
+        if self.tokens.is_empty() {
+            None
+        } else if self.tokens.len() >= number_of_tokens {
+            let tokens = self.tokens.drain(0..number_of_tokens).collect();
+            Some(tokens)
+        } else {
+            let tokens = self.tokens.drain(..).collect();
+            Some(tokens)
         }
     }
 
@@ -213,6 +225,14 @@ impl PlayerAreas {
             self.area_population.insert(area, HashSet::default());
         }
         self.area_population.get_mut(&area).unwrap().insert(token);
+    }
+
+    pub fn add_tokens_to_area(&mut self, area: Entity, tokens: Vec<Entity>) {
+        self.areas.insert(area);
+        if !self.area_population.contains_key(&area) {
+            self.area_population.insert(area, HashSet::default());
+        }
+        self.area_population.get_mut(&area).unwrap().extend(tokens);
     }
 
     pub fn remove_token_from_area(&mut self, area: Entity, token: Entity) {

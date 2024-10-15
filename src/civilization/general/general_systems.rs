@@ -80,7 +80,7 @@ pub fn setup_players(
             .entity(player)
             .insert(
                 (
-                    PlayerStock::new(
+                    TokenStock::new(
                         47,
                         tokens),
                     CityTokenStock::new(
@@ -138,7 +138,7 @@ This is 100% needed to be able to test expansion and stuff.
 pub fn move_tokens_from_stock_to_area(
     mut move_commands: EventReader<MoveTokensFromStockToAreaCommand>,
     mut population_query: Query<(&mut Population, &Transform)>,
-    mut player_query: Query<(&mut PlayerAreas, &mut PlayerStock, &Faction)>,
+    mut player_query: Query<(&mut PlayerAreas, &mut TokenStock, &Faction)>,
     mut commands: Commands,
     game_factions: Res<AvailableFactions>,
 ) {
@@ -167,7 +167,7 @@ pub fn move_tokens_from_stock_to_area(
 
 pub(crate) fn return_token_to_stock(
     mut event: EventReader<ReturnTokenToStock>,
-    mut stock_query: Query<&mut PlayerStock>,
+    mut stock_query: Query<&mut TokenStock>,
     token_query: Query<&Token>,
     mut commands: Commands,
 ) {

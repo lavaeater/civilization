@@ -131,6 +131,7 @@ fn handle_max_pop_is_one_conflicts(
 pub fn on_add_unresolved_city_conflict(
     trigger: Trigger<OnAdd, UnresolvedCityConflict>,
     mut areas: Query<(Entity, &Name, &mut Population, &BuiltCity)>,
+    mut player_with_city: Query<(&mut CityTokenStock, &mut TokenStock, &mut PlayerCities, &mut PlayerAreas)>,
     mut return_token: EventWriter<ReturnTokenToStock>,
     mut eliminate_city: EventWriter<EliminateCity>,
     mut commands: Commands) {
@@ -147,12 +148,23 @@ pub fn on_add_unresolved_city_conflict(
                     debug!("There are no other players here, bro");
                 }
                 Ordering::Equal => {
-                    debug!("There is one other player, we wliminate the city and resolve a regular conflict");
-                    eliminate_city.send(EliminateCity::new(built_city.player, built_city.city, trigger.entity(), true));
-                    commands.entity(trigger.entity()).insert(UnresolvedConflict);
+                    debug!("There is one other player, we eliminate the city and resolve a regular conflict");
+                    if let Ok((mut city_stock, mut token_stock, mut player_cities, mut player_areas)) = player_with_city.get_mut(built_city.player) {
+                        commands.entity(area_entity).remove::<BuiltCity>();
+                        player_cities.remove_city_from_area(area_entity);
+                        city_stock.return_token_to_stock(built_city.city);
+
+                        move_from_stock_to_area(built_city.player, area_entity, 6, &mut population, &mut token_stock, &mut player_areas);
+                        
+                        commands.entity(area_entity).insert(UnresolvedConflict);
+                    }
                 }
                 Ordering::Greater => {
-                    debug!("There are more other players with six or more tokens!");
+                    /*
+                    This is a super special case that requires handling - battles between other parties are to be resolved first, which 
+                    we incidentally actually CAN handle... yay!
+                     */
+                    debug!("There are more than one other player with six or more tokens!");
                     eliminate_city.send(EliminateCity::new(built_city.player, built_city.city, trigger.entity(), true));
                     commands.entity(trigger.entity()).insert(UnresolvedConflict);
                 }
@@ -166,4 +178,11 @@ pub fn on_add_unresolved_city_conflict(
         }
         commands.entity(area_entity).remove::<UnresolvedCityConflict>();
     }
+}
+
+fn move_from_stock_to_area(player: Entity, area: Entity, at_most_tokens: usize, population: &mut Population, token_stock: &mut TokenStock, player_areas: &mut PlayerAreas) {
+    let tokens = token_stock.remove_at_most_n_tokens_from_stock(at_most_tokens).unwrap_or(vec![]);
+    
+    population.add_tokens_to_area(player, tokens.clone());
+    player_areas.add_tokens_to_area(area, tokens);
 }

@@ -6,6 +6,7 @@ use adv_civ::civilization::conflict::prelude::*;
 use adv_civ::civilization::general::prelude::*;
 use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
+use bevy::asset::AssetContainer;
 use bevy::prelude::{App, AppExtStates, Name};
 use bevy::state::app::StatesPlugin;
 use bevy_console::PrintConsoleLine;
@@ -107,6 +108,63 @@ fn given_a_city_conflict_with_too_few_tokens() {
     // Assert
     assert!(app.world().get::<UnresolvedConflict>(area).is_none());
     assert!(app.world().get::<UnresolvedCityConflict>(area).is_none());
+}
+
+#[test]
+fn given_a_city_conflict_with_enough_tokens() {
+    // Arrange
+    let mut app = App::new();
+    app
+        .add_plugins(
+            StatesPlugin,
+        )
+        .add_event::<ReturnTokenToStock>()
+        .add_event::<EliminateCity>()
+        .insert_state(GameState::Playing)
+        .add_sub_state::<GameActivity>()
+        .add_systems(Update, eliminate_city)
+        .observe(on_add_unresolved_conflict)
+        .observe(on_add_unresolved_city_conflict)
+    ;
+
+    let (player_one, _, mut p_one_cities) = setup_player(&mut app, "player one", GameFaction::Egypt);
+
+    let (player_two, mut player_two_tokens, _) = setup_player(&mut app, "player two", GameFaction::Crete);
+
+    let mut population = Population::new(4);
+
+    // for token in player_one_tokens.drain(0..7).collect::<Vec<_>>() {
+    //     population.add_token_to_area(player_one, token);
+    // }
+    for token in player_two_tokens.drain(0..8).collect::<Vec<_>>() {
+        population.add_token_to_area(player_two, token);
+    }
+    
+    let city_token = p_one_cities.pop().unwrap();
+    let mut player_one_cities = PlayerCities::default();
+
+    let area = app.world_mut().spawn(
+        (
+            Name::new("egypt"),
+            GameArea::new(1),
+            LandPassage::default(),
+            population,
+            BuiltCity::new(player_one, city_token),
+            UnresolvedCityConflict
+        )
+    ).id();
+    player_one_cities.build_city_in_area(area, city_token);
+
+    app.world_mut().entity_mut(player_one).insert(player_one_cities);
+
+
+    // Act
+    app.update();
+    // Assert
+    assert!(app.world().get::<UnresolvedCityConflict>(area).is_none());
+    assert!(app.world().get::<UnresolvedConflict>(area).is_none());
+    
+    
 }
 
 #[test]

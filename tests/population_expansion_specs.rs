@@ -6,9 +6,9 @@ use adv_civ::civilization::game_moves::game_moves_events::RecalculatePlayerMoves
 use adv_civ::civilization::game_moves::game_moves_systems::recalculate_pop_exp_moves_for_player;
 use adv_civ::civilization::general::general_components::*;
 use adv_civ::civilization::general::general_enums::GameFaction;
+use adv_civ::civilization::general::prelude::*;
 use bevy::app::Update;
 use bevy::prelude::Events;
-use adv_civ::civilization::general::prelude::*;
 
 #[test]
 fn calculate_game_moves_in_population_expansion() {
@@ -23,7 +23,7 @@ fn calculate_game_moves_in_population_expansion() {
     let (player, mut tokens, _city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
 
     let mut player_areas = PlayerAreas::default();
-    let mut stock = PlayerStock::new(47, tokens.drain(0..4).collect());
+    let mut stock = TokenStock::new(47, tokens.drain(0..4).collect());
 
     let area_one = create_area(&mut app, "Egypt", 1);
     let area_two = create_area(&mut app, "Thrace", 1);
@@ -81,7 +81,7 @@ fn given_a_player_with_too_few_tokens_for_expansion_the_correct_moves_are_create
     let (player, mut tokens, _city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
 
     let mut player_areas = PlayerAreas::default();
-    let mut stock = PlayerStock::new(47, tokens.drain(0..4).collect());
+    let mut stock = TokenStock::new(47, tokens.drain(0..4).collect());
 
     let area = create_area(&mut app, "Egypt", 1);
     let mut population = Population::new(4);
