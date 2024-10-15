@@ -23,6 +23,14 @@ pub struct TradeCards {
     pub card_piles: HashMap<usize, HashSet<TradeCard>>
 }
 
+impl Default for TradeCards {
+    fn default() -> Self {
+        Self {
+            card_piles: HashMap::from([(1, HashSet::from([])),(2)])
+        }
+    }
+}
+
 fn acquire_trade_cards(
     player_query: Query<&PlayerCities>,
     mut commands: Commands,
