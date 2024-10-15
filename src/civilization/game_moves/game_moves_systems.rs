@@ -76,40 +76,42 @@ pub fn recalculate_movement_moves_for_player(
                                     if has_city.player != event.player {
                                         command_index += 1;
                                         moves.insert(command_index,
-                                                     Move::AttackCity(MovementMove::new(
+                                                     Move::AttackCity(
+                                                         MovementMove::new(
+                                                             area,
+                                                             *target_area,
+                                                             event.player,
+                                                             tokens_that_can_move.len(),
+                                                         )));
+                                    }
+                                } else if population.has_other_players(&event.player) {
+                                    command_index += 1;
+                                    moves.insert(command_index,
+                                                 Move::AttackArea(
+                                                     MovementMove::new(
                                                          area,
                                                          *target_area,
                                                          event.player,
                                                          tokens_that_can_move.len(),
                                                      )));
-                                    }
-                                } else if population.has_other_players(&event.player) {
-                                    command_index += 1;
-                                    moves.insert(command_index,
-                                                 Move::AttackArea(MovementMove::new(
-                                                     area,
-                                                     *target_area,
-                                                     event.player,
-                                                     tokens_that_can_move.len(),
-                                                 )));
                                 } else {
                                     command_index += 1;
                                     moves.insert(command_index,
-                                                 Move::Movement(MovementMove::new(
-                                                     area,
-                                                     *target_area,
-                                                     event.player,
-                                                     tokens_that_can_move.len(),
-                                                 )));
+                                                 Move::Movement(
+                                                     MovementMove::new(
+                                                         area,
+                                                         *target_area,
+                                                         event.player,
+                                                         tokens_that_can_move.len(),
+                                                     )));
                                 }
                             }
-                            
                         }
                     }
                 }
             }
         }
-        
+
         if moves.is_empty() {
             end_player_movement.send(PlayerMovementEnded::new(event.player));
         } else {
