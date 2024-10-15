@@ -97,4 +97,40 @@ pub fn replace_city_with_tokens_for_conflict(
     commands.entity(area_entity).insert(UnresolvedConflict);
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::entity::Entity;
+    use std::cell::RefCell;
+
+    thread_local! {
+    static ENTITY_COUNTER: RefCell<u32> = RefCell::new(0);
+}
+
+    fn create_entity() -> Entity {
+        ENTITY_COUNTER.with(|counter| {
+            let index = *counter.borrow();
+            *counter.borrow_mut() += 1; // Increment the counter for the next entity
+            Entity::from_raw(index)
+        })
+    }
+
+
+    #[test]
+    fn test_move_from_stock_to_area() {
+        let mut population = Population::new(4);
+        let token_1 = create_entity();
+        let token_2 = create_entity();
+        let mut token_stock = TokenStock::new(47, vec![token_1, token_2]);
+        let mut player_areas = PlayerAreas::default();
+        let player = create_entity();
+        let area = create_entity();
+
+        move_from_stock_to_area(player, area, 1, &mut population, &mut token_stock, &mut player_areas);
+
+        assert!(population.has_player(&player));
+        assert_eq!(token_stock.tokens_in_stock(), 1);
+    }
+}
+
 

@@ -113,8 +113,8 @@ impl Population {
         } else { 0 }
     }
 
-    pub fn has_player(&self, player: Entity) -> bool {
-        self.player_tokens.contains_key(&player)
+    pub fn has_player(&self, player: &Entity) -> bool {
+        self.player_tokens.contains_key(player)
     }
 
     pub fn has_other_players(&self, player: &Entity) -> bool {
@@ -180,6 +180,7 @@ mod tests {
     use super::*;
     use bevy::ecs::entity::Entity;
     use std::cell::RefCell;
+
     thread_local! {
     static ENTITY_COUNTER: RefCell<u32> = RefCell::new(0);
 }
@@ -220,7 +221,7 @@ mod tests {
         population.remove_token_from_area(player, token);
 
         assert!(population.tokens_for_player(&player).is_none());
-        assert!(!population.has_player(player));
+        assert!(!population.has_player(&player));
     }
 
     #[test]
@@ -317,7 +318,7 @@ mod tests {
         let tokens = population.remove_all_tokens_for_player(&player);
         assert!(tokens.contains(&token1));
         assert!(tokens.contains(&token2));
-        assert!(!population.has_player(player));
+        assert!(!population.has_player(&player));
     }
 
     #[test]
