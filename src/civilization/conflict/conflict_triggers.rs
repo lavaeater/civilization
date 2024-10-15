@@ -129,7 +129,6 @@ pub fn on_add_unresolved_city_conflict(
     trigger: Trigger<OnAdd, UnresolvedCityConflict>,
     mut areas: Query<(Entity, &Name, &mut Population, &BuiltCity)>,
     mut player_with_city: Query<(&mut CityTokenStock, &mut TokenStock, &mut PlayerCities, &mut PlayerAreas)>,
-    mut return_token: EventWriter<ReturnTokenToStock>,
     mut commands: Commands) {
     debug!("Lets resolve a City Conflict found");
     if let Ok((area_entity,
@@ -168,17 +167,13 @@ pub fn on_add_unresolved_city_conflict(
         } else {
             debug!("There are no players with six or more tokens, we eliminate all tokens");
             // Kill them all
-            for token in population.remove_all_tokens() {
-                return_token.send(ReturnTokenToStock::new(token));
+            for player in other_players {
+                if let Ok((_, mut token_stock, _, mut player_areas)) = player_with_city.get_mut(player) {
+                    return_all_tokens_from_area_to_player(player, area_entity, &mut population, &mut token_stock, &mut player_areas);
+                }
             }
         }
         commands.entity(area_entity).remove::<UnresolvedCityConflict>();
     }
 }
 
-fn move_from_stock_to_area(player: Entity, area: Entity, at_most_tokens: usize, population: &mut Population, token_stock: &mut TokenStock, player_areas: &mut PlayerAreas) {
-    let tokens = token_stock.remove_at_most_n_tokens_from_stock(at_most_tokens).unwrap_or(vec![]);
-    
-    population.add_tokens_to_area(player, tokens.clone());
-    player_areas.add_tokens_to_area(area, tokens);
-}

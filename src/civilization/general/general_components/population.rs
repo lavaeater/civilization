@@ -157,11 +157,11 @@ impl Population {
             self.player_tokens.insert(player, HashSet::from([token]));
         }
     }
-    pub fn add_tokens_to_area(&mut self, player: Entity, tokens: Vec<Entity>) {
+    pub fn add_tokens_to_area(&mut self, player: Entity, tokens: HashSet<Entity>) {
         if let Some(token_set) = self.player_tokens.get_mut(&player) {
                 token_set.extend(tokens);
         } else {
-            self.player_tokens.insert(player, HashSet::from_iter(tokens));
+            self.player_tokens.insert(player, tokens);
         }
     }
     

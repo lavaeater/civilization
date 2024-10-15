@@ -3,6 +3,7 @@ pub mod general_systems;
 pub mod general_events;
 pub mod general_enums;
 pub mod general_components;
+pub mod general_functions;
 
 pub mod prelude {
     pub use super::general_components::*;
@@ -11,4 +12,5 @@ pub mod prelude {
     pub use super::general_events::*;
     pub use super::general_systems::*;
     pub use super::general_plugin::*;
+    pub use super::general_functions::*;
 }
