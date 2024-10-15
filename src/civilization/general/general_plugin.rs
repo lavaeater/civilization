@@ -31,7 +31,6 @@ impl Plugin for CivilizationPlugin {
             .register_type::<Faction>()
             .register_type::<Treasury>()
             .add_event::<MoveTokensFromStockToAreaCommand>()
-            .add_event::<ReturnTokenToStock>()
             .add_sub_state::<GameActivity>()
             .add_systems(
                 Update, (

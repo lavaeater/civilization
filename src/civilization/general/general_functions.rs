@@ -72,7 +72,7 @@ pub fn return_all_but_n_tokens_to_stock_for_player(population: &mut Population, 
     }
 }
 
-pub fn remove_n_tokens_from_each_player(players: &Vec<Entity>, population: &mut Population, commands: &mut Commands, mut token_rounds: usize) {
+pub fn remove_n_tokens_from_each_player(players: &Vec<Entity>, population: &mut Population, commands: &mut Commands, token_rounds: usize) {
     for player in players {
         for token in population.remove_tokens_from_area(player, token_rounds).unwrap_or_default() {
             commands.entity(token).insert(ReturnTokenToStock);

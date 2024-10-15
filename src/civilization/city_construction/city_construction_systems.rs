@@ -4,7 +4,7 @@ use crate::civilization::general::prelude::*;
 use crate::civilization::map::map_plugin::AvailableFactions;
 use crate::player::Player;
 use crate::GameActivity;
-use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, Handle, Image, Mut, NextState, Query, Res, ResMut, SpriteBundle, Transform, Vec3, With};
+use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, Transform, With};
 
 pub fn city_building_gate(
     query: Query<&IsBuilding>,
@@ -26,9 +26,8 @@ pub fn build_city(
 ) {
     for build_city in command.read() {
         if let Ok((mut population, _)) = city_population.get_mut(build_city.area) {
-            return_all_tokens_from_area_to_players(build_city.area,
-                                                   &mut population, 
-                                                   &mut player_query.transmute_lens::<(&mut TokenStock, &mut PlayerAreas)>().query());
+            return_all_tokens_from_area_to_players(&mut population, 
+                                                   &mut commands);
         }
                 
         if let Ok((mut city_stock, _, mut player_cities, _, faction)) = player_query.get_mut(build_city.player) {
