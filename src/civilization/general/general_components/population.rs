@@ -64,8 +64,8 @@ impl Population {
         flattened_set
     }
 
-    pub fn remove_all_tokens_for_player(&mut self, player: Entity) -> HashSet<Entity> {
-        self.player_tokens.remove(&player).unwrap_or_default()
+    pub fn remove_all_tokens_for_player(&mut self, player: &Entity) -> HashSet<Entity> {
+        self.player_tokens.remove(player).unwrap_or_default()
     }
 
     pub fn has_surplus(&self, has_city: bool) -> bool {
@@ -121,27 +121,27 @@ impl Population {
         self.player_tokens.keys().filter(|k| *k != player).count() > 0
     }
 
-    pub fn remove_all_but_n_tokens(&mut self, player: Entity, n: usize) -> Option<HashSet<Entity>> {
+    pub fn remove_all_but_n_tokens(&mut self, player: &Entity, n: usize) -> Option<HashSet<Entity>> {
         let mut tokens_to_remove: usize = 0;
-        if let Some(player_tokens) = self.player_tokens.get(&player) {
+        if let Some(player_tokens) = self.player_tokens.get(player) {
             tokens_to_remove = if player_tokens.len() > n { player_tokens.len() - n } else { 0 };
         }
         self.remove_tokens_from_area(player, tokens_to_remove)
     }
 
-    pub fn remove_tokens_from_area(&mut self, player: Entity, number_of_tokens: usize) -> Option<HashSet<Entity>> {
-        if let Some(player_tokens) = self.player_tokens.get_mut(&player) {
+    pub fn remove_tokens_from_area(&mut self, player: &Entity, number_of_tokens: usize) -> Option<HashSet<Entity>> {
+        if let Some(player_tokens) = self.player_tokens.get_mut(player) {
             if number_of_tokens > 0 {
                 if player_tokens.len() >= number_of_tokens {
                     let tokens: HashSet<Entity> = player_tokens.iter().take(number_of_tokens).copied().collect();
                     for token in tokens.iter() {
                         player_tokens.remove(token);
                     }
-                    if player_tokens.is_empty() { self.player_tokens.remove(&player); }
+                    if player_tokens.is_empty() { self.player_tokens.remove(player); }
                     Some(tokens)
                 } else {
                     let tokens = player_tokens.drain().collect();
-                    self.player_tokens.remove(&player);
+                    self.player_tokens.remove(player);
                     Some(tokens)
                 }
             } else {

@@ -247,8 +247,8 @@ impl PlayerAreas {
         self.area_population.get_mut(&area).unwrap().extend(tokens);
     }
 
-    pub fn remove_token_from_area(&mut self, area: Entity, token: Entity) {
-        if let Some(tokens) = self.area_population.get_mut(&area) {
+    pub fn remove_token_from_area(&mut self, area: &Entity, token: Entity) {
+        if let Some(tokens) = self.area_population.get_mut(area) {
             tokens.remove(&token);
             if tokens.is_empty() {
                 self.remove_area(area);
@@ -269,13 +269,13 @@ impl PlayerAreas {
         }
 
         if let Some(area) = key_to_remove {
-            self.remove_area(area);
+            self.remove_area(&area);
         }
     }
 
-    pub fn remove_area(&mut self, area: Entity) {
-        self.areas.remove(&area);
-        self.area_population.remove(&area);
+    pub fn remove_area(&mut self, area: &Entity) {
+        self.areas.remove(area);
+        self.area_population.remove(area);
     }
 
     pub fn has_any_population(&self) -> bool {
