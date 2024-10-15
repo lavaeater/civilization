@@ -1,6 +1,7 @@
 mod common;
 
 use crate::common::setup_player;
+use adv_civ::civilization::city_support::prelude::*;
 use adv_civ::civilization::conflict::prelude::*;
 use adv_civ::civilization::general::prelude::*;
 use adv_civ::{GameActivity, GameState};
@@ -17,7 +18,7 @@ added indicating that it has a conflict.
 
 
 #[test]
-fn given_a_city_conflict_with_too_few_tokens() {
+fn given_an_area_with_a_city_and_some_population() {
     // Arrange
     let mut app = App::new();
     app
@@ -58,6 +59,54 @@ fn given_a_city_conflict_with_too_few_tokens() {
     app.update();
     // Assert
     assert!(app.world().get::<UnresolvedCityConflict>(area).is_some());
+}
+
+#[test]
+fn given_a_city_conflict_with_too_few_tokens() {
+    // Arrange
+    let mut app = App::new();
+    app
+        .add_plugins(
+            StatesPlugin,
+        )
+        .add_event::<ReturnTokenToStock>()
+        .add_event::<EliminateCity>()
+        .insert_state(GameState::Playing)
+        .add_sub_state::<GameActivity>()
+        .observe(on_add_unresolved_conflict)
+        .observe(on_add_unresolved_city_conflict)
+        ;
+
+    let (player_one, _, mut p_one_cities) = setup_player(&mut app, "player one", GameFaction::Egypt);
+
+    let (player_two, mut player_two_tokens, _) = setup_player(&mut app, "player two", GameFaction::Crete);
+
+    let mut population = Population::new(4);
+
+    // for token in player_one_tokens.drain(0..7).collect::<Vec<_>>() {
+    //     population.add_token_to_area(player_one, token);
+    // }
+    for token in player_two_tokens.drain(0..5).collect::<Vec<_>>() {
+        population.add_token_to_area(player_two, token);
+    }
+
+    let area = app.world_mut().spawn(
+        (
+            Name::new("egypt"),
+            GameArea::new(1),
+            LandPassage::default(),
+            population,
+            BuiltCity::new(player_one, p_one_cities.pop().unwrap()),
+            UnresolvedCityConflict
+        )
+    ).id();
+
+
+    // Act
+    app.update();
+    app.update();
+    // Assert
+    assert!(app.world().get::<UnresolvedConflict>(area).is_some());
 }
 
 #[test]
