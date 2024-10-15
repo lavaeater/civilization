@@ -1,10 +1,8 @@
 mod common;
 
 use crate::common::{create_area, setup_bevy_app, setup_player};
-use adv_civ::civilization::general::general_components_file::*;
-use adv_civ::civilization::general::general_enums::GameFaction;
-use adv_civ::civilization::general::general_events::*;
-use adv_civ::civilization::remove_surplus::remove_surplus_systems::remove_surplus_population;
+use adv_civ::civilization::general::prelude::*;
+use adv_civ::civilization::remove_surplus::prelude::*;
 use bevy::prelude::{Entity, Events, Update};
 
 #[test]
@@ -22,7 +20,9 @@ fn given_one_player_events_are_sent() {
 
     let mut population = Population::new(4);
 
-    population.player_tokens.insert(player, tokens.drain(0..7).collect());
+    for token in tokens.drain(0..7).collect::<Vec<_>>() {
+        population.add_token_to_area(player, token);
+    }
 
     let area = create_area(&mut app, "Egypt", 1);
 
@@ -61,7 +61,10 @@ fn given_city_area_with_tokens_all_are_removed() {
 
     let mut population = Population::new(4);
 
-    population.player_tokens.insert(player, tokens.drain(0..4).collect());
+    for token in tokens.drain(0..4).collect::<Vec<_>>() {
+        population.add_token_to_area(player, token);
+    }
+
 
     let area = create_area(&mut app, "Egypt", 1);
 

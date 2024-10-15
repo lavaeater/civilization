@@ -1,12 +1,8 @@
 mod common;
 
 use crate::common::setup_player;
-use adv_civ::civilization::conflict::conflict_components::UnresolvedConflict;
-use adv_civ::civilization::conflict::conflict_systems::find_conflict_zones;
-use adv_civ::civilization::conflict::conflict_triggers::{on_add_unresolved_city_conflict, on_add_unresolved_conflict};
-use adv_civ::civilization::general::general_components_file::{GameArea, LandPassage, Population};
-use adv_civ::civilization::general::general_enums::GameFaction;
-use adv_civ::civilization::general::general_events::*;
+use adv_civ::civilization::conflict::prelude::*;
+use adv_civ::civilization::general::prelude::*;
 use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Name};
@@ -39,8 +35,12 @@ fn given_two_players_in_an_area_with_too_much_population_area_is_marked_as_confl
 
     let mut population = Population::new(4);
 
-    population.player_tokens.insert(player_one, player_one_tokens.drain(0..7).collect());
-    population.player_tokens.insert(player_two, player_two_tokens.drain(0..5).collect());
+    for token in player_one_tokens.drain(0..7).collect::<Vec<_>>() {
+        population.add_token_to_area(player_one, token);
+    }
+    for token in player_two_tokens.drain(0..5).collect::<Vec<_>>() {
+        population.add_token_to_area(player_two, token);
+    }
 
     let area = app.world_mut().spawn(
         (
@@ -168,8 +168,12 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
     for test_case in test_cases {
         let mut population = Population::new(test_case.area_max_population);
 
-        population.player_tokens.insert(player_one, player_one_tokens.drain(0..test_case.player_one_tokens).collect());
-        population.player_tokens.insert(player_two, player_two_tokens.drain(0..test_case.player_two_tokens).collect());
+        for token in player_one_tokens.drain(0..test_case.player_one_tokens).collect::<Vec<_>>() {
+            population.add_token_to_area(player_one, token);
+        }
+        for token in player_two_tokens.drain(0..test_case.player_two_tokens).collect::<Vec<_>>() {
+            population.add_token_to_area(player_two, token);
+        }
 
         let area = app.world_mut().spawn(
             (
@@ -231,9 +235,15 @@ fn given_three_conflicteers_the_correct_result_is_obtained() {
     for test_case in test_cases {
         let mut population = Population::new(test_case.area_max_population);
 
-        population.player_tokens.insert(player_one, player_one_tokens.drain(0..test_case.player_one_tokens).collect());
-        population.player_tokens.insert(player_two, player_two_tokens.drain(0..test_case.player_two_tokens).collect());
-        population.player_tokens.insert(player_three, player_three_tokens.drain(0..test_case.player_three_tokens).collect());
+        for token in player_one_tokens.drain(0..test_case.player_one_tokens).collect::<Vec<_>>() {
+            population.add_token_to_area(player_one, token);
+        }
+        for token in player_two_tokens.drain(0..test_case.player_two_tokens).collect::<Vec<_>>() {
+            population.add_token_to_area(player_two, token);
+        }
+        for token in player_three_tokens.drain(0..test_case.player_three_tokens).collect::<Vec<_>>() {
+            population.add_token_to_area(player_three, token);
+        }
 
         let area = app.world_mut().spawn(
             (

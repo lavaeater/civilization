@@ -1,12 +1,8 @@
 mod common;
 
 use crate::common::create_area;
-use adv_civ::civilization::city_support::city_support_components::{HasTooManyCities, NeedsToCheckCitySupport};
-use adv_civ::civilization::city_support::city_support_events::{CheckPlayerCitySupport, EliminateCity};
-use adv_civ::civilization::city_support::city_support_systems::{check_player_city_support, eliminate_city, start_check_city_support};
-use adv_civ::civilization::general::general_components_file::{BuiltCity, PlayerCities, Population};
-use adv_civ::civilization::general::general_enums::GameFaction;
-use adv_civ::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
+use adv_civ::civilization::city_support::prelude::*;
+use adv_civ::civilization::general::prelude::*;
 use adv_civ::GameActivity;
 use bevy::prelude::NextState::Pending;
 use bevy::prelude::{Events, NextState, Update};

@@ -242,6 +242,7 @@ mod tests {
         population.add_token_to_area(player2, create_entity());
         assert!(population.has_other_players(&player1));
     }
+    
     #[test]
     fn test_all_lengths_equal() {
         let mut population = Population::new(10);
