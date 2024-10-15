@@ -44,7 +44,7 @@ pub enum GameActivity {
     CityConstruction,
     RemoveSurplusPopulation,
     CheckCitySupport,
-    // AcquireTradeCards,
+    AcquireTradeCards,
     // Trade,
     // ResolveCalamities,
     // AcquireCivilizationCards,

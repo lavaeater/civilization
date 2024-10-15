@@ -9,3 +9,4 @@ pub mod remove_surplus;
 pub mod city_support;
 pub mod game_moves;
 pub mod map;
+pub mod trade_cards;
