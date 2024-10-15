@@ -48,7 +48,9 @@ pub fn on_add_unresolved_city_conflict(
                 Ordering::Equal => {
                     debug!("There is one other player, we eliminate the city and resolve a regular conflict");
                     if let Ok((mut city_stock, mut token_stock, mut player_cities, mut player_areas)) = player_with_city.get_mut(built_city.player) {
-                        replace_city_with_tokens_for_conflict(&mut commands, area_entity, &mut population, built_city, &mut city_stock, &mut token_stock, &mut player_cities, &mut player_areas);
+                        commands.entity(area_entity).remove::<BuiltCity>();
+                        replace_city_with_tokens_for_conflict(area_entity, &mut population, built_city, &mut city_stock, &mut token_stock, &mut player_cities, &mut player_areas);
+                        commands.entity(area_entity).insert(UnresolvedConflict);
                     }
                 }
                 Ordering::Greater => {

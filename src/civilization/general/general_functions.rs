@@ -1,7 +1,5 @@
-use crate::civilization::city_construction::city_construction_events::BuildCityCommand;
-use crate::civilization::conflict::conflict_components::UnresolvedConflict;
-use crate::civilization::general::general_components::{BuiltCity, CityTokenStock, PlayerAreas, PlayerCities, TokenStock};
-use crate::civilization::general::prelude::{Population, ReturnTokenToStock};
+use crate::civilization::city_construction::prelude::*;
+use crate::civilization::general::prelude::*;
 use bevy::asset::Handle;
 use bevy::math::Vec3;
 use bevy::prelude::{default, Commands, Entity, Image, Mut, SpriteBundle, Transform};
@@ -81,20 +79,17 @@ pub fn remove_n_tokens_from_each_player(players: &Vec<Entity>, population: &mut 
 }
 
 pub fn replace_city_with_tokens_for_conflict(
-    commands: &mut Commands,
     area_entity: Entity,
-    mut population: &mut Population,
+    population: &mut Population,
     built_city: &BuiltCity,
     city_stock: &mut CityTokenStock,
-    mut token_stock: &mut TokenStock,
+    token_stock: &mut TokenStock,
     player_cities: &mut PlayerCities,
-    mut player_areas: &mut PlayerAreas,
+    player_areas: &mut PlayerAreas,
 ) {
-    commands.entity(area_entity).remove::<BuiltCity>();
     player_cities.remove_city_from_area(area_entity);
     city_stock.return_token_to_stock(built_city.city);
-    move_from_stock_to_area(built_city.player, area_entity, 6, &mut population, &mut token_stock, &mut player_areas);
-    commands.entity(area_entity).insert(UnresolvedConflict);
+    move_from_stock_to_area(built_city.player, area_entity, 6, population, token_stock, player_areas);
 }
 
 #[cfg(test)]
@@ -131,6 +126,58 @@ mod tests {
         assert!(population.has_player(&player));
         assert_eq!(token_stock.tokens_in_stock(), 1);
     }
+
+
+    #[test]
+    fn test_return_all_tokens_from_area_to_player() {
+        let mut population = Population::new(4);
+        let token_1 = create_entity();
+        let token_2 = create_entity();
+        let mut token_stock = TokenStock::new(47, vec![token_1, token_2]);
+        let mut player_areas = PlayerAreas::default();
+        let player = create_entity();
+        let area = create_entity();
+
+        move_from_stock_to_area(player, area, 2, &mut population, &mut token_stock, &mut player_areas);
+        return_all_tokens_from_area_to_player(&player, &area, &mut population, &mut token_stock, &mut player_areas);
+
+        assert!(token_stock.tokens_in_stock() >= 2);
+        assert!(!player_areas.contains(area));
+    }
+
+    #[test]
+    fn test_replace_city_with_tokens_for_conflict_city_removed() {
+        let area_entity = create_entity();
+        let mut population = Population::new(4);
+        let city_token = create_entity();
+        let mut city_stock = CityTokenStock::new(7,vec![]);
+        let mut token_stock = TokenStock::new(47, vec![]);
+        let mut player_cities = PlayerCities::default();
+        let mut player_areas = PlayerAreas::default();
+        let built_city = BuiltCity {
+            player: create_entity(),
+            city: city_token,
+        };
+
+        // Build city first to simulate a scenario
+        player_cities.build_city_in_area(area_entity, city_token);
+
+        replace_city_with_tokens_for_conflict(
+            area_entity,
+            &mut population,
+            &built_city,
+            &mut city_stock,
+            &mut token_stock,
+            &mut player_cities,
+            &mut player_areas,
+        );
+
+        // Check that the city has been removed from the player cities
+        assert!(!player_cities.has_city_in(area_entity));
+        // Check that the city token has been returned to the stock
+        assert_eq!(city_stock.get_token_from_stock().unwrap(), city_token);
+    }
 }
+
 
 
