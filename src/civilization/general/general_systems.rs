@@ -1,7 +1,5 @@
-use crate::civilization::census::census_components::Census;
-use crate::civilization::general::general_components::PlayerStock;
-use crate::civilization::general::general_components::{CityToken, CityTokenStock, Faction, FixTokenPositions, GameArea, LandPassage, NeedsConnections, PlayerAreas, PlayerCities, Population, StartArea, Token, Treasury};
-use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
+use crate::civilization::census::prelude::*;
+use crate::civilization::general::prelude::*;
 use crate::civilization::map::map_plugin::AvailableFactions;
 use crate::player::Player;
 use crate::stupid_ai::stupid_ai_components::StupidAi;
@@ -80,7 +78,7 @@ pub fn setup_players(
             .entity(player)
             .insert(
                 (
-                    PlayerStock::new(
+                    TokenStock::new(
                         47,
                         tokens),
                     CityTokenStock::new(
@@ -118,7 +116,7 @@ pub fn fix_token_positions(
     mut commands: Commands,
 ) {
     for (area_entity, pop, area_transform, _) in population_query.iter() {
-        for (player_index, (_, tokens)) in pop.player_tokens.iter().enumerate() {
+        for (player_index, (_, tokens)) in pop.player_tokens().iter().enumerate() {
             for (token_index, token) in tokens.iter().enumerate() {
                 if let Ok(mut token_transform) = token_transform_query.get_mut(*token) {
                     token_transform.translation = area_transform.translation + vec3(
@@ -138,7 +136,7 @@ This is 100% needed to be able to test expansion and stuff.
 pub fn move_tokens_from_stock_to_area(
     mut move_commands: EventReader<MoveTokensFromStockToAreaCommand>,
     mut population_query: Query<(&mut Population, &Transform)>,
-    mut player_query: Query<(&mut PlayerAreas, &mut PlayerStock, &Faction)>,
+    mut player_query: Query<(&mut PlayerAreas, &mut TokenStock, &Faction)>,
     mut commands: Commands,
     game_factions: Res<AvailableFactions>,
 ) {
@@ -162,22 +160,6 @@ pub fn move_tokens_from_stock_to_area(
             }
         }
         commands.entity(ev.area_entity).insert(FixTokenPositions);
-    }
-}
-
-pub(crate) fn return_token_to_stock(
-    mut event: EventReader<ReturnTokenToStock>,
-    mut stock_query: Query<&mut PlayerStock>,
-    token_query: Query<&Token>,
-    mut commands: Commands,
-) {
-    for return_event in event.read() {
-        if let Ok(token) = token_query.get(return_event.token_entity) {
-            if let Ok(mut stock) = stock_query.get_mut(token.player) {
-                stock.return_token_to_stock(return_event.token_entity);
-                commands.entity(return_event.token_entity).remove::<SpriteBundle>();
-            }
-        }
     }
 }
 

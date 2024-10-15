@@ -2,7 +2,8 @@ use crate::civilization::city_construction::city_construction_components::IsBuil
 use crate::civilization::city_support::city_support_components::HasTooManyCities;
 use crate::civilization::game_moves::game_moves_components::{AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove};
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use crate::civilization::general::general_components::{CitySite, CityTokenStock, LandPassage, PlayerAreas, PlayerCities, PlayerStock, Population};
+use crate::civilization::general::general_components::population::Population;
+use crate::civilization::general::general_components::*;
 use crate::civilization::movement::movement_components::TokenHasMoved;
 use crate::civilization::movement::movement_events::PlayerMovementEnded;
 use crate::civilization::population_expansion::population_expansion_components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
@@ -11,7 +12,7 @@ use bevy::utils::HashMap;
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
-    player_move_query: Query<(&PlayerAreas, &PlayerStock)>,
+    player_move_query: Query<(&PlayerAreas, &TokenStock)>,
     area_population_query: Query<&Population>,
     mut commands: Commands,
 ) {
@@ -49,14 +50,11 @@ pub fn recalculate_movement_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
     player_move_query: Query<&PlayerAreas>,
     area_connections_query: Query<&LandPassage>,
+    area_pop_and_city_query: Query<(&Population, Option<&BuiltCity>)>,
     token_filter_query: Query<Has<TokenHasMoved>>,
     mut commands: Commands,
     mut end_player_movement: EventWriter<PlayerMovementEnded>,
 ) {
-    /*
-    It's easier now that we have access to all the player's areas in
-    the PlayerAreas component. We can just iterate over them and when we
-     */
     for event in recalc_player_reader.read() {
         // debug!("Recalculating movement moves for player {:?}", event.player);
         commands.entity(event.player).remove::<AvailableMoves>();
@@ -72,21 +70,48 @@ pub fn recalculate_movement_moves_for_player(
 
                 if !tokens_that_can_move.is_empty() {
                     if let Ok(connections) = area_connections_query.get(area) {
-                        for connection in connections.to_areas.iter() {
-                            command_index += 1;
-                            moves.insert(command_index,
-                                         Move::Movement(MovementMove::new(
-                                             area,
-                                             *connection,
-                                             event.player,
-                                             tokens_that_can_move.len(),
-                                         )));
+                        for target_area in connections.to_areas.iter() {
+                            if let Ok((population, optional_city)) = area_pop_and_city_query.get(*target_area) {
+                                if let Some(has_city) = optional_city {
+                                    if has_city.player != event.player {
+                                        command_index += 1;
+                                        moves.insert(command_index,
+                                                     Move::AttackCity(
+                                                         MovementMove::new(
+                                                             area,
+                                                             *target_area,
+                                                             event.player,
+                                                             tokens_that_can_move.len(),
+                                                         )));
+                                    }
+                                } else if population.has_other_players(&event.player) {
+                                    command_index += 1;
+                                    moves.insert(command_index,
+                                                 Move::AttackArea(
+                                                     MovementMove::new(
+                                                         area,
+                                                         *target_area,
+                                                         event.player,
+                                                         tokens_that_can_move.len(),
+                                                     )));
+                                } else {
+                                    command_index += 1;
+                                    moves.insert(command_index,
+                                                 Move::Movement(
+                                                     MovementMove::new(
+                                                         area,
+                                                         *target_area,
+                                                         event.player,
+                                                         tokens_that_can_move.len(),
+                                                     )));
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-        
+
         if moves.is_empty() {
             end_player_movement.send(PlayerMovementEnded::new(event.player));
         } else {

@@ -1,7 +1,8 @@
 use crate::civilization::census::census_resources::GameInfoAndStuff;
 use crate::civilization::game_moves::game_moves_components::AvailableMoves;
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use crate::civilization::general::general_components::{FixTokenPositions, PlayerAreas, Population, Token};
+use crate::civilization::general::general_components::population::Population;
+use crate::civilization::general::general_components::*;
 use crate::civilization::movement::movement_components::{HasJustMoved, PerformingMovement, TokenHasMoved};
 use crate::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;
 use crate::civilization::movement::movement_events::{NextPlayerStarted, PlayerMovementEnded};
@@ -73,18 +74,14 @@ pub fn move_tokens_from_area_to_area(
     mut recalculate_player_moves: EventWriter<RecalculatePlayerMoves>,
 ) {
     for ev in move_events.read() {
-        // debug!("Lets move some tokens!");
         if let Ok((mut from_pop, _)) = pop_query.get_mut(ev.source_area) {
-            let cloned = from_pop.player_tokens.clone();
+            let cloned = from_pop.player_tokens().clone();
             if let Some(player_tokens) = cloned.get(&ev.player) {
-                // debug!("Player has tokens in the area");
-                // debug!("Player tokens: {:?}", player_tokens);
                 let tokens_that_can_move = player_tokens
                     .iter()
                     .filter(|t| tokens_that_can_move.get(**t).is_ok()).copied()
                     .collect::<Vec<_>>();
                 if tokens_that_can_move.len() < ev.number_of_tokens {
-                    // debug!("Not enough tokens to move, recalculate that son of a bitch!");
                     recalculate_player_moves.send(RecalculatePlayerMoves::new(ev.player));
                 } else {
                     let tokens_to_move = tokens_that_can_move
@@ -104,15 +101,13 @@ pub fn move_tokens_from_area_to_area(
                                     if let Ok(mut token_transform) = token_transform.get_mut(*token) {
                                         token_transform.translation = target_transform.translation;
                                     }
-                                    player_area.remove_token_from_area(ev.source_area, *token);
+                                    player_area.remove_token_from_area(&ev.source_area, *token);
                                     to_pop.add_token_to_area(ev.player, *token);
                                     player_area.add_token_to_area(ev.target_area, *token);
                                 });
                         }
                     }
                 }
-            } else {
-                // debug!("Player has no tokens in the area");
             }
         }
         commands.entity(ev.player).insert(HasJustMoved);

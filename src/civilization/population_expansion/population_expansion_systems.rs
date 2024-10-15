@@ -1,6 +1,6 @@
 use crate::civilization::census::census_resources::GameInfoAndStuff;
-use crate::civilization::general::general_components::PlayerStock;
-use crate::civilization::general::general_components::{PlayerAreas, Population};
+use crate::civilization::general::general_components::population::Population;
+use crate::civilization::general::general_components::*;
 use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::population_expansion::population_expansion_components::{AreaIsExpanding, ExpandAutomatically, ExpandManually, NeedsExpansion};
 use crate::civilization::population_expansion::population_expansion_events::{CheckGate, CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand};
@@ -9,7 +9,7 @@ use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query
 
 pub fn check_area_population_expansion_eligibility(
     mut expansion_check_event: EventReader<CheckPlayerExpansionEligibility>,
-    stock_query: Query<(&PlayerStock, &PlayerAreas, &NeedsExpansion)>,
+    stock_query: Query<(&TokenStock, &PlayerAreas, &NeedsExpansion)>,
     mut commands: Commands,
 ) {
     for event in expansion_check_event.read() {

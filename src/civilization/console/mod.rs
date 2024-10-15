@@ -8,3 +8,16 @@ mod start_command;
 mod player_end_building_command;
 mod stupid_ai_command;
 mod make_a_move_command;
+
+pub mod prelude {
+    pub use super::build_city_console_command::*;
+    pub use super::console_commands::*;
+    pub use super::expand_population_command::*;
+    pub use super::list_builds_command::*;
+    pub use super::list_moves_command::*;
+    pub use super::make_a_move_command::*;
+    pub use super::player_end_building_command::*;
+    pub use super::show_board_command::*;
+    pub use super::start_command::*;
+    pub use super::stupid_ai_command::*;
+}

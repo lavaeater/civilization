@@ -1,11 +1,11 @@
-use bevy_console::ConsoleCommand;
-use bevy::prelude::{Entity, EventWriter, NextState, Query, ResMut, With};
-use bevy::core::Name;
-use clap::Parser;
-use crate::civilization::general::general_components::{Faction, StartArea};
+use crate::civilization::general::general_components::*;
 use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
-use crate::GameActivity;
 use crate::player::Player;
+use crate::GameActivity;
+use bevy::core::Name;
+use bevy::prelude::{Entity, EventWriter, NextState, Query, ResMut, With};
+use bevy_console::ConsoleCommand;
+use clap::Parser;
 
 #[derive(Parser, ConsoleCommand)]
 #[command(name = "start")]

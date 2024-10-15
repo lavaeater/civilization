@@ -1,30 +1,27 @@
-use crate::civilization::general::general_components::{BuiltCity, Population};
-use crate::civilization::general::general_events::ReturnTokenToStock;
+use crate::civilization::general::prelude::*;
 use crate::GameActivity;
-use bevy::prelude::{debug, EventWriter, Has, NextState, Query, ResMut};
+use bevy::prelude::{debug, Commands, Has, Name, NextState, Query, ResMut};
 
 pub fn remove_surplus_population(
     mut next_state: ResMut<NextState<GameActivity>>,
-    mut return_token: EventWriter<ReturnTokenToStock>,
     mut areas: Query<(&mut Population, Has<BuiltCity>)>,
+    name_query: Query<&Name>,
+    mut commands: Commands
 ) {
     for (mut area, has_city) in areas.iter_mut() {
         if area.has_surplus(has_city) {
             if has_city {
-                for token in area.remove_all_tokens() {
-                    return_token.send(ReturnTokenToStock {
-                        token_entity: token,
-                    });
-                }
                 debug!("Area has a city, so we remove all tokens");
+                for token in area.remove_all_tokens() {
+                    commands.entity(token).insert(ReturnTokenToStock);
+                }
             } else if area.number_of_players() > 1 {
-                debug!("Area has more than two players which should be impossible - but perhaps not if city");
+                for (player, tokens) in area.player_tokens().iter() {
+                    debug!("Player {:?} has {:?} tokens", name_query.get(*player), tokens.len());
+                }
             } else {
-                debug!("Area has one player, lets remove surplus");
                 for token in area.remove_surplus() {
-                    return_token.send(ReturnTokenToStock {
-                        token_entity: token,
-                    });
+                    commands.entity(token).insert(ReturnTokenToStock);
                 }
             }
         }

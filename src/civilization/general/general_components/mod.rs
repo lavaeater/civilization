@@ -1,6 +1,8 @@
 use crate::civilization::general::general_enums::GameFaction;
-use bevy::prelude::{default, Component, Entity, Reflect};
+use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
+
+pub mod population;
 
 #[derive(Component, Debug, Reflect)]
 pub struct GameArea {
@@ -34,164 +36,6 @@ impl LandPassage {
 pub struct NeedsConnections {
     pub land_connections: Vec<i32>,
     pub sea_connections: Vec<i32>,
-}
-
-#[derive(Component, Debug, Reflect, Default)]
-pub struct Population {
-    pub player_tokens: HashMap<Entity, HashSet<Entity>>,
-    pub max_population: usize,
-}
-
-impl Population {
-    pub fn new(max_population: usize) -> Self {
-        Population {
-            max_population,
-            ..default()
-        }
-    }
-
-    pub fn remove_tokens(&mut self, player: Entity, tokens: Vec<Entity>) {
-        if let Some(player_tokens) = self.player_tokens.get_mut(&player) {
-            for token in tokens {
-                player_tokens.retain(|t| *t != token);
-            }
-            if player_tokens.is_empty() {
-                self.player_tokens.remove(&player);
-            }
-        }
-    }
-    
-    pub fn has_more_than_one_player(&self) -> bool {
-        self.player_tokens.len() > 1
-    }
-
-    pub fn players(&self) -> HashSet<Entity> {
-        self.player_tokens.keys().cloned().collect()
-    }
-    
-    pub fn number_of_players(&self) -> usize {
-        self.player_tokens.keys().len()
-    }
-
-    pub fn all_lengths_equal(&self) -> bool {
-        let first_length = self.player_tokens.values().next().map(|v| v.len());
-        self.player_tokens.values().all(|v| Some(v.len()) == first_length)
-    }
-
-    pub fn remove_surplus(&mut self) -> HashSet<Entity> {
-        assert_eq!(self.number_of_players(), 1); // this should never, ever, not happen
-        let surplus_count = self.surplus_count();
-        
-        let player_tokens = self.player_tokens.values_mut().next().unwrap();
-        let tokens: HashSet<Entity> = player_tokens.iter().take(surplus_count).copied().collect();
-        
-        for token in tokens.iter() {
-            player_tokens.remove(token);
-        }
-        tokens
-    }
-
-    pub fn remove_all_tokens(&mut self) -> HashSet<Entity> {
-        let mut flattened_set = HashSet::new();
-
-        for set in self.player_tokens.clone().into_values() {
-            flattened_set.extend(set);
-        }
-        self.player_tokens.clear();
-
-        flattened_set
-    }
-
-    pub fn has_surplus(&self, has_city: bool) -> bool {
-        (has_city && self.has_population()) || self.surplus_count() > 0
-    }
-
-    pub fn surplus_count(&self) -> usize {
-        if self.total_population() > self.max_population {
-            self.total_population() - self.max_population
-        } else {
-            0
-        }
-    }
-
-    pub fn is_conflict_zone(&self, has_city: bool) -> bool {
-        (self.number_of_players() > 1 && self.has_too_many_tokens())
-            || (has_city && self.number_of_players() > 1)
-    }
-
-    pub fn has_too_many_tokens(&self) -> bool {
-        self.total_population() > self.max_population
-    }
-
-    pub fn total_population(&self) -> usize {
-        self.player_tokens.values().map(|set| set.len()).sum()
-    }
-
-    pub fn has_population(&self) -> bool {
-        self.total_population() > 0
-    }
-    
-    pub fn max_expansion_for_player(&self, player: Entity) -> usize {
-        if let Some(player_tokens) = self.player_tokens.get(&player) {
-            match player_tokens.len() {
-                0 => 0,
-                1 => 1,
-                _ => 2,
-            }
-        } else { 0 }
-    }
-
-    pub fn population_for_player(&self, player: Entity) -> usize {
-        if let Some(player_tokens) = self.player_tokens.get(&player) {
-            player_tokens.len()
-        } else { 0 }
-    }
-
-    pub fn has_player(&self, player: Entity) -> bool {
-        self.player_tokens.contains_key(&player)
-    }
-
-    pub fn remove_all_but_n_tokens(&mut self, player: Entity, n: usize) -> Option<HashSet<Entity>> {
-        let mut tokens_to_remove: usize = 0;
-        if let Some(player_tokens) = self.player_tokens.get(&player) {
-            tokens_to_remove = if player_tokens.len() > n { player_tokens.len() - n } else { 0 };
-        }
-        self.remove_tokens_from_area(player, tokens_to_remove)
-    }
-
-    pub fn remove_tokens_from_area(&mut self, player: Entity, number_of_tokens: usize) -> Option<HashSet<Entity>> {
-        if let Some(player_tokens) = self.player_tokens.get_mut(&player) {
-            if number_of_tokens > 0 {
-                if player_tokens.len() >= number_of_tokens {
-                    let tokens: HashSet<Entity> = player_tokens.iter().take(number_of_tokens).copied().collect();
-                    for token in tokens.iter() {
-                        player_tokens.remove(token);
-                    }
-                    if player_tokens.is_empty() { self.player_tokens.remove(&player); }
-                    Some(tokens)
-                } else {
-                    let tokens = player_tokens.drain().collect();
-                    self.player_tokens.remove(&player);
-                    Some(tokens)
-                }
-            } else {
-                None
-            }
-        } else { None }
-    }
-
-    pub fn add_token_to_area(&mut self, player: Entity, token: Entity) {
-        if let Some(tokens) = self.player_tokens.get_mut(&player) {
-            tokens.insert(token);
-        } else {
-            self.player_tokens.insert(player, HashSet::from([token]));
-        }
-    }
-    pub fn remove_token_from_area(&mut self, player: Entity, token: Entity) {
-        if let Some(tokens) = self.player_tokens.get_mut(&player) {
-            tokens.remove(&token);
-        }
-    }
 }
 
 #[derive(Component, Debug, Reflect)]
@@ -257,7 +101,7 @@ impl Faction {
 
 #[derive(Component, Debug, Reflect)]
 pub struct Token {
-    pub player: Entity,
+    player: Entity,
 }
 
 impl Token {
@@ -266,41 +110,65 @@ impl Token {
             player
         }
     }
+    
+    pub fn player(&self) -> Entity {
+        self.player
+    }
 }
 
 #[derive(Component, Debug, Reflect)]
-pub struct PlayerStock {
+pub struct TokenStock {
     pub max_tokens: usize,
-    tokens: Vec<Entity>,
+    tokens: HashSet<Entity>,
 }
 
-impl PlayerStock {
+impl TokenStock {
     pub fn new(max_tokens: usize, tokens: Vec<Entity>) -> Self {
-        PlayerStock {
+        TokenStock {
             max_tokens,
-            tokens,
+            tokens: HashSet::from_iter(tokens)
         }
     }
-    
+
     pub fn is_empty(&self) -> bool {
         self.tokens.is_empty()
     }
 
     pub fn return_token_to_stock(&mut self, token: Entity) {
-        self.tokens.push(token);
+        self.tokens.insert(token);
     }
 
-    pub fn remove_tokens_from_stock(&mut self, number_of_tokens: usize) -> Option<Vec<Entity>> {
+    pub fn return_tokens_to_stock(&mut self, tokens: HashSet<Entity>) {
+        self.tokens.extend(tokens);
+    }
+
+    pub fn remove_tokens_from_stock(&mut self, number_of_tokens: usize) -> Option<HashSet<Entity>> {
         if self.tokens.len() >= number_of_tokens {
-            let tokens = self.tokens.drain(0..number_of_tokens).collect();
-            Some(tokens)
+            let to_remove: Vec<Entity> = self.tokens.iter().take(number_of_tokens).cloned().collect();
+            self.tokens.retain(|t| !to_remove.contains(t));
+            Some(to_remove.into_iter().collect())
         } else {
             None
         }
     }
 
+    pub fn remove_at_most_n_tokens_from_stock(&mut self, number_of_tokens: usize) -> Option<HashSet<Entity>> {
+        if self.tokens.is_empty() {
+            None
+        } else if self.tokens.len() >= number_of_tokens {
+            self.remove_tokens_from_stock(number_of_tokens)
+        } else {
+            self.remove_tokens_from_stock(self.tokens.len())
+        }
+    }
+
     pub fn remove_token_from_stock(&mut self) -> Option<Entity> {
-        self.tokens.pop()
+        // Find an arbitrary item to pop (first item in iteration)
+        if let Some(item) = self.tokens.iter().next().cloned() {
+            self.tokens.take(&item) // Remove and return the item
+        } else {
+            None // Return None if the set is empty
+        }
     }
 
     pub fn tokens_in_stock(&self) -> usize {
@@ -371,8 +239,16 @@ impl PlayerAreas {
         self.area_population.get_mut(&area).unwrap().insert(token);
     }
 
-    pub fn remove_token_from_area(&mut self, area: Entity, token: Entity) {
-        if let Some(tokens) = self.area_population.get_mut(&area) {
+    pub fn add_tokens_to_area(&mut self, area: Entity, tokens: HashSet<Entity>) {
+        self.areas.insert(area);
+        if !self.area_population.contains_key(&area) {
+            self.area_population.insert(area, HashSet::default());
+        }
+        self.area_population.get_mut(&area).unwrap().extend(tokens);
+    }
+
+    pub fn remove_token_from_area(&mut self, area: &Entity, token: Entity) {
+        if let Some(tokens) = self.area_population.get_mut(area) {
             tokens.remove(&token);
             if tokens.is_empty() {
                 self.remove_area(area);
@@ -380,9 +256,26 @@ impl PlayerAreas {
         }
     }
 
-    pub fn remove_area(&mut self, area: Entity) {
-        self.areas.remove(&area);
-        self.area_population.remove(&area);
+    pub fn remove_token(&mut self, token: Entity) {
+        let mut key_to_remove: Option<Entity> = None;
+
+        for (area, tokens) in self.area_population.iter_mut() {
+            if tokens.remove(&token) {
+                if tokens.is_empty() {
+                    key_to_remove = Some(*area);
+                }
+                break; // We can stop after finding the entity
+            }
+        }
+
+        if let Some(area) = key_to_remove {
+            self.remove_area(&area);
+        }
+    }
+
+    pub fn remove_area(&mut self, area: &Entity) {
+        self.areas.remove(area);
+        self.area_population.remove(area);
     }
 
     pub fn has_any_population(&self) -> bool {
@@ -462,7 +355,7 @@ impl CityTokenStock {
             tokens,
         }
     }
-    
+
     pub fn has_tokens(&self) -> bool {
         !self.tokens.is_empty()
     }
