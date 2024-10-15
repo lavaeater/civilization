@@ -104,9 +104,9 @@ fn given_a_city_conflict_with_too_few_tokens() {
 
     // Act
     app.update();
-    app.update();
     // Assert
-    assert!(app.world().get::<UnresolvedConflict>(area).is_some());
+    assert!(app.world().get::<UnresolvedConflict>(area).is_none());
+    assert!(app.world().get::<UnresolvedCityConflict>(area).is_none());
 }
 
 #[test]
