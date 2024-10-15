@@ -101,7 +101,7 @@ impl Faction {
 
 #[derive(Component, Debug, Reflect)]
 pub struct Token {
-    pub player: Entity,
+    player: Entity,
 }
 
 impl Token {
@@ -109,6 +109,10 @@ impl Token {
         Token {
             player
         }
+    }
+    
+    pub fn player(&self) -> Entity {
+        self.player
     }
 }
 
@@ -249,6 +253,23 @@ impl PlayerAreas {
             if tokens.is_empty() {
                 self.remove_area(area);
             }
+        }
+    }
+
+    pub fn remove_token(&mut self, token: Entity) {
+        let mut key_to_remove: Option<Entity> = None;
+
+        for (area, tokens) in self.area_population.iter_mut() {
+            if tokens.remove(&token) {
+                if tokens.is_empty() {
+                    key_to_remove = Some(*area);
+                }
+                break; // We can stop after finding the entity
+            }
+        }
+
+        if let Some(area) = key_to_remove {
+            self.remove_area(area);
         }
     }
 

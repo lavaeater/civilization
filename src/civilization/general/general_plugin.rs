@@ -63,11 +63,10 @@ impl Plugin for CivilizationPlugin {
                         .run_if(in_state(GameState::Playing)),
                     move_tokens_from_stock_to_area
                         .run_if(in_state(GameState::Playing)),
-                    return_token_to_stock
-                        .run_if(in_state(GameState::Playing)),
                     fix_token_positions
                         .run_if(in_state(GameState::Playing)),
                 ))
+            .observe(on_add_return_token_to_stock)
         ;
     }
 }

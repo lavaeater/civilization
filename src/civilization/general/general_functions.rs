@@ -48,3 +48,8 @@ pub fn build_city_in_area(commands: &mut Commands, texture: Handle<Image>, build
             });
     }
 }
+
+pub fn return_token_to_stock(token: Entity, token_stock: &mut TokenStock, player_areas: &mut PlayerAreas) {
+    token_stock.return_token_to_stock(token);
+    player_areas.remove_token(token);
+}
