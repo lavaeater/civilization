@@ -16,7 +16,7 @@ fn given_one_player_events_are_sent() {
 
     let player: Entity;
     let mut tokens: Vec<Entity>;
-    (player, tokens, _) = setup_player(&mut  app, "player one", GameFaction::Egypt);
+    (player, tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
 
     let mut population = Population::new(4);
 
@@ -28,7 +28,7 @@ fn given_one_player_events_are_sent() {
 
     app.world_mut().entity_mut(area)
         .insert(population);
-    
+
     // Act
     app.update();
     // Assert
@@ -50,7 +50,7 @@ fn given_city_area_with_tokens_all_are_removed() {
     let player: Entity;
     let mut tokens: Vec<Entity>;
     let mut city_tokens: Vec<Entity>;
-    (player, tokens, city_tokens) = setup_player(&mut  app, "player one", GameFaction::Egypt);
+    (player, tokens, city_tokens) = setup_player(&mut app, "player one", GameFaction::Egypt);
 
     let mut population = Population::new(4);
 
@@ -65,11 +65,11 @@ fn given_city_area_with_tokens_all_are_removed() {
         .insert((
             population,
             BuiltCity::new(city_tokens.pop().unwrap(), player)
-            ));
+        ));
 
     // Act
     app.update();
-    
+
     // Assert
     assert!(app.world().get::<Population>(area).is_some());
     let population = app.world().get::<Population>(area).unwrap();

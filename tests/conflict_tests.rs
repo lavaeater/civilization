@@ -270,7 +270,6 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
         .add_event::<PrintConsoleLine>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
-        // .add_systems(Update, find_conflict_zones)
         .observe(on_add_unresolved_conflict)
         .observe(on_add_unresolved_city_conflict)
     ;
