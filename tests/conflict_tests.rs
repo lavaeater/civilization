@@ -1,12 +1,10 @@
 mod common;
 
 use crate::common::setup_player;
-use adv_civ::civilization::city_support::prelude::*;
 use adv_civ::civilization::conflict::prelude::*;
 use adv_civ::civilization::general::prelude::*;
 use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
-use bevy::asset::AssetContainer;
 use bevy::prelude::{App, AppExtStates, Name};
 use bevy::state::app::StatesPlugin;
 use bevy_console::PrintConsoleLine;
@@ -71,12 +69,11 @@ fn given_a_city_conflict_with_too_few_tokens() {
             StatesPlugin,
         )
         .add_event::<ReturnTokenToStock>()
-        .add_event::<EliminateCity>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .observe(on_add_unresolved_conflict)
         .observe(on_add_unresolved_city_conflict)
-        ;
+    ;
 
     let (player_one, _, mut p_one_cities) = setup_player(&mut app, "player one", GameFaction::Egypt);
 
@@ -119,10 +116,8 @@ fn given_a_city_conflict_with_enough_tokens() {
             StatesPlugin,
         )
         .add_event::<ReturnTokenToStock>()
-        .add_event::<EliminateCity>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
-        .add_systems(Update, eliminate_city)
         .observe(on_add_unresolved_conflict)
         .observe(on_add_unresolved_city_conflict)
     ;
@@ -139,7 +134,7 @@ fn given_a_city_conflict_with_enough_tokens() {
     for token in player_two_tokens.drain(0..8).collect::<Vec<_>>() {
         population.add_token_to_area(player_two, token);
     }
-    
+
     let city_token = p_one_cities.pop().unwrap();
     let mut player_one_cities = PlayerCities::default();
 
@@ -149,22 +144,27 @@ fn given_a_city_conflict_with_enough_tokens() {
             GameArea::new(1),
             LandPassage::default(),
             population,
-            BuiltCity::new(player_one, city_token),
+            BuiltCity::new(city_token, player_one),
             UnresolvedCityConflict
         )
     ).id();
     player_one_cities.build_city_in_area(area, city_token);
 
-    app.world_mut().entity_mut(player_one).insert(player_one_cities);
+    app
+        .world_mut()
+        .entity_mut(player_one)
+        .insert(player_one_cities);
 
+    assert!(app.world().get::<PlayerAreas>(player_one).is_some());
+    assert!(app.world().get::<PlayerCities>(player_one).is_some());
+    assert!(app.world().get::<TokenStock>(player_one).is_some());
+    assert!(app.world().get::<CityTokenStock>(player_one).is_some());
 
     // Act
     app.update();
     // Assert
     assert!(app.world().get::<UnresolvedCityConflict>(area).is_none());
     assert!(app.world().get::<UnresolvedConflict>(area).is_none());
-    
-    
 }
 
 #[test]
@@ -222,7 +222,7 @@ impl TwoPlayerTestStruct {
     fn expected(&self) -> usize {
         self.player_one_expected + self.player_two_expected
     }
-    
+
     fn new(player_one_tokens: usize,
            player_two_tokens: usize,
            area_max_population: usize,
@@ -252,7 +252,7 @@ impl ThreePlayerTestStruct {
     fn expected(&self) -> usize {
         self.player_one_expected + self.player_two_expected + self.player_three_expected
     }
-    
+
     fn new(player_one_tokens: usize,
            player_two_tokens: usize,
            player_three_tokens: usize,

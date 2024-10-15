@@ -133,7 +133,6 @@ pub fn on_add_unresolved_city_conflict(
     mut areas: Query<(Entity, &Name, &mut Population, &BuiltCity)>,
     mut player_with_city: Query<(&mut CityTokenStock, &mut TokenStock, &mut PlayerCities, &mut PlayerAreas)>,
     mut return_token: EventWriter<ReturnTokenToStock>,
-    mut eliminate_city: EventWriter<EliminateCity>,
     mut commands: Commands) {
     debug!("Lets resolve a City Conflict found");
     if let Ok((area_entity,
@@ -165,7 +164,7 @@ pub fn on_add_unresolved_city_conflict(
                     we incidentally actually CAN handle... yay!
                      */
                     debug!("There are more than one other player with six or more tokens!");
-                    eliminate_city.send(EliminateCity::new(built_city.player, built_city.city, trigger.entity(), true));
+                    // eliminate_city.send(EliminateCity::new(built_city.player, built_city.city, trigger.entity(), true));
                     commands.entity(trigger.entity()).insert(UnresolvedConflict);
                 }
             }
