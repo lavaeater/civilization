@@ -3,13 +3,13 @@ mod common;
 use crate::common::{create_area, setup_bevy_app, setup_player};
 use adv_civ::civilization::general::prelude::*;
 use adv_civ::civilization::remove_surplus::prelude::*;
-use bevy::prelude::{Entity, Events, Update};
+use bevy::prelude::{Entity, Update};
 
 #[test]
 fn given_one_player_events_are_sent() {
     // Arrange
     let mut app = setup_bevy_app(|mut app| {
-        app.add_event::<ReturnTokenToStock>()
+        app
             .add_systems(Update, remove_surplus_population);
         app
     });
@@ -31,25 +31,18 @@ fn given_one_player_events_are_sent() {
     
     // Act
     app.update();
-    let events = app.world()
-        .resource::<Events<ReturnTokenToStock>>();
-
-    let reader = events.get_reader();
-
     // Assert
     assert!(app.world().get::<Population>(area).is_some());
     let population = app.world().get::<Population>(area).unwrap();
 
     assert_eq!(population.total_population(), population.max_population);
-    assert!(!reader.is_empty(&events));
-    assert_eq!(reader.len(&events), 3);
 }
 
 #[test]
 fn given_city_area_with_tokens_all_are_removed() {
     // Arrange
     let mut app = setup_bevy_app(|mut app| {
-        app.add_event::<ReturnTokenToStock>()
+        app
             .add_systems(Update, remove_surplus_population);
         app
     });
@@ -76,17 +69,11 @@ fn given_city_area_with_tokens_all_are_removed() {
 
     // Act
     app.update();
-    let events = app.world()
-        .resource::<Events<ReturnTokenToStock>>();
-
-    let reader = events.get_reader();
-
+    
     // Assert
     assert!(app.world().get::<Population>(area).is_some());
     let population = app.world().get::<Population>(area).unwrap();
 
     assert_eq!(population.total_population(), 0);
-    assert!(!reader.is_empty(events));
-    assert_eq!(reader.len(events), 4);
 }
 

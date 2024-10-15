@@ -24,7 +24,6 @@ fn given_an_area_with_a_city_and_some_population() {
         .add_plugins(
             StatesPlugin,
         )
-        .add_event::<ReturnTokenToStock>()
         .add_event::<PrintConsoleLine>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
@@ -35,10 +34,6 @@ fn given_an_area_with_a_city_and_some_population() {
     let (player_two, mut player_two_tokens, _) = setup_player(&mut app, "player two", GameFaction::Crete);
 
     let mut population = Population::new(4);
-
-    // for token in player_one_tokens.drain(0..7).collect::<Vec<_>>() {
-    //     population.add_token_to_area(player_one, token);
-    // }
     for token in player_two_tokens.drain(0..5).collect::<Vec<_>>() {
         population.add_token_to_area(player_two, token);
     }
@@ -68,7 +63,6 @@ fn given_a_city_conflict_with_too_few_tokens() {
         .add_plugins(
             StatesPlugin,
         )
-        .add_event::<ReturnTokenToStock>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .observe(on_add_unresolved_conflict)
@@ -81,9 +75,6 @@ fn given_a_city_conflict_with_too_few_tokens() {
 
     let mut population = Population::new(4);
 
-    // for token in player_one_tokens.drain(0..7).collect::<Vec<_>>() {
-    //     population.add_token_to_area(player_one, token);
-    // }
     for token in player_two_tokens.drain(0..5).collect::<Vec<_>>() {
         population.add_token_to_area(player_two, token);
     }
@@ -115,7 +106,6 @@ fn given_a_city_conflict_with_enough_tokens() {
         .add_plugins(
             StatesPlugin,
         )
-        .add_event::<ReturnTokenToStock>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .observe(on_add_unresolved_conflict)
@@ -128,9 +118,6 @@ fn given_a_city_conflict_with_enough_tokens() {
 
     let mut population = Population::new(4);
 
-    // for token in player_one_tokens.drain(0..7).collect::<Vec<_>>() {
-    //     population.add_token_to_area(player_one, token);
-    // }
     for token in player_two_tokens.drain(0..8).collect::<Vec<_>>() {
         population.add_token_to_area(player_two, token);
     }
@@ -176,7 +163,6 @@ fn given_two_players_in_an_area_with_too_much_population_area_is_marked_as_confl
         .add_plugins(
             StatesPlugin,
         )
-        .add_event::<ReturnTokenToStock>()
         .add_event::<PrintConsoleLine>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
@@ -281,7 +267,6 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
         .add_plugins(
             StatesPlugin,
         )
-        .add_event::<ReturnTokenToStock>()
         .add_event::<PrintConsoleLine>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
@@ -356,7 +341,6 @@ fn given_three_conflicteers_the_correct_result_is_obtained() {
         .add_plugins(
             StatesPlugin,
         )
-        .add_event::<ReturnTokenToStock>()
         .add_event::<PrintConsoleLine>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()

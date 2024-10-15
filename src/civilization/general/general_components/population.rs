@@ -314,7 +314,7 @@ mod tests {
         population.add_token_to_area(player, token1);
         population.add_token_to_area(player, token2);
 
-        let tokens = population.remove_all_tokens_for_player(player);
+        let tokens = population.remove_all_tokens_for_player(&player);
         assert!(tokens.contains(&token1));
         assert!(tokens.contains(&token2));
         assert!(!population.has_player(player));
@@ -334,7 +334,7 @@ mod tests {
         population.add_token_to_area(player, token3);
         population.add_token_to_area(player, token4);
 
-        let removed_tokens = population.remove_all_but_n_tokens(player, 2).unwrap();
+        let removed_tokens = population.remove_all_but_n_tokens(&player, 2).unwrap();
         assert!(removed_tokens.contains(&token1) || removed_tokens.contains(&token2) || removed_tokens.contains(&token3) || removed_tokens.contains(&token4));
         assert_eq!(population.population_for_player(player), 2);
     }

@@ -96,3 +96,5 @@ pub fn replace_city_with_tokens_for_conflict(
     move_from_stock_to_area(built_city.player, area_entity, 6, &mut population, &mut token_stock, &mut player_areas);
     commands.entity(area_entity).insert(UnresolvedConflict);
 }
+
+
