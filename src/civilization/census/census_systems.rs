@@ -1,6 +1,7 @@
 use crate::civilization::census::census_components::{Census, HasPopulation};
 use crate::civilization::census::census_resources::GameInfoAndStuff;
-use crate::civilization::general::general_components::{PlayerStock, Population, Treasury};
+use crate::civilization::general::general_components::population::Population;
+use crate::civilization::general::general_components::*;
 use crate::GameActivity;
 use bevy::prelude::{Commands, Entity, Name, NextState, Query, ResMut};
 use bevy::utils::HashMap;
@@ -22,14 +23,14 @@ pub fn check_areas_for_population(
 }
 
 pub fn perform_census(
-    mut stock_query: Query<(Entity, &Name, &PlayerStock, &Treasury, &mut Census)>,
+    mut stock_query: Query<(Entity, &Name, &PlayerAreas, &mut Census)>,
     mut census_order: ResMut<GameInfoAndStuff>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     census_order.census_order.clear();
     let mut hash_to_sort = HashMap::new();
-    for (player, _name, stock, treasury, mut census) in stock_query.iter_mut() {
-        census.population = stock.max_tokens - stock.tokens_in_stock() - treasury.tokens_in_treasury();
+    for (player, _name, player_areas, mut census) in stock_query.iter_mut() {
+        census.population = player_areas.total_population();
         hash_to_sort.insert(player, census.population);
     }
     let mut ordered: Vec<(Entity, usize)> = hash_to_sort.into_iter().collect();

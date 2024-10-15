@@ -1,5 +1,5 @@
 use adv_civ::civilization::census::census_components::Census;
-use adv_civ::civilization::general::general_components::{CityToken, CityTokenStock, Faction, GameArea, LandPassage, PlayerAreas, PlayerCities, PlayerStock, Token, Treasury};
+use adv_civ::civilization::general::general_components_file::{CityToken, CityTokenStock, Faction, GameArea, LandPassage, PlayerAreas, PlayerCities, PlayerStock, Token, Treasury};
 use adv_civ::civilization::general::general_enums::GameFaction;
 use adv_civ::player::Player;
 use adv_civ::{GameActivity, GameState};

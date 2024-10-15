@@ -2,7 +2,7 @@ mod common;
 
 use crate::common::setup_player;
 use adv_civ::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use adv_civ::civilization::general::general_components::{GameArea, LandPassage, PlayerAreas, Population};
+use adv_civ::civilization::general::general_components_file::{GameArea, LandPassage, PlayerAreas, Population};
 use adv_civ::civilization::general::general_enums::GameFaction;
 use adv_civ::civilization::movement::movement_components::TokenHasMoved;
 use adv_civ::civilization::movement::movement_events::MoveTokenFromAreaToAreaCommand;

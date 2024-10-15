@@ -4,7 +4,7 @@ use crate::common::setup_player;
 use adv_civ::civilization::conflict::conflict_components::UnresolvedConflict;
 use adv_civ::civilization::conflict::conflict_systems::find_conflict_zones;
 use adv_civ::civilization::conflict::conflict_triggers::{on_add_unresolved_city_conflict, on_add_unresolved_conflict};
-use adv_civ::civilization::general::general_components::{GameArea, LandPassage, Population};
+use adv_civ::civilization::general::general_components_file::{GameArea, LandPassage, Population};
 use adv_civ::civilization::general::general_enums::GameFaction;
 use adv_civ::civilization::general::general_events::*;
 use adv_civ::{GameActivity, GameState};

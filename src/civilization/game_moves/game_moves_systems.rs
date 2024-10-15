@@ -2,7 +2,8 @@ use crate::civilization::city_construction::city_construction_components::IsBuil
 use crate::civilization::city_support::city_support_components::HasTooManyCities;
 use crate::civilization::game_moves::game_moves_components::{AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove};
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use crate::civilization::general::general_components::{BuiltCity, CitySite, CityTokenStock, LandPassage, PlayerAreas, PlayerCities, PlayerStock, Population};
+use crate::civilization::general::general_components::population::Population;
+use crate::civilization::general::general_components::*;
 use crate::civilization::movement::movement_components::TokenHasMoved;
 use crate::civilization::movement::movement_events::PlayerMovementEnded;
 use crate::civilization::population_expansion::population_expansion_components::{ExpandAutomatically, ExpandManually, NeedsExpansion};

@@ -1,6 +1,7 @@
 use crate::civilization::city_support::city_support_components::{HasTooManyCities, NeedsToCheckCitySupport};
 use crate::civilization::city_support::city_support_events::EliminateCity;
-use crate::civilization::general::general_components::{BuiltCity, CityToken, CityTokenStock, PlayerAreas, PlayerCities, Population};
+use crate::civilization::general::general_components::population::Population;
+use crate::civilization::general::general_components::*;
 use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
 use crate::GameActivity;
 use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};

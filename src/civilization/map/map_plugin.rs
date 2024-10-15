@@ -1,9 +1,10 @@
-use crate::civilization::general::general_components::{CityFlood, CitySite, FloodPlain, GameArea, LandPassage, NeedsConnections, Population, StartArea, Volcano};
+use crate::civilization::general::general_components::population::Population;
+use crate::civilization::general::general_components::*;
 use crate::civilization::general::general_enums::GameFaction;
 use crate::loading::TextureAssets;
 use crate::GameState;
 use bevy::core::Name;
-use bevy::prelude::{App, AssetServer, Assets, Camera, Commands, Handle, Image,   OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Vec3};
+use bevy::prelude::{App, AssetServer, Assets, Camera, Commands, Handle, Image, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Vec3};
 use bevy::utils::{HashMap, HashSet};
 use bevy_common_assets::ron::RonAssetPlugin;
 use rand::seq::IteratorRandom;

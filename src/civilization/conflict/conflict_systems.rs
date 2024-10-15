@@ -1,5 +1,6 @@
 use crate::civilization::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
-use crate::civilization::general::general_components::{BuiltCity, Population};
+use crate::civilization::general::general_components::population::Population;
+use crate::civilization::general::general_components::*;
 use crate::GameActivity;
 use bevy::core::Name;
 use bevy::prelude::{debug, Commands, Entity, Has, NextState, Query, ResMut};

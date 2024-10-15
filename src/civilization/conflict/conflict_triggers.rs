@@ -1,6 +1,7 @@
 use crate::civilization::city_support::city_support_events::EliminateCity;
 use crate::civilization::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
-use crate::civilization::general::general_components::{BuiltCity, Population};
+use crate::civilization::general::general_components::population::Population;
+use crate::civilization::general::general_components::*;
 use crate::civilization::general::general_events::ReturnTokenToStock;
 use bevy::core::Name;
 use bevy::prelude::{debug, Commands, Entity, EventWriter, OnAdd, Query, Trigger};
@@ -15,7 +16,7 @@ pub fn on_add_unresolved_conflict(
     debug!("On Add Triggered");
     if let Ok((area_entity, _name, mut population)) = areas.get_mut(trigger.entity()) {
         debug!("Lets resolve a regular conflict");
-        let temp_map = population.player_tokens.clone();
+        let temp_map = population.player_tokens().clone();
         let mut players = temp_map.keys().copied().collect::<Vec<Entity>>();
         players.sort_by(|a, b| temp_map[b].len().cmp(&temp_map[a].len()));
 
@@ -136,7 +137,7 @@ pub fn on_add_unresolved_city_conflict(
     debug!("Lets resolve a City Conflict found");
     if let Ok((area_entity,
                   _name,
-                  population,
+                  mut population,
                   built_city)) = areas.get_mut(trigger.entity()) {
         let mut other_players = population.players();
         other_players.remove(&built_city.player);
@@ -157,15 +158,11 @@ pub fn on_add_unresolved_city_conflict(
                 }
             }
         } else {
-            debug!("There are no other players with six or more tokens, we eliminate all tokens");
+            debug!("There are no players with six or more tokens, we eliminate all tokens");
             // Kill them all
-            population.players().iter().for_each(|player| {
-                if let Some(tokens) = population.player_tokens.get(player) {
-                    tokens.iter().for_each(|token| {
-                        return_token.send(ReturnTokenToStock::new(*token));
-                    })
-                }
-            });
+            for token in population.remove_all_tokens() {
+                return_token.send(ReturnTokenToStock::new(token));
+            }
         }
         commands.entity(area_entity).remove::<UnresolvedCityConflict>();
     }

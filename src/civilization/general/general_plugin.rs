@@ -1,22 +1,23 @@
-use bevy::app::{App, Plugin, Update};
-use bevy::prelude::{in_state, AppExtStates, IntoSystemConfigs, OnEnter};
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use crate::civilization::census::census_plugin::CensusPlugin;
 use crate::civilization::census::census_resources::GameInfoAndStuff;
 use crate::civilization::city_construction::city_construction_plugin::CityConstructionPlugin;
 use crate::civilization::city_support::city_support_plugin::CitySupportPlugin;
 use crate::civilization::conflict::conflict_plugin::ConflictPlugin;
 use crate::civilization::console::console_commands::CommandsPlugin;
-use crate::civilization::general::general_components::{GameArea, LandPassage, Population, PlayerStock, Token, PlayerAreas, Faction, Treasury};
+use crate::civilization::game_moves::game_moves_plugin::GameMovesPlugin;
+use crate::civilization::general::general_components::population::Population;
+use crate::civilization::general::general_components::*;
 use crate::civilization::general::general_events::{MoveTokensFromStockToAreaCommand, ReturnTokenToStock};
-use crate::civilization::general::general_systems::{connect_areas, move_tokens_from_stock_to_area, setup_players, return_token_to_stock, print_names_of_phases, start_game, fix_token_positions};
+use crate::civilization::general::general_systems::{connect_areas, fix_token_positions, move_tokens_from_stock_to_area, print_names_of_phases, return_token_to_stock, setup_players, start_game};
+use crate::civilization::map::map_plugin::MapPlugin;
 use crate::civilization::movement::movement_plugin::MovementPlugin;
 use crate::civilization::population_expansion::population_expansion_plugin::PopulationExpansionPlugin;
 use crate::civilization::remove_surplus::remove_surplus_plugin::RemoveSurplusPlugin;
-use crate::{GameActivity, GameState};
-use crate::civilization::game_moves::game_moves_plugin::GameMovesPlugin;
-use crate::civilization::map::map_plugin::MapPlugin;
 use crate::stupid_ai::stupid_ai_plugin::StupidAiPlugin;
+use crate::{GameActivity, GameState};
+use bevy::app::{App, Plugin, Update};
+use bevy::prelude::{in_state, AppExtStates, IntoSystemConfigs, OnEnter};
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 pub struct CivilizationPlugin;
 

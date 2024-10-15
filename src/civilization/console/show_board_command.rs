@@ -1,8 +1,9 @@
-use clap::Parser;
-use bevy_console::ConsoleCommand;
-use bevy::prelude::{Has, Query};
+use crate::civilization::general::general_components::population::Population;
+use crate::civilization::general::general_components::*;
 use bevy::core::Name;
-use crate::civilization::general::general_components::{BuiltCity, CitySite, FloodPlain, PlayerAreas, PlayerStock, Population, StartArea, Volcano};
+use bevy::prelude::{Has, Query};
+use bevy_console::ConsoleCommand;
+use clap::Parser;
 
 #[derive(Parser, ConsoleCommand)]
 #[command(name = "board")]

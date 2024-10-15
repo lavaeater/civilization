@@ -2,7 +2,8 @@ use crate::civilization::city_construction::city_construction_components::IsBuil
 use crate::civilization::city_construction::city_construction_events::{BuildCityCommand, EndPlayerCityConstruction};
 use crate::civilization::game_moves::game_moves_components::AvailableMoves;
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use crate::civilization::general::general_components::{BuiltCity, CityTokenStock, Faction, PlayerAreas, PlayerCities, Population};
+use crate::civilization::general::general_components::population::Population;
+use crate::civilization::general::general_components::*;
 use crate::civilization::general::general_events::ReturnTokenToStock;
 use crate::civilization::map::map_plugin::AvailableFactions;
 use crate::player::Player;

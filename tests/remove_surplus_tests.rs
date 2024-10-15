@@ -1,7 +1,7 @@
 mod common;
 
 use crate::common::{create_area, setup_bevy_app, setup_player};
-use adv_civ::civilization::general::general_components::*;
+use adv_civ::civilization::general::general_components_file::*;
 use adv_civ::civilization::general::general_enums::GameFaction;
 use adv_civ::civilization::general::general_events::*;
 use adv_civ::civilization::remove_surplus::remove_surplus_systems::remove_surplus_population;

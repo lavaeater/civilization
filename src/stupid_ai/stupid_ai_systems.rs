@@ -1,7 +1,8 @@
 use crate::civilization::city_construction::city_construction_events::{BuildCityCommand, EndPlayerCityConstruction};
 use crate::civilization::city_support::city_support_events::EliminateCity;
 use crate::civilization::game_moves::game_moves_components::{AvailableMoves, Move, MovementMove};
-use crate::civilization::general::general_components::{BuiltCity, PlayerAreas, Population};
+use crate::civilization::general::general_components::population::Population;
+use crate::civilization::general::general_components::*;
 use crate::civilization::movement::movement_events::{MoveTokenFromAreaToAreaCommand, PlayerMovementEnded};
 use crate::civilization::population_expansion::population_expansion_events::ExpandPopulationManuallyCommand;
 use crate::stupid_ai::stupid_ai_components::StupidAi;
