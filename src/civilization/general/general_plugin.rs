@@ -67,7 +67,8 @@ impl Plugin for CivilizationPlugin {
                         .run_if(in_state(GameState::Playing)),
                     fix_token_positions
                         .run_if(in_state(GameState::Playing)),
-                ));
+                ))
+        ;
     }
 }
 
