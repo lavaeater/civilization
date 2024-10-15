@@ -1,8 +1,5 @@
-use crate::civilization::city_support::city_support_events::EliminateCity;
-use crate::civilization::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
-use crate::civilization::general::general_components::population::Population;
-use crate::civilization::general::general_components::*;
-use crate::civilization::general::general_events::ReturnTokenToStock;
+use crate::civilization::conflict::prelude::*;
+use crate::civilization::general::prelude::*;
 use bevy::core::Name;
 use bevy::prelude::{debug, Commands, Entity, EventWriter, OnAdd, Query, Trigger};
 use std::cmp::Ordering;
