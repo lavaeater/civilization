@@ -44,7 +44,7 @@ pub fn check_status(
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     if needs_city_support.is_empty() && needs_to_check_city_support.is_empty() {
-        next_state.set(GameActivity::PopulationExpansion);
+        next_state.set(GameActivity::);
     }
 }
 
