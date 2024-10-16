@@ -47,7 +47,8 @@ pub fn setup_players(
                     Faction::new(faction),
                     PlayerAreas::default(),
                     PlayerCities::default(),
-                    StupidAi
+                    StupidAi,
+                    PlayerTradeCards::default(),
                 )
             ).id();
 

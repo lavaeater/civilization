@@ -1,6 +1,7 @@
 use crate::civilization::general::general_enums::GameFaction;
 use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
+use crate::civilization::trade_cards::prelude::TradeCard;
 
 pub mod population;
 
@@ -371,4 +372,9 @@ impl CityTokenStock {
     pub fn return_token_to_stock(&mut self, token: Entity) {
         self.tokens.push(token);
     }
+}
+
+#[derive(Component, Debug, Reflect, Default)]
+pub struct PlayerTradeCards {
+    trade_cards: HashSet<TradeCard>,
 }
