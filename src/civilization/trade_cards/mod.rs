@@ -1,5 +1,4 @@
-mod trade_cards_plugin;
+pub mod trade_card_plugin;
+pub mod trade_card_components;
+pub mod trade_card_systems;
 
-pub mod prelude {
-    pub use super::trade_cards_plugin::*;
-}

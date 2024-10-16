@@ -14,7 +14,7 @@ use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{in_state, AppExtStates, IntoSystemConfigs, OnEnter};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use crate::civilization::trade_cards::prelude::*;
+use crate::civilization::trade_cards::trade_card_plugin::TradeCardPlugin;
 
 pub struct CivilizationPlugin;
 
@@ -45,12 +45,16 @@ impl Plugin for CivilizationPlugin {
                     CensusPlugin,
                     MovementPlugin,
                     ConflictPlugin,
+                )
+            )
+            .add_plugins(
+                (
                     CityConstructionPlugin,
                     RemoveSurplusPlugin,
                     CitySupportPlugin,
                     StupidAiPlugin,
                     GameMovesPlugin,
-                    TradeCardsPlugin,
+                    // TradeCardPlugin,
                     MapPlugin,
                 )
             )
