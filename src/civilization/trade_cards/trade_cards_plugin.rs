@@ -2,7 +2,7 @@ use crate::civilization::general::prelude::*;
 use crate::{GameActivity, GameState};
 use bevy::app::Startup;
 use bevy::asset::{AssetServer, Assets, Handle};
-use bevy::prelude::{App, Asset, Commands, Component, OnEnter, Plugin, Query, Reflect, Res, ResMut, Resource, Transform, TypePath};
+use bevy::prelude::{App, Asset, Commands, OnEnter, Plugin, Query, Res, Resource, TypePath};
 use bevy::utils::{HashMap, HashSet};
 use bevy_common_assets::ron::RonAssetPlugin;
 use serde::{Deserialize, Serialize};
@@ -145,7 +145,7 @@ pub struct CivilizationTradeCards {
 
 fn acquire_trade_cards(
     player_query: Query<&PlayerCities>,
-    mut commands: Commands,
+    _commands: Commands,
 ) {
-    for player_cities in player_query.iter().sort_by::<&PlayerCities>(|v1, v2| v1.number_of_cities().cmp(&v2.number_of_cities())) {}
+    for _ in player_query.iter().sort_by::<&PlayerCities>(|v1, v2| v1.number_of_cities().cmp(&v2.number_of_cities())) {}
 }

@@ -2,9 +2,8 @@ mod common;
 
 use bevy::prelude::{NextState, Update};
 use bevy::prelude::NextState::Pending;
-use adv_civ::civilization::city_support::city_support_events::CheckPlayerCitySupport;
-use adv_civ::civilization::city_support::city_support_systems::start_check_city_support;
-use adv_civ::civilization::general::general_enums::GameFaction;
+use adv_civ::civilization::city_support::prelude::*;
+use adv_civ::civilization::general::prelude::*;
 use adv_civ::GameActivity;
 use common::{setup_bevy_app, setup_player};
 use crate::common::create_area;
@@ -32,5 +31,5 @@ fn start_game() {
     app.update();
 
     let state = app.world().get_resource::<NextState<GameActivity>>().unwrap();
-    assert!(matches!(state, Pending(GameActivity::PopulationExpansion)));
+    assert!(matches!(state, Pending(GameActivity::AcquireTradeCards)));
 }
