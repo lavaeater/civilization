@@ -14,6 +14,7 @@ use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{in_state, AppExtStates, IntoSystemConfigs, OnEnter};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use crate::civilization::trade_cards::prelude::*;
 
 pub struct CivilizationPlugin;
 
@@ -49,7 +50,8 @@ impl Plugin for CivilizationPlugin {
                     CitySupportPlugin,
                     StupidAiPlugin,
                     GameMovesPlugin,
-                    MapPlugin
+                    MapPlugin,
+                    TradeCardsPlugin
                 )
             )
             .add_systems(OnEnter(GameState::Playing), setup_players)
