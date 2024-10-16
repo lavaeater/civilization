@@ -2,9 +2,10 @@ use crate::civilization::general::prelude::*;
 use crate::{GameActivity, GameState};
 use bevy::app::Startup;
 use bevy::asset::{AssetServer, Assets, Handle};
-use bevy::prelude::{App, Asset, Commands, OnEnter, Plugin, Query, Reflect, Res, Resource, TypePath};
+use bevy::prelude::{App, Asset, Commands, FromReflect, OnEnter, Plugin, Query, Reflect, Res, ResMut, Resource, TypePath};
 use bevy::utils::{HashMap, HashSet};
 use bevy_common_assets::ron::RonAssetPlugin;
+use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
 
 pub struct TradeCardsPlugin;
@@ -33,7 +34,12 @@ fn load_civilization_cards(
             let cards = (0..trading_card.number).map(|_| {
                 TradeCard::new(trading_card.value, trading_card.card_type.clone(), trading_card.tradeable)
             }).collect::<Vec<_>>();
-            card_resource.card_piles.entry(trading_card.value).or_insert(HashSet::new()).extend(cards);
+            card_resource.card_piles.entry(trading_card.value).or_insert(vec![]).extend(cards);
+        }
+        // needs some more sophistication, there should be at least player count number of cards
+        // before a calamity shows up.
+        for pile in card_resource.card_piles.values_mut() {
+            pile.shuffle(&mut rand::thread_rng());
         }
         commands.insert_resource(card_resource);
     }
@@ -65,7 +71,7 @@ struct CardHandle(Handle<CivilizationCardDefinitions>);
     Hash,
 )]
 pub struct TradeCardDefinition {
-    pub value: u8,
+    pub value: usize,
     pub card_type: TradeCardType,
     pub tradeable: bool,
     pub number: usize,
@@ -76,15 +82,15 @@ pub struct TradeCardDefinition {
     Eq,
     PartialEq,
     Hash,
-Reflect)]
+    Reflect)]
 pub struct TradeCard {
-    pub value: u8,
+    pub value: usize,
     pub card_type: TradeCardType,
     pub tradeable: bool,
 }
 
 impl TradeCard {
-    pub fn new(value: u8, card_type: TradeCardType, tradeable: bool) -> Self {
+    pub fn new(value: usize, card_type: TradeCardType, tradeable: bool) -> Self {
         Self {
             value,
             card_type,
@@ -101,7 +107,7 @@ pub enum TradeCardType {
 }
 
 #[derive(Clone, Deserialize,
-    Serialize, Debug, Eq, Hash, PartialEq)]
+    Serialize, Debug, Eq, Hash, PartialEq, Reflect)]
 pub enum Commodity {
     Ochre,
     Hides,
@@ -142,12 +148,31 @@ pub enum Calamity {
 
 #[derive(Resource, Debug, Default)]
 pub struct CivilizationTradeCards {
-    pub card_piles: HashMap<u8, HashSet<TradeCard>>,
+    pub card_piles: HashMap<usize, Vec<TradeCard>>,
+}
+
+impl CivilizationTradeCards {
+    pub fn pull_card_from(&mut self, pile: usize) -> Option<TradeCard> {
+        self.card_piles.get_mut(&pile).unwrap().pop()
+    }
 }
 
 fn acquire_trade_cards(
-    player_query: Query<(&PlayerCities)>,
+    player_query: Query<(&PlayerCities, &mut PlayerTradeCards)>,
+    mut trade_card_resource: ResMut<CivilizationTradeCards>,
     _commands: Commands,
 ) {
-    for _ in player_query.iter().sort_by::<&PlayerCities>(|v1, v2| v1.number_of_cities().cmp(&v2.number_of_cities())) {}
+    for (player_cities, mut player_trade_cards) in player_query
+        .iter()
+        .sort_by::<&PlayerCities>(|v1, v2| {
+            v1.number_of_cities()
+                .cmp(&v2.number_of_cities())
+        }) {
+        (1..player_cities.number_of_cities() +1).into_iter().for_each(|pile| {
+            if let Some(pulled_card) = trade_card_resource.pull_card_from(pile) {
+                player_trade_cards.cards.push(pulled_card);
+            }
+            player_trade_cards.cards.push(TradeCard::new(1, TradeCardType::Commodity(Commodity::Ochre), true));
+        });
+    }
 }

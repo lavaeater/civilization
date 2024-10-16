@@ -1,7 +1,9 @@
 use crate::civilization::general::general_enums::GameFaction;
 use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
-use crate::civilization::trade_cards::prelude::TradeCard;
+use itertools::Itertools;
+use crate::civilization::trade_cards::prelude::{TradeCard, TradeCardType};
+use crate::civilization::trade_cards::prelude::TradeCardType::Calamity;
 
 pub mod population;
 
@@ -377,4 +379,46 @@ impl CityTokenStock {
 #[derive(Component, Debug, Reflect, Default)]
 pub struct PlayerTradeCards {
     trade_cards: HashSet<TradeCard>,
+}
+
+impl PlayerTradeCards {
+    pub fn add_trade_card(&mut self, trade_card: TradeCard) {
+        self.trade_cards.insert(trade_card);
+    }
+
+    pub fn remove_trade_card(&mut self, trade_card: &TradeCard) {
+        self.trade_cards.remove(trade_card);
+    }
+
+    pub fn trade_cards(&self) -> HashSet<TradeCard> {
+        self.trade_cards.clone()
+    }
+
+    pub fn has_trade_card(&self, trade_card: &TradeCard) -> bool {
+        self.trade_cards.contains(trade_card)
+    }
+
+    pub fn has_trade_cards(&self) -> bool {
+        !self.trade_cards.is_empty()
+    }
+
+    pub fn number_of_trade_cards(&self) -> usize {
+        self.trade_cards.len()
+    }
+    
+    pub fn trade_cards_of_type(&self, card_type: TradeCardType) -> HashSet<TradeCard> {
+        self.trade_cards.iter().filter(|card| card.card_type == card_type).cloned().collect()
+    }
+    
+    pub fn calamity_cards(&self) -> HashSet<TradeCard> {
+        self.trade_cards_of_type(Calamity)
+    }
+
+    pub fn trade_cards_grouped_by_value(&self) -> HashMap<usize, Vec<TradeCard>> {
+        let mut grouped: HashMap<usize, Vec<TradeCard>> = HashMap::default();
+        for (value, chunk) in &self.trade_cards.iter().chunk_by(|card| card.value) {
+            grouped.entry(value).or_insert_with(Vec::default).extend(chunk.collect());
+        }
+        grouped
+    }
 }
