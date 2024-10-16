@@ -1,18 +1,18 @@
 use bevy::prelude::{Commands, NextState, Query, Res, ResMut, Resource};
 use bevy::asset::{AssetServer, Assets, Handle};
 use rand::prelude::SliceRandom;
-use crate::civilization::general::general_components::PlayerCities;
-use crate::civilization::trade_cards::trade_card_components::{CivilizationCardDefinitions, PlayerTradeCards, TradeCard};
+use crate::civilization::general::general_components::{PlayerCities, PlayerTradeCards, TradeCard};
+use crate::civilization::trade_cards::trade_card_components::CivilizationCardDefinitions;
 use crate::civilization::trade_cards::trade_card_components::CivilizationTradeCards;
 use crate::GameActivity;
 
 pub fn acquire_trade_cards(
-    player_query: Query<(&PlayerCities, &mut PlayerTradeCards)>,
+    mut player_query: Query<(&PlayerCities, &mut PlayerTradeCards)>,
     mut trade_card_resource: ResMut<CivilizationTradeCards>,
     mut next_state: ResMut<NextState<GameActivity>>
 ) {
     for (player_cities, mut player_trade_cards) in player_query
-        .iter()
+        .iter_mut()
         .sort_by::<&PlayerCities>(|v1, v2| {
             v1.number_of_cities()
                 .cmp(&v2.number_of_cities())
