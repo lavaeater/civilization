@@ -24,7 +24,7 @@ fn given_no_cities_next_state_is_set() {
     app.update();
 
     let state = app.world().get_resource::<NextState<GameActivity>>().unwrap();
-    assert!(matches!(state, Pending(GameActivity::PopulationExpansion)));
+    assert!(matches!(state, Pending(GameActivity::AcquireTradeCards)));
 }
 
 #[test]
