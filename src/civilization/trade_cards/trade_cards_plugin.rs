@@ -13,7 +13,7 @@ impl Plugin for TradeCardsPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugins(
-                RonAssetPlugin::<CivilizationCardDefinitions>::new(&["cards.ron"]))
+                RonAssetPlugin::<CivilizationCardDefinitions>::new(&["cards"]))
             .add_systems(Startup, setup)
             .add_systems(OnEnter(GameState::Playing), load_civilization_cards)
             .add_systems(
@@ -40,7 +40,8 @@ fn load_civilization_cards(
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let cards = CardHandle(asset_server.load("definitions/definitions.cards.ron"));
+    let g = asset_server.load("definitions/definitions.cards");
+    let cards = CardHandle(g);
     commands.insert_resource(cards);
 }
 
@@ -134,7 +135,7 @@ pub enum Calamity {
     BarbarianHordes,
     Epidemic,
     CivilDisorder,
-    IcononoclasmAndHeresy,
+    IconoclasmAndHeresy,
     Piracy,
 }
 

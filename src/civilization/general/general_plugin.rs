@@ -50,8 +50,8 @@ impl Plugin for CivilizationPlugin {
                     CitySupportPlugin,
                     StupidAiPlugin,
                     GameMovesPlugin,
+                    TradeCardsPlugin,
                     MapPlugin,
-                    TradeCardsPlugin
                 )
             )
             .add_systems(OnEnter(GameState::Playing), setup_players)
