@@ -1,4 +1,4 @@
-use bevy::prelude::{NextState, Query, ResMut};
+use bevy::prelude::{debug, NextState, Query, ResMut};
 use crate::civilization::general::general_components::PlayerCities;
 use crate::civilization::trade_cards::trade_card_components::PlayerTradeCards;
 use crate::civilization::trade_cards::trade_card_components::CivilizationTradeCards;
@@ -15,9 +15,12 @@ pub fn acquire_trade_cards(
             v1.number_of_cities()
                 .cmp(&v2.number_of_cities())
         }) {
-        (1..player_cities.number_of_cities() +1).into_iter().for_each(|pile| {
+        (1..player_cities.number_of_cities() +1).for_each(|pile| {
             if let Some(pulled_card) = trade_card_resource.pull_card_from(pile) {
+                debug!("Player acquired trade card: {:?}", pulled_card);
                 player_trade_cards.add_trade_card(pulled_card);
+            } else {
+                debug!("No more trade cards in pile: {}", pile);
             }
         });
     }

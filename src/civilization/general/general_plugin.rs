@@ -9,6 +9,7 @@ use crate::civilization::map::map_plugin::MapPlugin;
 use crate::civilization::movement::prelude::*;
 use crate::civilization::population_expansion::prelude::*;
 use crate::civilization::remove_surplus::prelude::*;
+use crate::civilization::trade_cards::prelude::*;
 use crate::stupid_ai::prelude::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
@@ -53,7 +54,7 @@ impl Plugin for CivilizationPlugin {
                     CitySupportPlugin,
                     StupidAiPlugin,
                     GameMovesPlugin,
-                    // TradeCardPlugin,
+                    TradeCardPlugin,
                     MapPlugin,
                 )
             )
