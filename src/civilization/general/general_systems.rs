@@ -10,6 +10,7 @@ use bevy::prelude::{default, info, Commands, Entity, EventReader, EventWriter, N
 use bevy::sprite::SpriteBundle;
 use bevy_console::PrintConsoleLine;
 use rand::seq::IteratorRandom;
+use crate::civilization::trade_cards::trade_card_components::PlayerTradeCards;
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
@@ -34,59 +35,61 @@ pub fn setup_players(
     mut available_factions: ResMut<AvailableFactions>,
 ) {
     (1..=8).for_each(|n| {
-        let faction = *available_factions.remaining_factions.iter().choose(&mut rand::thread_rng()).unwrap();
-        available_factions.remaining_factions.remove(&faction);
-        // Create Player
-        let player = commands
-            .spawn(
-                (
-                    Player,
-                    Name::new(format!("p_{n}")),
-                    Census { population: 0 },
-                    Treasury::default(),
-                    Faction::new(faction),
-                    PlayerAreas::default(),
-                    PlayerCities::default(),
-                    StupidAi
-                )
-            ).id();
-
-        // if n % 2 == 0 {
-        //     commands.entity(player).insert(StupidAi::default());
-        // }
-
-        let tokens = (0..47).map(|_| {
-            commands
+        if let Some(faction) = available_factions.remaining_factions.clone().iter().choose(&mut rand::thread_rng()) {
+            available_factions.remaining_factions.remove(faction);
+            // Create Player
+            let player = commands
                 .spawn(
                     (
-                        Name::new(format!("Token {n}")),
-                        Token::new(player))).id()
-        }
-        )
-            .collect::<Vec<Entity>>();
-
-        let city_tokens = (0..9).map(|_| {
-            commands
-                .spawn(
-                    (
-                        Name::new(format!("City {n}")),
-                        CityToken::new(player))).id()
-        }
-        )
-            .collect::<Vec<Entity>>();
-        commands
-            .entity(player)
-            .insert(
-                (
-                    TokenStock::new(
-                        47,
-                        tokens),
-                    CityTokenStock::new(
-                        9,
-                        city_tokens,
+                        Player,
+                        Name::new(format!("p_{n}")),
+                        Census { population: 0 },
+                        Treasury::default(),
+                        Faction::new(*faction),
+                        PlayerAreas::default(),
+                        PlayerCities::default(),
+                        StupidAi,
+                        PlayerTradeCards::default(),
                     )
-                )
-            );
+                ).id();
+
+            // if n % 2 == 0 {
+            //     commands.entity(player).insert(StupidAi::default());
+            // }
+
+            let tokens = (0..47).map(|_| {
+                commands
+                    .spawn(
+                        (
+                            Name::new(format!("Token {n}")),
+                            Token::new(player))).id()
+            }
+            )
+                .collect::<Vec<Entity>>();
+
+            let city_tokens = (0..9).map(|_| {
+                commands
+                    .spawn(
+                        (
+                            Name::new(format!("City {n}")),
+                            CityToken::new(player))).id()
+            }
+            )
+                .collect::<Vec<Entity>>();
+            commands
+                .entity(player)
+                .insert(
+                    (
+                        TokenStock::new(
+                            47,
+                            tokens),
+                        CityTokenStock::new(
+                            9,
+                            city_tokens,
+                        )
+                    )
+                );
+        }
     });
 }
 

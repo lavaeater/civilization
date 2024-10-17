@@ -1,8 +1,5 @@
-use crate::civilization::city_support::city_support_components::{HasTooManyCities, NeedsToCheckCitySupport};
-use crate::civilization::city_support::city_support_events::EliminateCity;
-use crate::civilization::general::general_components::population::Population;
-use crate::civilization::general::general_components::*;
-use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
+use crate::civilization::city_support::prelude::*;
+use crate::civilization::general::prelude::*;
 use crate::GameActivity;
 use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
 
@@ -44,7 +41,7 @@ pub fn check_status(
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     if needs_city_support.is_empty() && needs_to_check_city_support.is_empty() {
-        next_state.set(GameActivity::PopulationExpansion);
+        next_state.set(GameActivity::AcquireTradeCards);
     }
 }
 
@@ -80,7 +77,7 @@ pub fn start_check_city_support(
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     if player_cities_query.is_empty() || player_cities_query.iter().all(|(_, player_cities)| player_cities.has_no_cities()) {
-        next_state.set(GameActivity::PopulationExpansion);
+        next_state.set(GameActivity::AcquireTradeCards);
     } else {
         for (entity, player_cities) in player_cities_query.iter() {
             if player_cities.has_cities() {

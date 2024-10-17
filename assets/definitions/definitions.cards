@@ -1,0 +1,184 @@
+(
+    trading_cards: [
+        (
+            value: 1,
+            card_type: CommodityCard(Ochre),
+            tradeable: true,
+            number: 7
+        ),
+        (
+            value: 1,
+            card_type: CommodityCard(Hides),
+            tradeable: true,
+            number: 7
+        ),
+        (
+            value: 2,
+            card_type: CommodityCard(Iron),
+            tradeable: true,
+            number: 8
+        ),
+        (
+            value: 2,
+            card_type: CommodityCard(Papyrus),
+            tradeable: true,
+            number: 7
+        ),
+        (
+            value: 3,
+            card_type: CommodityCard(Salt),
+            tradeable: true,
+            number: 9
+        ),
+        (
+            value: 3,
+            card_type: CommodityCard(Timber),
+            tradeable: true,
+            number: 8
+        ),
+        (
+            value: 4,
+            card_type: CommodityCard(Grain),
+            tradeable: true,
+            number: 8
+        ),
+        (
+            value: 4,
+            card_type: CommodityCard(Oil),
+            tradeable: true,
+            number: 7
+        ),
+        (
+            value: 5,
+            card_type: CommodityCard(Cloth),
+            tradeable: true,
+            number: 7
+        ),
+        (
+            value: 5,
+            card_type: CommodityCard(Wine),
+            tradeable: true,
+            number: 6
+        ),
+        (
+            value: 6,
+            card_type: CommodityCard(Bronze),
+            tradeable: true,
+            number: 6
+        ),
+        (
+            value: 6,
+            card_type: CommodityCard(Silver),
+            tradeable: true,
+            number: 5
+        ),
+        (
+            value: 7,
+            card_type: CommodityCard(Spices),
+            tradeable: true,
+            number: 6
+        ),
+        (
+            value: 7,
+            card_type: CommodityCard(Resin),
+            tradeable: true,
+            number: 5
+        ),
+        (
+            value: 8,
+            card_type: CommodityCard(Gems),
+            tradeable: true,
+            number: 5
+        ),
+        (
+            value: 8,
+            card_type: CommodityCard(Dye),
+            tradeable: true,
+            number: 4
+        ),
+        (
+            value: 9,
+            card_type: CommodityCard(Gold),
+            tradeable: true,
+            number: 5
+        ),
+        (
+            value: 9,
+            card_type: CommodityCard(Ivory),
+            tradeable: true,
+            number: 4
+        ),
+        (
+            value: 2,
+            card_type: CalamityCard(VolcanoEarthquake),
+            tradeable: false,
+            number: 1
+        ),
+        (
+            value: 2,
+            card_type: CalamityCard(Treachery),
+            tradeable: true,
+            number: 1
+        ),
+        (
+            value: 3,
+            card_type: CalamityCard(Famine),
+            tradeable: false,
+            number: 1
+        ),
+        (
+            value: 3,
+            card_type: CalamityCard(Superstition),
+            tradeable: true,
+            number: 1
+        ),
+        (
+            value: 4,
+            card_type: CalamityCard(CivilWar),
+            tradeable: false,
+            number: 1
+        ),
+        (
+            value: 4,
+            card_type: CalamityCard(SlaveRevolt),
+            tradeable: true,
+            number: 1
+        ),
+        (
+            value: 5,
+            card_type: CalamityCard(Flood),
+            tradeable: false,
+            number: 1
+        ),
+        (
+            value: 5,
+            card_type: CalamityCard(BarbarianHordes),
+            tradeable: true,
+            number: 1
+        ),
+        (
+            value: 6,
+            card_type: CalamityCard(Epidemic),
+            tradeable: true,
+            number: 1
+        ),
+        (
+            value: 7,
+            card_type: CalamityCard(CivilDisorder),
+            tradeable: true,
+            number: 1
+        ),
+        (
+            value: 8,
+            card_type: CalamityCard(IconoclasmAndHeresy),
+            tradeable: true,
+            number: 1
+        ),
+        (
+            value: 9,
+            card_type: CalamityCard(Piracy),
+            tradeable: true,
+            number: 1
+        ),
+    ]
+)

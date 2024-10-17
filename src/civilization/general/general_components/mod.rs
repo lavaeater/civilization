@@ -372,3 +372,4 @@ impl CityTokenStock {
         self.tokens.push(token);
     }
 }
+

@@ -59,7 +59,6 @@ pub fn on_add_unresolved_city_conflict(
                     we incidentally actually CAN handle... yay!
                      */
                     debug!("There are more than one other player with six or more tokens!");
-                    // eliminate_city.send(EliminateCity::new(built_city.player, built_city.city, trigger.entity(), true));
                     commands.entity(trigger.entity()).insert(UnresolvedConflict);
                 }
             }
