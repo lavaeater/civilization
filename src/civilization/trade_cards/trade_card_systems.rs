@@ -24,6 +24,6 @@ pub fn acquire_trade_cards(
             }
         });
     }
-    next_state.set(GameActivity::PopulationExpansion);
+    next_state.set(GameActivity::Trade);
 }
 
