@@ -1,13 +1,15 @@
 mod common;
 
 use crate::common::setup_player;
-use adv_civ::civilization::conflict::prelude::*;
-use adv_civ::civilization::general::prelude::*;
 use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Name};
 use bevy::state::app::StatesPlugin;
 use bevy_console::PrintConsoleLine;
+use adv_civ::civilization::components::prelude::*;
+use adv_civ::civilization::enums::prelude::GameFaction;
+use adv_civ::civilization::systems::prelude::*;
+use adv_civ::civilization::triggers::prelude::*;
 /****************************************************
 Test for the find_conflict_zones system
 Given two players that have tokens in an area,

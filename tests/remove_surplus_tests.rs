@@ -1,9 +1,10 @@
 mod common;
 
 use crate::common::{create_area, setup_bevy_app, setup_player};
-use adv_civ::civilization::general::prelude::*;
-use adv_civ::civilization::remove_surplus::prelude::*;
 use bevy::prelude::{Entity, Update};
+use adv_civ::civilization::components::prelude::{BuiltCity, Population};
+use adv_civ::civilization::enums::prelude::GameFaction;
+use adv_civ::civilization::systems::remove_surplus_systems::remove_surplus_population;
 
 #[test]
 fn given_one_player_events_are_sent() {

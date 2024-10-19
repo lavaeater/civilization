@@ -1,12 +1,11 @@
-use adv_civ::civilization::census::prelude::*;
-use adv_civ::civilization::general::prelude::*;
 use adv_civ::player::Player;
 use adv_civ::{GameActivity, GameState};
 use bevy::app::App;
 use bevy::core::Name;
 use bevy::prelude::{AppExtStates, Entity, Transform};
 use bevy::state::app::StatesPlugin;
-
+use adv_civ::civilization::enums::prelude::GameFaction;
+use adv_civ::civilization::components::prelude::*;
 /*
 Make sure to update this to mirror the method in
 the actual game so that we have the correct components etc.

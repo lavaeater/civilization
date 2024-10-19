@@ -2,8 +2,9 @@ mod common;
 
 use bevy::prelude::{NextState, Update};
 use bevy::prelude::NextState::Pending;
-use adv_civ::civilization::city_support::prelude::*;
-use adv_civ::civilization::general::prelude::*;
+use adv_civ::civilization::enums::prelude::GameFaction;
+use adv_civ::civilization::events::prelude::CheckPlayerCitySupport;
+use adv_civ::civilization::systems::prelude::start_check_city_support;
 use adv_civ::GameActivity;
 use common::{setup_bevy_app, setup_player};
 use crate::common::create_area;

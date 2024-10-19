@@ -1,14 +1,15 @@
 mod common;
 
 use crate::common::{setup_bevy_app, setup_player};
-use adv_civ::civilization::game_moves::prelude::*;
-use adv_civ::civilization::general::prelude::*;
-use adv_civ::civilization::movement::prelude::*;
 use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Bundle, Entity, Events, Name, Transform};
 use bevy::state::app::StatesPlugin;
 use bevy_console::PrintConsoleLine;
+use adv_civ::civilization::components::prelude::*;
+use adv_civ::civilization::enums::prelude::GameFaction;
+use adv_civ::civilization::events::prelude::*;
+use adv_civ::civilization::systems::prelude::*;
 
 fn setup_app() -> App {
     let mut app = App::new();
