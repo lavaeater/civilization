@@ -1,64 +1,96 @@
 use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
+use crate::civilization::components::prelude::PlayerTradeCards;
 use crate::civilization::enums::trade_card_enums::Commodity;
 
-#[derive(Debug, Component, Reflect, Default)]
+#[derive(Debug, Component, Reflect)]
 pub struct TradeOffer {
-    pub player_a: Option<Entity>,
-    pub player_b: Option<Entity>,
-    pub player_a_commodities: HashMap<Commodity, usize>,
-    pub player_b_commodities: HashMap<Commodity, usize>,
+    pub initiator: Entity,
+    pub receiver: Option<Entity>,
+    pub initiator_commodities: HashMap<Commodity, usize>,
+    pub receiver_commodities: HashMap<Commodity, usize>,
     pub accepts: HashSet<Entity>,
     pub rejects: HashSet<Entity>,
 }
 
 impl TradeOffer {
-    pub fn new() -> Self {
+    pub fn new(initiator: Entity) -> Self {
         TradeOffer {
-            player_a: None,
-            player_b: None,
-            player_a_commodities: HashMap::default(),
-            player_b_commodities: HashMap::default(),
+            initiator,
+            receiver: None,
+            initiator_commodities: HashMap::default(),
+            receiver_commodities: HashMap::default(),
             accepts: HashSet::default(),
             rejects: HashSet::default(),
         }
     }
-    
-    pub fn player_a_accepts(&self) -> bool {
-        match self.player_a {
+
+    pub fn initiator_accepts(&self) -> bool {
+        self.accepts.contains(&self.initiator)
+    }
+
+    pub fn receiver_accepts(&self) -> bool {
+        match self.receiver {
             Some(entity) => self.accepts.contains(&entity),
             None => false,
         }
     }
-    
-    pub fn player_b_accepts(&self) -> bool {
-        match self.player_b {
-            Some(entity) => self.accepts.contains(&entity),
-            None => false,
-        }
-    }
-    
+
     pub fn trade_accepted(&self) -> bool {
-        self.player_a_accepts() && self.player_b_accepts()
+        self.initiator_accepts() && self.receiver_accepts()
     }
-    
-    pub fn player_a_rejects(&self) -> bool {
-        match self.player_a {
+
+    pub fn initiator_rejects(&self) -> bool {
+        self.rejects.contains(&self.initiator)
+    }
+
+    pub fn receiver_rejects(&self) -> bool {
+        match self.receiver {
             Some(entity) => self.rejects.contains(&entity),
             None => false,
         }
     }
-    
-    pub fn player_b_rejects(&self) -> bool {
-        match self.player_b {
-            Some(entity) => self.rejects.contains(&entity),
-            None => false,
-        }
-    }
-    
+
     pub fn trade_rejected(&self) -> bool {
-        self.player_a_rejects() || self.player_b_rejects()
+        self.initiator_rejects() || self.receiver_rejects()
     }
+
+    pub fn initiator_required_cards(&self) -> usize {
+        self.initiator_commodities.values().sum()
+    }
+
+}
+
+
+pub fn initiator_can_accept_trade_offer(offer: &TradeOffer, player_cards: PlayerTradeCards) -> bool {
+    // this is wrong. We just need two.
+    if player_cards.number_of_tradeable_cards() < offer.initiator_required_cards() || player_cards.number_of_tradeable_cards() < 3 {
+        return false;
+    }
+
+    if offer.initiator_commodities.iter().all(|(commodity, amount)| {
+        player_cards.has_n_commodities(*amount, commodity)
+    }) {
+        true
+    } else {
+        //example: trade with 4 cards, 2 ochre, 2 salt. But only two ever need to be true.
+        let mut count = 0;
+        for (commodity, amount) in &offer.initiator_commodities {
+            if player_cards.has_n_commodities(1, commodity) {
+                count += 1;
+            }
+            if count >= 2 {
+                return true;
+            }
+        }
+        false
+    }
+}
+
+pub fn receiver_can_accept_trade_offer(offer: &TradeOffer, player_cards: PlayerTradeCards) -> bool {
+    offer.initiator_commodities.iter().all(|(commodity, amount)| {
+        player_cards.has_n_commodities(*amount, commodity)
+    })
 }
 
 #[cfg(test)]
@@ -66,6 +98,8 @@ mod tests {
     use super::*;
     use bevy::ecs::entity::Entity;
     use std::cell::RefCell;
+    use crate::civilization::components::prelude::TradeCard;
+    use crate::civilization::enums::prelude::{Calamity, TradeCardType};
 
     thread_local! {
     static ENTITY_COUNTER: RefCell<u32> = RefCell::new(0);
@@ -78,6 +112,17 @@ mod tests {
         })
     }
     
-    
+    #[test]
+    fn accept_trade_offer_test() {
+        let mut trade_offer = TradeOffer::new(create_entity());
+        trade_offer.initiator_commodities.insert(Commodity::Ochre, 2);
+        trade_offer.initiator_commodities.insert(Commodity::Salt, 2);
+        let mut player_cards = PlayerTradeCards::default();
+        player_cards.add_trade_card(TradeCard::new(1, TradeCardType::CommodityCard(Commodity::Ochre), true));
+        player_cards.add_trade_card(TradeCard::new(1, TradeCardType::CommodityCard(Commodity::Ochre), true));
+        player_cards.add_trade_card(TradeCard::new(5, TradeCardType::CommodityCard(Commodity::Wine), true));
+        player_cards.add_trade_card(TradeCard::new(5, TradeCardType::CalamityCard(Calamity::BarbarianHordes), true));
+        assert_eq!(initiator_can_accept_trade_offer(&trade_offer, player_cards), true);
+    }
 }
 

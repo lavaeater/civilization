@@ -57,7 +57,7 @@ impl PlayerTradeCards {
         self.trade_cards.contains(trade_card)
     }
     
-    pub fn has_n_commodities(&self, n: usize, commodity: Commodity) -> bool {
+    pub fn has_n_commodities(&self, n: usize, commodity: &Commodity) -> bool {
         self.cards_of_commodity_type(commodity).len() >= n
     }
 
@@ -68,6 +68,10 @@ impl PlayerTradeCards {
     pub fn number_of_trade_cards(&self) -> usize {
         self.trade_cards.len()
     }
+    
+    pub fn number_of_tradeable_cards(&self) -> usize {
+        self.trade_cards.iter().filter(|card| card.tradeable).count()
+    }
 
     pub fn calamity_cards(&self) -> HashSet<TradeCard> {
         self.trade_cards.iter().filter(|card| matches!(card.card_type, TradeCardType::CalamityCard(_))).cloned().collect()
@@ -77,10 +81,10 @@ impl PlayerTradeCards {
         self.trade_cards.iter().filter(|card| matches!(card.card_type, TradeCardType::CommodityCard(_))).cloned().collect()
     }
     
-    pub fn cards_of_commodity_type(&self, commodity: Commodity) -> Vec<TradeCard> {
+    pub fn cards_of_commodity_type(&self, commodity: &Commodity) -> Vec<TradeCard> {
         self.trade_cards.iter().filter(|card| {
             if let TradeCardType::CommodityCard(c) = &card.card_type {
-                c == &commodity
+                c == commodity
             } else {
                 false
             }
