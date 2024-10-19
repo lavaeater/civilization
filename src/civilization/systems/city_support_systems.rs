@@ -1,7 +1,7 @@
-use crate::civilization::city_support::prelude::*;
-use crate::civilization::general::prelude::*;
 use crate::GameActivity;
 use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
+use crate::civilization::events::prelude::*;
+use crate::civilization::components::prelude::*;
 
 pub fn eliminate_city(
     mut eliminate_city: EventReader<EliminateCity>,
