@@ -3,11 +3,7 @@ use bevy::utils::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 use bevy::asset::Asset;
 use itertools::Itertools;
-
-#[derive(Component, Debug, Reflect, Default)]
-pub struct TradeInterests {
-    pub commodities: HashSet<Commodity>,
-}
+use crate::civilization::enums::prelude::*;
 
 #[derive(Deserialize, Serialize, Asset, TypePath, Clone)]
 pub struct CivilizationCardDefinitions {
@@ -94,53 +90,6 @@ impl PlayerTradeCards {
         }
         grouped
     }
-}
-
-#[derive(Clone, Deserialize,
-    Serialize, Debug, Eq, Hash, PartialEq, Reflect)]
-pub enum TradeCardType {
-    CommodityCard(Commodity),
-    CalamityCard(Calamity),
-}
-
-#[derive(Clone, Deserialize,
-    Serialize, Debug, Eq, Hash, PartialEq, Reflect)]
-pub enum Commodity {
-    Ochre,
-    Hides,
-    Iron,
-    Papyrus,
-    Salt,
-    Timber,
-    Grain,
-    Oil,
-    Cloth,
-    Wine,
-    Bronze,
-    Silver,
-    Spices,
-    Resin,
-    Gems,
-    Dye,
-    Gold,
-    Ivory,
-}
-
-#[derive(Clone, Deserialize,
-    Serialize, Debug, Eq, Hash, PartialEq, Reflect)]
-pub enum Calamity {
-    VolcanoEarthquake,
-    Treachery,
-    Famine,
-    Superstition,
-    CivilWar,
-    SlaveRevolt,
-    Flood,
-    BarbarianHordes,
-    Epidemic,
-    CivilDisorder,
-    IconoclasmAndHeresy,
-    Piracy,
 }
 
 impl TradeCard {
