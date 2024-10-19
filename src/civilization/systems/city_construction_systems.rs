@@ -1,10 +1,11 @@
-use crate::civilization::city_construction::prelude::*;
-use crate::civilization::game_moves::prelude::*;
-use crate::civilization::general::prelude::*;
 use crate::civilization::map::map_plugin::AvailableFactions;
 use crate::player::Player;
 use crate::GameActivity;
 use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, Transform, With};
+use crate::civilization::components::prelude::*;
+use crate::civilization::systems::prelude::*;
+use crate::civilization::events::prelude::*;
+use crate::civilization::functions::general_functions::return_all_tokens_from_area_to_players;
 
 pub fn city_building_gate(
     query: Query<&IsBuilding>,

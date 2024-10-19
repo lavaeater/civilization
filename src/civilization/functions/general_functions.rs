@@ -1,8 +1,9 @@
-use crate::civilization::city_construction::prelude::*;
-use crate::civilization::general::prelude::*;
 use bevy::asset::Handle;
 use bevy::math::Vec3;
 use bevy::prelude::{default, Commands, Entity, Image, Mut, SpriteBundle, Transform};
+use crate::civilization::components::prelude::*;
+use crate::civilization::events::prelude::*;
+use crate::civilization::triggers::prelude::*;
 
 pub fn move_from_stock_to_area(player: Entity, area: Entity, at_most_tokens: usize, population: &mut Population, token_stock: &mut TokenStock, player_areas: &mut PlayerAreas) {
     let tokens = token_stock.remove_at_most_n_tokens_from_stock(at_most_tokens).unwrap_or_default();
