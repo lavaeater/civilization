@@ -2,7 +2,7 @@ use clap::Parser;
 use bevy_console::ConsoleCommand;
 use bevy::prelude::{Commands, Entity, Query};
 use bevy::core::Name;
-use crate::civilization::city_construction::city_construction_components::IsBuilding;
+use crate::civilization::components::city_construction_components::IsBuilding;
 
 #[derive(Parser, ConsoleCommand)]
 #[command(name = "eb")]

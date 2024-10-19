@@ -2,8 +2,8 @@ use bevy_console::ConsoleCommand;
 use bevy::prelude::{Entity, EventWriter, Query, With};
 use bevy::core::Name;
 use clap::Parser;
-use crate::civilization::city_construction::city_construction_components::CityBuildTargets;
-use crate::civilization::city_construction::city_construction_events::BuildCityCommand;
+use crate::civilization::components::city_construction_components::CityBuildTargets;
+use crate::civilization::events::city_construction_events::BuildCityCommand;
 use crate::player::Player;
 
 #[derive(Parser, ConsoleCommand)]

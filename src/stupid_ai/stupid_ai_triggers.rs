@@ -1,4 +1,4 @@
-use crate::civilization::game_moves::game_moves_components::AvailableMoves;
+use crate::civilization::components::game_moves_components::AvailableMoves;
 use crate::stupid_ai::stupid_ai_components::StupidAi;
 use crate::stupid_ai::stupid_ai_events::SelectStupidMove;
 use bevy::log::debug;

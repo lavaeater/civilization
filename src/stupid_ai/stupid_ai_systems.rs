@@ -1,10 +1,10 @@
-use crate::civilization::city_construction::city_construction_events::{BuildCityCommand, EndPlayerCityConstruction};
-use crate::civilization::city_support::city_support_events::EliminateCity;
-use crate::civilization::game_moves::game_moves_components::{AvailableMoves, Move, MovementMove};
-use crate::civilization::general::general_components::population::Population;
-use crate::civilization::general::general_components::*;
-use crate::civilization::movement::movement_events::{MoveTokenFromAreaToAreaCommand, PlayerMovementEnded};
-use crate::civilization::population_expansion::population_expansion_events::ExpandPopulationManuallyCommand;
+use crate::civilization::events::city_construction_events::{BuildCityCommand, EndPlayerCityConstruction};
+use crate::civilization::events::city_support_events::EliminateCity;
+use crate::civilization::components::game_moves_components::{AvailableMoves, Move, MovementMove};
+use crate::civilization::components::general_components::population::Population;
+use crate::civilization::components::general_components::*;
+use crate::civilization::events::movement_events::{MoveTokenFromAreaToAreaCommand, PlayerMovementEnded};
+use crate::civilization::events::population_expansion_events::ExpandPopulationManuallyCommand;
 use crate::stupid_ai::stupid_ai_components::StupidAi;
 use crate::stupid_ai::stupid_ai_events::{SelectStupidMove, StupidAiEvent};
 use bevy::prelude::{Commands, EventReader, EventWriter, Has, Query};

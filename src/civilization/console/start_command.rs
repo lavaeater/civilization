@@ -1,5 +1,5 @@
-use crate::civilization::general::general_components::*;
-use crate::civilization::general::general_events::MoveTokensFromStockToAreaCommand;
+use crate::civilization::components::general_components::*;
+use crate::civilization::events::general_events::MoveTokensFromStockToAreaCommand;
 use crate::player::Player;
 use crate::GameActivity;
 use bevy::core::Name;

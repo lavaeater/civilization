@@ -13,7 +13,7 @@ use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
 use crate::menu::MenuPlugin;
 
-use crate::civilization::general::general_plugin::CivilizationPlugin;
+use civilization::plugins::general_plugin::CivilizationPlugin;
 use bevy::app::App;
 // #[cfg(debug_assertions)]
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};

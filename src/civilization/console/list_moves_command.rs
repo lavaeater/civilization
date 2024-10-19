@@ -1,4 +1,4 @@
-use crate::civilization::game_moves::game_moves_components::{AvailableMoves, Move};
+use crate::civilization::components::game_moves_components::{AvailableMoves, Move};
 use bevy::core::Name;
 use bevy::prelude::Query;
 use bevy_console::ConsoleCommand;

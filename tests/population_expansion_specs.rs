@@ -1,11 +1,11 @@
 mod common;
 
 use crate::common::{create_area, setup_bevy_app, setup_player};
-use adv_civ::civilization::game_moves::game_moves_components::{AvailableMoves, Move};
-use adv_civ::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use adv_civ::civilization::game_moves::game_moves_systems::recalculate_pop_exp_moves_for_player;
-use adv_civ::civilization::general::general_components::*;
-use adv_civ::civilization::general::general_enums::GameFaction;
+use adv_civ::civilization::components::game_moves_components::{AvailableMoves, Move};
+use adv_civ::civilization::events::game_moves_events::RecalculatePlayerMoves;
+use adv_civ::civilization::systems::game_moves_systems::recalculate_pop_exp_moves_for_player;
+use adv_civ::civilization::components::general_components::*;
+use adv_civ::civilization::enums::general_enums::GameFaction;
 use adv_civ::civilization::general::prelude::*;
 use bevy::app::Update;
 use bevy::prelude::Events;

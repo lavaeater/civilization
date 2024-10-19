@@ -2,7 +2,7 @@ use clap::Parser;
 use bevy_console::ConsoleCommand;
 use bevy::prelude::Query;
 use bevy::core::Name;
-use crate::civilization::city_construction::city_construction_components::CityBuildTargets;
+use crate::civilization::components::city_construction_components::CityBuildTargets;
 
 #[derive(Parser, ConsoleCommand)]
 #[command(name = "builds")]

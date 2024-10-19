@@ -1,6 +1,6 @@
-use crate::civilization::general::general_components::population::Population;
-use crate::civilization::general::general_components::*;
-use crate::civilization::general::general_enums::GameFaction;
+use crate::civilization::components::general_components::population::Population;
+use crate::civilization::components::general_components::*;
+use crate::civilization::enums::general_enums::GameFaction;
 use crate::loading::TextureAssets;
 use crate::GameState;
 use bevy::core::Name;
