@@ -1,8 +1,8 @@
 pub mod console;
 pub mod map;
 pub mod components;
-mod plugins;
-mod events;
+pub(crate) mod plugins;
+pub(crate) mod events;
 mod resources;
 mod systems;
 mod functions;

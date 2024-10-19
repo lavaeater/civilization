@@ -1,6 +1,7 @@
-use crate::civilization::general::prelude::*;
 use bevy::prelude::{Commands, Component, OnAdd, Query, Trigger};
 use bevy::sprite::SpriteBundle;
+use crate::civilization::components::prelude::*;
+use crate::civilization::functions::prelude::return_token_to_stock;
 
 #[derive(Debug, Component)]
 pub struct ReturnTokenToStock;

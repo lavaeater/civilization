@@ -1,8 +1,8 @@
-use crate::civilization::conflict::prelude::*;
-use crate::civilization::general::prelude::*;
 use bevy::core::Name;
 use bevy::prelude::{debug, Commands, Entity, OnAdd, Query, Trigger};
 use std::cmp::Ordering;
+use crate::civilization::components::prelude::*;
+use crate::civilization::functions::prelude::*;
 
 pub fn on_add_unresolved_conflict(
     trigger: Trigger<OnAdd, UnresolvedConflict>,

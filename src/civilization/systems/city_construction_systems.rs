@@ -3,9 +3,8 @@ use crate::player::Player;
 use crate::GameActivity;
 use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, Transform, With};
 use crate::civilization::components::prelude::*;
-use crate::civilization::systems::prelude::*;
 use crate::civilization::events::prelude::*;
-use crate::civilization::functions::general_functions::return_all_tokens_from_area_to_players;
+use crate::civilization::functions::prelude::*;
 
 pub fn city_building_gate(
     query: Query<&IsBuilding>,

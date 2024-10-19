@@ -1,8 +1,8 @@
-use crate::civilization::functions::general_functions::{remove_n_tokens_from_each_player, return_all_but_n_tokens_to_stock_for_player, return_all_tokens_from_area_for_player, return_all_tokens_to_stock};
-use crate::civilization::triggers::general_triggers::ReturnTokenToStock;
-use crate::civilization::general::prelude::Population;
+use crate::civilization::functions::prelude::{remove_n_tokens_from_each_player, return_all_but_n_tokens_to_stock_for_player, return_all_tokens_from_area_for_player, return_all_tokens_to_stock};
+use crate::civilization::triggers::prelude::ReturnTokenToStock;
 use bevy::log::debug;
 use bevy::prelude::{Commands, Entity};
+use crate::civilization::components::prelude::Population;
 
 pub fn handle_all_lengths_equal(
     players: &Vec<Entity>,

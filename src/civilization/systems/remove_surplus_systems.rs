@@ -1,6 +1,7 @@
-use crate::civilization::general::prelude::*;
 use crate::GameActivity;
 use bevy::prelude::{debug, Commands, Has, Name, NextState, Query, ResMut};
+use crate::civilization::components::prelude::{BuiltCity, Population};
+use crate::civilization::triggers::prelude::ReturnTokenToStock;
 
 pub fn remove_surplus_population(
     mut next_state: ResMut<NextState<GameActivity>>,
