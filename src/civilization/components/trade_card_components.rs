@@ -56,6 +56,10 @@ impl PlayerTradeCards {
     pub fn has_trade_card(&self, trade_card: &TradeCard) -> bool {
         self.trade_cards.contains(trade_card)
     }
+    
+    pub fn has_n_commodities(&self, n: usize, commodity: Commodity) -> bool {
+        self.cards_of_commodity_type(commodity).len() >= n
+    }
 
     pub fn has_trade_cards(&self) -> bool {
         !self.trade_cards.is_empty()
