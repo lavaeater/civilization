@@ -41,24 +41,25 @@ impl CivilizationTradeCards {
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct PlayerTradeCards {
-    trade_cards: Vec<TradeCard>,
+    trade_cards: HashMap<TradeCardType, Vec<TradeCard>>,
 }
 
 impl PlayerTradeCards {
     pub fn add_trade_card(&mut self, trade_card: TradeCard) {
-        self.trade_cards.push(trade_card);
+        
+        self.trade_cards.entry(trade_card.card_type.clone()).or_insert_with(Vec::default).push(trade_card);
     }
-
-    pub fn trade_cards(&self) -> Vec<TradeCard> {
-        self.trade_cards.clone()
-    }
-
+    
     pub fn has_trade_card(&self, trade_card: &TradeCard) -> bool {
-        self.trade_cards.contains(trade_card)
+        self.trade_cards.get(&trade_card.card_type).unwrap_or(&Vec::default()).contains(trade_card)
     }
     
     pub fn has_n_commodities(&self, n: usize, commodity: &Commodity) -> bool {
-        self.cards_of_commodity_type(commodity).len() >= n
+        self.number_of_cards_of_commodity(commodity) >= n
+    }
+    
+    pub fn number_of_cards_of_commodity(&self, commodity: &Commodity) -> usize {
+        self.cards_of_commodity_type(commodity).len()
     }
 
     pub fn has_trade_cards(&self) -> bool {
@@ -66,15 +67,14 @@ impl PlayerTradeCards {
     }
 
     pub fn number_of_trade_cards(&self) -> usize {
-        self.trade_cards.len()
+        self.trade_cards.values().map(|cards| cards.len()).sum()
     }
     
     pub fn number_of_tradeable_cards(&self) -> usize {
-        self.trade_cards.iter().filter(|card| card.tradeable).count()
+        self.trade_cards.values().flatten().filter(|card| card.tradeable).count()
     }
 
     pub fn calamity_cards(&self) -> HashSet<TradeCard> {
-        self.trade_cards.iter().filter(|card| matches!(card.card_type, TradeCardType::CalamityCard(_))).cloned().collect()
     }
     
     pub fn commodity_cards(&self) -> HashSet<TradeCard> {
@@ -90,7 +90,7 @@ impl PlayerTradeCards {
             }
         }).cloned().collect()
     }
-
+    
     pub fn trade_cards_grouped_by_value(&self) -> HashMap<usize, Vec<TradeCard>> {
         let mut grouped: HashMap<usize, Vec<TradeCard>> = HashMap::default();
         for (value, chunk) in &self.trade_cards.iter().chunk_by(|card| card.value) {

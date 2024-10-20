@@ -63,7 +63,8 @@ impl TradeOffer {
 
 
 pub fn initiator_can_accept_trade_offer(offer: &TradeOffer, player_cards: PlayerTradeCards) -> bool {
-    // this is wrong. We just need two.
+    // All trades require at least 3 cards to be traded.
+    // A trade can contain more cards, so if that is the case the initiator must have that amount
     if player_cards.number_of_tradeable_cards() < offer.initiator_required_cards() || player_cards.number_of_tradeable_cards() < 3 {
         return false;
     }
@@ -76,6 +77,7 @@ pub fn initiator_can_accept_trade_offer(offer: &TradeOffer, player_cards: Player
         //example: trade with 4 cards, 2 ochre, 2 salt. But only two ever need to be true.
         let mut count = 0;
         for (commodity, amount) in &offer.initiator_commodities {
+            
             if player_cards.has_n_commodities(1, commodity) {
                 count += 1;
             }
