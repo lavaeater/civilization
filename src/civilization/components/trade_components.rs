@@ -4,7 +4,7 @@ use crate::civilization::components::prelude::PlayerTradeCards;
 use crate::civilization::enums::trade_card_enums::Commodity;
 use crate::civilization::systems::prelude::player_end_movement;
 
-#[derive(Debug, Component, Reflect)]
+#[derive(Debug, Component, Reflect, Clone)]
 pub struct TradeOffer {
     pub initiator: Entity,
     pub receiver: Option<Entity>,
@@ -59,6 +59,75 @@ impl TradeOffer {
     pub fn initiator_required_cards(&self) -> usize {
         self.initiator_commodities.values().sum()
     }
+    
+    pub fn prepare_counter_offer(&self, new_initiator: Entity) -> TradeOffer {
+        self.counter(new_initiator, None, None)
+    }
+    
+    pub fn pay_more(&mut self, commodity: Commodity) {
+        *self.initiator_commodities.entry(commodity).or_default() += 1;
+    }
+    
+    pub fn pay_less(&mut self, commodity: Commodity) {
+        if self.initiator_commodities.contains_key(&commodity) {
+            let current_amount = self.initiator_commodities.get_mut(&commodity).unwrap();
+            if *current_amount > 1 {
+                *current_amount -= 1;
+            } else {
+                self.initiator_commodities.remove(&commodity);
+            }
+        }
+    }
+    
+    pub fn get_more(&mut self, commodity: Commodity) {
+        *self.receiver_commodities.entry(commodity).or_default() += 1;
+    }
+    
+    pub fn get_less(&mut self, commodity: Commodity) {
+        if self.receiver_commodities.contains_key(&commodity) {
+            let current_amount = self.receiver_commodities.get_mut(&commodity).unwrap();
+            if *current_amount > 1 {
+                *current_amount -= 1;
+            } else {
+                self.receiver_commodities.remove(&commodity);
+            }
+        }
+    }
+
+    pub fn counter(
+        &self,
+        new_initiator: Entity,
+        new_initiator_commodities: Option<HashMap<Commodity, usize>>,
+        new_receiver_commodities: Option<HashMap<Commodity, usize>>,
+    ) -> TradeOffer {
+        // Create a new trade offer by cloning the current one
+        let mut new_offer = self.clone();
+
+        // Swap the initiator and receiver
+        new_offer.receiver = Some(self.initiator);
+        new_offer.initiator = new_initiator;
+
+        //switch the commodities
+        let temp = new_offer.initiator_commodities.clone();
+        new_offer.initiator_commodities = new_offer.receiver_commodities.clone();
+        new_offer.receiver_commodities = temp;
+        
+        // Update the commodities for the new initiator (if provided)
+        if let Some(initiator_commodities) = new_initiator_commodities {
+            new_offer.initiator_commodities = initiator_commodities;
+        }
+
+        // Update the commodities for the new receiver (if provided)
+        if let Some(receiver_commodities) = new_receiver_commodities {
+            new_offer.receiver_commodities = receiver_commodities;
+        }
+
+        // Clear the acceptances and rejections for the new offer
+        new_offer.accepts.clear();
+        new_offer.rejects.clear();
+
+        new_offer
+    }    
 }
 
 pub fn initiator_can_accept_trade_offer(offer: &TradeOffer, player_cards: &PlayerTradeCards) -> bool {
@@ -134,6 +203,50 @@ mod tests {
         player_cards.add_trade_card(TradeCard::new(5, TradeCardType::CommodityCard(Commodity::Wine), true));
         player_cards.add_trade_card(TradeCard::new(5, TradeCardType::CalamityCard(Calamity::BarbarianHordes), true));
         assert_eq!(initiator_can_accept_trade_offer(&trade_offer, &player_cards), false);
+    }
+
+    #[test]
+    fn counter_trade_offer_test() {
+        let initiator = create_entity();
+        let receiver = create_entity();
+        let mut trade_offer = TradeOffer::new(initiator);
+        trade_offer.receiver = Some(receiver);
+        trade_offer.initiator_commodities.insert(Commodity::Ochre, 2);
+        trade_offer.receiver_commodities.insert(Commodity::Salt, 3);
+
+        let new_initiator = create_entity();
+        let new_initiator_commodities = Some(HashMap::from([(Commodity::Wine, 4)]));
+        let new_receiver_commodities = Some(HashMap::from([(Commodity::Ochre, 1)]));
+
+        let counter_offer = trade_offer.counter(new_initiator, new_initiator_commodities.clone(), new_receiver_commodities.clone());
+
+        assert_eq!(counter_offer.initiator, new_initiator);
+        assert_eq!(counter_offer.receiver, Some(initiator));
+        assert_eq!(counter_offer.initiator_commodities, new_initiator_commodities.unwrap());
+        assert_eq!(counter_offer.receiver_commodities, new_receiver_commodities.unwrap());
+        assert!(counter_offer.accepts.is_empty());
+        assert!(counter_offer.rejects.is_empty());
+    }
+
+    #[test]
+    fn counter_trade_offer_test_no_commodities() {
+        let initiator = create_entity();
+        let receiver = create_entity();
+        let mut trade_offer = TradeOffer::new(initiator);
+        trade_offer.receiver = Some(receiver);
+        trade_offer.initiator_commodities.insert(Commodity::Ochre, 2);
+        trade_offer.receiver_commodities.insert(Commodity::Salt, 3);
+
+        let new_initiator = create_entity();
+
+        let counter_offer = trade_offer.counter(new_initiator, None, None);
+
+        assert_eq!(counter_offer.initiator, new_initiator);
+        assert_eq!(counter_offer.receiver, Some(initiator));
+        assert_eq!(counter_offer.initiator_commodities, HashMap::from([(Commodity::Salt, 3)]));
+        assert_eq!(counter_offer.receiver_commodities, HashMap::from([(Commodity::Ochre, 2)]));
+        assert!(counter_offer.accepts.is_empty());
+        assert!(counter_offer.rejects.is_empty());
     }
 }
 
