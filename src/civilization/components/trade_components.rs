@@ -2,6 +2,7 @@ use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
 use crate::civilization::components::prelude::PlayerTradeCards;
 use crate::civilization::enums::trade_card_enums::Commodity;
+use crate::civilization::systems::prelude::player_end_movement;
 
 #[derive(Debug, Component, Reflect)]
 pub struct TradeOffer {
@@ -58,35 +59,32 @@ impl TradeOffer {
     pub fn initiator_required_cards(&self) -> usize {
         self.initiator_commodities.values().sum()
     }
-
 }
 
+pub fn initiator_can_accept_trade_offer(offer: &TradeOffer, player_cards: &PlayerTradeCards) -> bool {
+    // Step 1: Calculate the total number of cards required in the offer
+    let total_required: usize = offer.initiator_required_cards();
 
-pub fn initiator_can_accept_trade_offer(offer: &TradeOffer, player_cards: PlayerTradeCards) -> bool {
-    // All trades require at least 3 cards to be traded.
-    // A trade can contain more cards, so if that is the case the initiator must have that amount
-    if player_cards.number_of_tradeable_cards() < offer.initiator_required_cards() || player_cards.number_of_tradeable_cards() < 3 {
+    // Step 2: Check if the player has enough total tradeable cards
+    if player_cards.number_of_tradeable_cards() < total_required {
         return false;
     }
 
-    if offer.initiator_commodities.iter().all(|(commodity, amount)| {
-        player_cards.has_n_commodities(*amount, commodity)
-    }) {
-        true
-    } else {
-        //example: trade with 4 cards, 2 ochre, 2 salt. But only two ever need to be true.
-        let mut count = 0;
-        for (commodity, amount) in &offer.initiator_commodities {
-            
-            if player_cards.has_n_commodities(1, commodity) {
-                count += 1;
-            }
-            if count >= 2 {
-                return true;
-            }
+    // Step 3: Check if the player has at least two cards of any commodity type in the offer
+    let mut has_two_of_any = false;
+    for (commodity, &required_quantity) in &offer.initiator_commodities {
+        let player_quantity = player_cards.number_of_cards_of_commodity(commodity);
+        if player_quantity >= 2 {
+            has_two_of_any = true;
+            break;
+        } else if player_quantity >= 1 && required_quantity >= 1 {
+            has_two_of_any = true;
+            break;
         }
-        false
     }
+
+    // Return true only if both conditions are satisfied
+    has_two_of_any
 }
 
 pub fn receiver_can_accept_trade_offer(offer: &TradeOffer, player_cards: PlayerTradeCards) -> bool {
@@ -113,7 +111,7 @@ mod tests {
             Entity::from_raw(index)
         })
     }
-    
+
     #[test]
     fn accept_trade_offer_test() {
         let mut trade_offer = TradeOffer::new(create_entity());
@@ -124,7 +122,18 @@ mod tests {
         player_cards.add_trade_card(TradeCard::new(1, TradeCardType::CommodityCard(Commodity::Ochre), true));
         player_cards.add_trade_card(TradeCard::new(5, TradeCardType::CommodityCard(Commodity::Wine), true));
         player_cards.add_trade_card(TradeCard::new(5, TradeCardType::CalamityCard(Calamity::BarbarianHordes), true));
-        assert_eq!(initiator_can_accept_trade_offer(&trade_offer, player_cards), true);
+        assert_eq!(initiator_can_accept_trade_offer(&trade_offer, &player_cards), true);
+    }
+
+    #[test]
+    fn accept_trade_offer_test_fail() {
+        let mut trade_offer = TradeOffer::new(create_entity());
+        trade_offer.initiator_commodities.insert(Commodity::Salt, 2);
+        let mut player_cards = PlayerTradeCards::default();
+        player_cards.add_trade_card(TradeCard::new(1, TradeCardType::CommodityCard(Commodity::Ochre), true));
+        player_cards.add_trade_card(TradeCard::new(5, TradeCardType::CommodityCard(Commodity::Wine), true));
+        player_cards.add_trade_card(TradeCard::new(5, TradeCardType::CalamityCard(Calamity::BarbarianHordes), true));
+        assert_eq!(initiator_can_accept_trade_offer(&trade_offer, &player_cards), false);
     }
 }
 

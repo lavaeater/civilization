@@ -46,7 +46,6 @@ pub struct PlayerTradeCards {
 
 impl PlayerTradeCards {
     pub fn add_trade_card(&mut self, trade_card: TradeCard) {
-        
         self.trade_cards.entry(trade_card.card_type.clone()).or_insert_with(Vec::default).push(trade_card);
     }
     
@@ -65,6 +64,10 @@ impl PlayerTradeCards {
     pub fn has_trade_cards(&self) -> bool {
         !self.trade_cards.is_empty()
     }
+    
+    pub fn trade_cards(&self) -> Vec<TradeCard> {
+        self.trade_cards.values().flatten().cloned().collect()
+    }
 
     pub fn number_of_trade_cards(&self) -> usize {
         self.trade_cards.values().map(|cards| cards.len()).sum()
@@ -75,25 +78,21 @@ impl PlayerTradeCards {
     }
 
     pub fn calamity_cards(&self) -> HashSet<TradeCard> {
+        self.trade_cards.values().flatten().filter(|card| matches!(card.card_type, TradeCardType::CalamityCard(_))).cloned().collect()
     }
     
     pub fn commodity_cards(&self) -> HashSet<TradeCard> {
-        self.trade_cards.iter().filter(|card| matches!(card.card_type, TradeCardType::CommodityCard(_))).cloned().collect()
+        self.trade_cards.values().flatten().filter(|card| matches!(card.card_type, TradeCardType::CommodityCard(_))).cloned().collect()
+
     }
     
     pub fn cards_of_commodity_type(&self, commodity: &Commodity) -> Vec<TradeCard> {
-        self.trade_cards.iter().filter(|card| {
-            if let TradeCardType::CommodityCard(c) = &card.card_type {
-                c == commodity
-            } else {
-                false
-            }
-        }).cloned().collect()
+        self.trade_cards.get(&TradeCardType::CommodityCard(commodity.clone())).unwrap_or(&Vec::default()).clone()
     }
     
     pub fn trade_cards_grouped_by_value(&self) -> HashMap<usize, Vec<TradeCard>> {
         let mut grouped: HashMap<usize, Vec<TradeCard>> = HashMap::default();
-        for (value, chunk) in &self.trade_cards.iter().chunk_by(|card| card.value) {
+        for (value, chunk) in &self.trade_cards().iter().chunk_by(|card| card.value) {
             grouped.entry(value).or_insert_with(Vec::default).extend(chunk.into_iter().cloned().collect::<Vec<_>>());
         }
         grouped
