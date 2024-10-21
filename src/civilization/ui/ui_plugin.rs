@@ -10,6 +10,7 @@ use bevy_quill_obsidian::{
     size::Size,
     ObsidianUiPlugin, RoundedCorners,
 };
+use crate::GameState;
 
 pub struct UiPlugin;
 
@@ -20,15 +21,15 @@ impl Plugin for UiPlugin {
             QuillPlugin,
             ObsidianUiPlugin)
         )
-            .add_systems(Startup, setup_view_root)
-            .add_systems(Update, close_on_esc);
+            .add_systems(OnEnter(GameState::Playing), setup_view_root)
+            .add_systems(Update, close_on_esc.run_if(in_state(GameState::Playing)));
     }
 }
 
 fn style_test(ss: &mut StyleBuilder) {
     ss.display(Display::Flex)
         .flex_direction(FlexDirection::Column)
-        .position(ui::PositionType::Absolute)
+        .position(ui::PositionType::Relative)
         .padding(3)
         .left(0)
         .right(0)
