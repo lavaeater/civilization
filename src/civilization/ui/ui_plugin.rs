@@ -1,4 +1,3 @@
-//! Demo of button variations.
 #![feature(impl_trait_in_assoc_type)]
 
 use bevy::{prelude::*, ui};
@@ -11,6 +10,20 @@ use bevy_quill_obsidian::{
     size::Size,
     ObsidianUiPlugin, RoundedCorners,
 };
+
+pub struct UiPlugin;
+
+impl Plugin for UiPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins((
+            DefaultPickingPlugins,
+            QuillPlugin,
+            ObsidianUiPlugin)
+        )
+            .add_systems(Startup, setup_view_root)
+            .add_systems(Update, close_on_esc);
+    }
+}
 
 fn style_test(ss: &mut StyleBuilder) {
     ss.display(Display::Flex)
@@ -32,29 +45,13 @@ fn style_row(ss: &mut StyleBuilder) {
         .column_gap(4);
 }
 
-fn main() {
-    App::new()
-        .add_plugins((
-            DefaultPlugins,
-            DefaultPickingPlugins,
-            QuillPlugin,
-            ObsidianUiPlugin,
-        ))
-        .add_systems(Startup, setup_view_root)
-        .add_systems(Update, close_on_esc)
-        .run();
-}
-
-fn setup_view_root(mut commands: Commands) {
-    let camera = commands
-        .spawn((Camera2dBundle {
-            camera: Camera::default(),
-            camera_2d: Camera2d {},
-            ..default()
-        },))
-        .id();
-
-    commands.spawn(ButtonsDemo { camera }.to_root());
+fn setup_view_root(
+    mut commands: Commands,
+    camera_query: Query<Entity, With<Camera>>,
+) {
+    if let Ok(camera) = camera_query.get_single() {
+        commands.spawn(ButtonsDemo { camera }.to_root());
+    }
 }
 
 #[derive(Clone, PartialEq)]

@@ -1,1 +1,1 @@
-mod buttons;
+pub mod ui_plugin;

@@ -1,16 +1,17 @@
+use crate::civilization::components::prelude::*;
 use crate::civilization::console::prelude::*;
+use crate::civilization::events::prelude::*;
 use crate::civilization::map::map_plugin::MapPlugin;
+use crate::civilization::plugins::prelude::*;
+use crate::civilization::resources::prelude::GameInfoAndStuff;
+use crate::civilization::systems::prelude::*;
+use crate::civilization::triggers::general_triggers::on_add_return_token_to_stock;
+use crate::civilization::ui::ui_plugin::UiPlugin;
 use crate::stupid_ai::prelude::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{in_state, AppExtStates, IntoSystemConfigs, OnEnter};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use crate::civilization::components::prelude::*;
-use crate::civilization::events::prelude::*;
-use crate::civilization::plugins::prelude::*;
-use crate::civilization::resources::prelude::GameInfoAndStuff;
-use crate::civilization::systems::prelude::*;
-use crate::civilization::triggers::general_triggers::on_add_return_token_to_stock;
 
 pub struct CivilizationPlugin;
 
@@ -41,6 +42,7 @@ impl Plugin for CivilizationPlugin {
                     CensusPlugin,
                     MovementPlugin,
                     ConflictPlugin,
+                    UiPlugin,
                 )
             )
             .add_plugins(

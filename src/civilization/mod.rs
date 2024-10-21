@@ -8,4 +8,4 @@ pub mod systems;
 pub mod functions;
 pub mod triggers;
 pub mod enums;
-mod ui;
+pub mod ui;
