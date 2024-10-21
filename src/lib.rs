@@ -1,4 +1,5 @@
 #![allow(clippy::type_complexity)]
+#![feature(impl_trait_in_assoc_type, associated_type_defaults)]
 
 pub mod actions;
 pub mod audio;
