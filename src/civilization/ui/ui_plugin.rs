@@ -1,5 +1,4 @@
 #![feature(impl_trait_in_assoc_type)]
-
 use bevy::{prelude::*, ui};
 use bevy_mod_picking::DefaultPickingPlugins;
 use bevy_mod_stylebuilder::*;
@@ -10,7 +9,6 @@ use bevy_quill_obsidian::{
     size::Size,
     ObsidianUiPlugin, RoundedCorners,
 };
-use crate::GameState;
 
 pub struct UiPlugin;
 
@@ -20,13 +18,11 @@ impl Plugin for UiPlugin {
             DefaultPickingPlugins,
             QuillPlugin,
             ObsidianUiPlugin)
-        )
-            .add_systems(OnEnter(GameState::Playing), setup_view_root)
-            .add_systems(Update, close_on_esc.run_if(in_state(GameState::Playing)));
+        );
     }
 }
 
-fn style_test(ss: &mut StyleBuilder) {
+pub(crate) fn style_test(ss: &mut StyleBuilder) {
     ss.display(Display::Flex)
         .flex_direction(FlexDirection::Column)
         .position(PositionType::Absolute)
@@ -43,7 +39,7 @@ fn style_test(ss: &mut StyleBuilder) {
         .background_color(colors::U1.with_alpha(0.8));
 }
 
-fn style_row(ss: &mut StyleBuilder) {
+pub(crate) fn style_row(ss: &mut StyleBuilder) {
     ss.display(Display::Flex)
         .flex_direction(FlexDirection::Row)
         .align_items(ui::AlignItems::Center)

@@ -20,6 +20,6 @@ pub mod prelude {
     pub use crate::civilization::plugins::movement_plugin::*;
     pub use crate::civilization::plugins::population_expansion_plugin::*;
     pub use crate::civilization::plugins::remove_surplus_plugin::*;
-    // pub use crate::civilization::plugins::trade_plugin::*;
+    pub use crate::civilization::plugins::trade_plugin::*;
     pub use crate::civilization::plugins::trade_card_plugin::*;
 }

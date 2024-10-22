@@ -1,9 +1,9 @@
+use crate::civilization::enums::prelude::*;
+use bevy::asset::Asset;
 use bevy::prelude::{Component, Reflect, Resource, TypePath};
 use bevy::utils::{HashMap, HashSet};
-use serde::{Deserialize, Serialize};
-use bevy::asset::Asset;
 use itertools::Itertools;
-use crate::civilization::enums::prelude::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Asset, TypePath, Clone)]
 pub struct CivilizationCardDefinitions {
@@ -45,6 +45,10 @@ pub struct PlayerTradeCards {
 }
 
 impl PlayerTradeCards {
+    pub fn can_trade(&self) -> bool {
+        self.number_of_tradeable_cards() >= 3
+    }
+    
     pub fn add_trade_card(&mut self, trade_card: TradeCard) {
         self.trade_cards.entry(trade_card.card_type.clone()).or_insert_with(Vec::default).push(trade_card);
     }
