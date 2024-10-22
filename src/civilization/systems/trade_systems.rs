@@ -48,7 +48,7 @@ pub fn setup_basic_trade_ui(
     camera_query: Query<Entity, With<Camera>>,
     mut next_state: ResMut<NextState<GameActivity>>
 ) {
-    if players_can_trade_query.iter().filter(|trade| trade.can_trade()).count() > 2 {
+    if players_can_trade_query.iter().filter(|trade| trade.can_trade()).count() >= 2 {
         if let Ok(camera) = camera_query.get_single() {
             commands.spawn(UserTradeMenu { camera }.to_root());
         }
