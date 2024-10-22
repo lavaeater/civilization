@@ -2,9 +2,8 @@ use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
 use crate::civilization::components::prelude::PlayerTradeCards;
 use crate::civilization::enums::trade_card_enums::Commodity;
-use crate::civilization::systems::prelude::player_end_movement;
 
-#[derive(Debug, Component, Reflect, Clone)]
+#[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]
 pub struct TradeOffer {
     pub initiator: Entity,
     pub receiver: Option<Entity>,
