@@ -29,14 +29,18 @@ impl Plugin for UiPlugin {
 fn style_test(ss: &mut StyleBuilder) {
     ss.display(Display::Flex)
         .flex_direction(FlexDirection::Column)
-        .position(ui::PositionType::Relative)
+        .position(PositionType::Absolute)
         .padding(3)
         .left(0)
         .right(0)
         .top(0)
         .bottom(0)
         .row_gap(4)
-        .background_color(colors::U2);
+        .justify_content(JustifyContent::Center)
+        .align_content(AlignContent::Center)
+        .align_items(AlignItems::Center)
+        .align_self(AlignSelf::Center)
+        .background_color(colors::U1.with_alpha(0.8));
 }
 
 fn style_row(ss: &mut StyleBuilder) {
