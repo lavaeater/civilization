@@ -13,5 +13,4 @@ pub mod prelude {
     pub use crate::civilization::events::general_events::*;
     pub use crate::civilization::events::movement_events::*;
     pub use crate::civilization::events::population_expansion_events::*;
-    pub use crate::civilization::events::trade_events::*;
 }

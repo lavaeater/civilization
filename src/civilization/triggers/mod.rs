@@ -9,5 +9,4 @@ pub mod prelude {
     pub use crate::civilization::triggers::game_moves_triggers::*;
     pub use crate::civilization::triggers::general_triggers::*;
     pub use crate::civilization::triggers::population_expansion_triggers::*;
-    pub use crate::civilization::triggers::trade_triggers::*;
 }
