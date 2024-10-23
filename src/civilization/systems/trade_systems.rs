@@ -6,11 +6,7 @@ use bevy::log::info;
 use bevy::prelude::{Camera, Commands, Entity, Label, NextState, NodeBundle, Query, ResMut, TargetCamera, Text, TextStyle, With};
 use bevy_quill::{Cx, Element, For, View, ViewTemplate};
 use bevy_quill_obsidian::controls::{Button, ButtonVariant};
-
-#[derive(Clone, PartialEq)]
-struct TradeOffersList {
-    camera: Entity,
-}
+use crate::stupid_ai::stupid_ai_components::StupidAi;
 
 impl ViewTemplate for TradeOffersList {
     type View = impl View;
@@ -33,8 +29,15 @@ struct UserTradeMenu {
 impl ViewTemplate for UserTradeMenu {
     type View = impl View;
     fn create(&self, cx: &mut Cx) -> Self::View {
+        let mut trade_offer_resource = cx.use_resource::<TradeOffers>();
+        let offers = trade_offer_resource
+            .offers
+            .iter()
+            .map(|offer| { "Offer" })
+            .collect::<Vec<&str>>();
+
         let click = cx.create_callback(|| {
-            info!("Clicked!");
+            trade_offer_resource.create_new_offer();
         });
         Element::<NodeBundle>::new()
             .insert_dyn(TargetCamera, self.camera)
@@ -63,7 +66,7 @@ impl ViewTemplate for UserTradeMenu {
 
 pub fn setup_basic_trade_ui(
     mut commands: Commands,
-    players_can_trade_query: Query<&PlayerTradeCards>,
+    players_can_trade_query: Query<(&PlayerTradeCards, Has<StupidAi)>>,
     camera_query: Query<Entity, With<Camera>>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {

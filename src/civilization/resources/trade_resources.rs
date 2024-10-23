@@ -7,6 +7,7 @@ use std::collections::VecDeque;
 #[derive(Resource, Debug, Reflect, Default)]
 pub struct TradeOffers {
     pub offers: VecDeque<TradeOffer>,
+    pub new_offer: Option<TradeOffer>
 }
 
 impl TradeOffers {
@@ -16,6 +17,10 @@ impl TradeOffers {
 
     pub fn remove_offer(&mut self, offer: &TradeOffer) {
         self.offers.retain(|x| x != offer);
+    }
+    
+    pub fn create_new_offer(&mut self, initiator: Entity) {
+        self.new_offer = Some(TradeOffer::new(initiator));
     }
 }
 
