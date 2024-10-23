@@ -44,7 +44,9 @@ pub fn enter_population_expansion(
     debug!("Entering population expansion round {}", game_info.round);
     for (area_entity, pop) in area.iter() {
         debug!("Add expansion component to an area");
-        commands.entity(area_entity).insert(AreaIsExpanding::new(pop.players()));
+        if pop.has_population() {
+            commands.entity(area_entity).insert(AreaIsExpanding::new(pop.players()));
+        }
     }
 
     for (player, player_areas) in player_query.iter() {

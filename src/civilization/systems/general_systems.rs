@@ -1,6 +1,8 @@
+use crate::civilization::components::prelude::*;
+use crate::civilization::events::prelude::*;
 use crate::civilization::map::map_plugin::AvailableFactions;
 use crate::player::Player;
-use crate::stupid_ai::stupid_ai_components::StupidAi;
+use crate::stupid_ai::prelude::*;
 use crate::GameActivity;
 use bevy::core::Name;
 use bevy::math::{vec3, Vec3};
@@ -8,8 +10,6 @@ use bevy::prelude::{default, info, Commands, Entity, EventReader, EventWriter, N
 use bevy::sprite::SpriteBundle;
 use bevy_console::PrintConsoleLine;
 use rand::seq::IteratorRandom;
-use crate::civilization::components::prelude::*;
-use crate::civilization::events::prelude::*;
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
@@ -52,9 +52,9 @@ pub fn setup_players(
                     )
                 ).id();
 
-            // if n % 2 == 0 {
-            //     commands.entity(player).insert(StupidAi::default());
-            // }
+            if n == 1 {
+                commands.entity(player).insert(IsHuman);
+            }
 
             let tokens = (0..47).map(|_| {
                 commands

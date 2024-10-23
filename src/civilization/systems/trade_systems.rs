@@ -1,27 +1,30 @@
 use crate::civilization::components::prelude::PlayerTradeCards;
+use crate::civilization::resources::prelude::TradeOffers;
 use crate::civilization::ui::ui_plugin::{style_row, style_test};
-use crate::stupid_ai::stupid_ai_components::StupidAi;
+use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
-use bevy::prelude::{Commands, Has, NextState, NodeBundle, Query, ResMut};
+use bevy::prelude::{Commands, Entity, Has, NextState, NodeBundle, Query, ResMut, World};
 use bevy_quill::{Cx, Element, View, ViewTemplate};
 use bevy_quill_obsidian::controls::{Button, ButtonVariant};
 
 #[derive(Clone, PartialEq)]
 struct UserTradeMenu {
+    player: Entity
 }
 
 impl ViewTemplate for UserTradeMenu {
     type View = impl View;
     fn create(&self, cx: &mut Cx) -> Self::View {
-        // let mut trade_offer_resource = cx.use_resource::<TradeOffers>();
-        // let offers = trade_offer_resource
-        //     .offers
-        //     .iter()
-        //     .map(|offer| { "Offer" })
-        //     .collect::<Vec<&str>>();
-
-        let click = cx.create_callback(|| {
-            // trade_offer_resource.create_new_offer();
+        let trade_offer_resource = cx.use_resource::<TradeOffers>();
+        let offers = trade_offer_resource
+            .offers
+            .iter()
+            .map(|offer| { "Offer" })
+            .collect::<Vec<&str>>();
+        let p = self.player;
+        let click = cx.create_callback(move |world: &mut World| {
+            let mut trade_offer_resource = world.get_resource_mut::<TradeOffers>().unwrap();
+            trade_offer_resource.create_new_offer(p);
         });
         Element::<NodeBundle>::new()
             // .insert_dyn(TargetCamera, self.camera)
@@ -29,20 +32,10 @@ impl ViewTemplate for UserTradeMenu {
             .children((
                 "Trade Offers",
                 Element::<NodeBundle>::new().style(style_row).children((
-                    Button::new().on_click(click).children("Default"),
                     Button::new()
                         .on_click(click)
                         .variant(ButtonVariant::Primary)
-                        .children("Primary"),
-                    Button::new()
-                        .on_click(click)
-                        .variant(ButtonVariant::Danger)
-                        .children("Danger"),
-                    Button::new()
-                        .on_click(click)
-                        .variant(ButtonVariant::Selected)
-                        .children("Selected"),
-                    Button::new().minimal(true).children("Minimal"),
+                        .children("New Offer"),
                 )),
             ))
         // Element::<NodeBundle>::new()
@@ -56,15 +49,15 @@ impl ViewTemplate for UserTradeMenu {
 
 pub fn setup_human_trading_ui(
     mut commands: Commands,
-    players_can_trade_query: Query<(&PlayerTradeCards, Has<StupidAi>)>,
+    players_can_trade_query: Query<(&PlayerTradeCards, Has<IsHuman>)>,
+    human_player_query: Query<(Entity, &IsHuman)>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    if players_can_trade_query.iter().filter(|(trade, _)| trade.can_trade()).count() >= 2 { 
-        // &&
-        // players_can_trade_query.iter().filter(|(_, is_ai)| !is_ai).count() == 1 {
+    if players_can_trade_query.iter().filter(|(trade, _)| trade.can_trade()).count() >= 2 
+        && players_can_trade_query.iter().filter(|(_, is_human)| *is_human).count() == 1 {
         // if let Ok(camera) = camera_query.get_single() {
             
-            commands.spawn(UserTradeMenu{}.to_root());
+            commands.spawn(UserTradeMenu{player: human_player_query.get_single().unwrap().0}.to_root());
         // }
     } else {
         next_state.set(GameActivity::PopulationExpansion);
