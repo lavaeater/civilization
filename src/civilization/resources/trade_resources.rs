@@ -1,16 +1,17 @@
 use crate::civilization::components::prelude::PlayerTradeCards;
 use crate::civilization::enums::prelude::Commodity;
-use bevy::prelude::{Entity, Reflect, Resource};
+use bevy::prelude::{Entity, Name, Reflect, Resource};
 use bevy::utils::{HashMap, HashSet};
 use std::collections::VecDeque;
 
-#[derive(Resource, Debug, Reflect, Default)]
-pub struct TradeOffers {
+#[derive(Resource, Debug, Reflect, Default, Clone)]
+pub struct TradeResources {
     pub offers: VecDeque<TradeOffer>,
-    pub new_offer: Option<TradeOffer>
+    pub new_offer: Option<TradeOffer>,
+    pub players_that_can_trade: HashMap<Entity,Name>
 }
 
-impl TradeOffers {
+impl TradeResources {
     pub fn add_offer(&mut self, offer: TradeOffer) {
         self.offers.push_back(offer);
     }
@@ -19,8 +20,16 @@ impl TradeOffers {
         self.offers.retain(|x| x != offer);
     }
     
-    pub fn create_new_offer(&mut self, initiator: Entity) {
-        self.new_offer = Some(TradeOffer::new(initiator));
+    pub fn create_new_offer(&mut self, initiator: Entity, initiator_name: Name) {
+        self.new_offer = Some(TradeOffer::new(initiator, initiator_name));
+    }
+    
+    pub fn add_player(&mut self, player: Entity, player_name: Name) {
+        self.players_that_can_trade.insert(player, player_name);
+    }
+    
+    pub fn remove_player(&mut self, player: Entity) {
+        self.players_that_can_trade.remove(&player);
     }
 }
 
@@ -28,7 +37,9 @@ impl TradeOffers {
 #[derive(Debug, Resource, Reflect, Clone, Eq, PartialEq)]
 pub struct TradeOffer {
     pub initiator: Entity,
+    pub initiator_name: Name,
     pub receiver: Option<Entity>,
+    pub receiver_name: Option<Name>,
     pub initiator_commodities: HashMap<Commodity, usize>,
     pub receiver_commodities: HashMap<Commodity, usize>,
     pub accepts: HashSet<Entity>,
@@ -36,10 +47,12 @@ pub struct TradeOffer {
 }
 
 impl TradeOffer {
-    pub fn new(initiator: Entity) -> Self {
+    pub fn new(initiator: Entity, initiator_name: Name) -> Self {
         TradeOffer {
             initiator,
+            initiator_name,
             receiver: None,
+            receiver_name: None,
             initiator_commodities: HashMap::default(),
             receiver_commodities: HashMap::default(),
             accepts: HashSet::default(),
@@ -193,6 +206,7 @@ mod tests {
     use bevy::ecs::entity::Entity;
     use bevy::utils::HashMap;
     use std::cell::RefCell;
+    use bevy::core::Name;
 
     thread_local! {
     static ENTITY_COUNTER: RefCell<u32> = RefCell::new(0);
@@ -207,7 +221,7 @@ mod tests {
 
     #[test]
     fn accept_trade_offer_test() {
-        let mut trade_offer = TradeOffer::new(create_entity());
+        let mut trade_offer = TradeOffer::new(create_entity(), Name::new("Initiator"));
         trade_offer.initiator_commodities.insert(Ochre, 2);
         trade_offer.initiator_commodities.insert(Salt, 2);
         let mut player_cards = PlayerTradeCards::default();
@@ -220,7 +234,7 @@ mod tests {
 
     #[test]
     fn accept_trade_offer_test_fail() {
-        let mut trade_offer = TradeOffer::new(create_entity());
+        let mut trade_offer = TradeOffer::new(create_entity(), Name::new("Initiator"));
         trade_offer.initiator_commodities.insert(Salt, 2);
         let mut player_cards = PlayerTradeCards::default();
         player_cards.add_trade_card(TradeCard::new(1, CommodityCard(Salt), true));
@@ -233,7 +247,7 @@ mod tests {
     fn counter_trade_offer_test() {
         let initiator = create_entity();
         let receiver = create_entity();
-        let mut trade_offer = TradeOffer::new(initiator);
+        let mut trade_offer = TradeOffer::new(initiator, Name::new("Initiator"));
         trade_offer.receiver = Some(receiver);
         trade_offer.initiator_commodities.insert(Ochre, 2);
         trade_offer.receiver_commodities.insert(Salt, 3);
@@ -256,7 +270,7 @@ mod tests {
     fn counter_trade_offer_test_no_commodities() {
         let initiator = create_entity();
         let receiver = create_entity();
-        let mut trade_offer = TradeOffer::new(initiator);
+        let mut trade_offer = TradeOffer::new(initiator, Name::new("Initiator"));
         trade_offer.receiver = Some(receiver);
         trade_offer.initiator_commodities.insert(Ochre, 2);
         trade_offer.receiver_commodities.insert(Salt, 3);

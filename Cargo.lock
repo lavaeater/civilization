@@ -92,9 +92,6 @@ dependencies = [
  "bevy_kira_audio",
  "bevy_mod_picking",
  "bevy_mod_stylebuilder",
- "bevy_quill",
- "bevy_quill_obsidian",
- "bevy_quill_overlays",
  "clap",
  "embed-resource",
  "image 0.25.4",
@@ -103,6 +100,7 @@ dependencies = [
  "rand 0.9.0-alpha.2",
  "ron",
  "serde",
+ "sickle_ui",
  "webbrowser",
  "winit",
 ]
@@ -1307,54 +1305,6 @@ name = "bevy_ptr"
 version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61baa1bdc1f4a7ac2c18217570a7cc04e1cd54d38456e91782f0371c79afe0a8"
-
-[[package]]
-name = "bevy_quill"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7323e8ec985134f3684ac49e363e4e7f8dd2d74f98be52311397562deb163f09"
-dependencies = [
- "bevy",
- "bevy_mod_stylebuilder",
- "bevy_quill_core",
- "impl-trait-for-tuples",
- "smallvec",
-]
-
-[[package]]
-name = "bevy_quill_core"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0313273b785b9071c81c6c3a1418362bcc79128d7d1440a4a8ea170d6d48fb6"
-dependencies = [
- "bevy",
- "bevy_mod_stylebuilder",
- "impl-trait-for-tuples",
- "smallvec",
-]
-
-[[package]]
-name = "bevy_quill_obsidian"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15211b9032b8a66a3be16f8867e6cc2968247aa79fb34f03bcfb470e008c8bec"
-dependencies = [
- "bevy",
- "bevy_mod_picking",
- "bevy_mod_stylebuilder",
- "bevy_quill_core",
-]
-
-[[package]]
-name = "bevy_quill_overlays"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35f96b4d1ded3891cc03b0c6eaeeb809977396767fd8b4f2bbff7becf5bf2cdf"
-dependencies = [
- "bevy",
- "bevy_mod_picking",
- "bevy_quill_core",
-]
 
 [[package]]
 name = "bevy_reflect"
@@ -4264,6 +4214,57 @@ name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
+
+[[package]]
+name = "sickle_macros"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9d497473bc05decbdbca73f91201b119f7c784ca084625248f1539bb6ccdbe0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.82",
+]
+
+[[package]]
+name = "sickle_math"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db331cbbfecd924bc8e93643ee4c043f0e2bf6d8c720dae8ce0f76e1c7723c4e"
+dependencies = [
+ "bevy_color",
+ "bevy_reflect",
+ "bevy_ui",
+ "serde",
+]
+
+[[package]]
+name = "sickle_ui"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64ed314fa01734d3ecdf8331ae84472d4f7970deea3faf8bd27a4973f1bae9d0"
+dependencies = [
+ "bevy",
+ "serde",
+ "serde_json",
+ "sickle_macros",
+ "sickle_math",
+ "sickle_ui_scaffold",
+]
+
+[[package]]
+name = "sickle_ui_scaffold"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a780fb3f6eebc4562cbab718c8c343dcafc55f9006e045c22bb7954baf2f86c8"
+dependencies = [
+ "bevy",
+ "serde",
+ "serde_json",
+ "sickle_macros",
+ "sickle_math",
+ "smol_str",
+]
 
 [[package]]
 name = "simd-adler32"
