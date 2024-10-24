@@ -91,7 +91,7 @@ ron = "0.8.1"
 bevy_mod_stylebuilder= "0.1.3"
 bevy_mod_picking = "0.20.1"
 sickle_ui = "0.4.0"
-
+haalka = "0.2.1"
 
 [build-dependencies]
 embed-resource = "1.8.0"
