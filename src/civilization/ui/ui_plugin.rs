@@ -1,22 +1,17 @@
 use bevy::{prelude::*, ui};
 use bevy_mod_picking::DefaultPickingPlugins;
 use bevy_mod_stylebuilder::*;
-use bevy_quill::*;
-use bevy_quill_obsidian::{
-    colors
-
-    ,
-    ObsidianUiPlugin,
-};
+use sickle_ui::SickleUiPlugin;
 
 pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((
-            DefaultPickingPlugins,
-            QuillPlugin,
-            ObsidianUiPlugin)
+        app.add_plugins(
+            (
+                DefaultPickingPlugins,
+                SickleUiPlugin
+            )
         );
     }
 }
@@ -34,8 +29,7 @@ pub(crate) fn style_test(ss: &mut StyleBuilder) {
         .justify_content(JustifyContent::Center)
         .align_content(AlignContent::Center)
         .align_items(AlignItems::Center)
-        .align_self(AlignSelf::Center)
-        .background_color(colors::U1.with_alpha(0.8));
+        .align_self(AlignSelf::Center);
 }
 
 pub(crate) fn style_row(ss: &mut StyleBuilder) {
