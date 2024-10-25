@@ -1,7 +1,7 @@
 use bevy::{prelude::*, ui};
 use bevy_mod_picking::DefaultPickingPlugins;
 use bevy_mod_stylebuilder::*;
-use sickle_ui::SickleUiPlugin;
+use haalka::HaalkaPlugin;
 
 pub struct UiPlugin;
 
@@ -10,7 +10,8 @@ impl Plugin for UiPlugin {
         app.add_plugins(
             (
                 DefaultPickingPlugins,
-                SickleUiPlugin
+                HaalkaPlugin,
+                // SickleUiPlugin
             )
         );
     }
