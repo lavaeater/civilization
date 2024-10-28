@@ -1,18 +1,19 @@
 use crate::civilization::components::prelude::PlayerTradeCards;
+use crate::civilization::enums::prelude::Commodity;
+use crate::civilization::resources::prelude::TradeResources;
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
 use bevy::prelude::{Commands, Entity, Has, Local, Name, NextState, Query, Res, ResMut};
 use bevy::utils::HashMap;
 use bevy_inspector_egui::bevy_egui::EguiContexts;
 use bevy_inspector_egui::egui;
-use crate::civilization::enums::prelude::Commodity;
-use crate::civilization::resources::prelude::TradeResources;
 
 #[derive(Clone, PartialEq)]
 struct UserTradeMenu {
     player: Entity,
     player_name: Name,
 }
+
 pub fn setup_human_trading_ui(
     mut commands: Commands,
     players_can_trade_query: Query<(&PlayerTradeCards, Has<IsHuman>)>,
@@ -30,8 +31,8 @@ pub fn setup_human_trading_ui(
     }
 }
 
-fn setup_trade_ui(
-    mut egui_context: ResMut<EguiContexts>,
+pub fn setup_trade_ui(
+    mut egui_context: EguiContexts,
     trade_resources: Res<TradeResources>,
 ) {
     egui::Window::new("Trade Interface").show(egui_context.ctx_mut(), |ui| {
