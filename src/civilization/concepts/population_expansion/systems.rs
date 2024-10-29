@@ -1,11 +1,11 @@
 use crate::civilization::components::general_components::population::Population;
 use crate::civilization::components::general_components::*;
-use crate::civilization::components::population_expansion_components::{AreaIsExpanding, ExpandAutomatically, ExpandManually, NeedsExpansion};
 use crate::civilization::events::general_events::MoveTokensFromStockToAreaCommand;
-use crate::civilization::events::population_expansion_events::{CheckGate, CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand};
-use crate::civilization::resources::census_resources::GameInfoAndStuff;
 use crate::GameActivity;
 use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
+use crate::civilization::concepts::census::prelude::GameInfoAndStuff;
+use crate::civilization::concepts::population_expansion::components::{AreaIsExpanding, ExpandAutomatically, ExpandManually, NeedsExpansion};
+use crate::civilization::concepts::population_expansion::events::{CheckGate, CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand};
 
 pub fn check_area_population_expansion_eligibility(
     mut expansion_check_event: EventReader<CheckPlayerExpansionEligibility>,

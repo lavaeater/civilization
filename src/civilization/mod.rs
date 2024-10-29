@@ -2,7 +2,6 @@ pub mod console;
 pub mod components;
 pub mod plugins;
 pub mod events;
-pub mod resources;
 pub mod systems;
 pub mod functions;
 pub mod triggers;

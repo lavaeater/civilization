@@ -1,14 +1,14 @@
-use crate::civilization::resources::census_resources::GameInfoAndStuff;
 use crate::civilization::components::game_moves_components::AvailableMoves;
-use crate::civilization::events::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::components::general_components::population::Population;
 use crate::civilization::components::general_components::*;
 use crate::civilization::components::movement_components::{HasJustMoved, PerformingMovement, TokenHasMoved};
+use crate::civilization::events::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::events::movement_events::MoveTokenFromAreaToAreaCommand;
 use crate::civilization::events::movement_events::{NextPlayerStarted, PlayerMovementEnded};
 use crate::player::Player;
 use crate::GameActivity;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, Transform, With, Without};
+use crate::civilization::concepts::census::prelude::GameInfoAndStuff;
 
 pub fn start_movement_activity(
     mut game_info: ResMut<GameInfoAndStuff>,

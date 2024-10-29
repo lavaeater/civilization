@@ -1,5 +1,5 @@
-use crate::civilization::components::prelude::PlayerTradeCards;
-use crate::civilization::enums::prelude::Commodity;
+use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
+use crate::civilization::concepts::trade_cards::enums::Commodity;
 use bevy::prelude::{Entity, Name, Reflect, Resource};
 use bevy::utils::{HashMap, HashSet};
 use std::collections::VecDeque;
@@ -198,15 +198,15 @@ pub fn receiver_can_accept_trade_offer(offer: &TradeOffer, player_cards: PlayerT
 
 #[cfg(test)]
 mod tests {
-    use crate::civilization::components::prelude::{PlayerTradeCards, TradeCard};
-    use crate::civilization::enums::prelude::Calamity::*;
-    use crate::civilization::enums::prelude::Commodity::*;
-    use crate::civilization::enums::prelude::TradeCardType::*;
-    use crate::civilization::resources::prelude::{initiator_can_accept_trade_offer, TradeOffer};
+    use crate::civilization::concepts::trade::resources::{initiator_can_accept_trade_offer, TradeOffer};
+    use crate::civilization::concepts::trade_cards::enums::Commodity::*;
+    use bevy::core::Name;
     use bevy::ecs::entity::Entity;
     use bevy::utils::HashMap;
     use std::cell::RefCell;
-    use bevy::core::Name;
+    use crate::civilization::concepts::prelude::enums::Calamity::*;
+    use crate::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
+    use crate::civilization::concepts::trade_cards::enums::TradeCardType::*;
 
     thread_local! {
     static ENTITY_COUNTER: RefCell<u32> = RefCell::new(0);

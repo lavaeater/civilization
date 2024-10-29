@@ -1,9 +1,9 @@
 use crate::civilization::components::city_construction_components::IsBuilding;
 use crate::civilization::components::city_support_components::HasTooManyCities;
-use crate::civilization::events::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::components::movement_components::{HasJustMoved, PerformingMovement};
-use crate::civilization::components::population_expansion_components::ExpandManually;
+use crate::civilization::events::game_moves_events::RecalculatePlayerMoves;
 use bevy::prelude::{Commands, EventWriter, OnAdd, Trigger};
+use crate::civilization::concepts::population_expansion::components::ExpandManually;
 
 pub fn on_add_manual_expansion(
     trigger: Trigger<OnAdd, ExpandManually>,

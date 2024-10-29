@@ -4,6 +4,7 @@ use bevy::prelude::{Component, Reflect, Resource, TypePath};
 use bevy::utils::{HashMap, HashSet};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use crate::civilization::concepts::trade_cards::enums::{Commodity, TradeCardType};
 
 #[derive(Deserialize, Serialize, Asset, TypePath, Clone)]
 pub struct CivilizationCardDefinitions {

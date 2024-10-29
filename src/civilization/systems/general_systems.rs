@@ -10,6 +10,8 @@ use bevy::prelude::{default, info, Commands, Entity, EventReader, EventWriter, N
 use bevy::sprite::SpriteBundle;
 use bevy_console::PrintConsoleLine;
 use rand::seq::IteratorRandom;
+use crate::civilization::concepts::census::components::Census;
+use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,

@@ -1,11 +1,11 @@
-use crate::civilization::components::prelude::PlayerTradeCards;
-use crate::civilization::enums::prelude::Commodity;
-use crate::civilization::resources::prelude::TradeResources;
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
 use bevy::prelude::{Entity, Has, Local, Name, NextState, Query, Res, ResMut};
 use bevy::utils::HashMap;
 use bevy_egui::{egui, EguiContexts};
+use crate::civilization::concepts::trade::resources::TradeResources;
+use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
+use crate::civilization::concepts::trade_cards::enums::Commodity;
 
 #[derive(Clone, PartialEq)]
 struct UserTradeMenu {

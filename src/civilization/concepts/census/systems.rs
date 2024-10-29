@@ -1,10 +1,10 @@
-use crate::civilization::components::census_components::{Census, HasPopulation};
-use crate::civilization::resources::census_resources::GameInfoAndStuff;
 use crate::civilization::components::general_components::population::Population;
 use crate::civilization::components::general_components::*;
+use crate::civilization::concepts::census::components::*;
 use crate::GameActivity;
 use bevy::prelude::{Commands, Entity, Name, NextState, Query, ResMut};
 use bevy::utils::HashMap;
+use crate::civilization::concepts::census::resources::GameInfoAndStuff;
 /***
 Checks and marks areas / populations with HasPopulation to
 simplify queries later. This is normal

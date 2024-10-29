@@ -1,16 +1,17 @@
 use crate::civilization::components::prelude::*;
 use crate::civilization::concepts::map::map_plugin::MapPlugin;
-use crate::civilization::concepts::prelude::trade::plugins::*;
 use crate::civilization::console::prelude::*;
 use crate::civilization::events::prelude::*;
 use crate::civilization::plugins::prelude::*;
-use crate::civilization::resources::prelude::GameInfoAndStuff;
 use crate::civilization::systems::prelude::*;
 use crate::civilization::triggers::general_triggers::on_add_return_token_to_stock;
 use crate::stupid_ai::prelude::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{in_state, AppExtStates, IntoSystemConfigs, OnEnter};
+use crate::civilization::concepts::census::prelude::{CensusPlugin, GameInfoAndStuff};
+use crate::civilization::concepts::population_expansion::plugins::PopulationExpansionPlugin;
+use crate::civilization::concepts::trade_cards::plugins::TradeCardPlugin;
 
 pub struct CivilizationPlugin;
 

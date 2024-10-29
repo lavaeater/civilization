@@ -4,6 +4,7 @@ use crate::stupid_ai::stupid_ai_components::StupidAi;
 use crate::stupid_ai::stupid_ai_events::{SelectStupidMove, StupidAiEvent};
 use bevy::prelude::{Commands, EventReader, EventWriter, Has, Query};
 use rand::prelude::IteratorRandom;
+use crate::civilization::concepts::population_expansion::events::ExpandPopulationManuallyCommand;
 
 pub fn setup_stupid_ai(
     mut stupid_ai_event: EventReader<StupidAiEvent>,

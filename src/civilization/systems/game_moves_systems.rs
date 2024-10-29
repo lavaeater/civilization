@@ -1,14 +1,14 @@
 use crate::civilization::components::city_construction_components::IsBuilding;
 use crate::civilization::components::city_support_components::HasTooManyCities;
 use crate::civilization::components::game_moves_components::{AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove};
-use crate::civilization::events::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::components::general_components::population::Population;
 use crate::civilization::components::general_components::*;
 use crate::civilization::components::movement_components::TokenHasMoved;
+use crate::civilization::events::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::events::movement_events::PlayerMovementEnded;
-use crate::civilization::components::population_expansion_components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
 use bevy::prelude::{Commands, EventReader, EventWriter, Has, Query};
 use bevy::utils::HashMap;
+use crate::civilization::concepts::population_expansion::components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,

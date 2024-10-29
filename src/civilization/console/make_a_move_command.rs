@@ -1,11 +1,11 @@
-use bevy_console::ConsoleCommand;
-use bevy::prelude::{Entity, EventWriter, Query};
-use bevy::core::Name;
-use clap::Parser;
-use crate::civilization::events::city_construction_events::{BuildCityCommand, EndPlayerCityConstruction};
 use crate::civilization::components::game_moves_components::{AvailableMoves, Move};
-use crate::civilization::events::population_expansion_events::ExpandPopulationManuallyCommand;
+use crate::civilization::events::city_construction_events::{BuildCityCommand, EndPlayerCityConstruction};
 use crate::civilization::events::movement_events::{MoveTokenFromAreaToAreaCommand, PlayerMovementEnded};
+use bevy::core::Name;
+use bevy::prelude::{Entity, EventWriter, Query};
+use bevy_console::ConsoleCommand;
+use clap::Parser;
+use crate::civilization::concepts::population_expansion::events::ExpandPopulationManuallyCommand;
 
 #[derive(Parser, ConsoleCommand)]
 #[command(name = "move")]

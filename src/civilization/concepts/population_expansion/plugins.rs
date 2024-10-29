@@ -1,9 +1,9 @@
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{in_state, IntoSystemConfigs, OnEnter};
-use crate::civilization::components::population_expansion_components::ExpandAutomatically;
-use crate::civilization::events::population_expansion_events::{CheckGate, CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand};
-use crate::civilization::systems::population_expansion_systems::{check_area_population_expansion_eligibility, enter_population_expansion, auto_expand_population, expand_population_manually, population_expansion_gate};
-use crate::civilization::triggers::population_expansion_triggers::on_remove_needs_expansion;
+use crate::civilization::concepts::population_expansion::components::ExpandAutomatically;
+use crate::civilization::concepts::population_expansion::events::{CheckGate, CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand};
+use crate::civilization::concepts::population_expansion::systems::{auto_expand_population, check_area_population_expansion_eligibility, enter_population_expansion, expand_population_manually, population_expansion_gate};
+use crate::civilization::concepts::population_expansion::triggers::on_remove_needs_expansion;
 use crate::GameActivity;
 
 pub struct PopulationExpansionPlugin;
