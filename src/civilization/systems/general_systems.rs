@@ -1,6 +1,8 @@
 use crate::civilization::components::prelude::*;
-use crate::civilization::events::prelude::*;
+use crate::civilization::concepts::census::components::Census;
 use crate::civilization::concepts::map::map_plugin::AvailableFactions;
+use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
+use crate::civilization::events::prelude::*;
 use crate::player::Player;
 use crate::stupid_ai::prelude::*;
 use crate::GameActivity;
@@ -8,10 +10,7 @@ use bevy::core::Name;
 use bevy::math::{vec3, Vec3};
 use bevy::prelude::{debug, default, info, Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, StateTransitionEvent, Transform, With, Without};
 use bevy::sprite::SpriteBundle;
-use bevy_console::PrintConsoleLine;
 use rand::seq::IteratorRandom;
-use crate::civilization::concepts::census::components::Census;
-use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
@@ -169,11 +168,9 @@ pub fn move_tokens_from_stock_to_area(
 }
 
 pub fn print_names_of_phases(
-    mut write_line: EventWriter<PrintConsoleLine>,
     mut state_transition_event: EventReader<StateTransitionEvent<GameActivity>>,
 ) {
     for event in state_transition_event.read() {
         info!("Went from: {:?} to {:?}", event.exited, event.entered);
-        write_line.send(PrintConsoleLine::new(format!("Went from: {:?} to {:?}", event.exited, event.entered)));
     }
 }

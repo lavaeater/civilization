@@ -1,6 +1,8 @@
 use crate::civilization::components::prelude::*;
+use crate::civilization::concepts::census::prelude::{CensusPlugin, GameInfoAndStuff};
 use crate::civilization::concepts::map::map_plugin::MapPlugin;
-use crate::civilization::console::prelude::*;
+use crate::civilization::concepts::population_expansion::plugins::PopulationExpansionPlugin;
+use crate::civilization::concepts::trade_cards::plugins::TradeCardPlugin;
 use crate::civilization::events::prelude::*;
 use crate::civilization::plugins::prelude::*;
 use crate::civilization::systems::prelude::*;
@@ -9,9 +11,6 @@ use crate::stupid_ai::prelude::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{in_state, AppExtStates, IntoSystemConfigs, OnEnter};
-use crate::civilization::concepts::census::prelude::{CensusPlugin, GameInfoAndStuff};
-use crate::civilization::concepts::population_expansion::plugins::PopulationExpansionPlugin;
-use crate::civilization::concepts::trade_cards::plugins::TradeCardPlugin;
 
 pub struct CivilizationPlugin;
 
@@ -37,7 +36,7 @@ impl Plugin for CivilizationPlugin {
             )
             .add_plugins(
                 (
-                    CommandsPlugin,
+                    // CommandsPlugin,
                     PopulationExpansionPlugin,
                     CensusPlugin,
                     MovementPlugin,

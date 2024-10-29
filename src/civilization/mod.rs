@@ -1,4 +1,4 @@
-pub mod console;
+// pub mod console;
 pub mod components;
 pub mod plugins;
 pub mod events;
