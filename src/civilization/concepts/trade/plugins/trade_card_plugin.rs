@@ -2,9 +2,9 @@ use crate::{GameActivity, GameState};
 use bevy::app::Startup;
 use bevy::prelude::{App, OnEnter, Plugin};
 use bevy_common_assets::ron::RonAssetPlugin;
-use crate::civilization::components::trade_card_components::CivilizationCardDefinitions;
-use crate::civilization::systems::trade_card_setup_systems::{load_civilization_cards, setup};
-use crate::civilization::systems::trade_card_systems::acquire_trade_cards;
+use crate::civilization::concepts::trade::components::trade_card_components::CivilizationCardDefinitions;
+use crate::civilization::concepts::trade::systems::trade_card_setup_systems::{load_civilization_cards, setup};
+use crate::civilization::concepts::trade::systems::trade_card_systems::acquire_trade_cards;
 
 pub struct TradeCardPlugin;
 

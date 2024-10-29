@@ -1,7 +1,7 @@
 use bevy::prelude::{Commands, Res, Resource};
 use bevy::asset::{AssetServer, Assets, Handle};
 use rand::prelude::SliceRandom;
-use crate::civilization::components::trade_card_components::{CivilizationCardDefinitions, CivilizationTradeCards, TradeCard};
+use crate::civilization::concepts::trade::components::trade_card_components::{CivilizationCardDefinitions, CivilizationTradeCards, TradeCard};
 
 pub fn load_civilization_cards(
     mut commands: Commands,

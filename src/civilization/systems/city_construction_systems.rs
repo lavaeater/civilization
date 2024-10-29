@@ -1,4 +1,4 @@
-use crate::civilization::map::map_plugin::AvailableFactions;
+use crate::civilization::concepts::map::map_plugin::AvailableFactions;
 use crate::player::Player;
 use crate::GameActivity;
 use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, Transform, With};

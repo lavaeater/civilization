@@ -1,7 +1,7 @@
 use bevy::prelude::{debug, NextState, Query, ResMut};
 use crate::civilization::components::general_components::PlayerCities;
-use crate::civilization::components::trade_card_components::PlayerTradeCards;
-use crate::civilization::components::trade_card_components::CivilizationTradeCards;
+use crate::civilization::concepts::trade::components::trade_card_components::PlayerTradeCards;
+use crate::civilization::concepts::trade::components::trade_card_components::CivilizationTradeCards;
 use crate::GameActivity;
 
 pub fn acquire_trade_cards(

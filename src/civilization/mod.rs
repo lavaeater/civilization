@@ -1,5 +1,4 @@
 pub mod console;
-pub mod map;
 pub mod components;
 pub mod plugins;
 pub mod events;
@@ -9,3 +8,4 @@ pub mod functions;
 pub mod triggers;
 pub mod enums;
 pub mod ui;
+pub(crate) mod concepts;

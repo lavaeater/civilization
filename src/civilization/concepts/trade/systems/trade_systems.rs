@@ -15,7 +15,6 @@ struct UserTradeMenu {
 }
 
 pub fn setup_human_trading_ui(
-    mut commands: Commands,
     players_can_trade_query: Query<(&PlayerTradeCards, Has<IsHuman>)>,
     human_player_query: Query<(Entity, &Name, &IsHuman)>,
     mut next_state: ResMut<NextState<GameActivity>>,

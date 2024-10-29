@@ -1,7 +1,7 @@
 use crate::civilization::components::prelude::*;
 use crate::civilization::console::prelude::*;
 use crate::civilization::events::prelude::*;
-use crate::civilization::map::map_plugin::MapPlugin;
+use crate::civilization::concepts::map::map_plugin::MapPlugin;
 use crate::civilization::plugins::prelude::*;
 use crate::civilization::resources::prelude::GameInfoAndStuff;
 use crate::civilization::systems::prelude::*;
@@ -12,6 +12,7 @@ use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{in_state, AppExtStates, IntoSystemConfigs, OnEnter};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use crate::civilization::concepts::prelude::trade::plugins::*;
 
 pub struct CivilizationPlugin;
 

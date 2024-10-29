@@ -1,6 +1,6 @@
 use crate::civilization::components::prelude::*;
 use crate::civilization::events::prelude::*;
-use crate::civilization::map::map_plugin::AvailableFactions;
+use crate::civilization::concepts::map::map_plugin::AvailableFactions;
 use crate::player::Player;
 use crate::stupid_ai::prelude::*;
 use crate::GameActivity;

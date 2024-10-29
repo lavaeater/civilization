@@ -4,7 +4,6 @@ pub mod game_moves_events;
 pub mod general_events;
 pub mod movement_events;
 pub mod population_expansion_events;
-pub mod trade_events;
 
 pub mod prelude {
     pub use crate::civilization::events::city_construction_events::*;

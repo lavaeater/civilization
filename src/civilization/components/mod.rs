@@ -6,7 +6,6 @@ pub mod game_moves_components;
 pub mod general_components;
 pub mod movement_components;
 pub mod population_expansion_components;
-pub mod trade_card_components;
 
 pub mod prelude {
     pub use crate::civilization::components::census_components::*;
@@ -18,5 +17,5 @@ pub mod prelude {
     pub use crate::civilization::components::general_components::*;
     pub use crate::civilization::components::movement_components::*;
     pub use crate::civilization::components::population_expansion_components::*;
-    pub use crate::civilization::components::trade_card_components::*;
+    pub use crate::civilization::concepts::trade::components::trade_card_components::*;
 }

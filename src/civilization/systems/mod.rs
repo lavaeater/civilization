@@ -7,9 +7,6 @@ pub mod general_systems;
 pub mod movement_systems;
 pub mod population_expansion_systems;
 pub mod remove_surplus_systems;
-pub mod trade_systems;
-pub mod trade_card_setup_systems;
-pub mod trade_card_systems;
 
 pub mod prelude {
     pub use crate::civilization::systems::census_systems::*;
@@ -21,7 +18,7 @@ pub mod prelude {
     pub use crate::civilization::systems::movement_systems::*;
     pub use crate::civilization::systems::population_expansion_systems::*;
     pub use crate::civilization::systems::remove_surplus_systems::*;
-    pub use crate::civilization::systems::trade_systems::*;
-    pub use crate::civilization::systems::trade_card_setup_systems::*;
-    pub use crate::civilization::systems::trade_card_systems::*;
+    pub use crate::civilization::concepts::trade::systems::trade_systems::*;
+    pub use crate::civilization::concepts::trade::systems::trade_card_setup_systems::*;
+    pub use crate::civilization::concepts::trade::systems::trade_card_systems::*;
 }
