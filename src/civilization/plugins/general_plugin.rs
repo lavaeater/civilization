@@ -1,18 +1,16 @@
 use crate::civilization::components::prelude::*;
+use crate::civilization::concepts::map::map_plugin::MapPlugin;
+use crate::civilization::concepts::prelude::trade::plugins::*;
 use crate::civilization::console::prelude::*;
 use crate::civilization::events::prelude::*;
-use crate::civilization::concepts::map::map_plugin::MapPlugin;
 use crate::civilization::plugins::prelude::*;
 use crate::civilization::resources::prelude::GameInfoAndStuff;
 use crate::civilization::systems::prelude::*;
 use crate::civilization::triggers::general_triggers::on_add_return_token_to_stock;
-use crate::civilization::ui::ui_plugin::UiPlugin;
 use crate::stupid_ai::prelude::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{in_state, AppExtStates, IntoSystemConfigs, OnEnter};
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use crate::civilization::concepts::prelude::trade::plugins::*;
 
 pub struct CivilizationPlugin;
 
@@ -43,7 +41,6 @@ impl Plugin for CivilizationPlugin {
                     CensusPlugin,
                     MovementPlugin,
                     ConflictPlugin,
-                    UiPlugin,
                     TradePlugin,
                 )
             )
@@ -60,7 +57,7 @@ impl Plugin for CivilizationPlugin {
             )
             .add_systems(OnEnter(GameState::Playing), setup_players)
             .add_systems(OnEnter(GameActivity::StartGame), start_game)
-            .add_plugins(WorldInspectorPlugin::new())
+            // .add_plugins(WorldInspectorPlugin::new())
             .insert_resource(GameInfoAndStuff::default())
             .add_systems(
                 Update, (
