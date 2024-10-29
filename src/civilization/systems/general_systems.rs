@@ -6,7 +6,7 @@ use crate::stupid_ai::prelude::*;
 use crate::GameActivity;
 use bevy::core::Name;
 use bevy::math::{vec3, Vec3};
-use bevy::prelude::{default, info, Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, StateTransitionEvent, Transform, With, Without};
+use bevy::prelude::{debug, default, info, Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, StateTransitionEvent, Transform, With, Without};
 use bevy::sprite::SpriteBundle;
 use bevy_console::PrintConsoleLine;
 use rand::seq::IteratorRandom;
@@ -92,6 +92,7 @@ pub fn setup_players(
                 );
         }
     });
+    debug!("Players are set up!");
 }
 
 pub fn connect_areas(

@@ -54,6 +54,7 @@ pub fn enter_population_expansion(
         commands.entity(player).insert(NeedsExpansion::new(player_areas.areas()));
         checker.send(CheckPlayerExpansionEligibility::new(player));
     }
+    debug!("We are DONE! with the startup! {}", game_info.round);
 }
 
 pub fn auto_expand_population(
