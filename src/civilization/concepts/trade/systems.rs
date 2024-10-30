@@ -10,6 +10,22 @@ struct UserTradeMenu {
     player_name: Name,
 }
 
+pub fn setup_trade(
+    mut trade_resources: Res<TradeResources>,
+    player_names_query: Query<>,
+) {
+    trade_resources.players_that_can_trade.clear();
+    for (player, player_name) in player_names.iter() {
+        trade_resources.players_that_can_trade.push(UserTradeMenu {
+            player,
+            player_name: player_name.clone(),
+        });
+    }
+}
+) {
+    
+}
+
 pub fn trade_ui(
     mut egui_context: EguiContexts,
     trade_resources: Res<TradeResources>,
