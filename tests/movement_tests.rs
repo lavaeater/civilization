@@ -1,15 +1,14 @@
 mod common;
 
 use crate::common::{setup_bevy_app, setup_player};
-use adv_civ::{GameActivity, GameState};
-use bevy::app::Update;
-use bevy::prelude::{App, AppExtStates, Bundle, Entity, Events, Name, Transform};
-use bevy::state::app::StatesPlugin;
-use bevy_console::PrintConsoleLine;
 use adv_civ::civilization::components::prelude::*;
 use adv_civ::civilization::enums::prelude::GameFaction;
 use adv_civ::civilization::events::prelude::*;
 use adv_civ::civilization::systems::prelude::*;
+use adv_civ::{GameActivity, GameState};
+use bevy::app::Update;
+use bevy::prelude::{App, AppExtStates, Bundle, Entity, Events, Name, Transform};
+use bevy::state::app::StatesPlugin;
 
 fn setup_app() -> App {
     let mut app = App::new();
@@ -19,7 +18,6 @@ fn setup_app() -> App {
         )
         .add_event::<MoveTokenFromAreaToAreaCommand>()
         .add_event::<RecalculatePlayerMoves>()
-        .add_event::<PrintConsoleLine>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .add_systems(Update, move_tokens_from_area_to_area);

@@ -1,8 +1,6 @@
-pub(crate) mod systems;
-pub(crate) mod setup_systems;
-pub(crate) mod components;
-pub(crate) mod enums;
-pub(crate) mod plugins;
-mod events;
-
-pub(crate) mod prelude {}
+pub mod systems;
+pub mod setup_systems;
+pub mod components;
+pub mod enums;
+pub mod plugins;
+pub mod events;

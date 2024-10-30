@@ -1,10 +1,9 @@
-use crate::civilization::enums::prelude::*;
+use crate::civilization::concepts::trade_cards::enums::{Commodity, TradeCardType};
 use bevy::asset::Asset;
 use bevy::prelude::{Component, Reflect, Resource, TypePath};
 use bevy::utils::{HashMap, HashSet};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use crate::civilization::concepts::trade_cards::enums::{Commodity, TradeCardType};
 
 #[derive(Deserialize, Serialize, Asset, TypePath, Clone)]
 pub struct CivilizationCardDefinitions {

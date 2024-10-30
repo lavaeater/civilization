@@ -25,7 +25,6 @@ fn given_an_area_with_a_city_and_some_population() {
         .add_plugins(
             StatesPlugin,
         )
-        .add_event::<PrintConsoleLine>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .add_systems(Update, find_conflict_zones);
@@ -164,7 +163,6 @@ fn given_two_players_in_an_area_with_too_much_population_area_is_marked_as_confl
         .add_plugins(
             StatesPlugin,
         )
-        .add_event::<PrintConsoleLine>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .add_systems(Update, find_conflict_zones);
@@ -268,7 +266,6 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
         .add_plugins(
             StatesPlugin,
         )
-        .add_event::<PrintConsoleLine>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .observe(on_add_unresolved_conflict)
@@ -341,7 +338,6 @@ fn given_three_conflicteers_the_correct_result_is_obtained() {
         .add_plugins(
             StatesPlugin,
         )
-        .add_event::<PrintConsoleLine>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         // .add_systems(Update, resolve_conflicts);

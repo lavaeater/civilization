@@ -7,8 +7,7 @@ use std::collections::VecDeque;
 #[derive(Resource, Debug, Reflect, Default, Clone)]
 pub struct TradeResources {
     pub offers: VecDeque<TradeOffer>,
-    pub new_offer: Option<TradeOffer>,
-    pub players_that_can_trade: HashMap<Entity,Name>
+    pub new_offer: Option<TradeOffer>
 }
 
 impl TradeResources {
@@ -22,14 +21,6 @@ impl TradeResources {
     
     pub fn create_new_offer(&mut self, initiator: Entity, initiator_name: Name) {
         self.new_offer = Some(TradeOffer::new(initiator, initiator_name));
-    }
-    
-    pub fn add_player(&mut self, player: Entity, player_name: Name) {
-        self.players_that_can_trade.insert(player, player_name);
-    }
-    
-    pub fn remove_player(&mut self, player: Entity) {
-        self.players_that_can_trade.remove(&player);
     }
 }
 
@@ -198,15 +189,15 @@ pub fn receiver_can_accept_trade_offer(offer: &TradeOffer, player_cards: PlayerT
 
 #[cfg(test)]
 mod tests {
+    use crate::civilization::concepts::prelude::enums::Calamity::*;
     use crate::civilization::concepts::trade::resources::{initiator_can_accept_trade_offer, TradeOffer};
+    use crate::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
     use crate::civilization::concepts::trade_cards::enums::Commodity::*;
+    use crate::civilization::concepts::trade_cards::enums::TradeCardType::*;
     use bevy::core::Name;
     use bevy::ecs::entity::Entity;
     use bevy::utils::HashMap;
     use std::cell::RefCell;
-    use crate::civilization::concepts::prelude::enums::Calamity::*;
-    use crate::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
-    use crate::civilization::concepts::trade_cards::enums::TradeCardType::*;
 
     thread_local! {
     static ENTITY_COUNTER: RefCell<u32> = RefCell::new(0);

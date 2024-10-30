@@ -1,42 +1,34 @@
+use crate::civilization::concepts::trade::components::CanTrade;
 use crate::civilization::concepts::trade::resources::TradeResources;
+use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::enums::Commodity;
-use bevy::prelude::{Entity, Name, Res};
+use bevy::prelude::{Commands, Entity, Name, Query, ResMut, With};
 use bevy::utils::HashMap;
 use bevy_egui::{egui, EguiContexts};
 
-#[derive(Clone, PartialEq)]
-struct UserTradeMenu {
-    player: Entity,
-    player_name: Name,
-}
-
 pub fn setup_trade(
-    mut trade_resources: Res<TradeResources>,
-    player_names_query: Query<>,
+    mut commands: Commands,
+    trading_players_query: Query<(&PlayerTradeCards, Entity)>,
 ) {
-    trade_resources.players_that_can_trade.clear();
-    for (player, player_name) in player_names.iter() {
-        trade_resources.players_that_can_trade.push(UserTradeMenu {
-            player,
-            player_name: player_name.clone(),
-        });
+    for (trade_cards, player) in trading_players_query.iter() {
+        if trade_cards.can_trade() {
+            commands.entity(player).insert(CanTrade);
+        }
     }
-}
-) {
-    
 }
 
 pub fn trade_ui(
     mut egui_context: EguiContexts,
-    trade_resources: Res<TradeResources>,
+    mut trade_resources: ResMut<TradeResources>,
+    trading_players_query: Query<(&Name, Entity, &PlayerTradeCards), With<CanTrade>>
 ) {
     egui::Window::new("Trade Interface").show(egui_context.ctx_mut(), |ui| {
         // Section: Player List with trading capabilities
         ui.heading("Players Available for Trade");
-        for (player, player_name) in &trade_resources.players_that_can_trade {
+        for (player_name, _, _) in trading_players_query.iter() {
             ui.horizontal(|ui| {
                 ui.label(format!("Player: {}", player_name.as_str()));
-                if ui.button("Trade").clicked() {
+                if ui.button("Propose Trade").clicked() {
                     // Logic to initiate a trade with this player
                     // E.g., set them as the receiver in `TradeOffer`
                 }

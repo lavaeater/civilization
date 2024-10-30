@@ -6,4 +6,4 @@ pub mod systems;
 pub mod functions;
 pub mod triggers;
 pub mod enums;
-pub(crate) mod concepts;
+pub mod concepts;
