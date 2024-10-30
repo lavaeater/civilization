@@ -2,7 +2,8 @@ use crate::civilization::concepts::trade::components::CanTrade;
 use crate::civilization::concepts::trade::resources::TradeResources;
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::enums::Commodity;
-use bevy::prelude::{Commands, Entity, Name, Query, ResMut, With};
+use crate::stupid_ai::prelude::IsHuman;
+use bevy::prelude::{Commands, Entity, Has, Name, Query, ResMut, With};
 use bevy::utils::HashMap;
 use bevy_egui::{egui, EguiContexts};
 
@@ -20,17 +21,19 @@ pub fn setup_trade(
 pub fn trade_ui(
     mut egui_context: EguiContexts,
     mut trade_resources: ResMut<TradeResources>,
-    trading_players_query: Query<(&Name, Entity, &PlayerTradeCards), With<CanTrade>>
+    trading_players_query: Query<(&Name, Entity, &PlayerTradeCards, Has<IsHuman>), With<CanTrade>>,
+    human_player: Query<(Entity, &Name, IsHuman)>
 ) {
     egui::Window::new("Trade Interface").show(egui_context.ctx_mut(), |ui| {
         // Section: Player List with trading capabilities
         ui.heading("Players Available for Trade");
-        for (player_name, _, _) in trading_players_query.iter() {
+        for (player_name, player_entity, _, is_human) in trading_players_query.iter() {
             ui.horizontal(|ui| {
-                ui.label(format!("Player: {}", player_name.as_str()));
+                ui.label(format!("Player: {}, {}", player_name.as_str(), if is_human { "Human" } else { "AI" }));
                 if ui.button("Propose Trade").clicked() {
-                    // Logic to initiate a trade with this player
-                    // E.g., set them as the receiver in `TradeOffer`
+                    if let Some((human_entity, human_name, _)) = human_player.get_single() {
+                        trade_resources.create_new_offer(human_entity, human_name.clone(), player_entity, player_name.clone());
+                    }
                 }
             });
         }

@@ -19,8 +19,11 @@ impl TradeResources {
         self.offers.retain(|x| x != offer);
     }
     
-    pub fn create_new_offer(&mut self, initiator: Entity, initiator_name: Name) {
-        self.new_offer = Some(TradeOffer::new(initiator, initiator_name));
+    pub fn create_new_offer(&mut self, initiator: Entity, initiator_name: Name, receiver: Entity, receiver_name: Name) {
+        let mut offer = TradeOffer::new(initiator, initiator_name);
+        offer.receiver = Some(receiver);
+        offer.receiver_name = Some(receiver_name);
+        self.new_offer = Some(offer);
     }
 }
 
