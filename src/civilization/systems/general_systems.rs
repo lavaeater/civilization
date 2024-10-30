@@ -17,8 +17,11 @@ pub fn start_game(
     start_area_query: Query<(Entity, &Name, &StartArea)>,
     mut writer: EventWriter<MoveTokensFromStockToAreaCommand>,
     mut next_state: ResMut<NextState<GameActivity>>) {
-    for (player_entity, _name, player_faction) in player_query.iter() {
-        if let Some((area_entity, _area_name, _)) = start_area_query.iter().find(|(_, _, start_area)| start_area.faction == player_faction.faction) {
+    debug!("4. Starting the game!");
+    for (player_entity, name, player_faction) in player_query.iter() {
+        debug!("Starting the game for player: {:?}", name);
+        if let Some((area_entity, area_name, _)) = start_area_query.iter().find(|(_, _, start_area)| start_area.faction == player_faction.faction) {
+            debug!("Putting a token in: {:?}", area_name);
             writer.send(
                 MoveTokensFromStockToAreaCommand {
                     area_entity,
@@ -34,6 +37,7 @@ pub fn setup_players(
     mut commands: Commands,
     mut available_factions: ResMut<AvailableFactions>,
 ) {
+    debug!("3. Setting up players!");
     (1..=8).for_each(|n| {
         if let Some(faction) = available_factions.remaining_factions.clone().iter().choose(&mut rand::thread_rng()) {
             available_factions.remaining_factions.remove(faction);

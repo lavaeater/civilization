@@ -1,11 +1,11 @@
 use crate::civilization::components::general_components::population::Population;
 use crate::civilization::components::general_components::*;
-use crate::civilization::events::general_events::MoveTokensFromStockToAreaCommand;
-use crate::GameActivity;
-use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
 use crate::civilization::concepts::census::prelude::GameInfoAndStuff;
 use crate::civilization::concepts::population_expansion::components::{AreaIsExpanding, ExpandAutomatically, ExpandManually, NeedsExpansion};
 use crate::civilization::concepts::population_expansion::events::{CheckGate, CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand};
+use crate::civilization::events::general_events::MoveTokensFromStockToAreaCommand;
+use crate::GameActivity;
+use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, With};
 
 pub fn check_area_population_expansion_eligibility(
     mut expansion_check_event: EventReader<CheckPlayerExpansionEligibility>,
@@ -54,7 +54,7 @@ pub fn enter_population_expansion(
         commands.entity(player).insert(NeedsExpansion::new(player_areas.areas()));
         checker.send(CheckPlayerExpansionEligibility::new(player));
     }
-    debug!("We are DONE! with the startup! {}", game_info.round);
+    debug!("We are DONE! pop exp setup! {}", game_info.round);
 }
 
 pub fn auto_expand_population(

@@ -1,10 +1,11 @@
 use crate::civilization::components::general_components::population::Population;
 use crate::civilization::components::general_components::*;
 use crate::civilization::enums::general_enums::GameFaction;
+use crate::civilization::systems::prelude::setup_players;
 use crate::loading::TextureAssets;
 use crate::GameState;
 use bevy::core::Name;
-use bevy::prelude::{App, AssetServer, Assets, Camera, Commands, Handle, Image, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Vec3};
+use bevy::prelude::{debug, App, AssetServer, Assets, Camera, Commands, Handle, Image, IntoSystemConfigs, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Vec3};
 use bevy::utils::{HashMap, HashSet};
 use bevy_common_assets::ron::RonAssetPlugin;
 use rand::seq::IteratorRandom;
@@ -18,7 +19,7 @@ impl Plugin for MapPlugin {
             .add_plugins(
                 RonAssetPlugin::<Map>::new(&["map.ron"]))
             .add_systems(Startup, setup)
-            .add_systems(OnEnter(GameState::Playing), load_map)
+            .add_systems(OnEnter(GameState::Playing), (load_map, setup_players).chain())
         ;
     }
 }
@@ -79,6 +80,7 @@ pub struct AvailableFactions {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    debug!("1. Setting up map resource");
     let map = MapHandle(asset_server.load("maps/civilization.map.ron"));
     commands.insert_resource(map);
 }
@@ -126,6 +128,7 @@ fn load_map(mut commands: Commands,
             textures: Res<TextureAssets>,
             mut camera: Query<(&Camera, &mut Transform)>,
 ) {
+    debug!("2. Loading map");
     if let Some(level) = maps.get(map.0.id()).clone() {
         let mut ancient_places: HashSet<String> = vec!["Assyria", "Numidia", "Carthage", "Troy", "Sparta", "Babylon", "Thebes",
                                                        "Alexandria", "Athens", "Byzantium", "Pompeii", "Ephesus", "Ctesiphon",

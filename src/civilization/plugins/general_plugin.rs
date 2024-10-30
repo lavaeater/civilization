@@ -55,7 +55,6 @@ impl Plugin for CivilizationPlugin {
                     MapPlugin,
                 )
             )
-            .add_systems(OnEnter(GameState::Playing), setup_players)
             .add_systems(OnEnter(GameActivity::StartGame), start_game)
             // .add_plugins(WorldInspectorPlugin::new())
             .insert_resource(GameInfoAndStuff::default())
