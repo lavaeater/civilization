@@ -22,7 +22,7 @@ pub fn trade_ui(
     mut egui_context: EguiContexts,
     mut trade_resources: ResMut<TradeResources>,
     trading_players_query: Query<(&Name, Entity, &PlayerTradeCards, Has<IsHuman>), With<CanTrade>>,
-    human_player: Query<(Entity, &Name, IsHuman)>
+    human_player: Query<(Entity, &Name, &IsHuman)>
 ) {
     egui::Window::new("Trade Interface").show(egui_context.ctx_mut(), |ui| {
         // Section: Player List with trading capabilities
@@ -31,7 +31,7 @@ pub fn trade_ui(
             ui.horizontal(|ui| {
                 ui.label(format!("Player: {}, {}", player_name.as_str(), if is_human { "Human" } else { "AI" }));
                 if ui.button("Propose Trade").clicked() {
-                    if let Some((human_entity, human_name, _)) = human_player.get_single() {
+                    if let Ok((human_entity, human_name, _)) = human_player.get_single() {
                         trade_resources.create_new_offer(human_entity, human_name.clone(), player_entity, player_name.clone());
                     }
                 }
