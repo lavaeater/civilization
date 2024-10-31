@@ -84,7 +84,7 @@ pub fn trade_ui(
                     display_commodities(ui, &new_offer.receiver_commodities);
                 });
 
-                ui.horizontal(|ui| {
+                ui.vertical(|ui| {
                     for commodity in Commodity::iter() {
                         if ui.button(format!("Add {:?}", commodity)).clicked() {
                             // Logic to add this commodity to the offer
