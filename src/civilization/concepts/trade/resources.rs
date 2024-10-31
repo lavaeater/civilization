@@ -281,3 +281,10 @@ mod tests {
         assert!(counter_offer.rejects.is_empty());
     }
 }
+
+#[derive(Default, Resource)]
+pub struct TradeUiState {
+    pub human_player: Option<Entity>,
+    pub add_offered_commodity_open: bool,
+    pub add_requested_commodity_open: bool,
+}

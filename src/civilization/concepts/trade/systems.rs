@@ -1,18 +1,23 @@
 use crate::civilization::concepts::trade::components::CanTrade;
-use crate::civilization::concepts::trade::resources::TradeResources;
+use crate::civilization::concepts::trade::resources::{TradeResources, TradeUiState};
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::enums::Commodity;
 use crate::stupid_ai::prelude::IsHuman;
-use bevy::prelude::{Commands, Entity, Has, Name, Query, ResMut, With};
+use bevy::prelude::{Commands, DetectChangesMut, Entity, Has, Name, Query, ResMut, With};
 use bevy::utils::HashMap;
 use bevy_egui::{egui, EguiContexts};
 
+
 pub fn setup_trade(
     mut commands: Commands,
-    trading_players_query: Query<(&PlayerTradeCards, Entity)>,
+    trading_players_query: Query<(&PlayerTradeCards, Entity, Has<IsHuman>)>,
+    mut trade_ui_state: ResMut<TradeUiState>,
 ) {
-    for (trade_cards, player) in trading_players_query.iter() {
+    for (trade_cards, player, is_human) in trading_players_query.iter() {
         if trade_cards.can_trade() {
+            if is_human {
+                trade_ui_state.human_player = Some(player);
+            } 
             commands.entity(player).insert(CanTrade);
         }
     }
@@ -22,7 +27,8 @@ pub fn trade_ui(
     mut egui_context: EguiContexts,
     mut trade_resources: ResMut<TradeResources>,
     trading_players_query: Query<(&Name, Entity, &PlayerTradeCards, Has<IsHuman>), With<CanTrade>>,
-    human_player: Query<(Entity, &Name, &IsHuman)>
+    human_player: Query<(Entity, &Name, &IsHuman)>,
+    mut trade_ui_state: ResMut<TradeUiState>,
 ) {
     egui::Window::new("Trade Interface").show(egui_context.ctx_mut(), |ui| {
         // Section: Player List with trading capabilities
