@@ -24,10 +24,10 @@ pub fn setup_trade(
             commands.entity(player).insert(CanTrade);
         }
     }
-    if !has_any_human {
-        debug!("No human player can trade. Skipping trade phase.");
-        next_state.set(GameActivity::PopulationExpansion)
-    }
+    // if !has_any_human {
+    //     debug!("No human player can trade. Skipping trade phase.");
+    //     next_state.set(GameActivity::PopulationExpansion)
+    // }
     
 }
 
@@ -38,6 +38,7 @@ pub fn trade_ui(
     human_player: Query<(Entity, &Name, &IsHuman)>,
     mut ui_state: ResMut<TradeUiState>,
     mut commands: Commands,
+    mut next_state: ResMut<NextState<GameActivity>>
 ) {
     let mut ctx = egui_context.ctx_mut();
     egui::Window::new("Trade Interface")
@@ -88,7 +89,12 @@ pub fn trade_ui(
                             // Logic to reject the trade
                         }
                     });
+
                 });
+            }
+
+            if ui.button("Stop Trading").clicked() {
+                next_state.set(GameActivity::PopulationExpansion);
             }
 
             // Section: New Trade Offer

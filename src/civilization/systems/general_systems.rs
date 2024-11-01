@@ -46,7 +46,7 @@ pub fn setup_players(
                 .spawn(
                     (
                         Player,
-                        Name::new(format!("p_{n}")),
+                        Name::new(format!("p_{:?}_{n}", faction)),
                         Census { population: 0 },
                         Treasury::default(),
                         Faction::new(*faction),
@@ -57,7 +57,7 @@ pub fn setup_players(
                     )
                 ).id();
 
-            if n == 1 {
+            if n == 4 {
                 commands.entity(player).insert(IsHuman);
             }
 
