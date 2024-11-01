@@ -4,7 +4,7 @@ use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::enums::Commodity;
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
-use bevy::prelude::{Commands, Entity, Has, Name, NextState, Query, ResMut, With};
+use bevy::prelude::{debug, Commands, Entity, Has, Name, NextState, Query, ResMut, With};
 use bevy::utils::HashMap;
 use bevy_egui::{egui, EguiContexts};
 
@@ -14,7 +14,7 @@ pub fn setup_trade(
     mut trade_ui_state: ResMut<TradeUiState>,
     mut next_state: ResMut<NextState<GameActivity>>
 ) {
-    let has_any_human = false;
+    let mut has_any_human = false;
     for (trade_cards, player, is_human) in trading_players_query.iter() {
         if trade_cards.can_trade() {
             if is_human {
@@ -24,6 +24,11 @@ pub fn setup_trade(
             commands.entity(player).insert(CanTrade);
         }
     }
+    if !has_any_human {
+        debug!("No human player can trade. Skipping trade phase.");
+        next_state.set(GameActivity::PopulationExpansion)
+    }
+    
 }
 
 pub fn trade_ui(
