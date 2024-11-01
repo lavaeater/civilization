@@ -1,4 +1,4 @@
-use crate::civilization::concepts::trade_cards::enums::{Commodity, TradeCardType};
+use crate::civilization::concepts::trade_cards::enums::{Calamity, Commodity, TradeCardType};
 use bevy::asset::Asset;
 use bevy::prelude::{Component, Reflect, Resource, TypePath};
 use bevy::utils::{HashMap, HashSet};
@@ -87,7 +87,10 @@ impl PlayerTradeCards {
     
     pub fn commodity_cards(&self) -> HashSet<TradeCard> {
         self.trade_cards.values().flatten().filter(|card| matches!(card.card_type, TradeCardType::CommodityCard(_))).cloned().collect()
+    }
 
+    pub fn commodities(&self) -> HashSet<Commodity> {
+        self.trade_cards.values().flatten().filter(|card| matches!(card.card_type, TradeCardType::CommodityCard(_))).map(|c| c.get_commodity().unwrap()).unique().collect()
     }
     
     pub fn cards_of_commodity_type(&self, commodity: &Commodity) -> Vec<TradeCard> {
@@ -103,16 +106,6 @@ impl PlayerTradeCards {
     }
 }
 
-impl TradeCard {
-    pub fn new(value: usize, card_type: TradeCardType, tradeable: bool) -> Self {
-        Self {
-            value,
-            card_type,
-            tradeable,
-        }
-    }
-}
-
 #[derive(Clone,
     Debug,
     Eq,
@@ -123,4 +116,36 @@ pub struct TradeCard {
     pub value: usize,
     pub card_type: TradeCardType,
     pub tradeable: bool,
+}
+
+impl TradeCard {
+    pub fn new(value: usize, card_type: TradeCardType, tradeable: bool) -> Self {
+        Self {
+            value,
+            card_type,
+            tradeable,
+        }
+    }
+    
+    pub fn is_commmodity(&self) -> bool {
+        matches!(self.card_type, TradeCardType::CommodityCard(_))
+    }
+    
+    pub fn is_calamity(&self) -> bool {
+        matches!(self.card_type, TradeCardType::CalamityCard(_))
+    }
+    
+    pub fn get_commodity(&self) -> Option<Commodity> {
+        match &self.card_type {
+            TradeCardType::CommodityCard(commodity) => Some(commodity.clone()),
+            _ => None,
+        }
+    }
+    
+    pub fn get_calamity(&self) -> Option<Calamity> {
+        match &self.card_type {
+            TradeCardType::CalamityCard(calamity) => Some(calamity.clone()),
+            _ => None,
+        }
+    }
 }

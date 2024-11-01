@@ -9,7 +9,7 @@ pub enum TradeCardType {
 }
 
 #[derive(Clone, Deserialize,
-    Serialize, Debug, Eq, Hash, PartialEq, Reflect)]
+    Serialize, Debug, Eq, Hash, PartialEq, Reflect, Copy)]
 pub enum Commodity {
     Ochre,
     Hides,

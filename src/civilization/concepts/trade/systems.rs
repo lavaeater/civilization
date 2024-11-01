@@ -3,19 +3,22 @@ use crate::civilization::concepts::trade::resources::{TradeResources, TradeUiSta
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::enums::Commodity;
 use crate::stupid_ai::prelude::IsHuman;
-use bevy::prelude::{Commands, Entity, Has, Name, Query, ResMut, With};
+use crate::GameActivity;
+use bevy::prelude::{Commands, Entity, Has, Name, NextState, Query, ResMut, With};
 use bevy::utils::HashMap;
 use bevy_egui::{egui, EguiContexts};
-
 
 pub fn setup_trade(
     mut commands: Commands,
     trading_players_query: Query<(&PlayerTradeCards, Entity, Has<IsHuman>)>,
     mut trade_ui_state: ResMut<TradeUiState>,
+    mut next_state: ResMut<NextState<GameActivity>>
 ) {
+    let has_any_human = false;
     for (trade_cards, player, is_human) in trading_players_query.iter() {
         if trade_cards.can_trade() {
             if is_human {
+                has_any_human = true;
                 trade_ui_state.human_player = Some(player);
             }
             commands.entity(player).insert(CanTrade);
@@ -29,6 +32,7 @@ pub fn trade_ui(
     trading_players_query: Query<(&Name, Entity, &PlayerTradeCards, Has<IsHuman>), With<CanTrade>>,
     human_player: Query<(Entity, &Name, &IsHuman)>,
     mut ui_state: ResMut<TradeUiState>,
+    mut commands: Commands,
 ) {
     let mut ctx = egui_context.ctx_mut();
     egui::Window::new("Trade Interface")
@@ -107,20 +111,39 @@ pub fn trade_ui(
                 ui.label("No new offers. Select a player to start trading.");
             }
         });
+    if let Some(player) = ui_state.human_player {
+        if let Ok((_, _, trade_cards, _)) = trading_players_query.get(player) {
+            egui::Window::new("Add Offered Commodity")
+                .vscroll(true)
+                .open(&mut ui_state.add_offered_commodity_open)
+                .show(ctx, |ui| {
+                    ui.label("Add another commodity to the offer");
+                    for commodity in trade_cards.commodities().iter() {
+                        if ui.button(format!("Offer {:?}", commodity)).clicked() {
+                            trade_resources.new_offer.as_mut().unwrap().pay_more(*commodity);
+                        }
+                        if ui.button(format!("Remove {:?}", commodity)).clicked() {
+                            trade_resources.new_offer.as_mut().unwrap().pay_less(*commodity);
+                        }
+                    }
+                });
 
-    egui::Window::new("Add Offered Commodity")
-        .vscroll(true)
-        .open(&mut ui_state.add_offered_commodity_open)
-        .show(ctx, |ui| {
-            ui.label("Add another commodity to the offer");
-        });
-
-    egui::Window::new("Add Requested Commodity")
-        .vscroll(true)
-        .open(&mut ui_state.add_requested_commodity_open)
-        .show(ctx, |ui| {
-            ui.label("Request another commodity");
-        });
+            egui::Window::new("Add Requested Commodity")
+                .vscroll(true)
+                .open(&mut ui_state.add_requested_commodity_open)
+                .show(ctx, |ui| {
+                    ui.label("Request another commodity");
+                    for commodity in trade_cards.commodities().iter() {
+                        if ui.button(format!("Request {:?}", commodity)).clicked() {
+                            trade_resources.new_offer.as_mut().unwrap().get_more(*commodity);
+                        }
+                        if ui.button(format!("Remove {:?}", commodity)).clicked() {
+                            trade_resources.new_offer.as_mut().unwrap().get_less(*commodity);
+                        }
+                    }
+                });
+        }
+    }
 }
 
 // Helper function to display commodities in a trade offer

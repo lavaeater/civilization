@@ -35,7 +35,7 @@ pub fn transition_to_trade(
 ) {
     for _ in check_if_we_can_trade.read() {
         if players_can_trade_query.iter().filter(|(trade, _)| trade.can_trade()).count() >= 2
-            && players_can_trade_query.iter().filter(|(_, is_human)| *is_human).count() == 1 {
+            && players_can_trade_query.iter().filter(|(_, is_human)| *is_human).count() > 0 {
             debug!("COMMENCE TRADING!");
             next_state.set(GameActivity::Trade);
         } else {
