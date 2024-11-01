@@ -41,7 +41,7 @@ impl CivilizationTradeCards {
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct PlayerTradeCards {
-    trade_cards: HashMap<TradeCardType, Vec<TradeCard>>,
+    trade_cards: HashMap<TradeCardType, Vec<TradeCard>>
 }
 
 impl PlayerTradeCards {
@@ -50,7 +50,7 @@ impl PlayerTradeCards {
     }
     
     pub fn add_trade_card(&mut self, trade_card: TradeCard) {
-        self.trade_cards.entry(trade_card.card_type.clone()).or_insert_with(Vec::default).push(trade_card);
+        self.trade_cards.entry(trade_card.card_type.clone()).or_default().push(trade_card);
     }
     
     pub fn has_trade_card(&self, trade_card: &TradeCard) -> bool {
@@ -94,7 +94,15 @@ impl PlayerTradeCards {
     }
     
     pub fn cards_of_commodity_type(&self, commodity: &Commodity) -> Vec<TradeCard> {
-        self.trade_cards.get(&TradeCardType::CommodityCard(commodity.clone())).unwrap_or(&Vec::default()).clone()
+        self.trade_cards.get(&TradeCardType::CommodityCard(*commodity)).unwrap_or(&Vec::default()).clone()
+    }
+    
+    pub fn commodity_card_count(&self) -> HashMap<Commodity, usize> {
+        let mut count: HashMap<Commodity, usize> = HashMap::default();
+        for commodity in self.commodities() {
+            count.insert(commodity, self.number_of_cards_of_commodity(&commodity));
+        }
+        count
     }
     
     pub fn trade_cards_grouped_by_value(&self) -> HashMap<usize, Vec<TradeCard>> {

@@ -123,12 +123,12 @@ pub fn trade_ui(
                 .open(&mut ui_state.add_offered_commodity_open)
                 .show(ctx, |ui| {
                     ui.label("Add another commodity to the offer");
-                    for commodity in trade_cards.commodities().iter() {
+                    for commodity in Commodity::iter() {
                         if ui.button(format!("Offer {:?}", commodity)).clicked() {
-                            trade_resources.new_offer.as_mut().unwrap().pay_more(*commodity);
+                            trade_resources.new_offer.as_mut().unwrap().pay_more(commodity);
                         }
                         if ui.button(format!("Remove {:?}", commodity)).clicked() {
-                            trade_resources.new_offer.as_mut().unwrap().pay_less(*commodity);
+                            trade_resources.new_offer.as_mut().unwrap().pay_less(commodity);
                         }
                     }
                 });
@@ -138,12 +138,12 @@ pub fn trade_ui(
                 .open(&mut ui_state.add_requested_commodity_open)
                 .show(ctx, |ui| {
                     ui.label("Request another commodity");
-                    for commodity in trade_cards.commodities().iter() {
+                    for commodity in Commodity::iter() {
                         if ui.button(format!("Request {:?}", commodity)).clicked() {
-                            trade_resources.new_offer.as_mut().unwrap().get_more(*commodity);
+                            trade_resources.new_offer.as_mut().unwrap().get_more(commodity);
                         }
                         if ui.button(format!("Remove {:?}", commodity)).clicked() {
-                            trade_resources.new_offer.as_mut().unwrap().get_less(*commodity);
+                            trade_resources.new_offer.as_mut().unwrap().get_less(commodity);
                         }
                     }
                 });
