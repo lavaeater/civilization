@@ -11,6 +11,7 @@ use bevy::math::{vec3, Vec3};
 use bevy::prelude::{debug, default, info, Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, StateTransitionEvent, Transform, With, Without};
 use bevy::sprite::SpriteBundle;
 use rand::seq::IteratorRandom;
+use crate::civilization::enums::prelude::GameFaction;
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
@@ -57,7 +58,7 @@ pub fn setup_players(
                     )
                 ).id();
 
-            if n == 4 {
+            if *faction == GameFaction::Egypt {
                 commands.entity(player).insert(IsHuman);
             }
 
