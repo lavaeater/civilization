@@ -5,6 +5,7 @@ use crate::civilization::concepts::trade_cards::enums::Commodity;
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
 use bevy::prelude::{debug, Commands, Entity, Has, Name, NextState, Query, ResMut, With};
+use bevy::reflect::List;
 use bevy::utils::HashMap;
 use bevy_egui::{egui, EguiContexts};
 
@@ -64,7 +65,7 @@ pub fn trade_ui(
             // Section: Trade Offers
             ui.separator();
             ui.heading("Current Trade Offers");
-            for offer in &trade_resources.offers {
+            for offer in &trade_resources.offers.clone() {
                 ui.group(|ui| {
                     ui.label(format!(
                         "Offer from {} to {}",
@@ -100,7 +101,7 @@ pub fn trade_ui(
             // Section: New Trade Offer
             ui.separator();
             ui.heading("Create a New Trade Offer");
-            if let Some(new_offer) = &trade_resources.new_offer {
+            if let Some(new_offer) = &trade_resources.new_offer.clone() {
                 ui.group(|ui| {
                     ui.label(format!("New Offer from {}", new_offer.initiator_name.as_str()));
                     ui.horizontal(|ui| {
@@ -117,6 +118,10 @@ pub fn trade_ui(
                         }
                         display_commodities(ui, &new_offer.receiver_commodities);
                     });
+                    if ui.button("Send Offer").clicked() {
+                        trade_resources.offers.push_back(new_offer.clone());
+                        trade_resources.new_offer = None;
+                    }
                 });
             } else {
                 ui.label("No new offers. Select a player to start trading.");
