@@ -34,6 +34,19 @@ impl TradeOffer {
             rejects: HashSet::default(),
         }
     }
+    
+    pub fn propose_trade_to(initiator: Entity, initiator_name: Name, receiver: Entity, receiver_name: Name) -> Self {
+        TradeOffer {
+            initiator,
+            initiator_name,
+            receiver: Some(receiver),
+            receiver_name: Some(receiver_name),
+            initiator_commodities: HashMap::default(),
+            receiver_commodities: HashMap::default(),
+            accepts: HashSet::default(),
+            rejects: HashSet::default(),
+        }
+    }
 
     pub fn initiator_accepts(&self) -> bool {
         self.accepts.contains(&self.initiator)

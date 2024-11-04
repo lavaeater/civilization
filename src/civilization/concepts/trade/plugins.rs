@@ -1,4 +1,4 @@
-use crate::civilization::concepts::trade::resources::{PublishedOffers, TradeUiState};
+use crate::civilization::concepts::trade::resources::TradeUiState;
 use crate::civilization::systems::prelude::{setup_trade, trade_ui};
 use crate::GameActivity;
 use bevy::app::App;
@@ -11,7 +11,6 @@ impl Plugin for TradePlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugins(EguiPlugin)
-            .insert_resource(PublishedOffers::default()) // Placeholder until actual resources are added
             .insert_resource(TradeUiState::default()) // Placeholder until actual resources are added
             .add_systems(OnEnter(GameActivity::Trade), setup_trade)
             .add_systems(Update, trade_ui.run_if(in_state(GameActivity::Trade)))

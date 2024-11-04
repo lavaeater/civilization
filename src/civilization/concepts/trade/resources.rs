@@ -1,6 +1,6 @@
 use crate::civilization::concepts::trade::components::TradeOffer;
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
-use bevy::prelude::{Component, Entity, Reflect, Resource};
+use bevy::prelude::{Entity, Resource};
 
 pub fn initiator_can_accept_trade_offer(offer: &TradeOffer, player_cards: &PlayerTradeCards) -> bool {
     // Step 1: Calculate the total number of cards required in the offer
