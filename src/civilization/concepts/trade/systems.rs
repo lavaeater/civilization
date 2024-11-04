@@ -67,11 +67,12 @@ pub fn trade_ui(
             // Section: Trade Offers
             ui.separator();
             ui.heading("Current Trade Offers");
-            
+
             for (mut offer) in trade_offers.iter_mut() {
-                ui.group(|ui| {
-                    // Now `offer` is mutable, so you can safely call methods on it
-                    if let Some(player) = ui_state.human_player {
+                if offer.receiver.is_some() && offer.receiver == ui_state.human_player {
+                    ui.group(|ui| {
+                        // Now `offer` is mutable, so you can safely call methods on it
+                        let player = ui_state.human_player.unwrap();
                         if let Ok((_, _, trade_cards, _)) = trading_players_query.get(player) {
                             if receiver_can_accept_trade_offer(&offer, trade_cards) {
                                 if ui.button("Accept").clicked() {
@@ -82,16 +83,17 @@ pub fn trade_ui(
                                 offer.reject(player);
                             }
                         }
-                    }
-                    if let Ok((h_entity, _, _, existing_offer)) = human_player.get_single() {
-                        if existing_offer.is_none() {
-                            if ui.button("Counter Offer").clicked() {
-                                let countered_offer = offer.prepare_counter_offer(ui_state.human_player.unwrap());
-                                commands.entity(h_entity).insert(countered_offer);
+
+                        if let Ok((h_entity, _, _, existing_offer)) = human_player.get_single() {
+                            if offer.initiator != h_entity && existing_offer.is_none() {
+                                if ui.button("Counter Offer").clicked() {
+                                    let countered_offer = offer.prepare_counter_offer(h_entity);
+                                    commands.entity(h_entity).insert(countered_offer);
+                                }
                             }
                         }
-                    }
-                });
+                    });
+                }
             }
 
             // 2. New Trade Offer Section
