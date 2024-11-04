@@ -10,13 +10,15 @@ pub fn acquire_trade_cards(
     mut trade_card_resource: ResMut<CivilizationTradeCards>,
     mut check_if_we_can_trade: EventWriter<CheckIfWeCanTrade>,
 ) {
-    for (player_cities, mut player_trade_cards) in player_query
+    for (_player_cities, mut player_trade_cards) in player_query
         .iter_mut()
         .sort_by::<&PlayerCities>(|v1, v2| {
             v1.number_of_cities()
                 .cmp(&v2.number_of_cities())
         }) {
-        (1..player_cities.number_of_cities() +1).for_each(|pile| {
+//        player_cities.number_of_cities() +1
+        // for now, we pull trade cards every round because why not?
+        (1..7).for_each(|pile| {
             if let Some(pulled_card) = trade_card_resource.pull_card_from(pile) {
                 debug!("Player acquired trade card: {:?}", pulled_card);
                 player_trade_cards.add_trade_card(pulled_card);

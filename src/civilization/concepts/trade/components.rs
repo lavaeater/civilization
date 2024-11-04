@@ -1,4 +1,152 @@
-use bevy::prelude::{Component, Reflect};
+use crate::civilization::concepts::trade_cards::enums::Commodity;
+use bevy::core::Name;
+use bevy::prelude::{Component, Entity, Reflect};
+use bevy::utils::{HashMap, HashSet};
 
 #[derive(Component, Reflect, Clone, Debug, PartialEq)]
 pub struct CanTrade;
+
+#[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]
+pub struct PublishedOffer;
+
+#[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]
+pub struct TradeOffer {
+    pub initiator: Entity,
+    pub initiator_name: Name,
+    pub receiver: Option<Entity>,
+    pub receiver_name: Option<Name>,
+    pub initiator_commodities: HashMap<Commodity, usize>,
+    pub receiver_commodities: HashMap<Commodity, usize>,
+    pub accepts: HashSet<Entity>,
+    pub rejects: HashSet<Entity>,
+}
+
+impl TradeOffer {
+    pub fn new(initiator: Entity, initiator_name: Name) -> Self {
+        TradeOffer {
+            initiator,
+            initiator_name,
+            receiver: None,
+            receiver_name: None,
+            initiator_commodities: HashMap::default(),
+            receiver_commodities: HashMap::default(),
+            accepts: HashSet::default(),
+            rejects: HashSet::default(),
+        }
+    }
+
+    pub fn initiator_accepts(&self) -> bool {
+        self.accepts.contains(&self.initiator)
+    }
+    
+    pub fn accept(&mut self, entity: Entity) {
+        self.accepts.insert(entity);
+    }
+
+    pub fn reject(&mut self, entity: Entity) {
+        self.rejects.insert(entity);
+    }
+
+    pub fn receiver_accepts(&self) -> bool {
+        match self.receiver {
+            Some(entity) => self.accepts.contains(&entity),
+            None => false,
+        }
+    }
+
+    pub fn trade_accepted(&self) -> bool {
+        self.initiator_accepts() && self.receiver_accepts()
+    }
+
+    pub fn initiator_rejects(&self) -> bool {
+        self.rejects.contains(&self.initiator)
+    }
+
+    pub fn receiver_rejects(&self) -> bool {
+        match self.receiver {
+            Some(entity) => self.rejects.contains(&entity),
+            None => false,
+        }
+    }
+
+    pub fn trade_rejected(&self) -> bool {
+        self.initiator_rejects() || self.receiver_rejects()
+    }
+
+    pub fn initiator_number_of_cards(&self) -> usize {
+        self.initiator_commodities.values().sum()
+    }
+
+    pub fn receiver_number_of_cards(&self) -> usize {
+        self.receiver_commodities.values().sum()
+    }
+
+    pub fn prepare_counter_offer(&self, new_initiator: Entity) -> TradeOffer {
+        self.counter(new_initiator, None, None)
+    }
+
+    pub fn pay_more(&mut self, commodity: Commodity) {
+        *self.initiator_commodities.entry(commodity).or_default() += 1;
+    }
+
+    pub fn pay_less(&mut self, commodity: Commodity) {
+        if self.initiator_commodities.contains_key(&commodity) {
+            let current_amount = self.initiator_commodities.get_mut(&commodity).unwrap();
+            if *current_amount > 1 {
+                *current_amount -= 1;
+            } else {
+                self.initiator_commodities.remove(&commodity);
+            }
+        }
+    }
+
+    pub fn get_more(&mut self, commodity: Commodity) {
+        *self.receiver_commodities.entry(commodity).or_default() += 1;
+    }
+
+    pub fn get_less(&mut self, commodity: Commodity) {
+        if self.receiver_commodities.contains_key(&commodity) {
+            let current_amount = self.receiver_commodities.get_mut(&commodity).unwrap();
+            if *current_amount > 1 {
+                *current_amount -= 1;
+            } else {
+                self.receiver_commodities.remove(&commodity);
+            }
+        }
+    }
+
+    pub fn counter(
+        &self,
+        new_initiator: Entity,
+        new_initiator_commodities: Option<HashMap<Commodity, usize>>,
+        new_receiver_commodities: Option<HashMap<Commodity, usize>>,
+    ) -> TradeOffer {
+        // Create a new trade offer by cloning the current one
+        let mut new_offer = self.clone();
+
+        // Swap the initiator and receiver
+        new_offer.receiver = Some(self.initiator);
+        new_offer.initiator = new_initiator;
+
+        //switch the commodities
+        let temp = new_offer.initiator_commodities.clone();
+        new_offer.initiator_commodities = new_offer.receiver_commodities.clone();
+        new_offer.receiver_commodities = temp;
+
+        // Update the commodities for the new initiator (if provided)
+        if let Some(initiator_commodities) = new_initiator_commodities {
+            new_offer.initiator_commodities = initiator_commodities;
+        }
+
+        // Update the commodities for the new receiver (if provided)
+        if let Some(receiver_commodities) = new_receiver_commodities {
+            new_offer.receiver_commodities = receiver_commodities;
+        }
+
+        // Clear the acceptances and rejections for the new offer
+        new_offer.accepts.clear();
+        new_offer.rejects.clear();
+
+        new_offer
+    }
+}

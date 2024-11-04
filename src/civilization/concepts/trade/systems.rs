@@ -1,11 +1,10 @@
-use crate::civilization::concepts::trade::components::CanTrade;
-use crate::civilization::concepts::trade::resources::{TradeResources, TradeUiState};
+use crate::civilization::concepts::trade::components::{CanTrade, PublishedOffer, TradeOffer};
+use crate::civilization::concepts::trade::resources::{receiver_can_accept_trade_offer, PublishedOffers, TradeUiState};
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::enums::Commodity;
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
 use bevy::prelude::{debug, Commands, Entity, Has, Name, NextState, Query, ResMut, With};
-use bevy::reflect::List;
 use bevy::utils::HashMap;
 use bevy_egui::{egui, EguiContexts};
 
@@ -25,23 +24,22 @@ pub fn setup_trade(
             commands.entity(player).insert(CanTrade);
         }
     }
-    // if !has_any_human {
-    //     debug!("No human player can trade. Skipping trade phase.");
-    //     next_state.set(GameActivity::PopulationExpansion)
-    // }
-    
+    if !has_any_human {
+        debug!("No human player can trade. Skipping trade phase.");
+        next_state.set(GameActivity::PopulationExpansion)
+    }
 }
 
 pub fn trade_ui(
     mut egui_context: EguiContexts,
-    mut trade_resources: ResMut<TradeResources>,
+    mut trade_offers: Query<&mut TradeOffer, With<PublishedOffer>>,
     trading_players_query: Query<(&Name, Entity, &PlayerTradeCards, Has<IsHuman>), With<CanTrade>>,
-    human_player: Query<(Entity, &Name, &IsHuman)>,
+    human_player: Query<(Entity, &Name, &IsHuman, Option<TradeOffer>)>,
     mut ui_state: ResMut<TradeUiState>,
+    mut next_state: ResMut<NextState<GameActivity>>,
     mut commands: Commands,
-    mut next_state: ResMut<NextState<GameActivity>>
 ) {
-    let mut ctx = egui_context.ctx_mut();
+    let ctx = egui_context.ctx_mut();
     egui::Window::new("Trade Interface")
         .show(ctx, |ui| {
             // Section: Player List with trading capabilities
@@ -50,7 +48,7 @@ pub fn trade_ui(
                 ui.horizontal(|ui| {
                     ui.label(format!("Player: {}, {}", player_name.as_str(), if is_human { "Human" } else { "AI" }));
                     if ui.button("Propose Trade").clicked() {
-                        if let Ok((human_entity, human_name, _)) = human_player.get_single() {
+                        if let Ok((human_entity, human_name, _, _)) = human_player.get_single() {
                             trade_resources.create_new_offer(human_entity, human_name.clone(), Some(player_entity), Some(player_name.clone()));
                         }
                     }
@@ -65,43 +63,32 @@ pub fn trade_ui(
             // Section: Trade Offers
             ui.separator();
             ui.heading("Current Trade Offers");
-            for offer in &trade_resources.offers.clone() {
+
+            let mut offers = trade_resources.offers.iter_mut().collect::<Vec<_>>();
+            for offer in offers.iter_mut() {
                 ui.group(|ui| {
-                    ui.label(format!(
-                        "Offer from {} to {}",
-                        offer.initiator_name.as_str(),
-                        offer.receiver_name.as_ref().map(|name| name.as_str()).unwrap_or("Pending")
-                    ));
-                    ui.horizontal(|ui| {
-                        ui.label("Initiator Commodities:");
-                        display_commodities(ui, &offer.initiator_commodities);
-                    });
-                    ui.horizontal(|ui| {
-                        ui.label("Receiver Commodities:");
-                        display_commodities(ui, &offer.receiver_commodities);
-                    });
-
-                    // Offer actions
-                    ui.horizontal(|ui| {
-                        if ui.button("Accept").clicked() {
-                            // Logic to accept the trade
+                    // Now `offer` is mutable, so you can safely call methods on it
+                    if let Some(player) = ui_state.human_player {
+                        if let Ok((_, _, trade_cards, _)) = trading_players_query.get(player) {
+                            if receiver_can_accept_trade_offer(&offer, trade_cards) {
+                                if ui.button("Accept").clicked() {
+                                    offer.accept(player);
+                                }
+                            }
+                            if ui.button("Reject").clicked() {
+                                offer.reject(player);
+                            }
                         }
-                        if ui.button("Reject").clicked() {
-                            // Logic to reject the trade
-                        }
-                    });
-
+                    }
+                    if ui.button("Counter Offer").clicked() {
+                        let countered_offer = offer.prepare_counter_offer(ui_state.human_player.unwrap());
+                        trade_resources.new_offer = Some(countered_offer);
+                    }
                 });
             }
 
-            if ui.button("Stop Trading").clicked() {
-                next_state.set(GameActivity::PopulationExpansion);
-            }
-
-            // Section: New Trade Offer
-            ui.separator();
-            ui.heading("Create a New Trade Offer");
-            if let Some(new_offer) = &trade_resources.new_offer.clone() {
+            // 2. New Trade Offer Section
+            if let Some(new_offer) = &mut trade_resources.new_offer {
                 ui.group(|ui| {
                     ui.label(format!("New Offer from {}", new_offer.initiator_name.as_str()));
                     ui.horizontal(|ui| {
@@ -118,6 +105,41 @@ pub fn trade_ui(
                         }
                         display_commodities(ui, &new_offer.receiver_commodities);
                     });
+
+                    if let Some(player) = ui_state.human_player {
+                        if let Ok((_, _, _trade_cards, _)) = trading_players_query.get(player) {
+                            egui::Window::new("Add Offered Commodity")
+                                .vscroll(true)
+                                .open(&mut ui_state.add_offered_commodity_open)
+                                .show(ctx, |ui| {
+                                    ui.label("Add another commodity to the offer");
+                                    for commodity in Commodity::iter() {
+                                        if ui.button(format!("Offer {:?}", commodity)).clicked() {
+                                            new_offer.pay_more(commodity);
+                                        }
+                                        if ui.button(format!("Remove {:?}", commodity)).clicked() {
+                                            new_offer.pay_less(commodity);
+                                        }
+                                    }
+                                });
+
+                            egui::Window::new("Add Requested Commodity")
+                                .vscroll(true)
+                                .open(&mut ui_state.add_requested_commodity_open)
+                                .show(ctx, |ui| {
+                                    ui.label("Request another commodity");
+                                    for commodity in Commodity::iter() {
+                                        if ui.button(format!("Request {:?}", commodity)).clicked() {
+                                            new_offer.get_more(commodity);
+                                        }
+                                        if ui.button(format!("Remove {:?}", commodity)).clicked() {
+                                            new_offer.get_less(commodity);
+                                        }
+                                    }
+                                });
+                        }
+                    }
+                    
                     if ui.button("Send Offer").clicked() {
                         trade_resources.offers.push_back(new_offer.clone());
                         trade_resources.new_offer = None;
@@ -126,40 +148,12 @@ pub fn trade_ui(
             } else {
                 ui.label("No new offers. Select a player to start trading.");
             }
-        });
-    if let Some(player) = ui_state.human_player {
-        if let Ok((_, _, trade_cards, _)) = trading_players_query.get(player) {
-            egui::Window::new("Add Offered Commodity")
-                .vscroll(true)
-                .open(&mut ui_state.add_offered_commodity_open)
-                .show(ctx, |ui| {
-                    ui.label("Add another commodity to the offer");
-                    for commodity in Commodity::iter() {
-                        if ui.button(format!("Offer {:?}", commodity)).clicked() {
-                            trade_resources.new_offer.as_mut().unwrap().pay_more(commodity);
-                        }
-                        if ui.button(format!("Remove {:?}", commodity)).clicked() {
-                            trade_resources.new_offer.as_mut().unwrap().pay_less(commodity);
-                        }
-                    }
-                });
 
-            egui::Window::new("Add Requested Commodity")
-                .vscroll(true)
-                .open(&mut ui_state.add_requested_commodity_open)
-                .show(ctx, |ui| {
-                    ui.label("Request another commodity");
-                    for commodity in Commodity::iter() {
-                        if ui.button(format!("Request {:?}", commodity)).clicked() {
-                            trade_resources.new_offer.as_mut().unwrap().get_more(commodity);
-                        }
-                        if ui.button(format!("Remove {:?}", commodity)).clicked() {
-                            trade_resources.new_offer.as_mut().unwrap().get_less(commodity);
-                        }
-                    }
-                });
-        }
-    }
+            if ui.button("Stop Trading").clicked() {
+                next_state.set(GameActivity::PopulationExpansion);
+            }
+        });
+    
 }
 
 // Helper function to display commodities in a trade offer
