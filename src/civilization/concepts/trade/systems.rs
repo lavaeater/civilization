@@ -116,18 +116,20 @@ pub fn trade_ui(
                     ui.group(|ui| {
                         ui.label(format!("New Offer from {}", new_offer.initiator_name.as_str()));
                         ui.horizontal(|ui| {
-                            ui.label("Offered Commodities:");
-                            if ui.button("Offer commodity").clicked() {
-                                ui_state.add_offered_commodity_open = true;
-                            }
-                            display_commodities(ui, &new_offer.initiator_commodities);
-                        });
-                        ui.horizontal(|ui| {
-                            ui.label("Requested Commodities:");
-                            if ui.button("Request commodity").clicked() {
-                                ui_state.add_requested_commodity_open = true;
-                            }
-                            display_commodities(ui, &new_offer.receiver_commodities);
+                            ui.vertical(|ui| {
+                                ui.label("Offered Commodities:");
+                                if ui.button("Offer commodity").clicked() {
+                                    ui_state.add_offered_commodity_open = true;
+                                }
+                                display_commodities(ui, &new_offer.initiator_commodities);
+                            });
+                            ui.vertical(|ui| {
+                                ui.label("Requested Commodities:");
+                                if ui.button("Request commodity").clicked() {
+                                    ui_state.add_requested_commodity_open = true;
+                                }
+                                display_commodities(ui, &new_offer.receiver_commodities);
+                            });
                         });
 
                         if let Some(player) = ui_state.human_player {
@@ -137,16 +139,18 @@ pub fn trade_ui(
                                     .open(&mut ui_state.add_offered_commodity_open)
                                     .show(ctx, |ui| {
                                         ui.label("Add another commodity to the offer");
-                                        ui.horizontal(|ui| {
+                                        ui.vertical(|ui| {
                                             for commodity in Commodity::iter() {
-                                                if new_offer.initiator_number_of_cards() < trade_cards.number_of_tradeable_cards() {
-                                                    if ui.button(format!("Add {:?}", commodity)).clicked() {
-                                                        new_offer.pay_more(commodity);
+                                                ui.horizontal(|ui| {
+                                                    if new_offer.receiver_number_of_cards() < trade_cards.number_of_tradeable_cards() {
+                                                        if ui.button(format!("Add {:?}", commodity)).clicked() {
+                                                            new_offer.pay_more(commodity);
+                                                        }
                                                     }
-                                                }
-                                                if ui.button(format!("Remove {:?}", commodity)).clicked() {
-                                                    new_offer.pay_less(commodity);
-                                                }
+                                                    if ui.button(format!("Remove {:?}", commodity)).clicked() {
+                                                        new_offer.pay_less(commodity);
+                                                    }
+                                                });
                                             }
                                         });
                                     });
@@ -186,7 +190,9 @@ pub fn trade_ui(
 
 // Helper function to display commodities in a trade offer
 fn display_commodities(ui: &mut egui::Ui, commodities: &HashMap<Commodity, usize>) {
-    for (commodity, amount) in commodities {
-        ui.label(format!("{:?}: {}", commodity, amount));
-    }
+    ui.vertical(|ui| {
+        for (commodity, amount) in commodities {
+            ui.label(format!("{:?}: {}", commodity, amount));
+        }
+    });
 }
