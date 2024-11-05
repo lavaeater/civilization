@@ -57,10 +57,8 @@ pub fn trade_ui(
                 });
             }
             if let Ok((human_entity, human_name, _, offer)) = human_player.get_single() {
-                if offer.is_none() {
-                    if ui.button("Open Proposal").clicked() {
-                        commands.entity(human_entity).insert(TradeOffer::new(human_entity, human_name.clone()));
-                    }
+                if offer.is_none() && ui.button("Open Proposal").clicked() {
+                    commands.entity(human_entity).insert(TradeOffer::new(human_entity, human_name.clone()));
                 }
             }
 
@@ -88,10 +86,8 @@ pub fn trade_ui(
                     if offer.receiver.is_some() && offer.receiver == ui_state.human_player {
                         let player = ui_state.human_player.unwrap();
                         if let Ok((_, _, trade_cards, _)) = trading_players_query.get(player) {
-                            if receiver_can_accept_trade_offer(&offer, trade_cards) {
-                                if ui.button("Accept").clicked() {
-                                    offer.accept(player);
-                                }
+                            if receiver_can_accept_trade_offer(&offer, trade_cards) && ui.button("Accept").clicked() {
+                                offer.accept(player);
                             }
                             if ui.button("Reject").clicked() {
                                 offer.reject(player);
@@ -100,11 +96,9 @@ pub fn trade_ui(
                     }
 
                     if let Ok((h_entity, _, _, existing_offer)) = human_player.get_single() {
-                        if offer.initiator != h_entity && existing_offer.is_none() {
-                            if ui.button("Counter Offer").clicked() {
-                                let countered_offer = offer.prepare_counter_offer(h_entity);
-                                commands.entity(h_entity).insert(countered_offer);
-                            }
+                        if offer.initiator != h_entity && existing_offer.is_none() && ui.button("Counter Offer").clicked() {
+                            let countered_offer = offer.prepare_counter_offer(h_entity);
+                            commands.entity(h_entity).insert(countered_offer);
                         }
                     }
                 });
@@ -142,10 +136,8 @@ pub fn trade_ui(
                                         ui.vertical(|ui| {
                                             for commodity in Commodity::iter() {
                                                 ui.horizontal(|ui| {
-                                                    if new_offer.receiver_number_of_cards() < trade_cards.number_of_tradeable_cards() {
-                                                        if ui.button(format!("Add {:?}", commodity)).clicked() {
-                                                            new_offer.pay_more(commodity);
-                                                        }
+                                                    if new_offer.receiver_number_of_cards() < trade_cards.number_of_tradeable_cards() && ui.button(format!("Add {:?}", commodity)).clicked() {
+                                                        new_offer.pay_more(commodity);
                                                     }
                                                     if ui.button(format!("Remove {:?}", commodity)).clicked() {
                                                         new_offer.pay_less(commodity);
