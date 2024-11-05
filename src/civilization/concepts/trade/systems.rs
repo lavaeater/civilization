@@ -68,7 +68,7 @@ pub fn trade_ui(
             ui.separator();
             ui.heading("Current Trade Offers");
 
-            for (mut offer) in trade_offers.iter_mut() {
+            for mut offer in trade_offers.iter_mut() {
                 ui.group(|ui| {
                     ui.label(format!("From: {}", offer.initiator_name.as_str()));
                     ui.horizontal(|ui| {
@@ -77,7 +77,6 @@ pub fn trade_ui(
                     });
                     if let Some(receiver_name) = &offer.receiver_name {
                         ui.label(format!("To: {}", receiver_name.as_str()));
-
                     } else {
                         ui.label("To: Anyone");
                     }
@@ -132,20 +131,24 @@ pub fn trade_ui(
                         });
 
                         if let Some(player) = ui_state.human_player {
-                            if let Ok((_, _, _trade_cards, _)) = trading_players_query.get(player) {
+                            if let Ok((_, _, trade_cards, _)) = trading_players_query.get(player) {
                                 egui::Window::new("Add Offered Commodity")
                                     .vscroll(true)
                                     .open(&mut ui_state.add_offered_commodity_open)
                                     .show(ctx, |ui| {
                                         ui.label("Add another commodity to the offer");
-                                        for commodity in Commodity::iter() {
-                                            if ui.button(format!("Offer {:?}", commodity)).clicked() {
-                                                new_offer.pay_more(commodity);
+                                        ui.horizontal(|ui| {
+                                            for commodity in Commodity::iter() {
+                                                if new_offer.initiator_number_of_cards() < trade_cards.number_of_tradeable_cards() {
+                                                    if ui.button(format!("Add {:?}", commodity)).clicked() {
+                                                        new_offer.pay_more(commodity);
+                                                    }
+                                                }
+                                                if ui.button(format!("Remove {:?}", commodity)).clicked() {
+                                                    new_offer.pay_less(commodity);
+                                                }
                                             }
-                                            if ui.button(format!("Remove {:?}", commodity)).clicked() {
-                                                new_offer.pay_less(commodity);
-                                            }
-                                        }
+                                        });
                                     });
 
                                 egui::Window::new("Add Requested Commodity")
