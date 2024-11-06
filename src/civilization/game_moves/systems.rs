@@ -1,10 +1,10 @@
 use crate::civilization::components::city_construction_components::IsBuilding;
 use crate::civilization::components::city_support_components::HasTooManyCities;
-use crate::civilization::components::game_moves_components::{AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove};
+use crate::civilization::game_moves::components::{AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove};
 use crate::civilization::components::general_components::population::Population;
 use crate::civilization::components::general_components::*;
 use crate::civilization::components::movement_components::TokenHasMoved;
-use crate::civilization::events::game_moves_events::RecalculatePlayerMoves;
+use crate::civilization::game_moves::events::RecalculatePlayerMoves;
 use crate::civilization::events::movement_events::PlayerMovementEnded;
 use bevy::prelude::{Commands, EventReader, EventWriter, Has, Query};
 use bevy::utils::HashMap;
@@ -186,4 +186,13 @@ pub fn recalculate_city_support_moves_for_player(
             }
         }
     }
+}
+
+pub fn recalculate_trade_moves_for_player(
+    mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
+    player_city_query: Query<(&PlayerCities, &HasTooManyCities)>,
+    area_property_query: Query<&Population>,
+    mut commands: Commands,
+) {
+    for event in recalc_player_reader.read() {}
 }

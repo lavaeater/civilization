@@ -24,6 +24,7 @@ pub enum Move {
     CityConstruction(BuildCityMove),
     EndCityConstruction,
     EliminateCity(EliminateCityMove),
+    Trade(TradeMove)
 }
 
 #[derive(Clone, Copy, Debug, Reflect)]
@@ -94,4 +95,10 @@ impl PopExpMove {
             max_tokens,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, Reflect)]
+pub struct TradeMove {
+    pub area: Entity,
+    pub max_tokens: usize,
 }

@@ -7,3 +7,4 @@ pub mod functions;
 pub mod triggers;
 pub mod enums;
 pub mod concepts;
+pub mod game_moves;
