@@ -80,6 +80,9 @@ pub fn select_stupid_move(
                         //A little complexity here: If possible, leave two, but also, always make a move
                         send_movement_move(&mut move_tokens_writer, event, movement_move, true);
                     }
+                    Move::Trade(trade_move) => {
+                        
+                    }
                 }
             }
         }
