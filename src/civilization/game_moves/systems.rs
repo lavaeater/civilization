@@ -194,5 +194,8 @@ pub fn recalculate_trade_moves_for_player(
     area_property_query: Query<&Population>,
     mut commands: Commands,
 ) {
+    /*
+    So, what is a trade move? How do we define it so it can be chosen by an ai player?
+     */
     for event in recalc_player_reader.read() {}
 }
