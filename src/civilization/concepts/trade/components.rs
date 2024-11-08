@@ -4,7 +4,37 @@ use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
 
 #[derive(Component, Reflect, Clone, Debug, PartialEq)]
-pub struct CanTrade;
+pub struct CanTrade {
+    pub cool_down: f32,
+    pub cool_down_default: f32
+}
+
+impl Default for CanTrade {
+    fn default() -> Self {
+        Self {
+            cool_down: 3.0,
+            cool_down_default: 3.0,
+        }
+    }
+}
+
+impl CanTrade {
+    pub fn new(cool_down: f32) -> Self {
+        Self {
+            cool_down,
+            cool_down_default: cool_down,
+        }
+    }
+    
+    pub fn cool_down(&mut self, delta: f32) -> bool {
+        self.cool_down -= delta;
+        if self.cool_down < 0.0 {
+            self.cool_down = self.cool_down_default;
+            return true
+        }
+        false
+    }
+}
 
 #[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]
 pub struct PublishedOffer;
@@ -18,7 +48,7 @@ pub struct TradeOffer {
     pub initiator_commodities: HashMap<Commodity, usize>,
     pub receiver_commodities: HashMap<Commodity, usize>,
     pub accepts: HashSet<Entity>,
-    pub rejects: HashSet<Entity>,
+    pub rejects: Option<Entity>,
 }
 
 impl TradeOffer {
@@ -31,7 +61,7 @@ impl TradeOffer {
             initiator_commodities: HashMap::default(),
             receiver_commodities: HashMap::default(),
             accepts: HashSet::default(),
-            rejects: HashSet::default(),
+            rejects: None,
         }
     }
     
@@ -44,7 +74,7 @@ impl TradeOffer {
             initiator_commodities: HashMap::default(),
             receiver_commodities: HashMap::default(),
             accepts: HashSet::default(),
-            rejects: HashSet::default(),
+            rejects: None,
         }
     }
 
@@ -53,11 +83,15 @@ impl TradeOffer {
     }
     
     pub fn accept(&mut self, entity: Entity) {
-        self.accepts.insert(entity);
+        if self.receiver == Some(entity) || self.initiator == entity {
+            self.accepts.insert(entity);
+        }
     }
 
     pub fn reject(&mut self, entity: Entity) {
-        self.rejects.insert(entity);
+        if self.receiver == Some(entity) {
+            self.rejects = Some(entity);
+        }
     }
 
     pub fn receiver_accepts(&self) -> bool {
@@ -71,19 +105,15 @@ impl TradeOffer {
         self.initiator_accepts() && self.receiver_accepts()
     }
 
-    pub fn initiator_rejects(&self) -> bool {
-        self.rejects.contains(&self.initiator)
-    }
-
     pub fn receiver_rejects(&self) -> bool {
         match self.receiver {
-            Some(entity) => self.rejects.contains(&entity),
+            Some(_) => true,
             None => false,
         }
     }
 
     pub fn trade_rejected(&self) -> bool {
-        self.initiator_rejects() || self.receiver_rejects()
+        self.receiver_rejects()
     }
 
     pub fn initiator_number_of_cards(&self) -> usize {
@@ -158,7 +188,7 @@ impl TradeOffer {
 
         // Clear the acceptances and rejections for the new offer
         new_offer.accepts.clear();
-        new_offer.rejects.clear();
+        new_offer.rejects = None;
 
         new_offer
     }

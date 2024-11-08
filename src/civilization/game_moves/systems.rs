@@ -7,8 +7,11 @@ use crate::civilization::concepts::population_expansion::components::{ExpandAuto
 use crate::civilization::events::movement_events::PlayerMovementEnded;
 use crate::civilization::game_moves::components::{AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove};
 use crate::civilization::game_moves::events::RecalculatePlayerMoves;
-use bevy::prelude::{Commands, EventReader, EventWriter, Has, Query};
+use bevy::prelude::{Commands, EventReader, EventWriter, Has, Query, Res, Time, With};
 use bevy::utils::HashMap;
+use crate::civilization::concepts::trade::components::{CanTrade, TradeOffer};
+use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
+use crate::stupid_ai::prelude::IsHuman;
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
@@ -190,9 +193,10 @@ pub fn recalculate_city_support_moves_for_player(
 
 pub fn recalculate_trade_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
-    player_city_query: Query<(&PlayerCities, &HasTooManyCities)>,
-    area_property_query: Query<&Population>,
+    player_cards_query: Query<(&PlayerTradeCards, Has<IsHuman>), With<CanTrade>>,
+    trade_offer_query: Query<&TradeOffer>,
     mut commands: Commands,
+    time: Res<Time>,
 ) {
     /*
     So, what is a trade move? How do we define it so it can be chosen by an ai player?
@@ -200,6 +204,17 @@ pub fn recalculate_trade_moves_for_player(
     for event in recalc_player_reader.read() {
         let mut moves = HashMap::default();
         let mut command_index = 0;
-         
+        
+        /* OK, this is wiiiild, this is drivin'  me nuts.as 
+        What offers should an AI player do?
+         */
+        
+        
+        
+        if moves.is_empty() {
+            commands.entity(event.player).remove::<HasTooManyCities>();
+        } else {
+            commands.entity(event.player).insert(AvailableMoves::new(moves));
+        }
     }
 }

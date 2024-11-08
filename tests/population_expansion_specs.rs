@@ -116,7 +116,7 @@ fn given_a_player_with_too_few_tokens_for_expansion_the_correct_moves_are_create
     assert_eq!(player_moves.moves.len(), 1);
     let (_index, first_move) = player_moves.moves.iter().next().unwrap();
     assert!(matches!(*first_move, Move::PopulationExpansion(..)));
-    if let Move::PopulationExpansion(pop_exp_move) = *first_move {
+    if let Move::PopulationExpansion(pop_exp_move) = first_move {
         assert_eq!(pop_exp_move.max_tokens, 2);
         assert_eq!(pop_exp_move.area, area);
     };

@@ -1,5 +1,6 @@
 use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::HashMap;
+use crate::civilization::concepts::trade_cards::enums::Commodity;
 
 #[derive(Component, Debug, Default, Reflect)]
 pub struct AvailableMoves {
@@ -14,7 +15,7 @@ impl AvailableMoves {
     }
 }
 
-#[derive(Debug, Clone, Copy, Reflect)]
+#[derive(Debug, Clone, Reflect)]
 pub enum Move {
     PopulationExpansion(PopExpMove),
     Movement(MovementMove),
@@ -27,7 +28,7 @@ pub enum Move {
     Trade(TradeMove),
 }
 
-#[derive(Clone, Copy, Debug, Reflect)]
+#[derive(Clone, Debug, Reflect)]
 pub struct EliminateCityMove {
     pub player: Entity,
     pub area: Entity,
@@ -48,7 +49,7 @@ impl EliminateCityMove {
     }
 }
 
-#[derive(Clone, Copy, Debug, Reflect)]
+#[derive(Clone, Debug, Reflect)]
 pub struct BuildCityMove {
     pub target: Entity,
     pub player: Entity,
@@ -63,7 +64,7 @@ impl BuildCityMove {
     }
 }
 
-#[derive(Clone, Copy, Debug, Reflect)]
+#[derive(Clone, Debug, Reflect)]
 pub struct MovementMove {
     pub source: Entity,
     pub target: Entity,
@@ -82,7 +83,7 @@ impl MovementMove {
     }
 }
 
-#[derive(Clone, Copy, Debug, Reflect)]
+#[derive(Clone, Debug, Reflect)]
 pub struct PopExpMove {
     pub area: Entity,
     pub max_tokens: usize,
@@ -97,7 +98,7 @@ impl PopExpMove {
     }
 }
 
-#[derive(Clone, Copy, Debug, Reflect)]
+#[derive(Clone, Debug, Reflect)]
 pub enum TradeMoveType {
     OpenTradeOffer,
     AcceptTradeOffer,
@@ -105,8 +106,10 @@ pub enum TradeMoveType {
     CounterTradeOffer,
 }
 
-#[derive(Clone, Copy, Debug, Reflect)]
+#[derive(Clone, Debug, Reflect)]
 pub struct TradeMove {
     pub trade_move_type: TradeMoveType,
     pub trade_offer: Option<Entity>,
+    pub request_commodities: Option<HashMap<Commodity, usize>>,
+    pub offer_commodities: Option<HashMap<Commodity, usize>>,
 }
