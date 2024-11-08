@@ -1,14 +1,14 @@
 use crate::civilization::components::city_construction_components::IsBuilding;
 use crate::civilization::components::city_support_components::HasTooManyCities;
-use crate::civilization::game_moves::components::{AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove};
 use crate::civilization::components::general_components::population::Population;
 use crate::civilization::components::general_components::*;
 use crate::civilization::components::movement_components::TokenHasMoved;
-use crate::civilization::game_moves::events::RecalculatePlayerMoves;
+use crate::civilization::concepts::population_expansion::components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
 use crate::civilization::events::movement_events::PlayerMovementEnded;
+use crate::civilization::game_moves::components::{AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove};
+use crate::civilization::game_moves::events::RecalculatePlayerMoves;
 use bevy::prelude::{Commands, EventReader, EventWriter, Has, Query};
 use bevy::utils::HashMap;
-use crate::civilization::concepts::population_expansion::components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
@@ -197,5 +197,9 @@ pub fn recalculate_trade_moves_for_player(
     /*
     So, what is a trade move? How do we define it so it can be chosen by an ai player?
      */
-    for event in recalc_player_reader.read() {}
+    for event in recalc_player_reader.read() {
+        let mut moves = HashMap::default();
+        let mut command_index = 0;
+         
+    }
 }

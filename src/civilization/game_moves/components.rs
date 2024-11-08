@@ -24,7 +24,7 @@ pub enum Move {
     CityConstruction(BuildCityMove),
     EndCityConstruction,
     EliminateCity(EliminateCityMove),
-    Trade(TradeMove)
+    Trade(TradeMove),
 }
 
 #[derive(Clone, Copy, Debug, Reflect)]
@@ -98,7 +98,15 @@ impl PopExpMove {
 }
 
 #[derive(Clone, Copy, Debug, Reflect)]
+pub enum TradeMoveType {
+    OpenTradeOffer,
+    AcceptTradeOffer,
+    DeclineTradeOffer,
+    CounterTradeOffer,
+}
+
+#[derive(Clone, Copy, Debug, Reflect)]
 pub struct TradeMove {
-    pub area: Entity,
-    pub max_tokens: usize,
+    pub trade_move_type: TradeMoveType,
+    pub trade_offer: Option<Entity>,
 }
