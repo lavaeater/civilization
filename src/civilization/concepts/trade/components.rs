@@ -82,10 +82,16 @@ impl TradeOffer {
         self.accepts.contains(&self.initiator)
     }
     
-    pub fn accept(&mut self, entity: Entity) {
-        if self.receiver == Some(entity) || self.initiator == entity {
+    pub fn can_be_accepted(&self) -> bool {
+        self.receiver.is_some() && self.receiver_name.is_some() && self.receiver_number_of_cards() > 2 && self.initiator_number_of_cards() > 2
+    }
+    
+    pub fn accept(&mut self, entity: Entity) -> bool {
+        if self.can_be_accepted() && (self.receiver == Some(entity) || self.initiator == entity) {
             self.accepts.insert(entity);
+            return true;
         }
+        false
     }
 
     pub fn reject(&mut self, entity: Entity) {
@@ -106,10 +112,7 @@ impl TradeOffer {
     }
 
     pub fn receiver_rejects(&self) -> bool {
-        match self.receiver {
-            Some(_) => true,
-            None => false,
-        }
+        self.receiver.is_some()
     }
 
     pub fn trade_rejected(&self) -> bool {

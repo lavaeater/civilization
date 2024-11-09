@@ -122,7 +122,7 @@ mod tests {
         assert_eq!(counter_offer.initiator_commodities, new_initiator_commodities.unwrap());
         assert_eq!(counter_offer.receiver_commodities, new_receiver_commodities.unwrap());
         assert!(counter_offer.accepts.is_empty());
-        assert!(counter_offer.rejects.is_empty());
+        assert!(counter_offer.rejects.is_none());
     }
 
     #[test]
@@ -143,7 +143,7 @@ mod tests {
         assert_eq!(counter_offer.initiator_commodities, HashMap::from([(Salt, 3)]));
         assert_eq!(counter_offer.receiver_commodities, HashMap::from([(Ochre, 2)]));
         assert!(counter_offer.accepts.is_empty());
-        assert!(counter_offer.rejects.is_empty());
+        assert!(counter_offer.rejects.is_none());
     }
 }
 

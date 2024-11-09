@@ -21,7 +21,7 @@ pub fn setup_trade(
                 has_any_human = true;
                 trade_ui_state.human_player = Some(player);
             }
-            commands.entity(player).insert(CanTrade);
+            commands.entity(player).insert(CanTrade::default());
         }
     }
     if !has_any_human {
