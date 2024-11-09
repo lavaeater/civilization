@@ -10,7 +10,7 @@ use crate::civilization::events::movement_events::PlayerMovementEnded;
 use crate::civilization::game_moves::components::{AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove};
 use crate::civilization::game_moves::events::RecalculatePlayerMoves;
 use crate::stupid_ai::prelude::IsHuman;
-use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, Query, Res, Time, With};
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, Query, Res, Time, With, Without};
 use bevy::utils::HashMap;
 
 pub fn recalculate_pop_exp_moves_for_player(
@@ -193,7 +193,7 @@ pub fn recalculate_city_support_moves_for_player(
 
 pub fn recalculate_trade_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
-    player_cards_query: Query<(Entity, &PlayerTradeCards, Has<IsHuman>), With<CanTrade>>,
+    player_cards_query: Query<(Entity, &PlayerTradeCards), With<CanTrade>>,
     trade_offer_query: Query<&TradeOffer>,
     mut commands: Commands,
     time: Res<Time>,
@@ -202,7 +202,7 @@ pub fn recalculate_trade_moves_for_player(
     So, what is a trade move? How do we define it so it can be chosen by an ai player?
      */
     for event in recalc_player_reader.read() {
-        if let Ok((initiator_entity, trading_cards, is_human)) = player_cards_query.get(event.player) {
+        if let Ok((initiator_entity, trading_cards)) = player_cards_query.get(event.player) {
             let mut moves = HashMap::default();
             let mut command_index = 0;
 
@@ -210,8 +210,7 @@ pub fn recalculate_trade_moves_for_player(
             What offers should an AI player do?
             So, the player should probably "value" their hand somehow. This could be done by some kind of heuristic.
              */
-            let best_hand = trading_cards.commodity_cards()
-
+            let best_hand = trading_cards.commodity_cards();
 
             if moves.is_empty() {
                 commands.entity(event.player).remove::<HasTooManyCities>();

@@ -14,7 +14,8 @@ impl Plugin for TradePlugin {
             .insert_resource(TradeUiState::default()) // Placeholder until actual resources are added
             .init_resource::<TradeCountdown>()
             .add_systems(OnEnter(GameActivity::Trade), setup_trade)
-            .add_systems(Update, (trade_ui, trigger_trade_moves).run_if(in_state(GameActivity::Trade)))
+            .add_systems(Update, (trade_ui, trigger_trade_moves)
+                .run_if(in_state(GameActivity::Trade)))
         ;
     }
 }
