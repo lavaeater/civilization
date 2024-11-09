@@ -98,7 +98,7 @@ impl PlayerTradeCards {
         cards
     }
 
-    pub fn commodity_card_suits(&self) -> HashMap<Commodity, usize> {
+    pub fn commodity_card_suites(&self) -> HashMap<Commodity, usize> {
         let mut suits: HashMap<Commodity, usize> = HashMap::default();
         for card in self.commodity_cards() {
             let commodity = card.get_commodity().unwrap();
