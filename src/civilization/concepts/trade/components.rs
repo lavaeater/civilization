@@ -3,37 +3,14 @@ use bevy::core::Name;
 use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
 
-#[derive(Component, Reflect, Clone, Debug, PartialEq)]
-pub struct CanTrade {
-    pub cool_down: f32,
-    pub cool_down_default: f32
-}
+#[derive(Component, Reflect, Clone, Debug, PartialEq, Default)]
+pub struct CanTrade;
 
-impl Default for CanTrade {
-    fn default() -> Self {
-        Self {
-            cool_down: 3.0,
-            cool_down_default: 3.0,
-        }
-    }
-}
+#[derive(Component, Reflect, Clone, Debug, PartialEq, Default)]
+pub struct NeedsTradeMove;
 
-impl CanTrade {
-    pub fn new(cool_down: f32) -> Self {
-        Self {
-            cool_down,
-            cool_down_default: cool_down,
-        }
-    }
-    
-    pub fn cool_down(&mut self, delta: f32) -> bool {
-        self.cool_down -= delta;
-        if self.cool_down < 0.0 {
-            self.cool_down = self.cool_down_default;
-            return true
-        }
-        false
-    }
+pub trait CoolDown {
+    fn cool_down(&mut self, delta: f32) -> bool;
 }
 
 #[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]

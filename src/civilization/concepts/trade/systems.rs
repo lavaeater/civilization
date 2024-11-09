@@ -1,10 +1,10 @@
-use crate::civilization::concepts::trade::components::{CanTrade, PublishedOffer, TradeOffer};
-use crate::civilization::concepts::trade::resources::{receiver_can_accept_trade_offer, TradeUiState};
+use crate::civilization::concepts::trade::components::{CanTrade, NeedsTradeMove, PublishedOffer, TradeOffer};
+use crate::civilization::concepts::trade::resources::{receiver_can_accept_trade_offer, TradeCountdown, TradeUiState};
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::enums::Commodity;
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
-use bevy::prelude::{debug, Commands, Entity, Has, Name, NextState, Query, ResMut, With, Without};
+use bevy::prelude::{debug, Commands, Entity, Has, Name, NextState, Query, Res, ResMut, Time, With, Without};
 use bevy::utils::HashMap;
 use bevy_egui::{egui, EguiContexts};
 
@@ -187,4 +187,17 @@ fn display_commodities(ui: &mut egui::Ui, commodities: &HashMap<Commodity, usize
             ui.label(format!("{:?}: {}", commodity, amount));
         }
     });
+}
+
+pub fn trigger_trade_moves(
+    time: Res<Time>,
+    mut trade_countdown: ResMut<TradeCountdown>,
+    can_trade_query: Query<Entity, (With<CanTrade>, Without<NeedsTradeMove>, Without<IsHuman>)>,
+    mut commands: Commands,
+) {
+    if trade_countdown.trade_timer.tick(time.delta()).just_finished() {
+        for entity in can_trade_query.iter() {
+            commands.entity(entity).insert(NeedsTradeMove);
+        }
+    }
 }
