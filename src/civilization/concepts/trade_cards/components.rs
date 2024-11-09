@@ -88,6 +88,24 @@ impl PlayerTradeCards {
     pub fn commodity_cards(&self) -> HashSet<TradeCard> {
         self.trade_cards.values().flatten().filter(|card| matches!(card.card_type, TradeCardType::CommodityCard(_))).cloned().collect()
     }
+    
+    pub fn commodity_cards_by_commodity(&self) -> HashMap<Commodity, Vec<TradeCard>> {
+        let mut cards: HashMap<Commodity, Vec<TradeCard>> = HashMap::default();
+        for card in self.commodity_cards() {
+            let commodity = card.get_commodity().unwrap();
+            cards.entry(commodity).or_insert_with(Vec::default).push(card);
+        }
+        cards
+    }
+
+    pub fn commodity_card_suits(&self) -> HashMap<Commodity, usize> {
+        let mut suits: HashMap<Commodity, usize> = HashMap::default();
+        for card in self.commodity_cards() {
+            let commodity = card.get_commodity().unwrap();
+            *suits.entry(commodity).or_default() += 1;
+        }
+        suits
+    }
 
     pub fn commodities(&self) -> HashSet<Commodity> {
         self.trade_cards.values().flatten().filter(|card| matches!(card.card_type, TradeCardType::CommodityCard(_))).map(|c| c.get_commodity().unwrap()).unique().collect()
