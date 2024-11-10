@@ -56,6 +56,21 @@ impl TradeOffer {
         }
     }
 
+    pub fn create_open_offer(initiator: Entity, 
+                             initiator_name: Name,
+                             receiver_commodities: HashMap<Commodity, usize>) -> Self {
+        TradeOffer {
+            initiator,
+            initiator_name,
+            receiver: None,
+            receiver_name: None,
+            initiator_commodities: HashMap::default(),
+            receiver_commodities,
+            accepts: HashSet::default(),
+            rejects: None,
+        }
+    }
+
     pub fn initiator_accepts(&self) -> bool {
         self.accepts.contains(&self.initiator)
     }
