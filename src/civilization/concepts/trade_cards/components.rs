@@ -97,12 +97,18 @@ impl PlayerTradeCards {
         }
         cards
     }
+    
+    pub fn top_commodity(&self)-> Option<Commodity>{
+        self.commodity_card_suites()
+            .iter()
+            .max_by_key(|(_commodity, value)| *value).map(|(commodity, _value)| *commodity)
+    }
 
     pub fn commodity_card_suites(&self) -> HashMap<Commodity, usize> {
         let mut suits: HashMap<Commodity, usize> = HashMap::default();
-        for card in self.commodity_cards() {
-            let commodity = card.get_commodity().unwrap();
-            *suits.entry(commodity).or_default() += 1;
+        for (commodity, cards) in self.commodity_cards_by_commodity() {
+            let card_value = cards.first().unwrap().value;
+            *suits.entry(commodity).or_default() += (cards.len()^2) * card_value;
         }
         suits
     }

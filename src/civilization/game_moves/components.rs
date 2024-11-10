@@ -104,6 +104,7 @@ pub enum TradeMoveType {
     AcceptTradeOffer,
     DeclineTradeOffer,
     CounterTradeOffer,
+    ModifyTradeOffer,
 }
 
 #[derive(Clone, Debug, Reflect)]
@@ -111,5 +112,31 @@ pub struct TradeMove {
     pub trade_move_type: TradeMoveType,
     pub trade_offer: Option<Entity>,
     pub request_commodities: Option<HashMap<Commodity, usize>>,
-    pub offer_commodities: Option<HashMap<Commodity, usize>>,
+}
+
+impl TradeMove {
+    pub fn counter_trade_offer(trade_offer: Entity) -> Self {
+        TradeMove::new(TradeMoveType::CounterTradeOffer, Some(trade_offer), None)
+    }
+    pub fn accept_trade_offer(trade_offer: Entity) -> Self {
+        TradeMove::new(TradeMoveType::AcceptTradeOffer, Some(trade_offer), None)
+    }
+    pub fn decline_trade_offer(trade_offer: Entity) -> Self {
+        TradeMove::new(TradeMoveType::DeclineTradeOffer, Some(trade_offer), None)
+    }
+    pub fn modify_trade_offer(trade_offer: Entity) -> Self {
+        TradeMove::new(TradeMoveType::ModifyTradeOffer, Some(trade_offer), None)
+    }
+    
+    pub fn open_trade_offer(request_commodities: HashMap<Commodity, usize>) -> Self {
+        TradeMove::new(TradeMoveType::OpenTradeOffer, None, Some(request_commodities))
+    }
+    
+    pub fn new(trade_move_type: TradeMoveType, trade_offer: Option<Entity>, request_commodities: Option<HashMap<Commodity, usize>>) -> Self {
+        TradeMove {
+            trade_move_type,
+            trade_offer,
+            request_commodities,
+        }
+    }
 }

@@ -12,6 +12,7 @@ use crate::civilization::game_moves::events::RecalculatePlayerMoves;
 use crate::stupid_ai::prelude::IsHuman;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, Query, Res, Time, With, Without};
 use bevy::utils::HashMap;
+use crate::civilization::components::prelude::TradeMove;
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
@@ -193,8 +194,8 @@ pub fn recalculate_city_support_moves_for_player(
 
 pub fn recalculate_trade_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
-    player_cards_query: Query<(Entity, &PlayerTradeCards), With<CanTrade>>,
-    trade_offer_query: Query<&TradeOffer>,
+    player_cards_query: Query<&PlayerTradeCards, With<CanTrade>>,
+    trade_offer_query: Query<(Entity, &TradeOffer)>,
     mut commands: Commands,
     time: Res<Time>,
 ) {
@@ -202,15 +203,59 @@ pub fn recalculate_trade_moves_for_player(
     So, what is a trade move? How do we define it so it can be chosen by an ai player?
      */
     for event in recalc_player_reader.read() {
-        if let Ok((initiator_entity, trading_cards)) = player_cards_query.get(event.player) {
+        if let Ok(trading_cards) = player_cards_query.get(event.player) {
             let mut moves = HashMap::default();
             let mut command_index = 0;
 
             /* OK, this is wiiiild, this is drivin'  me nuts.as 
             What offers should an AI player do?
-            So, the player should probably "value" their hand somehow. This could be done by some kind of heuristic.
+            So, the player should probably "value" their hand somehow. 
+            This could be done by some kind of heuristic.
              */
-            let best_hand = trading_cards.commodity_cards();
+            if let Some(commodity) = trading_cards.top_commodity() {
+                command_index += 1;
+                moves
+                    .insert(command_index,
+                            Move::Trade(
+                                TradeMove::open_trade_offer(
+                                    HashMap::from([(commodity, 2)]),
+                                    None)));
+            }
+            for (trade_offer_entity, trade_offer) in trade_offer_query.iter() {
+                if trade_offer.receiver == Some(event.player) {
+                    /*
+                    How do we figure out if this is a good trade offer?
+                     */
+                    if trade_offer.can_be_accepted() {
+                        if let Some(commodity) = trading_cards.top_commodity() {
+                            if trade_offer.receiver_commodities.contains_key(&commodity) {
+                                command_index += 1;
+                                moves.insert(command_index, Move::Trade(TradeMove::accept_trade_offer(trade_offer_entity)));
+                            }
+                        } else {
+                            command_index += 1;
+                            moves.insert(command_index, Move::Trade(TradeMove::accept_trade_offer(trade_offer_entity)));
+                            command_index += 1;
+                            moves.insert(command_index, Move::Trade(TradeMove::accept_trade_offer(trade_offer_entity)));
+                        }
+                    }
+                }
+                if trade_offer.initiator == event.player {
+                    if trade_offer.can_be_accepted() {
+                        command_index += 1;
+                        moves.insert(command_index, Move::Trade(TradeMove::accept_trade_offer(trade_offer_entity)));
+                    } else {
+                        if trade_offer.receiver_rejects(){
+                            command_index += 1;
+                            moves.insert(command_index, Move::Trade(TradeMove::decline_trade_offer(trade_offer_entity)));
+                            command_index += 1;
+                            moves.insert(command_index, Move::Trade(TradeMove::modify_trade_offer(trade_offer_entity)));
+                        }
+                        command_index += 1;
+                        moves.insert(command_index, Move::Trade(TradeMove::decline_trade_offer(trade_offer_entity)));
+                    }
+                }
+            }
 
             if moves.is_empty() {
                 commands.entity(event.player).remove::<HasTooManyCities>();
@@ -218,6 +263,5 @@ pub fn recalculate_trade_moves_for_player(
                 commands.entity(event.player).insert(AvailableMoves::new(moves));
             }
         }
-
     }
 }
