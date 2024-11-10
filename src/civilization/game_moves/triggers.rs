@@ -4,7 +4,7 @@ use crate::civilization::components::movement_components::{HasJustMoved, Perform
 use crate::civilization::game_moves::events::RecalculatePlayerMoves;
 use bevy::prelude::{Commands, EventWriter, OnAdd, Trigger};
 use crate::civilization::concepts::population_expansion::components::ExpandManually;
-use crate::civilization::concepts::trade::components::{CanTrade, NeedsTradeMove};
+use crate::civilization::concepts::trade::components::NeedsTradeMove;
 
 pub fn on_add_manual_expansion(
     trigger: Trigger<OnAdd, ExpandManually>,

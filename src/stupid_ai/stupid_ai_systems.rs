@@ -81,6 +81,13 @@ pub fn select_stupid_move(
                         send_movement_move(&mut move_tokens_writer, event, movement_move, true);
                     }
                     Move::Trade(trade_move) => {
+                        match trade_move.trade_move_type {
+                            TradeMoveType::OpenTradeOffer => {}
+                            TradeMoveType::AcceptTradeOffer => {}
+                            TradeMoveType::DeclineTradeOffer => {}
+                            TradeMoveType::CounterTradeOffer => {}
+                            TradeMoveType::ModifyTradeOffer => {}
+                        }
                         
                     }
                 }

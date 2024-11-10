@@ -9,6 +9,7 @@ pub struct CanTrade;
 #[derive(Component, Reflect, Clone, Debug, PartialEq, Default)]
 pub struct NeedsTradeMove;
 
+#[allow(dead_code)]
 pub trait CoolDown {
     fn cool_down(&mut self, delta: f32) -> bool;
 }
