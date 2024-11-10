@@ -210,13 +210,20 @@ pub fn recalculate_trade_moves_for_player(
             So, the player should probably "value" their hand somehow. 
             This could be done by some kind of heuristic.
              */
-            if let Some(commodity) = trading_cards.top_commodity() {
-                command_index += 1;
-                moves
-                    .insert(command_index,
-                            Move::Trade(
-                                TradeMove::open_trade_offer(
-                                    HashMap::from([(commodity, 2)]))));
+            /* Can we create an open offer? Well, we better not have an open offer
+            already out there!
+             */
+            if trade_offer_query.iter().filter(|(_entity, trade_offer)| {
+                trade_offer.initiator == event.player && trade_offer.receiver.is_none()
+            }).count() == 0 {
+                if let Some(commodity) = trading_cards.top_commodity() {
+                    command_index += 1;
+                    moves
+                        .insert(command_index,
+                                Move::Trade(
+                                    TradeMove::open_trade_offer(
+                                        HashMap::from([(commodity, 2)]))));
+                }
             }
             for (trade_offer_entity, trade_offer) in trade_offer_query.iter() {
                 if trade_offer.receiver == Some(event.player) {
