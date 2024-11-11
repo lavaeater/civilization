@@ -9,9 +9,7 @@ pub struct AvailableMoves {
 
 impl AvailableMoves {
     pub fn new(moves: HashMap<usize, Move>) -> Self {
-        AvailableMoves {
-            moves
-        }
+        AvailableMoves { moves }
     }
 }
 
@@ -38,13 +36,19 @@ pub struct EliminateCityMove {
 }
 
 impl EliminateCityMove {
-    pub fn new(player: Entity, area: Entity, city: Entity, tokens_gained: usize, tokens_needed: usize) -> Self {
+    pub fn new(
+        player: Entity,
+        area: Entity,
+        city: Entity,
+        tokens_gained: usize,
+        tokens_needed: usize,
+    ) -> Self {
         EliminateCityMove {
             player,
             area,
             city,
             tokens_gained,
-            tokens_needed
+            tokens_needed,
         }
     }
 }
@@ -57,10 +61,7 @@ pub struct BuildCityMove {
 
 impl BuildCityMove {
     pub fn new(target: Entity, player: Entity) -> Self {
-        BuildCityMove {
-            target,
-            player,
-        }
+        BuildCityMove { target, player }
     }
 }
 
@@ -91,10 +92,7 @@ pub struct PopExpMove {
 
 impl PopExpMove {
     pub fn new(area: Entity, max_tokens: usize) -> Self {
-        PopExpMove {
-            area,
-            max_tokens,
-        }
+        PopExpMove { area, max_tokens }
     }
 }
 
@@ -117,35 +115,66 @@ pub struct TradeMove {
 }
 
 impl TradeMove {
-    pub fn counter_trade_offer(trade_offer: Entity) -> Self {
-        TradeMove::new(TradeMoveType::CounterTradeOffer, Some(trade_offer), None, None)
+    pub fn counter_trade_offer(
+        trade_offer: Entity,
+        gets: Option<HashMap<Commodity, usize>>,
+        pays: Option<HashMap<Commodity, usize>>,
+    ) -> Self {
+        TradeMove::new(
+            TradeMoveType::CounterTradeOffer,
+            Some(trade_offer),
+            gets,
+            pays,
+        )
     }
     pub fn accept_trade_offer(trade_offer: Entity) -> Self {
-        TradeMove::new(TradeMoveType::AcceptTradeOffer, Some(trade_offer), None, None)
+        TradeMove::new(
+            TradeMoveType::AcceptTradeOffer,
+            Some(trade_offer),
+            None,
+            None,
+        )
     }
     pub fn decline_trade_offer(trade_offer: Entity) -> Self {
-        TradeMove::new(TradeMoveType::DeclineTradeOffer, Some(trade_offer), None, None)
+        TradeMove::new(
+            TradeMoveType::DeclineTradeOffer,
+            Some(trade_offer),
+            None,
+            None,
+        )
     }
     pub fn modify_trade_offer(trade_offer: Entity) -> Self {
-        TradeMove::new(TradeMoveType::ModifyTradeOffer, Some(trade_offer), None, None)
+        TradeMove::new(
+            TradeMoveType::ModifyTradeOffer,
+            Some(trade_offer),
+            None,
+            None,
+        )
     }
-    
+
     pub fn open_trade_offer(receives_commodities: HashMap<Commodity, usize>) -> Self {
-        TradeMove::new(TradeMoveType::OpenTradeOffer, None, Some(receives_commodities), None)
+        TradeMove::new(
+            TradeMoveType::OpenTradeOffer,
+            None,
+            Some(receives_commodities),
+            None,
+        )
     }
     pub fn stop_trading() -> Self {
         TradeMove::new(TradeMoveType::StopTrading, None, None, None)
     }
-    
-    pub fn new(trade_move_type: TradeMoveType,
-               trade_offer: Option<Entity>,
-               initiator_gets: Option<HashMap<Commodity, usize>>,
-               initiator_pays: Option<HashMap<Commodity, usize>>) -> Self {
+
+    pub fn new(
+        trade_move_type: TradeMoveType,
+        trade_offer: Option<Entity>,
+        initiator_gets: Option<HashMap<Commodity, usize>>,
+        initiator_pays: Option<HashMap<Commodity, usize>>,
+    ) -> Self {
         TradeMove {
             trade_move_type,
             trade_offer,
             initiator_gets,
-            initiator_pays
+            initiator_pays,
         }
     }
 }

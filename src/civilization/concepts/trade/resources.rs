@@ -23,7 +23,7 @@ pub fn initiator_can_pay_for_offer(offer: &TradeOffer, initiator_cards: &PlayerT
         >= 2
 }
 
-pub fn should_we_accept_offer(trade_offer: &TradeOffer, trading_cards: &PlayerTradeCards) -> bool {
+pub fn offer_pays_well_enough(trade_offer: &TradeOffer, trading_cards: &PlayerTradeCards) -> bool {
     let mut accept_trade = false;
     if trade_offer.initiator_pays.keys().len() >= 3 {
         if trading_cards
@@ -33,19 +33,22 @@ pub fn should_we_accept_offer(trade_offer: &TradeOffer, trading_cards: &PlayerTr
             accept_trade = true;
         } else {
             let mut matching_payment = 0;
-            trade_offer.initiator_pays.iter().for_each(|(commodity, _)| {
-                if !trading_cards
-                    .top_commodity()
-                    .is_some_and(|c| c == *commodity)
-                {
-                    let score =
-                        trading_cards.number_of_cards_of_commodity(commodity);
-                    if score > 1 {
-                        matching_payment += 2;
-                    } else if score > 0 {
-                        matching_payment += 1;
+            trade_offer
+                .initiator_pays
+                .iter()
+                .for_each(|(commodity, _)| {
+                    if !trading_cards
+                        .top_commodity()
+                        .is_some_and(|c| c == *commodity)
+                    {
+                        let score = trading_cards.number_of_cards_of_commodity(commodity);
+                        if score > 1 {
+                            matching_payment += 2;
+                        } else if score > 0 {
+                            matching_payment += 1;
+                        }
                     }
-                }});
+                });
             accept_trade = matching_payment > 1;
         }
     }
@@ -170,10 +173,7 @@ mod tests {
         assert_eq!(counter_offer.initiator, new_initiator);
         assert_eq!(counter_offer.receiver, Some(initiator));
         assert_eq!(counter_offer.initiator_pays, HashMap::from([(Salt, 3)]));
-        assert_eq!(
-            counter_offer.initiator_gets,
-            HashMap::from([(Ochre, 2)])
-        );
+        assert_eq!(counter_offer.initiator_gets, HashMap::from([(Ochre, 2)]));
         assert!(counter_offer.accepts.is_empty());
         assert!(counter_offer.rejects.is_none());
     }

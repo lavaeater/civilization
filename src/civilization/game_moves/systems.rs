@@ -7,9 +7,10 @@ use crate::civilization::concepts::population_expansion::components::{
     ExpandAutomatically, ExpandManually, NeedsExpansion,
 };
 use crate::civilization::concepts::trade::components::{CanTrade, NeedsTradeMove, TradeOffer};
-use crate::civilization::concepts::trade::resources::{initiator_can_pay_for_offer, receiver_can_pay_for_offer, should_we_accept_offer};
+use crate::civilization::concepts::trade::resources::{
+    initiator_can_pay_for_offer, offer_pays_well_enough, receiver_can_pay_for_offer,
+};
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
-use crate::civilization::concepts::trade_cards::enums::Commodity;
 use crate::civilization::events::movement_events::PlayerMovementEnded;
 use crate::civilization::game_moves::components::{
     AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove, TradeMove,
@@ -250,68 +251,56 @@ pub fn recalculate_trade_moves_for_player(
                 .count()
                 == 0
             {
-                if let Some((top_commodity, bottom_commodity)) =
-                    trading_cards.top_and_bottom_commodity()
-                {
+                if let Some(proposition) = trading_cards.get_what_we_want() {
                     command_index += 1;
                     moves.insert(
                         command_index,
-                        Move::Trade(TradeMove::open_trade_offer(HashMap::from([
-                            (top_commodity, 2),
-                            (bottom_commodity, 1),
-                        ]))),
-                    );
-                } else if let Some(commodity) = trading_cards.top_commodity() {
-                    /* That can mean that we have 2 trade cards that are our top commodity and then we have a calamity - we can still trade, but
-                    not with an honest suggestion. When we resolve trades, we will always trade away all calamities in order of value
-                    Anyhoo, in this case we just select ochre.
-                    */
-                    command_index += 1;
-                    moves.insert(
-                        command_index,
-                        Move::Trade(TradeMove::open_trade_offer(HashMap::from([
-                            (commodity, 2),
-                            (Commodity::Ochre, 1),
-                        ]))),
+                        Move::Trade(TradeMove::open_trade_offer(proposition)),
                     );
                 }
             }
             for (trade_offer_entity, trade_offer) in trade_offer_query.iter() {
-                if trade_offer.is_open_offer(event.player) && receiver_can_pay_for_offer(trade_offer, trading_cards) {
+                if trade_offer.is_open_offer(event.player)
+                    && receiver_can_pay_for_offer(trade_offer, trading_cards)
+                {
                     let to_pay = trade_offer.initiator_gets.clone();
                     if !trading_cards
                         .top_commodity()
                         .is_some_and(|c| to_pay.keys().contains(&c))
                     {
-                        if should_we_accept_offer(trade_offer, trading_cards) {
-                            // again, we only need two cards that are true to accept a trade.
+                        if offer_pays_well_enough(trade_offer, trading_cards) {
                             command_index += 1;
                             moves.insert(
                                 command_index,
                                 Move::Trade(TradeMove::accept_trade_offer(trade_offer_entity)),
                             );
-                        } else {
+                        } else if let Some(proposition) = trading_cards.get_what_we_want() {
                             /*
                             So, should we counter this offer or something? Should we send events when doing things?
                             AAAH! This is so complicated!
                             No, no events. The computers can do some moves every now and then...
-                            but this should probably be a counter, I think? 
-                            The point is, these are just moves the computer MIGHT do when they get a chance, 
+                            but this should probably be a counter, I think?
+                            The point is, these are just moves the computer MIGHT do when they get a chance,
                             it won't happen every time...
                              */
                             command_index += 1;
                             moves.insert(
                                 command_index,
-                                Move::Trade(TradeMove::counter_trade_offer(trade_offer_entity)),
+                                Move::Trade(TradeMove::counter_trade_offer(
+                                    trade_offer_entity,
+                                    None,
+                                    Some(proposition),
+                                )),
                             );
                         }
                     }
-                } 
-                else if trade_offer.receiver == Some(event.player) {
+                } else if trade_offer.receiver == Some(event.player) {
                     /*
                     How do we figure out if this is a good trade offer?
                      */
-                    if trade_offer.can_be_accepted() && receiver_can_pay_for_offer(trade_offer, trading_cards) {
+                    if trade_offer.can_be_accepted()
+                        && receiver_can_pay_for_offer(trade_offer, trading_cards)
+                    {
                         if let Some(commodity) = trading_cards.top_commodity() {
                             if trade_offer.initiator_pays.contains_key(&commodity) {
                                 command_index += 1;
@@ -334,7 +323,9 @@ pub fn recalculate_trade_moves_for_player(
                         }
                     }
                 } else if trade_offer.initiator == event.player {
-                    if trade_offer.can_be_accepted() && initiator_can_pay_for_offer(trade_offer, trading_cards) {
+                    if trade_offer.can_be_accepted()
+                        && initiator_can_pay_for_offer(trade_offer, trading_cards)
+                    {
                         command_index += 1;
                         moves.insert(
                             command_index,
