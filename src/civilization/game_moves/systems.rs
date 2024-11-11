@@ -18,6 +18,7 @@ use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, Query, With
 use bevy::utils::HashMap;
 use itertools::Itertools;
 use std::cmp::max;
+use crate::civilization::concepts::trade::resources::{initiator_can_pay_for_offer, receiver_can_pay_for_offer};
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
@@ -277,7 +278,7 @@ pub fn recalculate_trade_moves_for_player(
                 }
             }
             for (trade_offer_entity, trade_offer) in trade_offer_query.iter() {
-                if trade_offer.initiator != event.player && trade_offer.receiver.is_none() {
+                if trade_offer.is_open_offer(event.player) {
                     // this is someone elses open offer. Should we accept it?
                     let to_pay = trade_offer.initiator_receives.clone();
                     // Don't entertain trade offers with our best commodity.
@@ -346,11 +347,12 @@ pub fn recalculate_trade_moves_for_player(
                             );
                         }
                     }
-                } else if trade_offer.receiver == Some(event.player) {
+                } 
+                else if trade_offer.receiver == Some(event.player) {
                     /*
                     How do we figure out if this is a good trade offer?
                      */
-                    if trade_offer.can_be_accepted() {
+                    if trade_offer.can_be_accepted() && receiver_can_pay_for_offer(trade_offer, trading_cards) {
                         if let Some(commodity) = trading_cards.top_commodity() {
                             if trade_offer.initiator_pays.contains_key(&commodity) {
                                 command_index += 1;
@@ -373,7 +375,7 @@ pub fn recalculate_trade_moves_for_player(
                         }
                     }
                 } else if trade_offer.initiator == event.player {
-                    if trade_offer.can_be_accepted() {
+                    if trade_offer.can_be_accepted() && initiator_can_pay_for_offer(trade_offer, trading_cards) {
                         command_index += 1;
                         moves.insert(
                             command_index,

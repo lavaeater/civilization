@@ -43,6 +43,10 @@ impl TradeOffer {
         }
     }
     
+    pub fn is_open_offer(&self, entity: Entity) -> bool {
+        self.receiver.is_none() && self.receiver_name.is_none() && self.initiator != entity
+    }
+    
     pub fn propose_trade_to(initiator: Entity, initiator_name: Name, receiver: Entity, receiver_name: Name) -> Self {
         TradeOffer {
             initiator,
