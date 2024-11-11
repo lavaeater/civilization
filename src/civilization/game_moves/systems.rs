@@ -3,15 +3,17 @@ use crate::civilization::components::city_support_components::HasTooManyCities;
 use crate::civilization::components::general_components::population::Population;
 use crate::civilization::components::general_components::*;
 use crate::civilization::components::movement_components::TokenHasMoved;
-use crate::civilization::components::prelude::TradeMove;
 use crate::civilization::concepts::population_expansion::components::{ExpandAutomatically, ExpandManually, NeedsExpansion};
 use crate::civilization::concepts::trade::components::{CanTrade, NeedsTradeMove, TradeOffer};
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
+use crate::civilization::concepts::trade_cards::enums::Commodity;
 use crate::civilization::events::movement_events::PlayerMovementEnded;
-use crate::civilization::game_moves::components::{AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove};
+use crate::civilization::game_moves::components::{AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove, TradeMove};
 use crate::civilization::game_moves::events::RecalculatePlayerMoves;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, Query, With};
 use bevy::utils::HashMap;
+use itertools::Itertools;
+use std::cmp::max;
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
@@ -216,25 +218,69 @@ pub fn recalculate_trade_moves_for_player(
             if trade_offer_query.iter().filter(|(_entity, trade_offer)| {
                 trade_offer.initiator == event.player && trade_offer.receiver.is_none()
             }).count() == 0 {
-                if let Some(commodity) = trading_cards.top_commodity() {
+                
+                
+                
+                if let Some((top_commodity, bottom_commodity)) = trading_cards.top_and_bottom_commodity() {
                     command_index += 1;
                     moves
                         .insert(command_index,
                                 Move::Trade(
                                     TradeMove::open_trade_offer(
-                                        HashMap::from([(commodity, 2)]))));
+                                        HashMap::from([(top_commodity, 2),(bottom_commodity, 1)]),)));
+                } else if let Some(commodity) = trading_cards.top_commodity() {
+                    /* That can mean that we have 2 trade cards that are our top commodity and then we have a calamity - we can still trade, but 
+                    not with an honest suggestion. When we resolve trades, we will always trade away all calamities in order of value
+                    Anyhoo, in this case we just select ochre. 
+                    */
+                    command_index += 1;
+                    moves
+                        .insert(command_index,
+                                Move::Trade(
+                                    TradeMove::open_trade_offer(
+                                        HashMap::from([(commodity, 2),(Commodity::Ochre, 1)]))));
                 }
             }
             for (trade_offer_entity, trade_offer) in trade_offer_query.iter() {
-                if trade_offer.receiver == Some(event.player) {
+                if trade_offer.initiator != event.player && trade_offer.receiver.is_none() {
+                    // this is someone elses open offer. Should we accept it?
+                    let to_pay = trade_offer.initiator_receives.clone();
+                    // Don't entertain trade offers with our best commodity. 
+                    if !to_pay.keys().contains(&trading_cards.top_commodity()) {
+                        let required_number_of_cards = max(to_pay.values().sum::<usize>(), 3); // all trades must be at least three cards. 
+                        // Can we pay for it? Remember, we only have to have 2 cards from the required trade. 
+                        let mut card_count = 0;
+
+                        to_pay.iter().for_each(|(commodity, amount)| {
+                            if trading_cards.has_n_commodities(*amount, commodity) {
+                                card_count += *amount;
+                            } else if trading_cards.has_n_commodities(2, commodity) {
+                                card_count += 2;
+                            } else if trading_cards.has_n_commodities(1, commodity) {
+                                card_count += 1;
+                            }
+                        });
+
+                        /*
+                        This trade actually has no cards we want to pay, right, so we have to counter if that's the case with stuff that 
+                        WE want to HAVE.
+                        Let's to start off just try to avoid trading away our best commodities. So scratch our interest if this is the case.
+                         */
+
+                        if card_count >= 2 && trading_cards.number_of_tradeable_cards() >= required_number_of_cards { // again, we only need two cards that are true to accept a trade.
+                            command_index += 1;
+                            moves.insert(command_index, Move::Trade(TradeMove::accept_trade_offer(trade_offer_entity)));
+                        }
+                    }
+                } else if trade_offer.receiver == Some(event.player) {
                     /*
                     How do we figure out if this is a good trade offer?
                      */
                     if trade_offer.can_be_accepted() {
                         if let Some(commodity) = trading_cards.top_commodity() {
-                            if trade_offer.receiver_commodities.contains_key(&commodity) {
+                            if trade_offer.initiator_receives.contains_key(&commodity) {
                                 command_index += 1;
-                                moves.insert(command_index, 
+                                moves.insert(command_index,
                                              Move::Trade(TradeMove::accept_trade_offer(trade_offer_entity)));
                             }
                         } else {
@@ -264,14 +310,15 @@ pub fn recalculate_trade_moves_for_player(
                     }
                 } else {
                     if let Some(commodity) = trading_cards.top_commodity() {
-                        if trade_offer.receiver_commodities.contains_key(&commodity) {
+                        if trade_offer.initiator_receives.contains_key(&commodity) {
                             command_index += 1;
                             moves.insert(command_index,
                                          Move::Trade(TradeMove::counter_trade_offer(trade_offer_entity)));
                         }
-                    } 
+                    }
                 }
             }
+            moves.insert(command_index + 1, Move::Trade(TradeMove::stop_trading()));
 
             if moves.is_empty() {
                 commands.entity(event.player).remove::<CanTrade>();

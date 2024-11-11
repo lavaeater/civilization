@@ -5,7 +5,7 @@ use bevy::prelude::{Entity, Resource, Timer, TimerMode};
 #[allow(dead_code)]
 pub fn initiator_can_accept_trade_offer(offer: &TradeOffer, player_cards: &PlayerTradeCards) -> bool {
     // Step 1: Calculate the total number of cards required in the offer
-    let total_required: usize = offer.initiator_number_of_cards();
+    let total_required: usize = offer.pays_number_of_cards();
 
     // Step 2: Check if the player has enough total tradeable cards
     if player_cards.number_of_tradeable_cards() < total_required {
@@ -14,7 +14,7 @@ pub fn initiator_can_accept_trade_offer(offer: &TradeOffer, player_cards: &Playe
 
     // Step 3: Check if the player has at least two cards of any commodity type in the offer
     let mut has_two_of_any = false;
-    for (commodity, &required_quantity) in &offer.initiator_commodities {
+    for (commodity, &required_quantity) in &offer.initiator_pays {
         let player_quantity = player_cards.number_of_cards_of_commodity(commodity);
         if player_quantity >= 2 {
             has_two_of_any = true;
@@ -31,7 +31,7 @@ pub fn initiator_can_accept_trade_offer(offer: &TradeOffer, player_cards: &Playe
 
 pub fn receiver_can_accept_trade_offer(offer: &TradeOffer, player_cards: &PlayerTradeCards) -> bool {
     // Step 1: Calculate the total number of cards required in the offer
-    let total_required: usize = offer.receiver_number_of_cards();
+    let total_required: usize = offer.receives_number_of_cards();
 
     // Step 2: Check if the player has enough total tradeable cards
     if player_cards.number_of_tradeable_cards() < total_required {
@@ -40,7 +40,7 @@ pub fn receiver_can_accept_trade_offer(offer: &TradeOffer, player_cards: &Player
 
     // Step 3: Check if the player has at least two cards of any commodity type in the offer
     let mut has_two_of_any = false;
-    for (commodity, &required_quantity) in &offer.receiver_commodities {
+    for (commodity, &required_quantity) in &offer.initiator_receives {
         let player_quantity = player_cards.number_of_cards_of_commodity(commodity);
         if player_quantity >= 2 {
             has_two_of_any = true;
@@ -82,8 +82,8 @@ mod tests {
     #[test]
     fn accept_trade_offer_test() {
         let mut trade_offer = TradeOffer::new(create_entity(), Name::new("Initiator"));
-        trade_offer.initiator_commodities.insert(Ochre, 2);
-        trade_offer.initiator_commodities.insert(Salt, 2);
+        trade_offer.initiator_pays.insert(Ochre, 2);
+        trade_offer.initiator_pays.insert(Salt, 2);
         let mut player_cards = PlayerTradeCards::default();
         player_cards.add_trade_card(TradeCard::new(1,CommodityCard(Ochre), true));
         player_cards.add_trade_card(TradeCard::new(1,CommodityCard(Ochre), true));
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn accept_trade_offer_test_fail() {
         let mut trade_offer = TradeOffer::new(create_entity(), Name::new("Initiator"));
-        trade_offer.initiator_commodities.insert(Salt, 2);
+        trade_offer.initiator_pays.insert(Salt, 2);
         let mut player_cards = PlayerTradeCards::default();
         player_cards.add_trade_card(TradeCard::new(1, CommodityCard(Salt), true));
         player_cards.add_trade_card(TradeCard::new(5, CommodityCard(Wine), true));
@@ -109,8 +109,8 @@ mod tests {
         let receiver = create_entity();
         let mut trade_offer = TradeOffer::new(initiator, Name::new("Initiator"));
         trade_offer.receiver = Some(receiver);
-        trade_offer.initiator_commodities.insert(Ochre, 2);
-        trade_offer.receiver_commodities.insert(Salt, 3);
+        trade_offer.initiator_pays.insert(Ochre, 2);
+        trade_offer.initiator_receives.insert(Salt, 3);
 
         let new_initiator = create_entity();
         let new_initiator_commodities = Some(HashMap::from([(Wine, 4)]));
@@ -120,8 +120,8 @@ mod tests {
 
         assert_eq!(counter_offer.initiator, new_initiator);
         assert_eq!(counter_offer.receiver, Some(initiator));
-        assert_eq!(counter_offer.initiator_commodities, new_initiator_commodities.unwrap());
-        assert_eq!(counter_offer.receiver_commodities, new_receiver_commodities.unwrap());
+        assert_eq!(counter_offer.initiator_pays, new_initiator_commodities.unwrap());
+        assert_eq!(counter_offer.initiator_receives, new_receiver_commodities.unwrap());
         assert!(counter_offer.accepts.is_empty());
         assert!(counter_offer.rejects.is_none());
     }
@@ -132,8 +132,8 @@ mod tests {
         let receiver = create_entity();
         let mut trade_offer = TradeOffer::new(initiator, Name::new("Initiator"));
         trade_offer.receiver = Some(receiver);
-        trade_offer.initiator_commodities.insert(Ochre, 2);
-        trade_offer.receiver_commodities.insert(Salt, 3);
+        trade_offer.initiator_pays.insert(Ochre, 2);
+        trade_offer.initiator_receives.insert(Salt, 3);
 
         let new_initiator = create_entity();
 
@@ -141,8 +141,8 @@ mod tests {
 
         assert_eq!(counter_offer.initiator, new_initiator);
         assert_eq!(counter_offer.receiver, Some(initiator));
-        assert_eq!(counter_offer.initiator_commodities, HashMap::from([(Salt, 3)]));
-        assert_eq!(counter_offer.receiver_commodities, HashMap::from([(Ochre, 2)]));
+        assert_eq!(counter_offer.initiator_pays, HashMap::from([(Salt, 3)]));
+        assert_eq!(counter_offer.initiator_receives, HashMap::from([(Ochre, 2)]));
         assert!(counter_offer.accepts.is_empty());
         assert!(counter_offer.rejects.is_none());
     }

@@ -23,8 +23,8 @@ pub struct TradeOffer {
     pub initiator_name: Name,
     pub receiver: Option<Entity>,
     pub receiver_name: Option<Name>,
-    pub initiator_commodities: HashMap<Commodity, usize>,
-    pub receiver_commodities: HashMap<Commodity, usize>,
+    pub initiator_pays: HashMap<Commodity, usize>,
+    pub initiator_receives: HashMap<Commodity, usize>,
     pub accepts: HashSet<Entity>,
     pub rejects: Option<Entity>,
 }
@@ -36,8 +36,8 @@ impl TradeOffer {
             initiator_name,
             receiver: None,
             receiver_name: None,
-            initiator_commodities: HashMap::default(),
-            receiver_commodities: HashMap::default(),
+            initiator_pays: HashMap::default(),
+            initiator_receives: HashMap::default(),
             accepts: HashSet::default(),
             rejects: None,
         }
@@ -49,23 +49,23 @@ impl TradeOffer {
             initiator_name,
             receiver: Some(receiver),
             receiver_name: Some(receiver_name),
-            initiator_commodities: HashMap::default(),
-            receiver_commodities: HashMap::default(),
+            initiator_pays: HashMap::default(),
+            initiator_receives: HashMap::default(),
             accepts: HashSet::default(),
             rejects: None,
         }
     }
 
-    pub fn create_open_offer(initiator: Entity, 
+    pub fn create_open_offer(initiator: Entity,
                              initiator_name: Name,
-                             receiver_commodities: HashMap<Commodity, usize>) -> Self {
+                             initiator_wants: HashMap<Commodity, usize>) -> Self {
         TradeOffer {
             initiator,
             initiator_name,
             receiver: None,
             receiver_name: None,
-            initiator_commodities: HashMap::default(),
-            receiver_commodities,
+            initiator_pays: HashMap::default(),
+            initiator_receives: initiator_wants,
             accepts: HashSet::default(),
             rejects: None,
         }
@@ -76,7 +76,7 @@ impl TradeOffer {
     }
     
     pub fn can_be_accepted(&self) -> bool {
-        self.receiver.is_some() && self.receiver_name.is_some() && self.receiver_number_of_cards() > 2 && self.initiator_number_of_cards() > 2
+        self.receiver.is_some() && self.receiver_name.is_some() && self.receives_number_of_cards() > 2 && self.pays_number_of_cards() > 2
     }
     
     pub fn accept(&mut self, entity: Entity) -> bool {
@@ -112,12 +112,12 @@ impl TradeOffer {
         self.receiver_rejects()
     }
 
-    pub fn initiator_number_of_cards(&self) -> usize {
-        self.initiator_commodities.values().sum()
+    pub fn pays_number_of_cards(&self) -> usize {
+        self.initiator_pays.values().sum()
     }
 
-    pub fn receiver_number_of_cards(&self) -> usize {
-        self.receiver_commodities.values().sum()
+    pub fn receives_number_of_cards(&self) -> usize {
+        self.initiator_receives.values().sum()
     }
 
     pub fn prepare_counter_offer(&self, new_initiator: Entity) -> TradeOffer {
@@ -125,31 +125,31 @@ impl TradeOffer {
     }
 
     pub fn pay_more(&mut self, commodity: Commodity) {
-        *self.initiator_commodities.entry(commodity).or_default() += 1;
+        *self.initiator_pays.entry(commodity).or_default() += 1;
     }
 
     pub fn pay_less(&mut self, commodity: Commodity) {
-        if self.initiator_commodities.contains_key(&commodity) {
-            let current_amount = self.initiator_commodities.get_mut(&commodity).unwrap();
+        if self.initiator_pays.contains_key(&commodity) {
+            let current_amount = self.initiator_pays.get_mut(&commodity).unwrap();
             if *current_amount > 1 {
                 *current_amount -= 1;
             } else {
-                self.initiator_commodities.remove(&commodity);
+                self.initiator_pays.remove(&commodity);
             }
         }
     }
 
     pub fn get_more(&mut self, commodity: Commodity) {
-        *self.receiver_commodities.entry(commodity).or_default() += 1;
+        *self.initiator_receives.entry(commodity).or_default() += 1;
     }
 
     pub fn get_less(&mut self, commodity: Commodity) {
-        if self.receiver_commodities.contains_key(&commodity) {
-            let current_amount = self.receiver_commodities.get_mut(&commodity).unwrap();
+        if self.initiator_receives.contains_key(&commodity) {
+            let current_amount = self.initiator_receives.get_mut(&commodity).unwrap();
             if *current_amount > 1 {
                 *current_amount -= 1;
             } else {
-                self.receiver_commodities.remove(&commodity);
+                self.initiator_receives.remove(&commodity);
             }
         }
     }
@@ -157,8 +157,8 @@ impl TradeOffer {
     pub fn counter(
         &self,
         new_initiator: Entity,
-        new_initiator_commodities: Option<HashMap<Commodity, usize>>,
-        new_receiver_commodities: Option<HashMap<Commodity, usize>>,
+        new_payment: Option<HashMap<Commodity, usize>>,
+        new_recives: Option<HashMap<Commodity, usize>>,
     ) -> TradeOffer {
         // Create a new trade offer by cloning the current one
         let mut new_offer = self.clone();
@@ -168,18 +168,18 @@ impl TradeOffer {
         new_offer.initiator = new_initiator;
 
         //switch the commodities
-        let temp = new_offer.initiator_commodities.clone();
-        new_offer.initiator_commodities = new_offer.receiver_commodities.clone();
-        new_offer.receiver_commodities = temp;
+        let temp = new_offer.initiator_pays.clone();
+        new_offer.initiator_pays = new_offer.initiator_receives.clone();
+        new_offer.initiator_receives = temp;
 
         // Update the commodities for the new initiator (if provided)
-        if let Some(initiator_commodities) = new_initiator_commodities {
-            new_offer.initiator_commodities = initiator_commodities;
+        if let Some(initiator_commodities) = new_payment {
+            new_offer.initiator_pays = initiator_commodities;
         }
 
         // Update the commodities for the new receiver (if provided)
-        if let Some(receiver_commodities) = new_receiver_commodities {
-            new_offer.receiver_commodities = receiver_commodities;
+        if let Some(receiver_commodities) = new_recives {
+            new_offer.initiator_receives = receiver_commodities;
         }
 
         // Clear the acceptances and rejections for the new offer

@@ -1,12 +1,12 @@
 use crate::civilization::components::prelude::*;
+use crate::civilization::concepts::population_expansion::events::ExpandPopulationManuallyCommand;
+use crate::civilization::concepts::trade::components::TradeOffer;
+use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::events::prelude::*;
 use crate::stupid_ai::stupid_ai_components::StupidAi;
 use crate::stupid_ai::stupid_ai_events::{SelectStupidMove, StupidAiEvent};
 use bevy::prelude::{Commands, EventReader, EventWriter, Has, Name, Query};
 use rand::prelude::IteratorRandom;
-use crate::civilization::concepts::population_expansion::events::ExpandPopulationManuallyCommand;
-use crate::civilization::concepts::trade::components::TradeOffer;
-use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 
 pub fn setup_stupid_ai(
     mut stupid_ai_event: EventReader<StupidAiEvent>,
@@ -91,7 +91,7 @@ pub fn select_stupid_move(
                             TradeMoveType::OpenTradeOffer => {
                                 commands.spawn(TradeOffer::create_open_offer(event.player,
                                                                              player_name.clone(),
-                                                                             trade_move.request_commodities.clone().unwrap()));
+                                                                             trade_move.receives_commodities.clone().unwrap()));
                             }
                             TradeMoveType::AcceptTradeOffer => {
                                 if let Some(offer_entity) = trade_move.trade_offer {

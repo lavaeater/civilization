@@ -1,6 +1,6 @@
+use crate::civilization::concepts::trade_cards::enums::Commodity;
 use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::HashMap;
-use crate::civilization::concepts::trade_cards::enums::Commodity;
 
 #[derive(Component, Debug, Default, Reflect)]
 pub struct AvailableMoves {
@@ -105,38 +105,47 @@ pub enum TradeMoveType {
     DeclineTradeOffer,
     CounterTradeOffer,
     ModifyTradeOffer,
+    StopTrading,
 }
 
 #[derive(Clone, Debug, Reflect)]
 pub struct TradeMove {
     pub trade_move_type: TradeMoveType,
     pub trade_offer: Option<Entity>,
-    pub request_commodities: Option<HashMap<Commodity, usize>>,
+    pub receives_commodities: Option<HashMap<Commodity, usize>>,
+    pub pays_commodities: Option<HashMap<Commodity, usize>>,
 }
 
 impl TradeMove {
     pub fn counter_trade_offer(trade_offer: Entity) -> Self {
-        TradeMove::new(TradeMoveType::CounterTradeOffer, Some(trade_offer), None)
+        TradeMove::new(TradeMoveType::CounterTradeOffer, Some(trade_offer), None, None)
     }
     pub fn accept_trade_offer(trade_offer: Entity) -> Self {
-        TradeMove::new(TradeMoveType::AcceptTradeOffer, Some(trade_offer), None)
+        TradeMove::new(TradeMoveType::AcceptTradeOffer, Some(trade_offer), None, None)
     }
     pub fn decline_trade_offer(trade_offer: Entity) -> Self {
-        TradeMove::new(TradeMoveType::DeclineTradeOffer, Some(trade_offer), None)
+        TradeMove::new(TradeMoveType::DeclineTradeOffer, Some(trade_offer), None, None)
     }
     pub fn modify_trade_offer(trade_offer: Entity) -> Self {
-        TradeMove::new(TradeMoveType::ModifyTradeOffer, Some(trade_offer), None)
+        TradeMove::new(TradeMoveType::ModifyTradeOffer, Some(trade_offer), None, None)
     }
     
-    pub fn open_trade_offer(request_commodities: HashMap<Commodity, usize>) -> Self {
-        TradeMove::new(TradeMoveType::OpenTradeOffer, None, Some(request_commodities))
+    pub fn open_trade_offer(receives_commodities: HashMap<Commodity, usize>) -> Self {
+        TradeMove::new(TradeMoveType::OpenTradeOffer, None, Some(receives_commodities), None)
+    }
+    pub fn stop_trading() -> Self {
+        TradeMove::new(TradeMoveType::StopTrading, None, None)
     }
     
-    pub fn new(trade_move_type: TradeMoveType, trade_offer: Option<Entity>, request_commodities: Option<HashMap<Commodity, usize>>) -> Self {
+    pub fn new(trade_move_type: TradeMoveType, 
+               trade_offer: Option<Entity>,
+               receives_commodities: Option<HashMap<Commodity, usize>>,
+               pays_commodities: Option<HashMap<Commodity, usize>>) -> Self {
         TradeMove {
             trade_move_type,
             trade_offer,
-            request_commodities,
+            receives_commodities,
+            pays_commodities
         }
     }
 }

@@ -98,10 +98,24 @@ impl PlayerTradeCards {
         cards
     }
     
+    pub fn top_and_bottom_commodity(&self)-> Option<(Commodity, Commodity)>{
+        let mut commodities = self.commodity_card_suites().into_iter().collect::<Vec<_>>();
+        commodities.sort_by_key(|(_commodity, value)| *value);
+        let top = commodities.last().map(|(commodity, _value)| *commodity);
+        let bottom = commodities.first().map(|(commodity, _value)| *commodity);
+        top.and_then(|top| bottom.map(|bottom| (top, bottom)))
+    }
+    
     pub fn top_commodity(&self)-> Option<Commodity>{
         self.commodity_card_suites()
             .iter()
             .max_by_key(|(_commodity, value)| *value).map(|(commodity, _value)| *commodity)
+    }
+    
+    pub fn worst_commodity(&self)-> Option<Commodity>{
+        self.commodity_card_suites()
+            .iter()
+            .min_by_key(|(_commodity, value)| *value).map(|(commodity, _value)| *commodity)
     }
 
     pub fn commodity_card_suites(&self) -> HashMap<Commodity, usize> {
