@@ -24,7 +24,7 @@ pub struct TradeOffer {
     pub receiver: Option<Entity>,
     pub receiver_name: Option<Name>,
     pub initiator_pays: HashMap<Commodity, usize>,
-    pub initiator_receives: HashMap<Commodity, usize>,
+    pub initiator_gets: HashMap<Commodity, usize>,
     pub accepts: HashSet<Entity>,
     pub rejects: Option<Entity>,
 }
@@ -37,7 +37,7 @@ impl TradeOffer {
             receiver: None,
             receiver_name: None,
             initiator_pays: HashMap::default(),
-            initiator_receives: HashMap::default(),
+            initiator_gets: HashMap::default(),
             accepts: HashSet::default(),
             rejects: None,
         }
@@ -54,7 +54,7 @@ impl TradeOffer {
             receiver: Some(receiver),
             receiver_name: Some(receiver_name),
             initiator_pays: HashMap::default(),
-            initiator_receives: HashMap::default(),
+            initiator_gets: HashMap::default(),
             accepts: HashSet::default(),
             rejects: None,
         }
@@ -62,14 +62,14 @@ impl TradeOffer {
 
     pub fn create_open_offer(initiator: Entity,
                              initiator_name: Name,
-                             initiator_wants: HashMap<Commodity, usize>) -> Self {
+                             initiator_gets: HashMap<Commodity, usize>) -> Self {
         TradeOffer {
             initiator,
             initiator_name,
             receiver: None,
             receiver_name: None,
             initiator_pays: HashMap::default(),
-            initiator_receives: initiator_wants,
+            initiator_gets,
             accepts: HashSet::default(),
             rejects: None,
         }
@@ -80,7 +80,7 @@ impl TradeOffer {
     }
     
     pub fn can_be_accepted(&self) -> bool {
-        self.receiver.is_some() && self.receiver_name.is_some() && self.receives_number_of_cards() > 2 && self.pays_number_of_cards() > 2
+        self.receiver.is_some() && self.receiver_name.is_some() && self.gets_number_of_cards() > 2 && self.pays_number_of_cards() > 2
     }
     
     pub fn accept(&mut self, entity: Entity) -> bool {
@@ -120,8 +120,8 @@ impl TradeOffer {
         self.initiator_pays.values().sum()
     }
 
-    pub fn receives_number_of_cards(&self) -> usize {
-        self.initiator_receives.values().sum()
+    pub fn gets_number_of_cards(&self) -> usize {
+        self.initiator_gets.values().sum()
     }
 
     pub fn prepare_counter_offer(&self, new_initiator: Entity) -> TradeOffer {
@@ -144,16 +144,16 @@ impl TradeOffer {
     }
 
     pub fn get_more(&mut self, commodity: Commodity) {
-        *self.initiator_receives.entry(commodity).or_default() += 1;
+        *self.initiator_gets.entry(commodity).or_default() += 1;
     }
 
     pub fn get_less(&mut self, commodity: Commodity) {
-        if self.initiator_receives.contains_key(&commodity) {
-            let current_amount = self.initiator_receives.get_mut(&commodity).unwrap();
+        if self.initiator_gets.contains_key(&commodity) {
+            let current_amount = self.initiator_gets.get_mut(&commodity).unwrap();
             if *current_amount > 1 {
                 *current_amount -= 1;
             } else {
-                self.initiator_receives.remove(&commodity);
+                self.initiator_gets.remove(&commodity);
             }
         }
     }
@@ -161,8 +161,8 @@ impl TradeOffer {
     pub fn counter(
         &self,
         new_initiator: Entity,
-        new_payment: Option<HashMap<Commodity, usize>>,
-        new_recives: Option<HashMap<Commodity, usize>>,
+        new_pays: Option<HashMap<Commodity, usize>>,
+        new_gets: Option<HashMap<Commodity, usize>>,
     ) -> TradeOffer {
         // Create a new trade offer by cloning the current one
         let mut new_offer = self.clone();
@@ -173,17 +173,17 @@ impl TradeOffer {
 
         //switch the commodities
         let temp = new_offer.initiator_pays.clone();
-        new_offer.initiator_pays = new_offer.initiator_receives.clone();
-        new_offer.initiator_receives = temp;
+        new_offer.initiator_pays = new_offer.initiator_gets.clone();
+        new_offer.initiator_gets = temp;
 
         // Update the commodities for the new initiator (if provided)
-        if let Some(initiator_commodities) = new_payment {
-            new_offer.initiator_pays = initiator_commodities;
+        if let Some(commodities) = new_pays {
+            new_offer.initiator_pays = commodities;
         }
 
         // Update the commodities for the new receiver (if provided)
-        if let Some(receiver_commodities) = new_recives {
-            new_offer.initiator_receives = receiver_commodities;
+        if let Some(commodities) = new_gets {
+            new_offer.initiator_gets = commodities;
         }
 
         // Clear the acceptances and rejections for the new offer

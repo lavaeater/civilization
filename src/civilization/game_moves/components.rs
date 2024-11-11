@@ -112,8 +112,8 @@ pub enum TradeMoveType {
 pub struct TradeMove {
     pub trade_move_type: TradeMoveType,
     pub trade_offer: Option<Entity>,
-    pub receives_commodities: Option<HashMap<Commodity, usize>>,
-    pub pays_commodities: Option<HashMap<Commodity, usize>>,
+    pub initiator_gets: Option<HashMap<Commodity, usize>>,
+    pub initiator_pays: Option<HashMap<Commodity, usize>>,
 }
 
 impl TradeMove {
@@ -137,15 +137,15 @@ impl TradeMove {
         TradeMove::new(TradeMoveType::StopTrading, None, None, None)
     }
     
-    pub fn new(trade_move_type: TradeMoveType, 
+    pub fn new(trade_move_type: TradeMoveType,
                trade_offer: Option<Entity>,
-               receives_commodities: Option<HashMap<Commodity, usize>>,
-               pays_commodities: Option<HashMap<Commodity, usize>>) -> Self {
+               initiator_gets: Option<HashMap<Commodity, usize>>,
+               initiator_pays: Option<HashMap<Commodity, usize>>) -> Self {
         TradeMove {
             trade_move_type,
             trade_offer,
-            receives_commodities,
-            pays_commodities
+            initiator_gets,
+            initiator_pays
         }
     }
 }

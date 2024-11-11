@@ -46,7 +46,7 @@ pub struct PlayerTradeCards {
 
 impl PlayerTradeCards {
     pub fn can_trade(&self) -> bool {
-        self.number_of_tradeable_cards() >= 3
+        self.number_of_tradeable_cards() > 4 // we have to trade away three cards to get one card... I say we need five to trade. For now!
     }
     
     pub fn add_trade_card(&mut self, trade_card: TradeCard) {

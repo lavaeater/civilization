@@ -7,6 +7,7 @@ use crate::civilization::concepts::population_expansion::components::{
     ExpandAutomatically, ExpandManually, NeedsExpansion,
 };
 use crate::civilization::concepts::trade::components::{CanTrade, NeedsTradeMove, TradeOffer};
+use crate::civilization::concepts::trade::resources::{initiator_can_pay_for_offer, receiver_can_pay_for_offer, should_we_accept_offer};
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::enums::Commodity;
 use crate::civilization::events::movement_events::PlayerMovementEnded;
@@ -17,8 +18,6 @@ use crate::civilization::game_moves::events::RecalculatePlayerMoves;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, Query, With};
 use bevy::utils::HashMap;
 use itertools::Itertools;
-use std::cmp::max;
-use crate::civilization::concepts::trade::resources::{initiator_can_pay_for_offer, receiver_can_pay_for_offer};
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
@@ -278,72 +277,32 @@ pub fn recalculate_trade_moves_for_player(
                 }
             }
             for (trade_offer_entity, trade_offer) in trade_offer_query.iter() {
-                if trade_offer.is_open_offer(event.player) {
-                    // this is someone elses open offer. Should we accept it?
-                    let to_pay = trade_offer.initiator_receives.clone();
-                    // Don't entertain trade offers with our best commodity.
+                if trade_offer.is_open_offer(event.player) && receiver_can_pay_for_offer(trade_offer, trading_cards) {
+                    let to_pay = trade_offer.initiator_gets.clone();
                     if !trading_cards
                         .top_commodity()
                         .is_some_and(|c| to_pay.keys().contains(&c))
                     {
-                        let required_number_of_cards = max(to_pay.values().sum::<usize>(), 3); // all trades must be at least three cards.
-                                                                                               // Can we pay for it? Remember, we only have to have 2 cards from the required trade.
-                        let mut matching_card_count = 0;
-
-                        to_pay.iter().for_each(|(commodity, amount)| {
-                            if trading_cards.has_n_commodities(*amount, commodity) {
-                                matching_card_count += *amount;
-                            } else if trading_cards.has_n_commodities(2, commodity) {
-                                matching_card_count += 2;
-                            } else if trading_cards.has_n_commodities(1, commodity) {
-                                matching_card_count += 1;
-                            }
-                            if matching_card_count >= 2 {
-                                return;
-                            }
-                        });
-
-                        let to_get = trade_offer.initiator_pays.clone();
-                        let mut accept_trade = false;
-                        if to_get.keys().len() >= 3 {
-                            if trading_cards
-                                .top_commodity()
-                                .is_some_and(|c| to_get.keys().contains(&c))
-                            {
-                                accept_trade = true;
-                            } else {
-                                let mut matching_payment = 0;
-                                to_get.iter().for_each(|(commodity, _)| {
-                                    if !trading_cards
-                                        .top_commodity()
-                                        .is_some_and(|c| c == *commodity)
-                                    {
-                                        let score = 
-                                            trading_cards.number_of_cards_of_commodity(commodity);
-                                        if score > 1 {
-                                            matching_payment += 2;
-                                        } else if score > 0 {
-                                            matching_payment += 1;
-                                    }
-                                }});
-                                accept_trade = matching_payment > 1;
-                            }
-                        }
-                        /*
-                        This trade actually has no cards we want to pay, right, so we have to counter if that's the case with stuff that
-                        WE want to HAVE.
-                        Let's to start off just try to avoid trading away our best commodities. So scratch our interest if this is the case.
-                         */
-
-                        if matching_card_count >= 2
-                            && trading_cards.number_of_tradeable_cards() >= required_number_of_cards
-                            && accept_trade
-                        {
+                        if should_we_accept_offer(trade_offer, trading_cards) {
                             // again, we only need two cards that are true to accept a trade.
                             command_index += 1;
                             moves.insert(
                                 command_index,
                                 Move::Trade(TradeMove::accept_trade_offer(trade_offer_entity)),
+                            );
+                        } else {
+                            /*
+                            So, should we counter this offer or something? Should we send events when doing things?
+                            AAAH! This is so complicated!
+                            No, no events. The computers can do some moves every now and then...
+                            but this should probably be a counter, I think? 
+                            The point is, these are just moves the computer MIGHT do when they get a chance, 
+                            it won't happen every time...
+                             */
+                            command_index += 1;
+                            moves.insert(
+                                command_index,
+                                Move::Trade(TradeMove::counter_trade_offer(trade_offer_entity)),
                             );
                         }
                     }
@@ -401,7 +360,7 @@ pub fn recalculate_trade_moves_for_player(
                     }
                 } else {
                     if let Some(commodity) = trading_cards.top_commodity() {
-                        if trade_offer.initiator_receives.contains_key(&commodity) {
+                        if trade_offer.initiator_gets.contains_key(&commodity) {
                             command_index += 1;
                             moves.insert(
                                 command_index,

@@ -91,7 +91,7 @@ pub fn select_stupid_move(
                             TradeMoveType::OpenTradeOffer => {
                                 commands.spawn(TradeOffer::create_open_offer(event.player,
                                                                              player_name.clone(),
-                                                                             trade_move.receives_commodities.clone().unwrap()));
+                                                                             trade_move.initiator_gets.clone().unwrap()));
                             }
                             TradeMoveType::AcceptTradeOffer => {
                                 if let Some(offer_entity) = trade_move.trade_offer {

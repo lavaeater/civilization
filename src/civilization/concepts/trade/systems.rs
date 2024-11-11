@@ -101,7 +101,7 @@ pub fn trade_ui(
                 }
                 ui.horizontal(|ui| {
                     ui.label("Requested Commodities:");
-                    display_commodities(ui, &offer.initiator_receives);
+                    display_commodities(ui, &offer.initiator_gets);
                 });
 
                 if offer.receiver.is_some() && offer.receiver == ui_state.human_player {
@@ -151,7 +151,7 @@ pub fn trade_ui(
                             if ui.button("Request commodity").clicked() {
                                 ui_state.add_requested_commodity_open = true;
                             }
-                            display_commodities(ui, &new_offer.initiator_receives);
+                            display_commodities(ui, &new_offer.initiator_gets);
                         });
                     });
 
@@ -165,7 +165,7 @@ pub fn trade_ui(
                                     ui.vertical(|ui| {
                                         for commodity in Commodity::iter() {
                                             ui.horizontal(|ui| {
-                                                if new_offer.receives_number_of_cards()
+                                                if new_offer.gets_number_of_cards()
                                                     < trade_cards.number_of_tradeable_cards()
                                                     && ui
                                                         .button(format!("Add {:?}", commodity))
