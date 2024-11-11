@@ -246,7 +246,7 @@ pub fn recalculate_trade_moves_for_player(
                     // this is someone elses open offer. Should we accept it?
                     let to_pay = trade_offer.initiator_receives.clone();
                     // Don't entertain trade offers with our best commodity. 
-                    if !to_pay.keys().contains(&trading_cards.top_commodity()) {
+                    if !trading_cards.top_commodity().is_some_and(|c| to_pay.keys().contains(&c))  {
                         let required_number_of_cards = max(to_pay.values().sum::<usize>(), 3); // all trades must be at least three cards. 
                         // Can we pay for it? Remember, we only have to have 2 cards from the required trade. 
                         let mut card_count = 0;

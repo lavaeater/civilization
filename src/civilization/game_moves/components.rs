@@ -134,7 +134,7 @@ impl TradeMove {
         TradeMove::new(TradeMoveType::OpenTradeOffer, None, Some(receives_commodities), None)
     }
     pub fn stop_trading() -> Self {
-        TradeMove::new(TradeMoveType::StopTrading, None, None)
+        TradeMove::new(TradeMoveType::StopTrading, None, None, None)
     }
     
     pub fn new(trade_move_type: TradeMoveType, 
