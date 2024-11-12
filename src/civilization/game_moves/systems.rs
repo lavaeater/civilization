@@ -6,7 +6,7 @@ use crate::civilization::components::movement_components::TokenHasMoved;
 use crate::civilization::concepts::population_expansion::components::{
     ExpandAutomatically, ExpandManually, NeedsExpansion,
 };
-use crate::civilization::concepts::trade::components::{CanTrade, NeedsTradeMove, TradeOffer};
+use crate::civilization::concepts::trade::components::{CanTrade, NeedsTradeMove, TradeOffer, TradeOfferActions};
 use crate::civilization::concepts::trade::resources::{
     initiator_can_pay_for_offer, offer_pays_well_enough, receiver_can_pay_for_offer,
 };
@@ -260,6 +260,20 @@ pub fn recalculate_trade_moves_for_player(
                 }
             }
             for (trade_offer_entity, trade_offer) in trade_offer_query.iter() {
+                if let Some(offer_actions) = trade_offer.get_trade_offer_actions(event.player) {
+                    for action in offer_actions {
+                        match action {
+                            TradeOfferActions::CanCounter => {
+                                
+                            }
+                            TradeOfferActions::CanAccept => {}
+                            TradeOfferActions::CanDecline => {}
+                            TradeOfferActions::CanWithdraw => {}
+                        }
+                    }
+                }
+                
+                
                 if trade_offer.is_open_offer(event.player)
                     && receiver_can_pay_for_offer(trade_offer, trading_cards)
                 {
@@ -295,32 +309,27 @@ pub fn recalculate_trade_moves_for_player(
                         }
                     }
                 } else if trade_offer.receiver == Some(event.player) {
-                    /*
-                    How do we figure out if this is a good trade offer?
-                     */
                     if trade_offer.can_be_accepted()
                         && receiver_can_pay_for_offer(trade_offer, trading_cards)
                     {
-                        if let Some(commodity) = trading_cards.top_commodity() {
-                            if trade_offer.initiator_pays.contains_key(&commodity) {
-                                command_index += 1;
-                                moves.insert(
-                                    command_index,
-                                    Move::Trade(TradeMove::accept_trade_offer(trade_offer_entity)),
-                                );
-                            }
-                        } else {
-                            command_index += 1;
-                            moves.insert(
-                                command_index,
-                                Move::Trade(TradeMove::accept_trade_offer(trade_offer_entity)),
-                            );
+                        if offer_pays_well_enough(trade_offer, trading_cards) {
                             command_index += 1;
                             moves.insert(
                                 command_index,
                                 Move::Trade(TradeMove::accept_trade_offer(trade_offer_entity)),
                             );
                         }
+                    } else {
+                        command_index += 1;
+                        moves.insert(
+                            command_index,
+                            Move::Trade(TradeMove::decline_trade_offer(trade_offer_entity)),
+                        );
+                        command_index += 1;
+                        moves.insert(
+                            command_index,
+                            Move::Trade(TradeMove::modify_trade_offer(trade_offer_entity)),
+                        );
                     }
                 } else if trade_offer.initiator == event.player {
                     if trade_offer.can_be_accepted()

@@ -51,17 +51,14 @@ impl PlayerTradeCards {
         }
         None
     }
-
+    
     pub fn get_what_we_can_pay(&self) -> Option<HashMap<Commodity, usize>> {
         if self.number_of_tradeable_cards() < 3 {
             return None;
         }
-        if let Some((top_commodity, bottom_commodity)) = self.top_and_bottom_commodity() {
-            return Some(HashMap::from([(top_commodity, 2), (bottom_commodity, 1)]));
-        } else if let Some(top_commodity) = self.top_commodity() {
-            return Some(HashMap::from([(top_commodity, 2), (Ochre, 1)]));
-        }
-        None
+        let mut commodities = self.commodity_card_suites().into_iter().collect::<Vec<_>>();
+        commodities.sort_by_key(|(_commodity, value)| *value);
+        Some(commodities[0..2].iter().cloned().collect())
     }
 
     pub fn add_trade_card(&mut self, trade_card: TradeCard) {

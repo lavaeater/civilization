@@ -1,3 +1,4 @@
+use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::enums::Commodity;
 use bevy::core::Name;
 use bevy::prelude::{Component, Entity, Reflect};
@@ -16,6 +17,13 @@ pub trait CoolDown {
 
 #[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]
 pub struct PublishedOffer;
+
+pub enum TradeOfferActions {
+    CanCounter,
+    CanAccept,
+    CanDecline,
+    CanWithdraw,
+}
 
 #[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]
 pub struct TradeOffer {
@@ -40,6 +48,36 @@ impl TradeOffer {
             initiator_gets: HashMap::default(),
             accepts: HashSet::default(),
             rejects: None,
+        }
+    }
+    
+    pub fn get_trade_offer_actions(&self, entity: Entity) -> Option<Vec<TradeOfferActions>> {
+        let mut actions = vec![];
+        if self.is_open_offer(entity) {
+            /* Open offers can ONLY BE COUNTERED */ 
+            actions.push(TradeOfferActions::CanCounter);
+        } 
+        
+        // One can only accept offers you are a part of
+        if self.receiver == Some(entity) {
+            actions.push(TradeOfferActions::CanCounter); // we can always counter
+            if self.can_be_accepted() {
+                actions.push(TradeOfferActions::CanAccept);
+            }
+            actions.push(TradeOfferActions::CanDecline);
+        }
+        
+        if self.initiator == entity {
+            if self.can_be_accepted() {
+                actions.push(TradeOfferActions::CanAccept);
+            }
+            actions.push(TradeOfferActions::CanWithdraw);
+        }
+        
+        if actions.is_empty() {
+            None
+        } else {
+            Some(actions)
         }
     }
     
@@ -81,6 +119,10 @@ impl TradeOffer {
     
     pub fn can_be_accepted(&self) -> bool {
         self.receiver.is_some() && self.receiver_name.is_some() && self.gets_number_of_cards() > 2 && self.pays_number_of_cards() > 2
+    }
+    
+    pub fn needs_counter(&self)-> bool {
+        self.pays_number_of_cards() < 3
     }
     
     pub fn accept(&mut self, entity: Entity) -> bool {
