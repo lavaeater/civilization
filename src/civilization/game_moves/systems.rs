@@ -6,14 +6,17 @@ use crate::civilization::components::movement_components::TokenHasMoved;
 use crate::civilization::concepts::population_expansion::components::{
     ExpandAutomatically, ExpandManually, NeedsExpansion,
 };
-use crate::civilization::concepts::trade::components::{CanTrade, NeedsTradeMove, TradeOffer, TradeOfferActions};
+use crate::civilization::concepts::trade::components::{
+    CanTrade, NeedsTradeMove, TradeOffer, TradeOfferActions,
+};
 use crate::civilization::concepts::trade::resources::{
-    initiator_can_pay_for_offer, offer_pays_well_enough, receiver_can_pay_for_offer,
+    initiator_can_pay_for_offer, receiver_can_pay_for_offer,
 };
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::events::movement_events::PlayerMovementEnded;
 use crate::civilization::game_moves::components::{
-    AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove, TradeMove,
+    AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove,
+    TradeCounterType, TradeMove,
 };
 use crate::civilization::game_moves::events::RecalculatePlayerMoves;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, Query, With};
@@ -264,108 +267,41 @@ pub fn recalculate_trade_moves_for_player(
                     for action in offer_actions {
                         match action {
                             TradeOfferActions::CanCounter => {
-                                
+                                for counter_offer in create_counter_offers(trade_offer_entity, trade_offer, trading_cards) {
+                                    command_index += 1;
+                                    moves.insert(command_index, Move::Trade(counter_offer));
+                                }
                             }
-                            TradeOfferActions::CanAccept => {}
-                            TradeOfferActions::CanDecline => {}
-                            TradeOfferActions::CanWithdraw => {}
-                        }
-                    }
-                }
-                
-                
-                if trade_offer.is_open_offer(event.player)
-                    && receiver_can_pay_for_offer(trade_offer, trading_cards)
-                {
-                    let to_pay = trade_offer.initiator_gets.clone();
-                    if !trading_cards
-                        .top_commodity()
-                        .is_some_and(|c| to_pay.keys().contains(&c))
-                    {
-                        if offer_pays_well_enough(trade_offer, trading_cards) {
-                            command_index += 1;
-                            moves.insert(
-                                command_index,
-                                Move::Trade(TradeMove::accept_trade_offer(trade_offer_entity)),
-                            );
-                        } else if let Some(proposition) = trading_cards.get_what_we_want() {
-                            /*
-                            So, should we counter this offer or something? Should we send events when doing things?
-                            AAAH! This is so complicated!
-                            No, no events. The computers can do some moves every now and then...
-                            but this should probably be a counter, I think?
-                            The point is, these are just moves the computer MIGHT do when they get a chance,
-                            it won't happen every time...
-                             */
-                            command_index += 1;
-                            moves.insert(
-                                command_index,
-                                Move::Trade(TradeMove::counter_trade_offer(
-                                    trade_offer_entity,
-                                    None,
-                                    Some(proposition),
-                                )),
-                            );
-                        }
-                    }
-                } else if trade_offer.receiver == Some(event.player) {
-                    if trade_offer.can_be_accepted()
-                        && receiver_can_pay_for_offer(trade_offer, trading_cards)
-                    {
-                        if offer_pays_well_enough(trade_offer, trading_cards) {
-                            command_index += 1;
-                            moves.insert(
-                                command_index,
-                                Move::Trade(TradeMove::accept_trade_offer(trade_offer_entity)),
-                            );
-                        }
-                    } else {
-                        command_index += 1;
-                        moves.insert(
-                            command_index,
-                            Move::Trade(TradeMove::decline_trade_offer(trade_offer_entity)),
-                        );
-                        command_index += 1;
-                        moves.insert(
-                            command_index,
-                            Move::Trade(TradeMove::modify_trade_offer(trade_offer_entity)),
-                        );
-                    }
-                } else if trade_offer.initiator == event.player {
-                    if trade_offer.can_be_accepted()
-                        && initiator_can_pay_for_offer(trade_offer, trading_cards)
-                    {
-                        command_index += 1;
-                        moves.insert(
-                            command_index,
-                            Move::Trade(TradeMove::accept_trade_offer(trade_offer_entity)),
-                        );
-                    } else if trade_offer.receiver_rejects() {
-                        command_index += 1;
-                        moves.insert(
-                            command_index,
-                            Move::Trade(TradeMove::decline_trade_offer(trade_offer_entity)),
-                        );
-                        command_index += 1;
-                        moves.insert(
-                            command_index,
-                            Move::Trade(TradeMove::modify_trade_offer(trade_offer_entity)),
-                        );
-                    } else if trade_offer.receiver_accepts() {
-                        command_index += 1;
-                        moves.insert(
-                            command_index,
-                            Move::Trade(TradeMove::accept_trade_offer(trade_offer_entity)),
-                        );
-                    }
-                } else {
-                    if let Some(commodity) = trading_cards.top_commodity() {
-                        if trade_offer.initiator_gets.contains_key(&commodity) {
-                            command_index += 1;
-                            moves.insert(
-                                command_index,
-                                Move::Trade(TradeMove::counter_trade_offer(trade_offer_entity)),
-                            );
+                            TradeOfferActions::CanAccept => {
+                                if trade_offer.receiver == Some(event.player)
+                                    && receiver_can_pay_for_offer(trade_offer, trading_cards)
+                                {
+                                    command_index += 1;
+                                    moves.insert(
+                                        command_index,
+                                        Move::Trade(TradeMove::accept_trade_offer(
+                                            trade_offer_entity,
+                                        )),
+                                    );
+                                } else if trade_offer.initiator == event.player
+                                    && initiator_can_pay_for_offer(trade_offer, trading_cards)
+                                {
+                                    command_index += 1;
+                                    moves.insert(
+                                        command_index,
+                                        Move::Trade(TradeMove::accept_trade_offer(
+                                            trade_offer_entity,
+                                        )),
+                                    );
+                                }
+                            }
+                            TradeOfferActions::CanDecline => {
+                                command_index += 1;
+                                moves.insert(
+                                    command_index,
+                                    Move::Trade(TradeMove::decline_trade_offer(trade_offer_entity)),
+                                );
+                            }
                         }
                     }
                 }
@@ -382,4 +318,63 @@ pub fn recalculate_trade_moves_for_player(
             }
         }
     }
+}
+
+pub fn create_counter_offers(
+    trade_offer_entity: Entity,
+    existing_trade_offer: &TradeOffer,
+    player_trade_cards: &PlayerTradeCards,
+) -> Vec<TradeMove> {
+    let mut trade_moves = vec![];
+    if let Some(top_commodity) = player_trade_cards.top_commodity() {
+        let commodities_ranked = player_trade_cards.commodity_card_suites();
+        if commodities_ranked.is_empty() {
+            return trade_moves;
+        }
+
+        let player_gets = existing_trade_offer.initiator_pays.clone();
+        let player_pays = existing_trade_offer.initiator_gets.clone();
+        /*
+        One could imagine different strategies at play here. A player could prioritize trades with a
+        lot of cards.
+        A player could prioritize always countering with their own top commodity.
+         */
+        let player_gets_interesting = player_gets.contains_key(&top_commodity)
+            || player_gets
+                .iter()
+                .any(|(commodity, _)| commodities_ranked.contains_key(commodity));
+
+        let initiator_paid_something_interesting = player_pays.contains_key(&top_commodity)
+            || player_pays
+                .iter()
+                .any(|(commodity, _)| commodities_ranked.contains_key(commodity));
+
+        /* What the player gets is interesting. Let's check if we can match the pay and offer that back, perhaps with
+
+        some added spice.
+        Holy shit, we're gonna have to rank all offers which we can accept. Oh my goood.
+          */
+        if player_gets_interesting {
+            // We are getting paid something interesting, from the initiating player of the original
+            let trade_move = TradeMove::counter_trade_offer(
+                TradeCounterType::TargetInitiator,
+                trade_offer_entity,
+                None,
+                None,
+            );
+            trade_moves.push(trade_move);
+        }
+
+        if initiator_paid_something_interesting {
+            let trade_move = TradeMove::counter_trade_offer(
+                TradeCounterType::TargetReceiver,
+                trade_offer_entity,
+                None,
+                None,
+            );
+            trade_moves.push(trade_move);
+        }
+    }
+
+    trade_moves
 }

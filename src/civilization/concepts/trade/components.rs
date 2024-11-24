@@ -18,11 +18,11 @@ pub trait CoolDown {
 #[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]
 pub struct PublishedOffer;
 
+#[derive(Debug, Reflect, Hash, Clone, Eq, PartialEq)]
 pub enum TradeOfferActions {
     CanCounter,
     CanAccept,
     CanDecline,
-    CanWithdraw,
 }
 
 #[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]
@@ -50,42 +50,45 @@ impl TradeOffer {
             rejects: None,
         }
     }
-    
-    pub fn get_trade_offer_actions(&self, entity: Entity) -> Option<Vec<TradeOfferActions>> {
-        let mut actions = vec![];
-        if self.is_open_offer(entity) {
-            /* Open offers can ONLY BE COUNTERED */ 
-            actions.push(TradeOfferActions::CanCounter);
-        } 
-        
+
+    pub fn get_trade_offer_actions(&self, entity: Entity) -> Option<HashSet<TradeOfferActions>> {
+        let mut actions = HashSet::new();
+
         // One can only accept offers you are a part of
         if self.receiver == Some(entity) {
-            actions.push(TradeOfferActions::CanCounter); // we can always counter
             if self.can_be_accepted() {
-                actions.push(TradeOfferActions::CanAccept);
+                actions.insert(TradeOfferActions::CanAccept);
             }
-            actions.push(TradeOfferActions::CanDecline);
+            actions.insert(TradeOfferActions::CanDecline);
         }
-        
+
         if self.initiator == entity {
             if self.can_be_accepted() {
-                actions.push(TradeOfferActions::CanAccept);
+                actions.insert(TradeOfferActions::CanAccept);
             }
-            actions.push(TradeOfferActions::CanWithdraw);
+            actions.insert(TradeOfferActions::CanDecline);
+        } else {
+            //We can counter all offers we haven't created ourselves
+            actions.insert(TradeOfferActions::CanCounter);
         }
-        
+
         if actions.is_empty() {
             None
         } else {
             Some(actions)
         }
     }
-    
+
     pub fn is_open_offer(&self, entity: Entity) -> bool {
         self.receiver.is_none() && self.receiver_name.is_none() && self.initiator != entity
     }
-    
-    pub fn propose_trade_to(initiator: Entity, initiator_name: Name, receiver: Entity, receiver_name: Name) -> Self {
+
+    pub fn propose_trade_to(
+        initiator: Entity,
+        initiator_name: Name,
+        receiver: Entity,
+        receiver_name: Name,
+    ) -> Self {
         TradeOffer {
             initiator,
             initiator_name,
@@ -98,9 +101,11 @@ impl TradeOffer {
         }
     }
 
-    pub fn create_open_offer(initiator: Entity,
-                             initiator_name: Name,
-                             initiator_gets: HashMap<Commodity, usize>) -> Self {
+    pub fn create_open_offer(
+        initiator: Entity,
+        initiator_name: Name,
+        initiator_gets: HashMap<Commodity, usize>,
+    ) -> Self {
         TradeOffer {
             initiator,
             initiator_name,
@@ -116,15 +121,18 @@ impl TradeOffer {
     pub fn initiator_accepts(&self) -> bool {
         self.accepts.contains(&self.initiator)
     }
-    
+
     pub fn can_be_accepted(&self) -> bool {
-        self.receiver.is_some() && self.receiver_name.is_some() && self.gets_number_of_cards() > 2 && self.pays_number_of_cards() > 2
+        self.receiver.is_some()
+            && self.receiver_name.is_some()
+            && self.gets_number_of_cards() > 2
+            && self.pays_number_of_cards() > 2
     }
-    
-    pub fn needs_counter(&self)-> bool {
+
+    pub fn needs_counter(&self) -> bool {
         self.pays_number_of_cards() < 3
     }
-    
+
     pub fn accept(&mut self, entity: Entity) -> bool {
         if self.can_be_accepted() && (self.receiver == Some(entity) || self.initiator == entity) {
             self.accepts.insert(entity);

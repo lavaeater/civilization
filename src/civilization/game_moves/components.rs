@@ -97,12 +97,17 @@ impl PopExpMove {
 }
 
 #[derive(Clone, Debug, Reflect)]
+pub enum TradeCounterType {
+    TargetInitiator,
+    TargetReceiver,
+}
+
+#[derive(Clone, Debug, Reflect)]
 pub enum TradeMoveType {
     OpenTradeOffer,
     AcceptTradeOffer,
     DeclineTradeOffer,
-    CounterTradeOffer,
-    ModifyTradeOffer,
+    CounterTradeOffer(TradeCounterType), //Must perhaps involve a declining of an existing offer? - but we can counter offers that are directed at someone else?
     StopTrading,
 }
 
@@ -116,12 +121,14 @@ pub struct TradeMove {
 
 impl TradeMove {
     pub fn counter_trade_offer(
+        trade_counter_type: TradeCounterType,
         trade_offer: Entity,
         gets: Option<HashMap<Commodity, usize>>,
         pays: Option<HashMap<Commodity, usize>>,
     ) -> Self {
+        let trade_move_type = TradeMoveType::CounterTradeOffer(trade_counter_type);
         TradeMove::new(
-            TradeMoveType::CounterTradeOffer,
+            trade_move_type,
             Some(trade_offer),
             gets,
             pays,
@@ -138,14 +145,6 @@ impl TradeMove {
     pub fn decline_trade_offer(trade_offer: Entity) -> Self {
         TradeMove::new(
             TradeMoveType::DeclineTradeOffer,
-            Some(trade_offer),
-            None,
-            None,
-        )
-    }
-    pub fn modify_trade_offer(trade_offer: Entity) -> Self {
-        TradeMove::new(
-            TradeMoveType::ModifyTradeOffer,
             Some(trade_offer),
             None,
             None,
