@@ -7,7 +7,7 @@ use crate::civilization::concepts::population_expansion::components::{
     ExpandAutomatically, ExpandManually, NeedsExpansion,
 };
 use crate::civilization::concepts::trade::components::{
-    CanTrade, NeedsTradeMove, TradeOffer, AvailableTradeOfferActions,
+    AvailableTradeOfferActions, CanTrade, NeedsTradeMove, TradeOffer,
 };
 use crate::civilization::concepts::trade::resources::{
     initiator_can_pay_for_offer, receiver_can_pay_for_offer,
@@ -310,6 +310,87 @@ pub fn recalculate_trade_moves_for_player(
         }
     }
 }
+
+pub fn create_counter_offers_gpt(
+    trade_offer_entity: Entity,
+    existing_trade_offer: &TradeOffer,
+    player_trade_cards: &PlayerTradeCards,
+) -> Vec<TradeMove> {
+    let mut trade_moves = vec![];
+
+    if let Some(top_commodity) = player_trade_cards.top_commodity() {
+        let commodities_ranked = player_trade_cards.commodity_card_suites();
+        if commodities_ranked.is_empty() {
+            return trade_moves;
+        }
+
+        let player_gets = existing_trade_offer.initiator_pays.clone();
+        let player_pays = existing_trade_offer.initiator_gets.clone();
+
+        let player_gets_interesting = player_gets.contains_key(&top_commodity)
+            || player_gets
+            .iter()
+            .any(|(commodity, _)| commodities_ranked.contains_key(commodity));
+
+        let initiator_paid_something_interesting = player_pays.contains_key(&top_commodity)
+            || player_pays
+            .iter()
+            .any(|(commodity, _)| commodities_ranked.contains_key(commodity));
+
+        if player_gets_interesting {
+            // Generate a meaningful counter-offer for what the player gets
+            let mut counter_offer_pays = player_gets.clone();
+            let mut counter_offer_gets = player_pays.clone();
+
+            // Adjust the counter-offer to match a strategy
+            for (commodity, count) in &player_pays {
+                if let Some(rank) = commodities_ranked.get(commodity) {
+                    // Adjust payment based on ranking or strategy
+                    counter_offer_pays
+                        .entry(commodity.clone())
+                        .and_modify(|c| *c += count)
+                        .or_insert(*count);
+                }
+            }
+
+            let trade_move = TradeMove::counter_trade_offer(
+                TradeCounterType::TargetInitiator,
+                trade_offer_entity,
+                Some(counter_offer_pays),
+                Some(counter_offer_gets),
+            );
+            trade_moves.push(trade_move);
+        }
+
+        if initiator_paid_something_interesting {
+            // Generate a meaningful counter-offer targeting the receiver
+            let mut counter_offer_pays = player_pays.clone();
+            let mut counter_offer_gets = player_gets.clone();
+
+            // Adjust the counter-offer with added spice
+            for (commodity, count) in &player_gets {
+                if let Some(rank) = commodities_ranked.get(commodity) {
+                    // Prioritize higher-ranked commodities
+                    counter_offer_gets
+                        .entry(commodity.clone())
+                        .and_modify(|c| *c += count)
+                        .or_insert(*count);
+                }
+            }
+
+            let trade_move = TradeMove::counter_trade_offer(
+                TradeCounterType::TargetReceiver,
+                trade_offer_entity,
+                Some(counter_offer_pays),
+                Some(counter_offer_gets),
+            );
+            trade_moves.push(trade_move);
+        }
+    }
+
+    trade_moves
+}
+
 
 pub fn create_counter_offers(
     trade_offer_entity: Entity,
