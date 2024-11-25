@@ -18,10 +18,10 @@ pub trait CoolDown {
 pub struct PublishedOffer;
 
 #[derive(Debug, Reflect, Hash, Clone, Eq, PartialEq)]
-pub enum TradeOfferActions {
-    CanCounter,
-    CanAccept,
-    CanDecline,
+pub enum AvailableTradeOfferActions {
+    Counter,
+    Accept,
+    Decline,
 }
 
 #[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]
@@ -50,25 +50,25 @@ impl TradeOffer {
         }
     }
 
-    pub fn get_trade_offer_actions(&self, entity: Entity) -> Option<HashSet<TradeOfferActions>> {
+    pub fn get_trade_offer_actions(&self, entity: Entity) -> Option<HashSet<AvailableTradeOfferActions>> {
         let mut actions = HashSet::new();
 
         // One can only accept offers you are a part of
         if self.receiver == Some(entity) {
             if self.can_be_accepted() {
-                actions.insert(TradeOfferActions::CanAccept);
+                actions.insert(AvailableTradeOfferActions::Accept);
             }
-            actions.insert(TradeOfferActions::CanDecline);
+            actions.insert(AvailableTradeOfferActions::Decline);
         }
 
         if self.initiator == entity {
             if self.can_be_accepted() {
-                actions.insert(TradeOfferActions::CanAccept);
+                actions.insert(AvailableTradeOfferActions::Accept);
             }
-            actions.insert(TradeOfferActions::CanDecline);
+            actions.insert(AvailableTradeOfferActions::Decline);
         } else {
             //We can counter all offers we haven't created ourselves
-            actions.insert(TradeOfferActions::CanCounter);
+            actions.insert(AvailableTradeOfferActions::Counter);
         }
 
         if actions.is_empty() {

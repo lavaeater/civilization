@@ -7,7 +7,7 @@ use crate::civilization::concepts::population_expansion::components::{
     ExpandAutomatically, ExpandManually, NeedsExpansion,
 };
 use crate::civilization::concepts::trade::components::{
-    CanTrade, NeedsTradeMove, TradeOffer, TradeOfferActions,
+    CanTrade, NeedsTradeMove, TradeOffer, AvailableTradeOfferActions,
 };
 use crate::civilization::concepts::trade::resources::{
     initiator_can_pay_for_offer, receiver_can_pay_for_offer,
@@ -266,25 +266,16 @@ pub fn recalculate_trade_moves_for_player(
                 if let Some(offer_actions) = trade_offer.get_trade_offer_actions(event.player) {
                     for action in offer_actions {
                         match action {
-                            TradeOfferActions::CanCounter => {
+                            AvailableTradeOfferActions::Counter => {
                                 for counter_offer in create_counter_offers(trade_offer_entity, trade_offer, trading_cards) {
                                     command_index += 1;
                                     moves.insert(command_index, Move::Trade(counter_offer));
                                 }
                             }
-                            TradeOfferActions::CanAccept => {
-                                if trade_offer.receiver == Some(event.player)
-                                    && receiver_can_pay_for_offer(trade_offer, trading_cards)
-                                {
-                                    command_index += 1;
-                                    moves.insert(
-                                        command_index,
-                                        Move::Trade(TradeMove::accept_trade_offer(
-                                            trade_offer_entity,
-                                        )),
-                                    );
-                                } else if trade_offer.initiator == event.player
-                                    && initiator_can_pay_for_offer(trade_offer, trading_cards)
+                            AvailableTradeOfferActions::Accept => {
+                                if (trade_offer.receiver == Some(event.player)
+                                    && receiver_can_pay_for_offer(trade_offer, trading_cards)) || (trade_offer.initiator == event.player
+                                    && initiator_can_pay_for_offer(trade_offer, trading_cards))
                                 {
                                     command_index += 1;
                                     moves.insert(
@@ -295,7 +286,7 @@ pub fn recalculate_trade_moves_for_player(
                                     );
                                 }
                             }
-                            TradeOfferActions::CanDecline => {
+                            AvailableTradeOfferActions::Decline => {
                                 command_index += 1;
                                 moves.insert(
                                     command_index,
