@@ -267,7 +267,7 @@ pub fn recalculate_trade_moves_for_player(
                     for action in offer_actions {
                         match action {
                             AvailableTradeOfferActions::Counter => {
-                                for counter_offer in create_counter_offers(trade_offer_entity, trade_offer, trading_cards) {
+                                for counter_offer in create_counter_offers_gpt(trade_offer_entity, trade_offer, trading_cards) {
                                     command_index += 1;
                                     moves.insert(command_index, Move::Trade(counter_offer));
                                 }
@@ -347,7 +347,7 @@ pub fn create_counter_offers_gpt(
                 if let Some(rank) = commodities_ranked.get(commodity) {
                     // Adjust payment based on ranking or strategy
                     counter_offer_pays
-                        .entry(commodity.clone())
+                        .entry(*commodity)
                         .and_modify(|c| *c += count)
                         .or_insert(*count);
                 }
@@ -372,7 +372,7 @@ pub fn create_counter_offers_gpt(
                 if let Some(rank) = commodities_ranked.get(commodity) {
                     // Prioritize higher-ranked commodities
                     counter_offer_gets
-                        .entry(commodity.clone())
+                        .entry(*commodity)
                         .and_modify(|c| *c += count)
                         .or_insert(*count);
                 }
