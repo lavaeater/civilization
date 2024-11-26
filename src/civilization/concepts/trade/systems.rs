@@ -2,7 +2,7 @@ use crate::civilization::concepts::trade::components::{
     CanTrade, NeedsTradeMove, PublishedOffer, TradeOffer,
 };
 use crate::civilization::concepts::trade::resources::{
-    receiver_can_pay_for_offer, TradeCountdown, TradeUiState,
+    TradeCountdown, TradeUiState,
 };
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::enums::Commodity;
@@ -13,6 +13,7 @@ use bevy::prelude::{
 };
 use bevy::utils::HashMap;
 use bevy_egui::{egui, EguiContexts};
+use crate::civilization::concepts::trade::functions::receiver_can_pay_for_offer;
 
 pub fn setup_trade(
     mut commands: Commands,
@@ -33,6 +34,50 @@ pub fn setup_trade(
     if !has_any_human {
         debug!("No human player can trade. Skipping trade phase.");
         next_state.set(GameActivity::PopulationExpansion)
+    }
+}
+
+pub fn remove_rejected_trades(
+    trade_offers: Query<(Entity, &TradeOffer), With<PublishedOffer>>,
+    mut commands: Commands,
+) {
+    for (entity, offer) in trade_offers.iter() {
+        if offer.trade_rejected() {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+pub fn queue_trade_settlements(
+    trade_offers: Query<&TradeOffer, With<PublishedOffer>>,
+    mut trade_countdown: ResMut<TradeCountdown>,
+) {
+    for offer in trade_offers.iter() {
+        if offer.trade_accepted() {
+            trade_countdown.trade_timer.reset();
+        }
+    }
+}
+
+pub fn settle_trades(
+    trade_offers: Query<(Entity, &TradeOffer), With<PublishedOffer>>,
+    mut commands: Commands,
+) {
+    for (entity, offer) in trade_offers.iter() {
+        if offer.trade_accepted() {
+            /* So much needs to happen here! */
+            /*
+            First, this is actually interactive. Say for instance that we are doing a trade with
+            only three cards each. Ok, fine, but we still need to figure out what the hidden card is.
+            Also, we need to "lock" that player from accepting other trades right now, until this
+            particular trade is done. We need some kind of settlement order for trades. We could end
+            up with a previously accepted trade that no longer is viable for either party.
+            
+            So a trade, when ending up here, needs to be... prioritized?
+             */
+            
+            commands.entity(entity).despawn();
+        }
     }
 }
 

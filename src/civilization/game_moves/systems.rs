@@ -9,9 +9,7 @@ use crate::civilization::concepts::population_expansion::components::{
 use crate::civilization::concepts::trade::components::{
     AvailableTradeOfferActions, CanTrade, NeedsTradeMove, TradeOffer,
 };
-use crate::civilization::concepts::trade::resources::{
-    initiator_can_pay_for_offer, receiver_can_pay_for_offer,
-};
+use crate::civilization::concepts::trade::functions::{initiator_can_pay_for_offer, receiver_can_pay_for_offer};
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::events::movement_events::PlayerMovementEnded;
 use crate::civilization::game_moves::components::{
@@ -21,7 +19,6 @@ use crate::civilization::game_moves::components::{
 use crate::civilization::game_moves::events::RecalculatePlayerMoves;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, Has, Query, With};
 use bevy::utils::HashMap;
-use itertools::Itertools;
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
@@ -340,11 +337,11 @@ pub fn create_counter_offers_gpt(
         if player_gets_interesting {
             // Generate a meaningful counter-offer for what the player gets
             let mut counter_offer_pays = player_gets.clone();
-            let mut counter_offer_gets = player_pays.clone();
+            let counter_offer_gets = player_pays.clone();
 
             // Adjust the counter-offer to match a strategy
             for (commodity, count) in &player_pays {
-                if let Some(rank) = commodities_ranked.get(commodity) {
+                if let Some(_rank) = commodities_ranked.get(commodity) {
                     // Adjust payment based on ranking or strategy
                     counter_offer_pays
                         .entry(*commodity)
@@ -364,12 +361,12 @@ pub fn create_counter_offers_gpt(
 
         if initiator_paid_something_interesting {
             // Generate a meaningful counter-offer targeting the receiver
-            let mut counter_offer_pays = player_pays.clone();
+            let counter_offer_pays = player_pays.clone();
             let mut counter_offer_gets = player_gets.clone();
 
             // Adjust the counter-offer with added spice
             for (commodity, count) in &player_gets {
-                if let Some(rank) = commodities_ranked.get(commodity) {
+                if let Some(_) = commodities_ranked.get(commodity) {
                     // Prioritize higher-ranked commodities
                     counter_offer_gets
                         .entry(*commodity)
