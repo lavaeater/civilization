@@ -153,7 +153,9 @@ pub fn select_stupid_move(
                                     }
                                 }
                             }
-                            TradeMoveType::StopTrading => {},
+                            TradeMoveType::StopTrading => {
+                                
+                            },
                         }
                     }
                 }

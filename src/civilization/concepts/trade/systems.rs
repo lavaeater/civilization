@@ -22,13 +22,14 @@ pub fn setup_trade(
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     let mut has_any_human = false;
+   
     for (trade_cards, player, is_human) in trading_players_query.iter() {
         if trade_cards.can_trade() {
             if is_human {
                 has_any_human = true;
                 trade_ui_state.human_player = Some(player);
             }
-            commands.entity(player).insert(CanTrade::default());
+            commands.entity(player).insert(CanTrade);
         }
     }
     if !has_any_human {
