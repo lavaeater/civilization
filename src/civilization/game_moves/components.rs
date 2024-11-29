@@ -1,4 +1,5 @@
 use crate::civilization::concepts::trade_cards::enums::Commodity;
+use crate::civilization::systems::prelude::trade_ui;
 use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::HashMap;
 
@@ -109,6 +110,7 @@ pub enum TradeMoveType {
     DeclineTradeOffer,
     CounterTradeOffer(TradeCounterType), //Must perhaps involve a declining of an existing offer? - but we can counter offers that are directed at someone else?
     StopTrading,
+    SettleTrade,
 }
 
 #[derive(Clone, Debug, Reflect)]
@@ -161,6 +163,9 @@ impl TradeMove {
     }
     pub fn stop_trading() -> Self {
         TradeMove::new(TradeMoveType::StopTrading, None, None, None)
+    }
+    pub fn settle_trade(trade_offer: Option<Entity>) -> Self {
+        TradeMove::new(TradeMoveType::SettleTrade, trade_offer, None, None)
     }
 
     pub fn new(

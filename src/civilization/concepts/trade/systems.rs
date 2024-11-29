@@ -1,6 +1,4 @@
-use crate::civilization::concepts::trade::components::{
-    CanTrade, NeedsTradeMove, PublishedOffer, TradeOffer,
-};
+use crate::civilization::concepts::trade::components::{CanTrade, InSettlement, NeedsTradeMove, PlayerSettlements, PublishedOffer, TradeOffer};
 use crate::civilization::concepts::trade::resources::{
     TradeCountdown, TradeUiState,
 };
@@ -61,10 +59,11 @@ pub fn queue_trade_settlements(
 }
 
 pub fn settle_trades(
-    trade_offers: Query<(Entity, &TradeOffer), With<PublishedOffer>>,
+    trade_offers: Query<(Entity, &TradeOffer), (With<PublishedOffer>, Without<InSettlement>)>,
+    mut player_settlement_query: Query<&mut PlayerSettlements>,
     mut commands: Commands,
 ) {
-    for (entity, offer) in trade_offers.iter() {
+    for (trade_entity, offer) in trade_offers.iter() {
         if offer.trade_accepted() {
             /* So much needs to happen here! */
             /*
@@ -75,9 +74,34 @@ pub fn settle_trades(
             up with a previously accepted trade that no longer is viable for either party.
             
             So a trade, when ending up here, needs to be... prioritized?
-             */
+            Needs a queue number? Needs to be put in a resource? AAAAH!!
             
-            commands.entity(entity).despawn();
+            No, we use components, as per usual. Use the ECS.
+            
+            So what we do is we check if a player already has a trade settlement in progress. 
+            
+            But that trade settlement needs to have a queue of sorts to keep track of all trades that needs settling.
+            
+            So the trade itself needs to be marked as "in settlement" and then added to a queue for the 
+            players involved with it. 
+             */
+            let initiator = offer.initiator;
+            let Some(receiver) = offer.receiver else { 
+                todo!()
+                //This shouldn't event be possible, mate
+            };
+            
+            if !player_settlement_query.contains(initiator) {
+                commands.entity(initiator).insert(PlayerSettlements::default());
+            }
+            if !player_settlement_query.contains(receiver) {
+                commands.entity(receiver).insert(PlayerSettlements::default());
+            }
+            commands.entity(trade_entity).insert(InSettlement); //Makes sure we don't end up here again!
+            let Ok(mut initiator_settlements) = player_settlement_query.get_mut(initiator) else { todo!() };
+            initiator_settlements.trades.push_back(trade_entity);
+            let Ok(mut receiver_settlements) = player_settlement_query.get_mut(receiver) else { todo!() };
+            receiver_settlements.trades.push_back(trade_entity);
         }
     }
 }

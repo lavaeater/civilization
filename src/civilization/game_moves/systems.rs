@@ -7,9 +7,11 @@ use crate::civilization::concepts::population_expansion::components::{
     ExpandAutomatically, ExpandManually, NeedsExpansion,
 };
 use crate::civilization::concepts::trade::components::{
-    AvailableTradeOfferActions, CanTrade, NeedsTradeMove, TradeOffer,
+    AvailableTradeOfferActions, CanTrade, NeedsTradeMove, PlayerSettlements, TradeOffer,
 };
-use crate::civilization::concepts::trade::functions::{initiator_can_pay_for_offer, receiver_can_pay_for_offer};
+use crate::civilization::concepts::trade::functions::{
+    initiator_can_pay_for_offer, receiver_can_pay_for_offer,
+};
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::events::movement_events::PlayerMovementEnded;
 use crate::civilization::game_moves::components::{
@@ -225,16 +227,25 @@ pub fn recalculate_trade_moves_for_player(
     mut recalc_player_reader: EventReader<RecalculatePlayerMoves>,
     player_cards_query: Query<&PlayerTradeCards, With<CanTrade>>,
     trade_offer_query: Query<(Entity, &TradeOffer)>,
+    mut player_settlements_query: Query<&mut PlayerSettlements>,
     mut commands: Commands,
 ) {
     /*
     So, what is a trade move? How do we define it so it can be chosen by an ai player?
      */
     for event in recalc_player_reader.read() {
-        if let Ok(trading_cards) = player_cards_query.get(event.player) {
-            let mut moves = HashMap::default();
-            let mut command_index = 0;
-
+        let mut moves = HashMap::default();
+        let mut command_index = 0;
+        // we cannot create new trades while we need to settle a trade.
+        if let Ok(mut player_settlement) = player_settlements_query.get_mut(event.player) {
+            if player_settlement.trades.len() > 1 {
+                if player_settlement.current_trade.is_none() {
+                    player_settlement.current_trade = Some(player_settlement.trades.pop_front().unwrap());
+                }
+                command_index += 1;
+                moves.insert(command_index, Move::Trade(TradeMove::settle_trade(player_settlement.current_trade)));
+            }
+        } else if let Ok(trading_cards) = player_cards_query.get(event.player) {
             /* OK, this is wiiiild, this is drivin'  me nuts.as
             What offers should an AI player do?
             So, the player should probably "value" their hand somehow.
@@ -264,15 +275,23 @@ pub fn recalculate_trade_moves_for_player(
                     for action in offer_actions {
                         match action {
                             AvailableTradeOfferActions::Counter => {
-                                for counter_offer in create_counter_offers_gpt(trade_offer_entity, trade_offer, trading_cards) {
+                                for counter_offer in create_counter_offers_gpt(
+                                    trade_offer_entity,
+                                    trade_offer,
+                                    trading_cards,
+                                ) {
                                     command_index += 1;
                                     moves.insert(command_index, Move::Trade(counter_offer));
                                 }
                             }
                             AvailableTradeOfferActions::Accept => {
                                 if (trade_offer.receiver == Some(event.player)
-                                    && receiver_can_pay_for_offer(trade_offer, trading_cards)) || (trade_offer.initiator == event.player
-                                    && initiator_can_pay_for_offer(trade_offer, trading_cards))
+                                    && receiver_can_pay_for_offer(trade_offer, trading_cards))
+                                    || (trade_offer.initiator == event.player
+                                        && initiator_can_pay_for_offer(
+                                            trade_offer,
+                                            trading_cards,
+                                        ))
                                 {
                                     command_index += 1;
                                     moves.insert(
@@ -287,23 +306,25 @@ pub fn recalculate_trade_moves_for_player(
                                 command_index += 1;
                                 moves.insert(
                                     command_index,
-                                    Move::Trade(TradeMove::decline_trade_offer(trade_offer_entity)),
+                                    Move::Trade(TradeMove::decline_trade_offer(
+                                        trade_offer_entity,
+                                    )),
                                 );
                             }
                         }
                     }
                 }
             }
-            moves.insert(command_index + 1, Move::Trade(TradeMove::stop_trading()));
 
-            if moves.is_empty() {
-                commands.entity(event.player).remove::<CanTrade>();
-            } else {
-                commands.entity(event.player).remove::<NeedsTradeMove>();
-                commands
-                    .entity(event.player)
-                    .insert(AvailableMoves::new(moves));
-            }
+            moves.insert(command_index + 1, Move::Trade(TradeMove::stop_trading()));
+        }
+        if moves.is_empty() {
+            commands.entity(event.player).remove::<CanTrade>();
+        } else {
+            commands.entity(event.player).remove::<NeedsTradeMove>();
+            commands
+                .entity(event.player)
+                .insert(AvailableMoves::new(moves));
         }
     }
 }
@@ -326,13 +347,13 @@ pub fn create_counter_offers_gpt(
 
         let player_gets_interesting = player_gets.contains_key(&top_commodity)
             || player_gets
-            .iter()
-            .any(|(commodity, _)| commodities_ranked.contains_key(commodity));
+                .iter()
+                .any(|(commodity, _)| commodities_ranked.contains_key(commodity));
 
         let initiator_paid_something_interesting = player_pays.contains_key(&top_commodity)
             || player_pays
-            .iter()
-            .any(|(commodity, _)| commodities_ranked.contains_key(commodity));
+                .iter()
+                .any(|(commodity, _)| commodities_ranked.contains_key(commodity));
 
         if player_gets_interesting {
             // Generate a meaningful counter-offer for what the player gets
@@ -387,7 +408,6 @@ pub fn create_counter_offers_gpt(
 
     trade_moves
 }
-
 
 pub fn create_counter_offers(
     trade_offer_entity: Entity,

@@ -2,6 +2,16 @@ use crate::civilization::concepts::trade_cards::enums::Commodity;
 use bevy::core::Name;
 use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
+use std::collections::VecDeque;
+
+#[derive(Component, Reflect, Debug)]
+pub struct InSettlement;
+
+#[derive(Component, Reflect, Debug, Default)]
+pub struct PlayerSettlements {
+    pub trades: VecDeque<Entity>,
+    pub current_trade: Option<Entity>,
+}
 
 #[derive(Component, Reflect, Clone, Debug, PartialEq, Default)]
 pub struct CanTrade;
