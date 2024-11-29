@@ -236,92 +236,104 @@ pub fn recalculate_trade_moves_for_player(
     for event in recalc_player_reader.read() {
         let mut moves = HashMap::default();
         let mut command_index = 0;
+        let mut is_not_settling_trade = true;
         // we cannot create new trades while we need to settle a trade.
         if let Ok(mut player_settlement) = player_settlements_query.get_mut(event.player) {
-            if player_settlement.trades.len() > 1 {
-                if player_settlement.current_trade.is_none() {
-                    player_settlement.current_trade = Some(player_settlement.trades.pop_front().unwrap());
-                }
+            if player_settlement.trades.len() > 1 && player_settlement.current_trade.is_none() {
+                player_settlement.current_trade =
+                    Some(player_settlement.trades.pop_front().unwrap());
+            }
+            if player_settlement.current_trade.is_some() {
+                is_not_settling_trade = false;
                 command_index += 1;
-                moves.insert(command_index, Move::Trade(TradeMove::settle_trade(player_settlement.current_trade)));
+                moves.insert(
+                    command_index,
+                    Move::Trade(TradeMove::settle_trade(player_settlement.current_trade)),
+                );
+            } else {
+                commands.entity(event.player).remove::<PlayerSettlements>();
             }
-        } else if let Ok(trading_cards) = player_cards_query.get(event.player) {
-            /* OK, this is wiiiild, this is drivin'  me nuts.as
-            What offers should an AI player do?
-            So, the player should probably "value" their hand somehow.
-            This could be done by some kind of heuristic.
-             */
-            /* Can we create an open offer? Well, we better not have an open offer
-            already out there!
-             */
-            if trade_offer_query
-                .iter()
-                .filter(|(_entity, trade_offer)| {
-                    trade_offer.initiator == event.player && trade_offer.receiver.is_none()
-                })
-                .count()
-                == 0
-            {
-                if let Some(proposition) = trading_cards.get_what_we_want() {
-                    command_index += 1;
-                    moves.insert(
-                        command_index,
-                        Move::Trade(TradeMove::open_trade_offer(proposition)),
-                    );
+        }
+        if is_not_settling_trade {
+            if let Ok(trading_cards) = player_cards_query.get(event.player) {
+                /* OK, this is wiiiild, this is drivin'  me nuts.as
+                What offers should an AI player do?
+                So, the player should probably "value" their hand somehow.
+                This could be done by some kind of heuristic.
+                 */
+                /* Can we create an open offer? Well, we better not have an open offer
+                already out there!
+                 */
+                if trade_offer_query
+                    .iter()
+                    .filter(|(_entity, trade_offer)| {
+                        trade_offer.initiator == event.player && trade_offer.receiver.is_none()
+                    })
+                    .count()
+                    == 0
+                {
+                    if let Some(proposition) = trading_cards.get_what_we_want() {
+                        command_index += 1;
+                        moves.insert(
+                            command_index,
+                            Move::Trade(TradeMove::open_trade_offer(proposition)),
+                        );
+                    }
                 }
-            }
-            for (trade_offer_entity, trade_offer) in trade_offer_query.iter() {
-                if let Some(offer_actions) = trade_offer.get_trade_offer_actions(event.player) {
-                    for action in offer_actions {
-                        match action {
-                            AvailableTradeOfferActions::Counter => {
-                                for counter_offer in create_counter_offers_gpt(
-                                    trade_offer_entity,
-                                    trade_offer,
-                                    trading_cards,
-                                ) {
-                                    command_index += 1;
-                                    moves.insert(command_index, Move::Trade(counter_offer));
+                for (trade_offer_entity, trade_offer) in trade_offer_query.iter() {
+                    if let Some(offer_actions) = trade_offer.get_trade_offer_actions(event.player) {
+                        for action in offer_actions {
+                            match action {
+                                AvailableTradeOfferActions::Counter => {
+                                    for counter_offer in create_counter_offers_gpt(
+                                        trade_offer_entity,
+                                        trade_offer,
+                                        trading_cards,
+                                    ) {
+                                        command_index += 1;
+                                        moves.insert(command_index, Move::Trade(counter_offer));
+                                    }
                                 }
-                            }
-                            AvailableTradeOfferActions::Accept => {
-                                if (trade_offer.receiver == Some(event.player)
-                                    && receiver_can_pay_for_offer(trade_offer, trading_cards))
-                                    || (trade_offer.initiator == event.player
-                                        && initiator_can_pay_for_offer(
-                                            trade_offer,
-                                            trading_cards,
-                                        ))
-                                {
+                                AvailableTradeOfferActions::Accept => {
+                                    if (trade_offer.receiver == Some(event.player)
+                                        && receiver_can_pay_for_offer(trade_offer, trading_cards))
+                                        || (trade_offer.initiator == event.player
+                                            && initiator_can_pay_for_offer(
+                                                trade_offer,
+                                                trading_cards,
+                                            ))
+                                    {
+                                        command_index += 1;
+                                        moves.insert(
+                                            command_index,
+                                            Move::Trade(TradeMove::accept_trade_offer(
+                                                trade_offer_entity,
+                                            )),
+                                        );
+                                    }
+                                }
+                                AvailableTradeOfferActions::Decline => {
                                     command_index += 1;
                                     moves.insert(
                                         command_index,
-                                        Move::Trade(TradeMove::accept_trade_offer(
+                                        Move::Trade(TradeMove::decline_trade_offer(
                                             trade_offer_entity,
                                         )),
                                     );
                                 }
                             }
-                            AvailableTradeOfferActions::Decline => {
-                                command_index += 1;
-                                moves.insert(
-                                    command_index,
-                                    Move::Trade(TradeMove::decline_trade_offer(
-                                        trade_offer_entity,
-                                    )),
-                                );
-                            }
                         }
                     }
                 }
-            }
 
-            moves.insert(command_index + 1, Move::Trade(TradeMove::stop_trading()));
+                moves.insert(command_index + 1, Move::Trade(TradeMove::stop_trading()));
+            }
         }
+        commands.entity(event.player).remove::<NeedsTradeMove>();
+
         if moves.is_empty() {
             commands.entity(event.player).remove::<CanTrade>();
         } else {
-            commands.entity(event.player).remove::<NeedsTradeMove>();
             commands
                 .entity(event.player)
                 .insert(AvailableMoves::new(moves));
