@@ -86,10 +86,7 @@ pub fn settle_trades(
             players involved with it. 
              */
             let initiator = offer.initiator;
-            let Some(receiver) = offer.receiver else { 
-                todo!()
-                //This shouldn't event be possible, mate
-            };
+            let receiver = offer.receiver.expect("There should be a receiver!");
             
             if !player_settlement_query.contains(initiator) {
                 commands.entity(initiator).insert(PlayerSettlements::default());
@@ -98,9 +95,9 @@ pub fn settle_trades(
                 commands.entity(receiver).insert(PlayerSettlements::default());
             }
             commands.entity(trade_entity).insert(InSettlement); //Makes sure we don't end up here again!
-            let Ok(mut initiator_settlements) = player_settlement_query.get_mut(initiator) else { todo!() };
+            let mut initiator_settlements = player_settlement_query.get_mut(initiator).expect("Player should have settlements");
             initiator_settlements.trades.push_back(trade_entity);
-            let Ok(mut receiver_settlements) = player_settlement_query.get_mut(receiver) else { todo!() };
+            let mut receiver_settlements = player_settlement_query.get_mut(receiver).expect("Player should have settlements");
             receiver_settlements.trades.push_back(trade_entity);
         }
     }
