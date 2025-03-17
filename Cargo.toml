@@ -69,10 +69,10 @@ bevy = { version = "0.14.2", default-features = false, features = [
     "webgl2",
     "sysinfo_plugin",
 ] }
-bevy_kira_audio = { version = "0.22" }
-bevy_asset_loader = { version = "0.22", features = ["2d"] }
+bevy_kira_audio = { version = "0.20.0" }
+bevy_asset_loader = { version = "0.21.0", features = ["2d"] }
 rand = { version = "0.9.0" }
-# webbrowser = { version = "1.0.1", features = ["hardened"] }
+webbrowser = { version = "1.0.1", features = ["hardened"] }
 
 # keep the following in sync with Bevy's dependencies
 winit = { version = "0.30.5", default-features = false }
@@ -83,7 +83,7 @@ log = { version = "0.4.22", features = ["max_level_debug", "release_max_level_wa
 itertools = "0.14.0"
 #bevy_console = "0.12.1"
 clap = { version = "4.5.16", features = ["derive"] }
-bevy_egui = "0.33.0"
+bevy_egui = "0.30.1"
 #bevy-inspector-egui = "0.25.2"
 bevy_common_assets = { version = "0.12.0", features = ["ron"] }
 serde = { version = "1.0.197", features = ["derive"] }
@@ -91,4 +91,4 @@ ron = "0.8.1"
 bevy_hui = "0.3.0"
 
 [build-dependencies]
-embed-resource = "3.0.1"
+embed-resource = "1.8.0"
