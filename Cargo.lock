@@ -91,6 +91,7 @@ dependencies = [
  "bevy_asset_loader",
  "bevy_common_assets",
  "bevy_egui",
+ "bevy_hui",
  "bevy_kira_audio",
  "clap",
  "embed-resource",
@@ -884,6 +885,18 @@ dependencies = [
  "bevy_utils",
  "disqualified",
  "smallvec",
+]
+
+[[package]]
+name = "bevy_hui"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0cc76f35b4a3e597d47351fb08ec60c4fb2a10e2f8fd0c1d2aaf7e62b8e4dd2"
+dependencies = [
+ "bevy",
+ "nom",
+ "owo-colors",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -3722,6 +3735,12 @@ checksum = "22ec719bbf3b2a81c109a4e20b1f129b5566b7dce654bc3872f6a05abf82b2c4"
 dependencies = [
  "ttf-parser 0.25.0",
 ]
+
+[[package]]
+name = "owo-colors"
+version = "4.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1036865bb9422d3300cf723f657c2851d0e9ab12567854b1f4eba3d77decf564"
 
 [[package]]
 name = "parking"

@@ -88,6 +88,7 @@ bevy_egui = "0.33.0"
 bevy_common_assets = { version = "0.12.0", features = ["ron"] }
 serde = { version = "1.0.197", features = ["derive"] }
 ron = "0.8.1"
+bevy_hui = "0.3.0"
 
 [build-dependencies]
 embed-resource = "3.0.1"
