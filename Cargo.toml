@@ -4,7 +4,7 @@ cargo-features = ["codegen-backend"]
 name = "adv_civ"
 version = "0.1.0"
 publish = false
-authors = ["Tommie Nygren <tommie.nygren@gmail.com>"] # ToDo: you are the author ;)
+authors = ["Tommie Nygren <tommie.nygren@gmail.com>"]
 edition = "2021"
 exclude = ["dist", "build", "assets", "credits"]
 
