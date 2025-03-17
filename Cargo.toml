@@ -43,7 +43,7 @@ dev = [
 # All of Bevy's default features exept for the audio related ones (bevy_audio, vorbis), since they clash with bevy_kira_audio
 #   and android_shared_stdcxx, since that is covered in `mobile`
 [dependencies]
-bevy = { version = "0.15.2", default-features = false, features = [
+bevy = { version = "0.14.2", default-features = false, features = [
     "animation",
     "bevy_asset",
     "bevy_state",
