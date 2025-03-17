@@ -85,7 +85,7 @@ itertools = "0.14.0"
 clap = { version = "4.5.16", features = ["derive"] }
 bevy_egui = "0.30.1"
 #bevy-inspector-egui = "0.25.2"
-bevy_common_assets = { version = "0.12.0", features = ["ron"] }
+bevy_common_assets = { version = "0.11.0", features = ["ron"] }
 serde = { version = "1.0.197", features = ["derive"] }
 ron = "0.8.1"
 
