@@ -1,16 +1,21 @@
+mod general_components;
+mod concepts;
+
 use adv_civ::player::Player;
 use adv_civ::{GameActivity, GameState};
 use bevy::app::App;
 use bevy::core::Name;
-use bevy::prelude::{AppExtStates, Entity, Transform};
+use bevy::prelude::{AppExtStates, Bundle, Entity, Transform};
 use bevy::state::app::StatesPlugin;
 use adv_civ::civilization::enums::prelude::GameFaction;
 use adv_civ::civilization::components::prelude::*;
 use adv_civ::civilization::concepts::census::components::Census;
-/*
-Make sure to update this to mirror the method in
-the actual game so that we have the correct components etc.
- */
+
+#[test]
+fn it_works() {
+    assert!(true);
+}
+
 #[cfg(test)]
 #[allow(dead_code)]
 pub fn setup_player(app: &mut App, name: impl Into<String>, faction: GameFaction) -> (Entity, Vec<Entity>, Vec<Entity>) {
@@ -92,5 +97,21 @@ pub fn create_area(app: &mut App, name: impl Into<String>, id: i32) -> Entity {
             LandPassage::default(),
         )
     ).id();
+    area
+}
+
+pub fn create_area_w_components<T: Bundle>(app: &mut App, name: &str, components: Option<T>) -> Entity {
+    let area = app.world_mut().spawn(
+        (
+            Name::new(name.to_string()),
+            GameArea::new(1),
+            LandPassage::default(),
+            Transform::from_xyz(0.0, 0.0, 0.0),
+            Population::new(3)
+        )
+    ).id();
+    if let Some(components) = components {
+        app.world_mut().entity_mut(area).insert(components);
+    }
     area
 }

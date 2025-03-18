@@ -8,6 +8,7 @@ pub struct Population {
 }
 
 impl Population {
+
     pub fn new(max_population: usize) -> Self {
         Population {
             max_population,

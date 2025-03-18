@@ -1,7 +1,3 @@
-use crate::common::{create_area, setup_bevy_app, setup_player};
-
-mod common;
-
 use bevy::core::Name;
 use bevy::ecs::entity::Entity;
 use bevy::utils::HashMap;
@@ -18,6 +14,7 @@ use adv_civ::civilization::enums::prelude::GameFaction;
 use adv_civ::civilization::events::prelude::CheckPlayerCitySupport;
 use adv_civ::civilization::systems::prelude::start_check_city_support;
 use adv_civ::GameActivity;
+use crate::{create_area, setup_bevy_app, setup_player};
 
 #[test]
 fn start_game() {

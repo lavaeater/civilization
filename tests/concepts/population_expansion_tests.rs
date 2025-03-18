@@ -1,12 +1,10 @@
-mod common;
-
-use crate::common::{create_area, setup_bevy_app, setup_player};
 use adv_civ::civilization::game_moves::events::RecalculatePlayerMoves;
 use adv_civ::civilization::game_moves::systems::recalculate_pop_exp_moves_for_player;
 use adv_civ::civilization::components::prelude::*;
 use adv_civ::civilization::enums::general_enums::GameFaction;
 use bevy::app::Update;
 use bevy::prelude::Events;
+use crate::{create_area, setup_bevy_app, setup_player};
 
 #[test]
 fn calculate_game_moves_in_population_expansion() {

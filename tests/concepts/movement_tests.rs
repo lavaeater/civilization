@@ -1,14 +1,12 @@
-mod common;
-
-use crate::common::{setup_bevy_app, setup_player};
 use adv_civ::civilization::components::prelude::*;
 use adv_civ::civilization::enums::prelude::GameFaction;
 use adv_civ::civilization::events::prelude::*;
 use adv_civ::civilization::systems::prelude::*;
 use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
-use bevy::prelude::{App, AppExtStates, Bundle, Entity, Events, Name, Transform};
+use bevy::prelude::{App, AppExtStates, Events, Name, Transform};
 use bevy::state::app::StatesPlugin;
+use crate::{setup_bevy_app, setup_player, create_area, create_area_w_components};
 
 fn setup_app() -> App {
     let mut app = App::new();
@@ -97,9 +95,9 @@ fn moving_token_to_area_adds_area_to_player_areas() {
         population.add_token_to_area(player_one, token);
     }
 
-    let from_area = create_area(&mut app, "egypt", Some(population));
+    let from_area = create_area_w_components(&mut app, "egypt", Some(population));
 
-    let to_area = create_area(&mut app, "crete", None::<()>);
+    let to_area = create_area_w_components(&mut app, "crete", None::<()>);
     
     let mut events = app.world_mut()
         .resource_mut::<Events<MoveTokenFromAreaToAreaCommand>>();
@@ -115,21 +113,7 @@ fn moving_token_to_area_adds_area_to_player_areas() {
     assert!(player_area.contains(to_area));
 }
 
-fn create_area<T: Bundle>(app: &mut App, name: &str, components: Option<T>) -> Entity {
-    let area = app.world_mut().spawn(
-        (
-            Name::new(name.to_string()),
-            GameArea::new(1),
-            LandPassage::default(),
-            Transform::from_xyz(0.0, 0.0, 0.0),
-            Population::new(3)
-        )
-    ).id();
-    if let Some(components) = components {
-        app.world_mut().entity_mut(area).insert(components);
-    }
-    area
-}
+
 
 #[test]
 fn moving_all_tokens_from_area_removes_area_from_player_areas() {
@@ -187,8 +171,8 @@ fn calculate_one_move() {
         app
     });
 
-    let area_one = crate::common::create_area(&mut app, "Egypt", 1);
-    let area_two = crate::common::create_area(&mut app, "Thrace", 2);
+    let area_one = create_area(&mut app, "Egypt", 1);
+    let area_two = create_area(&mut app, "Thrace", 2);
     let mut land_passage = LandPassage::default();
     land_passage.add_passage(area_two);
     app
@@ -259,9 +243,9 @@ fn calculate_two_moves() {
         app
     });
 
-    let area_one = crate::common::create_area(&mut app, "Egypt", 1);
-    let area_two = crate::common::create_area(&mut app, "Thrace", 2);
-    let area_three = crate::common::create_area(&mut app, "Throgdor", 3);
+    let area_one = create_area(&mut app, "Egypt", 1);
+    let area_two = create_area(&mut app, "Thrace", 2);
+    let area_three = create_area(&mut app, "Throgdor", 3);
     let mut land_passage = LandPassage::default();
     land_passage.add_passage(area_two);
     land_passage.add_passage(area_three);
@@ -346,9 +330,9 @@ fn calculate_moves_after_having_moved() {
         app
     });
 
-    let area_one = crate::common::create_area(&mut app, "Egypt", 1);
-    let area_two = crate::common::create_area(&mut app, "Thrace", 2);
-    let area_three = crate::common::create_area(&mut app, "Throgdor", 3);
+    let area_one = create_area(&mut app, "Egypt", 1);
+    let area_two = create_area(&mut app, "Thrace", 2);
+    let area_three = create_area(&mut app, "Throgdor", 3);
     let mut land_passage = LandPassage::default();
     land_passage.add_passage(area_two);
     land_passage.add_passage(area_three);
