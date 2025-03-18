@@ -167,7 +167,7 @@ pub fn trade_ui(
                 ui.label(format!("From: {}", offer.initiator_name.as_str()));
                 ui.horizontal(|ui| {
                     ui.label("Offered Commodities:");
-                    display_commodities(ui, &offer.initiator_pays_true);
+                    display_commodities(ui, &offer.initiator_pays);
                 });
                 if let Some(receiver_name) = &offer.receiver_name {
                     ui.label(format!("To: {}", receiver_name.as_str()));
@@ -176,7 +176,7 @@ pub fn trade_ui(
                 }
                 ui.horizontal(|ui| {
                     ui.label("Requested Commodities:");
-                    display_commodities(ui, &offer.initiator_gets_true);
+                    display_commodities(ui, &offer.initiator_gets);
                 });
 
                 if offer.receiver.is_some() && offer.receiver == ui_state.human_player {
@@ -219,14 +219,14 @@ pub fn trade_ui(
                             if ui.button("Offer commodity").clicked() {
                                 ui_state.add_offered_commodity_open = true;
                             }
-                            display_commodities(ui, &new_offer.initiator_pays_true);
+                            display_commodities(ui, &new_offer.initiator_pays);
                         });
                         ui.vertical(|ui| {
                             ui.label("Requested Commodities:");
                             if ui.button("Request commodity").clicked() {
                                 ui_state.add_requested_commodity_open = true;
                             }
-                            display_commodities(ui, &new_offer.initiator_gets_true);
+                            display_commodities(ui, &new_offer.initiator_gets);
                         });
                     });
 

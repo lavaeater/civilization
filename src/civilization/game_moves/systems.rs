@@ -354,8 +354,8 @@ pub fn create_counter_offers_gpt(
             return trade_moves;
         }
 
-        let player_gets = existing_trade_offer.initiator_pays_true.clone();
-        let player_pays = existing_trade_offer.initiator_gets_true.clone();
+        let player_gets = existing_trade_offer.initiator_pays.clone();
+        let player_pays = existing_trade_offer.initiator_gets.clone();
 
         let player_gets_interesting = player_gets.contains_key(&top_commodity)
             || player_gets
@@ -433,8 +433,8 @@ pub fn create_counter_offers(
             return trade_moves;
         }
 
-        let player_gets = existing_trade_offer.initiator_pays_true.clone();
-        let player_pays = existing_trade_offer.initiator_gets_true.clone();
+        let player_gets = existing_trade_offer.initiator_pays.clone();
+        let player_pays = existing_trade_offer.initiator_gets.clone();
         /*
         One could imagine different strategies at play here. A player could prioritize trades with a
         lot of cards.

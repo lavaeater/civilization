@@ -51,10 +51,8 @@ pub struct TradeOffer {
     pub initiator_name: Name,
     pub receiver: Option<Entity>,
     pub receiver_name: Option<Name>,
-    pub initiator_pays_true: HashMap<Commodity, usize>,
-    pub initiator_pays_hidden: HashMap<(Commodity, Commodity), usize>,
-    pub initiator_gets_true: HashMap<Commodity, usize>,
-    pub initiator_gets_hidden: HashMap<(Commodity, Commodity), usize>,
+    pub initiator_pays: HashMap<Commodity, usize>,
+    pub initiator_gets: HashMap<Commodity, usize>,
     pub accepts: HashSet<Entity>,
     pub rejects: Option<Entity>,
 }
@@ -66,10 +64,8 @@ impl TradeOffer {
             initiator_name,
             receiver: None,
             receiver_name: None,
-            initiator_pays_true: HashMap::default(),
-            initiator_pays_hidden: HashMap::default(),
-            initiator_gets_true: HashMap::default(),
-            initiator_gets_hidden: HashMap::default(),
+            initiator_pays: HashMap::default(),
+            initiator_gets: HashMap::default(),
             accepts: HashSet::default(),
             rejects: None,
         }
@@ -118,10 +114,8 @@ impl TradeOffer {
             initiator_name,
             receiver: Some(receiver),
             receiver_name: Some(receiver_name),
-            initiator_pays_true: HashMap::default(),
-            initiator_pays_hidden: HashMap::default(),
-            initiator_gets_true: HashMap::default(),
-            initiator_gets_hidden: HashMap::default(),
+            initiator_pays: HashMap::default(),
+            initiator_gets: HashMap::default(),
             accepts: HashSet::default(),
             rejects: None,
         }
@@ -137,10 +131,8 @@ impl TradeOffer {
             initiator_name,
             receiver: None,
             receiver_name: None,
-            initiator_pays_true: HashMap::default(),
-            initiator_pays_hidden: HashMap::default(),
-            initiator_gets_true: initiator_gets,
-            initiator_gets_hidden: HashMap::default(),
+            initiator_pays: HashMap::default(),
+            initiator_gets,
             accepts: HashSet::default(),
             rejects: None,
         }
@@ -197,11 +189,11 @@ impl TradeOffer {
     }
 
     pub fn pays_number_of_cards(&self) -> usize {
-        self.initiator_pays_true.values().sum()
+        self.initiator_pays.values().sum()
     }
 
     pub fn gets_number_of_cards(&self) -> usize {
-        self.initiator_gets_true.values().sum()
+        self.initiator_gets.values().sum()
     }
 
     pub fn prepare_counter_offer(&self, new_initiator: Entity) -> TradeOffer {
@@ -209,31 +201,31 @@ impl TradeOffer {
     }
 
     pub fn pay_more(&mut self, commodity: Commodity) {
-        *self.initiator_pays_true.entry(commodity).or_default() += 1;
+        *self.initiator_pays.entry(commodity).or_default() += 1;
     }
 
     pub fn pay_less(&mut self, commodity: Commodity) {
-        if self.initiator_pays_true.contains_key(&commodity) {
-            let current_amount = self.initiator_pays_true.get_mut(&commodity).unwrap();
+        if self.initiator_pays.contains_key(&commodity) {
+            let current_amount = self.initiator_pays.get_mut(&commodity).unwrap();
             if *current_amount > 1 {
                 *current_amount -= 1;
             } else {
-                self.initiator_pays_true.remove(&commodity);
+                self.initiator_pays.remove(&commodity);
             }
         }
     }
 
     pub fn get_more(&mut self, commodity: Commodity) {
-        *self.initiator_gets_true.entry(commodity).or_default() += 1;
+        *self.initiator_gets.entry(commodity).or_default() += 1;
     }
 
     pub fn get_less(&mut self, commodity: Commodity) {
-        if self.initiator_gets_true.contains_key(&commodity) {
-            let current_amount = self.initiator_gets_true.get_mut(&commodity).unwrap();
+        if self.initiator_gets.contains_key(&commodity) {
+            let current_amount = self.initiator_gets.get_mut(&commodity).unwrap();
             if *current_amount > 1 {
                 *current_amount -= 1;
             } else {
-                self.initiator_gets_true.remove(&commodity);
+                self.initiator_gets.remove(&commodity);
             }
         }
     }
@@ -252,18 +244,18 @@ impl TradeOffer {
         new_offer.initiator = new_initiator;
 
         //switch the commodities
-        let temp = new_offer.initiator_pays_true.clone();
-        new_offer.initiator_pays_true = new_offer.initiator_gets_true.clone();
-        new_offer.initiator_gets_true = temp;
+        let temp = new_offer.initiator_pays.clone();
+        new_offer.initiator_pays = new_offer.initiator_gets.clone();
+        new_offer.initiator_gets = temp;
 
         // Update the commodities for the new initiator (if provided)
         if let Some(commodities) = new_pays {
-            new_offer.initiator_pays_true = commodities;
+            new_offer.initiator_pays = commodities;
         }
 
         // Update the commodities for the new receiver (if provided)
         if let Some(commodities) = new_gets {
-            new_offer.initiator_gets_true = commodities;
+            new_offer.initiator_gets = commodities;
         }
 
         // Clear the acceptances and rejections for the new offer
