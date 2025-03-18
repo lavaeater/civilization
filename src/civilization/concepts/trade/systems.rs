@@ -1,4 +1,5 @@
 use crate::civilization::concepts::trade::components::{CanTrade, InSettlement, NeedsTradeMove, PlayerSettlements, PublishedOffer, TradeOffer};
+use crate::civilization::concepts::trade::functions::receiver_can_pay_for_offer;
 use crate::civilization::concepts::trade::resources::{
     TradeCountdown, TradeUiState,
 };
@@ -11,7 +12,6 @@ use bevy::prelude::{
 };
 use bevy::utils::HashMap;
 use bevy_egui::{egui, EguiContexts};
-use crate::civilization::concepts::trade::functions::receiver_can_pay_for_offer;
 
 pub fn setup_trade(
     mut commands: Commands,
@@ -47,7 +47,15 @@ pub fn remove_rejected_trades(
     }
 }
 
-pub fn queue_trade_settlements(
+
+/// Reset the trade countdown timer for every published trade offer that has been accepted.
+/// This queue is needed because a player can only accept one trade at a time, and we need to
+/// prevent them from accepting multiple trades, and prevent other players from accepting trades
+/// while another player is in the middle of a trade.
+/// Good description, but does it make any sense whatsoever?
+/// Yes, it kinda does, actually. This makes everyone on hold until the trade is DONE. Huh. 
+///
+pub fn delay_trade_moves_if_offers_are_accepted(
     trade_offers: Query<&TradeOffer, With<PublishedOffer>>,
     mut trade_countdown: ResMut<TradeCountdown>,
 ) {
@@ -58,7 +66,7 @@ pub fn queue_trade_settlements(
     }
 }
 
-pub fn settle_trades(
+pub fn begin_trade_settlement(
     trade_offers: Query<(Entity, &TradeOffer), (With<PublishedOffer>, Without<InSettlement>)>,
     mut player_settlement_query: Query<&mut PlayerSettlements>,
     mut commands: Commands,
@@ -293,6 +301,11 @@ fn display_commodities(ui: &mut egui::Ui, commodities: &HashMap<Commodity, usize
     });
 }
 
+/// Trigger `NeedsTradeMove` components on AI players after a trade countdown finishes.
+///
+/// This system ticks the `TradeCountdown` timer every frame and checks if it has just finished. If it
+/// has, all AI players with a `CanTrade` component but without a `NeedsTradeMove` or `IsHuman` component
+/// are given a `NeedsTradeMove` component, triggering the AI to make a trade move.
 pub fn trigger_trade_moves(
     time: Res<Time>,
     mut trade_countdown: ResMut<TradeCountdown>,
