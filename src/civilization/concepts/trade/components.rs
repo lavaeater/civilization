@@ -55,6 +55,7 @@ pub struct TradeOffer {
     pub initiator_gets: HashMap<Commodity, usize>,
     pub accepts: HashSet<Entity>,
     pub rejects: Option<Entity>,
+    pub settled: HashSet<Entity>
 }
 
 impl TradeOffer {
@@ -68,6 +69,7 @@ impl TradeOffer {
             initiator_gets: HashMap::default(),
             accepts: HashSet::default(),
             rejects: None,
+            settled: HashSet::default(),
         }
     }
 
@@ -118,6 +120,7 @@ impl TradeOffer {
             initiator_gets: HashMap::default(),
             accepts: HashSet::default(),
             rejects: None,
+            settled: HashSet::default(),
         }
     }
 
@@ -135,6 +138,7 @@ impl TradeOffer {
             initiator_gets,
             accepts: HashSet::default(),
             rejects: None,
+            settled: HashSet::default(),
         }
     }
 
@@ -152,13 +156,29 @@ impl TradeOffer {
     pub fn needs_counter(&self) -> bool {
         self.pays_number_of_cards() < 3
     }
+    
+    pub fn settle(&mut self, entity: Entity) -> bool {
+        if (self.receiver == Some(entity) || self.initiator == entity) {
+            self.settled.insert(entity)
+        } else {
+            false
+        }
+    }
+    
+    pub fn is_settled(&self) -> bool {
+        if let Some(entity) = self.receiver { 
+            self.settled.contains(&entity) && self.settled.contains(&self.initiator)
+        } else {
+            false
+        }
+    }
 
     pub fn accept(&mut self, entity: Entity) -> bool {
         if self.can_be_accepted() && (self.receiver == Some(entity) || self.initiator == entity) {
-            self.accepts.insert(entity);
-            return true;
+            self.accepts.insert(entity)
+        } else { 
+            false
         }
-        false
     }
 
     pub fn reject(&mut self, entity: Entity) {

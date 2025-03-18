@@ -24,6 +24,14 @@ pub struct MoveTokenFromAreaToAreaCommand {
     pub player: Entity
 }
 
+#[derive(Event, Debug, Reflect)]
+pub struct MoveTokenFromAreaToAreaCommand {
+    pub source_area: Entity,
+    pub target_area: Entity,
+    pub number_of_tokens: usize,
+    pub player: Entity
+}
+
 impl MoveTokenFromAreaToAreaCommand {
     pub fn new(source_area: Entity, target_area: Entity, number_of_tokens: usize, player:Entity) -> Self {
         MoveTokenFromAreaToAreaCommand {

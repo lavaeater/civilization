@@ -28,7 +28,7 @@ pub fn select_stupid_move(
     target_area_info_query: Query<(&Population, Has<BuiltCity>)>,
     mut commands: Commands,
     mut trade_offer_query: Query<&mut TradeOffer>,
-    _player_trade_cards: Query<&PlayerTradeCards>,
+    player_trade_cards: Query<&PlayerTradeCards>,
 ) {
     for event in event_reader.read() {
         // debug!("Selecting stupid AI move for player {:?}", event.player);
@@ -157,7 +157,21 @@ pub fn select_stupid_move(
                                 
                             },
                             TradeMoveType::SettleTrade => {
-                                
+                               /* 
+                               In fact a player can never know what trade cards are the true or false ones,
+                               all that is required is that two cards must be truthful. 
+                                */
+                                if let Some(offer_entity) = trade_move.trade_offer {
+                                    if let Ok(mut trade_offer) =
+                                        trade_offer_query.get_mut(offer_entity)
+                                    {
+                                        let my_cards = player_trade_cards.get(event.player).expect("Players should have cards");
+                                        if trade_offer.initiator == event.player {
+                                        } else if trade_offer.receiver == Some(event.player) {
+                                            
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
