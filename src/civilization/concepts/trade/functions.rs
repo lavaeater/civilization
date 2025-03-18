@@ -14,7 +14,7 @@ pub fn initiator_can_pay_for_offer(offer: &TradeOffer, initiator_cards: &PlayerT
     // Step 3: Check if the player has at least two cards of any commodity type in the offer
     // Step 3: Check if the player has at least two cards of any commodity type in the offer
     offer
-        .initiator_pays
+        .initiator_pays_true
         .iter()
         .map(|(c, _)| initiator_cards.number_of_cards_of_commodity(c))
         .sum::<usize>()
@@ -24,16 +24,16 @@ pub fn initiator_can_pay_for_offer(offer: &TradeOffer, initiator_cards: &PlayerT
 #[allow(dead_code)]
 pub fn offer_pays_well_enough(trade_offer: &TradeOffer, trading_cards: &PlayerTradeCards) -> bool {
     let mut accept_trade = false;
-    if trade_offer.initiator_pays.keys().len() >= 3 {
+    if trade_offer.initiator_pays_true.keys().len() >= 3 {
         if trading_cards
             .top_commodity()
-            .is_some_and(|c| trade_offer.initiator_pays.keys().contains(&c))
+            .is_some_and(|c| trade_offer.initiator_pays_true.keys().contains(&c))
         {
             accept_trade = true;
         } else {
             let mut matching_payment = 0;
             trade_offer
-                .initiator_pays
+                .initiator_pays_true
                 .iter()
                 .for_each(|(commodity, _)| {
                     if !trading_cards
@@ -65,7 +65,7 @@ pub fn receiver_can_pay_for_offer(offer: &TradeOffer, receiver_cards: &PlayerTra
 
     // Step 3: Check if the player has at least two cards of any commodity type in the offer
     offer
-        .initiator_gets
+        .initiator_gets_true
         .iter()
         .map(|(c, _)| receiver_cards.number_of_cards_of_commodity(c))
         .sum::<usize>()
