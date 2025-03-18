@@ -87,7 +87,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 fn remove_random_place(places: &mut HashSet<String>) -> Option<String> {
     // Randomly pick an item from the HashSet
-    let selected_place = places.iter().choose(&mut rand::thread_rng()).cloned();
+    let selected_place = places.iter().choose(&mut rand::rng()).cloned();
 
     if let Some(place) = selected_place {
         // Remove it from the HashSet

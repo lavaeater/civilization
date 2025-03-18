@@ -1,5 +1,4 @@
 use crate::civilization::concepts::trade_cards::enums::Commodity;
-use crate::civilization::systems::prelude::trade_ui;
 use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::HashMap;
 

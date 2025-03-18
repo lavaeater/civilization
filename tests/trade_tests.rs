@@ -1,4 +1,4 @@
-use crate::common::setup_bevy_app;
+use crate::common::{create_area, setup_bevy_app, setup_player};
 
 mod common;
 
@@ -6,34 +6,37 @@ use bevy::core::Name;
 use bevy::ecs::entity::Entity;
 use bevy::utils::HashMap;
 use std::cell::RefCell;
+use bevy::prelude::{NextState, Update};
+use bevy::prelude::NextState::Pending;
 use adv_civ::civilization::concepts::trade::components::TradeOffer;
 use adv_civ::civilization::concepts::trade::functions::initiator_can_pay_for_offer;
 use adv_civ::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
 use adv_civ::civilization::concepts::trade_cards::enums::Calamity::BarbarianHordes;
 use adv_civ::civilization::concepts::trade_cards::enums::Commodity::{Ochre, Salt, Wine};
 use adv_civ::civilization::concepts::trade_cards::enums::TradeCardType::{CalamityCard, CommodityCard};
+use adv_civ::civilization::enums::prelude::GameFaction;
+use adv_civ::civilization::events::prelude::CheckPlayerCitySupport;
+use adv_civ::civilization::systems::prelude::start_check_city_support;
+use adv_civ::GameActivity;
 
-/**
-Identify some nifty test cases for us here. 
- */
-// #[test]
-// fn start_game() {
-//     let mut app = setup_bevy_app(|mut app| {
-//         app
-//             .add_event::<CheckPlayerCitySupport>()
-//             .add_systems(Update, start_check_city_support)
-//         ;
-//         app
-//     });
-// 
-//     setup_player(&mut app, "Player 1", GameFaction::Egypt);
-//     create_area(&mut app, "Egypt", 1);
-// 
-//     app.update();
-// 
-//     let state = app.world().get_resource::<NextState<GameActivity>>().unwrap();
-//     assert!(matches!(state, Pending(GameActivity::AcquireTradeCards)));
-// }
+#[test]
+fn start_game() {
+    let mut app = setup_bevy_app(|mut app| {
+        app
+            .add_event::<CheckPlayerCitySupport>()
+            .add_systems(Update, start_check_city_support)
+        ;
+        app
+    });
+
+    setup_player(&mut app, "Player 1", GameFaction::Egypt);
+    create_area(&mut app, "Egypt", 1);
+
+    app.update();
+
+    let state = app.world().get_resource::<NextState<GameActivity>>().unwrap();
+    assert!(matches!(state, Pending(GameActivity::AcquireTradeCards)));
+}
 
 
 
@@ -58,10 +61,7 @@ Identify some nifty test cases for us here.
         player_cards.add_trade_card(TradeCard::new(1, CommodityCard(Ochre), true));
         player_cards.add_trade_card(TradeCard::new(5, CommodityCard(Wine), true));
         player_cards.add_trade_card(TradeCard::new(5, CalamityCard(BarbarianHordes), true));
-        assert_eq!(
-            initiator_can_pay_for_offer(&trade_offer, &player_cards),
-            true
-        );
+        assert!(initiator_can_pay_for_offer(&trade_offer, &player_cards));
     }
 
     #[test]

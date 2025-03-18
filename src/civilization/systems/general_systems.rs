@@ -40,7 +40,7 @@ pub fn setup_players(
 ) {
     debug!("3. Setting up players!");
     (1..=8).for_each(|n| {
-        if let Some(faction) = available_factions.remaining_factions.clone().iter().choose(&mut rand::thread_rng()) {
+        if let Some(faction) = available_factions.remaining_factions.clone().iter().choose(&mut rand::rng()) {
             available_factions.remaining_factions.remove(faction);
             // Create Player
             let player = commands

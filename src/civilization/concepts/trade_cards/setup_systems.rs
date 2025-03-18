@@ -19,7 +19,7 @@ pub fn load_civilization_cards(
         // needs some more sophistication, there should be at least player count number of cards
         // before a calamity shows up.
         for pile in card_resource.card_piles.values_mut() {
-            pile.shuffle(&mut rand::thread_rng());
+            pile.shuffle(&mut rand::rng());
         }
         commands.insert_resource(card_resource);
     }

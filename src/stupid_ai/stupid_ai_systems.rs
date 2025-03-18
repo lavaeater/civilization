@@ -28,7 +28,7 @@ pub fn select_stupid_move(
     target_area_info_query: Query<(&Population, Has<BuiltCity>)>,
     mut commands: Commands,
     mut trade_offer_query: Query<&mut TradeOffer>,
-    player_trade_cards: Query<&PlayerTradeCards>,
+    _player_trade_cards: Query<&PlayerTradeCards>,
 ) {
     for event in event_reader.read() {
         // debug!("Selecting stupid AI move for player {:?}", event.player);
@@ -57,7 +57,7 @@ pub fn select_stupid_move(
                 })
                 .collect::<Vec<_>>();
 
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             if let Some(selected_move) = available_moves.into_iter().choose(&mut rng) {
                 match selected_move {
                     Move::PopulationExpansion(pop_exp_move) => {
@@ -134,7 +134,7 @@ pub fn select_stupid_move(
 
                                 if let Some(offer_entity) = trade_move.trade_offer {
                                     if let Ok(trade_offer) = trade_offer_query.get(offer_entity) {
-                                        let counter_offer =
+                                        let _counter_offer =
                                             trade_offer.prepare_counter_offer(event.player);
                                     }
                                 }
@@ -148,7 +148,7 @@ pub fn select_stupid_move(
 
                                 if let Some(offer_entity) = trade_move.trade_offer {
                                     if let Ok(trade_offer) = trade_offer_query.get(offer_entity) {
-                                        let counter_offer =
+                                        let _counter_offer =
                                             trade_offer.prepare_counter_offer(event.player);
                                     }
                                 }
