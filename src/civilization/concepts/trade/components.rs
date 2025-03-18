@@ -163,6 +163,8 @@ impl TradeOffer {
         }
     }
 
+    /// Returns true if both the initiator and the receiver have accepted the trade offer.
+    /// This in turns means that there absolutely, 100% is a receiver.
     pub fn trade_accepted(&self) -> bool {
         self.initiator_accepts() && self.receiver_accepts()
     }
