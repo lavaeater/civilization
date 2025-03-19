@@ -1,7 +1,7 @@
 use crate::civilization::concepts::trade::components::{
     CanTrade, InSettlement, NeedsTradeMove, PlayerSettlements, PublishedOffer, TradeOffer,
 };
-use crate::civilization::concepts::trade::events::SendCardsToPlayerCommand;
+use crate::civilization::concepts::trade::events::SendTradeCardsCommand;
 use crate::civilization::concepts::trade::functions::receiver_can_pay_for_offer;
 use crate::civilization::concepts::trade::resources::{TradeCountdown, TradeUiState};
 use crate::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
@@ -332,21 +332,21 @@ pub fn trigger_trade_moves(
     }
 }
 
-pub fn handle_card_sending(
-    mut send_cards_to_player_event: EventReader<SendCardsToPlayerCommand>,
+pub fn handle_trading_card_exchange(
+    mut send_cards_to_player_event: EventReader<SendTradeCardsCommand>,
     mut player_query: Query<&mut PlayerTradeCards>,
 ) {
     for event in send_cards_to_player_event.read() {
         let mut sender_trade_cards = player_query.get_mut(event.sending_player).unwrap();
-        let mut card_to_send: Vec<TradeCard> = Vec::new();
-        for (card_type, count) in event.cards.iter() {
+        let mut cards_to_send: Vec<TradeCard> = Vec::new();
+        for (card_type, count) in event.cards_to_send.iter() {
             if let Some(cards) = sender_trade_cards.remove_n_trade_cards(*count, *card_type) {
-                card_to_send.extend(cards);
+                cards_to_send.extend(cards);
             }
         }
-        if !card_to_send.is_empty() {
-            let mut target_trade_cards = player_query.get_mut(event.target_player).unwrap();
-            for card in card_to_send {
+        if !cards_to_send.is_empty() {
+            let mut target_trade_cards = player_query.get_mut(event.receiving_player).unwrap();
+            for card in cards_to_send {
                 target_trade_cards.add_trade_card(card);
             }
         }
