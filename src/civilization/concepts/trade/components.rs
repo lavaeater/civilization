@@ -158,7 +158,7 @@ impl TradeOffer {
     }
     
     pub fn settle(&mut self, entity: Entity) -> bool {
-        if (self.receiver == Some(entity) || self.initiator == entity) {
+        if self.receiver == Some(entity) || self.initiator == entity {
             self.settled.insert(entity)
         } else {
             false
