@@ -68,6 +68,13 @@ impl PlayerTradeCards {
             .push(trade_card);
     }
 
+    pub fn add_trade_cards(&mut self, trade_cards: Vec<TradeCard>) {
+        self.trade_cards
+            .entry(trade_cards.first().unwrap().card_type.clone())
+            .or_default()
+            .extend(trade_cards);
+    }
+
     pub fn has_trade_card(&self, trade_card: &TradeCard) -> bool {
         self.trade_cards
             .get(&trade_card.card_type)

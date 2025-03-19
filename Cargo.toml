@@ -1,4 +1,4 @@
-cargo-features = ["codegen-backend"]
+#cargo-features = ["codegen-backend"]
 
 [package]
 name = "adv_civ"
@@ -17,7 +17,7 @@ opt-level = 3
 [profile.dev]
 opt-level = 1
 debug = 2
-codegen-backend = "cranelift"
+#codegen-backend = "cranelift"
 
 # This is used by trunk as it doesn't support custom profiles: https://github.com/trunk-rs/trunk/issues/605
 # xbuild also uses this profile for building android AABs because I couldn't find a configuration for it

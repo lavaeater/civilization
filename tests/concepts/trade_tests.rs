@@ -1,20 +1,21 @@
 use crate::{create_area, setup_bevy_app, setup_player};
 use adv_civ::civilization::concepts::trade::components::TradeOffer;
+use adv_civ::civilization::concepts::trade::events::SendTradingCardsCommand;
 use adv_civ::civilization::concepts::trade::functions::initiator_can_pay_for_offer;
 use adv_civ::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
 use adv_civ::civilization::concepts::trade_cards::enums::Calamity::BarbarianHordes;
-use adv_civ::civilization::concepts::trade_cards::enums::Commodity::{Ochre, Salt, Wine};
+use adv_civ::civilization::concepts::trade_cards::enums::Commodity::{Hides, Iron, Ochre, Salt, Wine};
 use adv_civ::civilization::concepts::trade_cards::enums::TradeCardType::{
     CalamityCard, CommodityCard,
 };
 use adv_civ::civilization::enums::prelude::GameFaction;
 use adv_civ::civilization::events::prelude::CheckPlayerCitySupport;
-use adv_civ::civilization::systems::prelude::start_check_city_support;
+use adv_civ::civilization::systems::prelude::{handle_send_trading_cards_command, start_check_city_support};
 use adv_civ::GameActivity;
 use bevy::core::Name;
 use bevy::ecs::entity::Entity;
 use bevy::prelude::NextState::Pending;
-use bevy::prelude::{NextState, Update};
+use bevy::prelude::{Events, NextState, Update};
 use bevy::utils::HashMap;
 use std::cell::RefCell;
 
@@ -129,10 +130,48 @@ fn counter_trade_offer_test_no_commodities() {
 }
 
 #[test]
-fn settle_trade_simplest() {
+fn send_trade_cards_simple() {
     /*
     Given a trade offer of the simplest, most basic kind, settle it.
     Trade is 2 iron for 2 papyrus, with the hidden ones simply being ochre or hides.
      */
+    let mut app = setup_bevy_app(|mut app| {
+        app.add_event::<SendTradingCardsCommand>()
+            .add_systems(Update, handle_send_trading_cards_command);
+        app
+    });
+
+    let (p_one, p_one_tokens, p_one_city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
+    let (p_two, p_two_tokens, p_two_city_tokens) = setup_player(&mut app, "Player 2", GameFaction::Thrace);
     
+    let mut p_one_trading_cards = PlayerTradeCards::default();
+    p_one_trading_cards.add_trade_cards( vec![TradeCard::new(2, CommodityCard(Ochre), true), TradeCard::new(2, CommodityCard(Ochre), true), TradeCard::new(3, CommodityCard(Iron), true)]);
+    
+    let mut p_two_trading_cards = PlayerTradeCards::default();
+    p_two_trading_cards.add_trade_cards( vec![TradeCard::new(2, CommodityCard(Hides), true), TradeCard::new(2, CommodityCard(Hides), true), TradeCard::new(3, CommodityCard(Salt), true)]);
+
+    app
+        .world_mut()
+        .entity_mut(p_one)
+        .insert(p_one_trading_cards);
+    app
+        .world_mut()
+        .entity_mut(p_two)
+        .insert(p_two_trading_cards);
+
+    let mut events = app.world_mut()
+        .resource_mut::<Events<SendTradingCardsCommand>>();
+
+    events.send(SendTradingCardsCommand::new(p_one, p_two, HashMap::from([(CommodityCard(Iron), 1), (CommodityCard(Ochre), 2)])));
+    events.send(SendTradingCardsCommand::new(p_two, p_one, HashMap::from([(CommodityCard(Salt), 1), (CommodityCard(Hides), 2)])));
+
+    // Act
+    app.update();
+
+    let p_one_trading_cards = app
+        .world()
+        .entity(p_one)
+        .get::<PlayerTradeCards>().unwrap();
+    assert_eq!(p_one_trading_cards.number_of_cards_of_commodity(&Hides), 2);
+    assert_eq!(p_one_trading_cards.number_of_cards_of_commodity(&Ochre), 0);
 }

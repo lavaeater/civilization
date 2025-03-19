@@ -3,15 +3,15 @@ use bevy::prelude::{Entity, Event, Reflect};
 use bevy::utils::HashMap;
 
 #[derive(Event, Debug, Reflect)]
-pub struct SendTradeCardsCommand {
+pub struct SendTradingCardsCommand {
     pub sending_player: Entity,
     pub receiving_player: Entity,
     pub cards_to_send: HashMap<TradeCardType, usize>
 }
 
-impl SendTradeCardsCommand {
+impl SendTradingCardsCommand {
     pub fn new(sending_player: Entity, receiving_player: Entity, cards_to_send: HashMap<TradeCardType, usize>) -> Self {
-        SendTradeCardsCommand {
+        SendTradingCardsCommand {
             sending_player,
             receiving_player,
             cards_to_send,
