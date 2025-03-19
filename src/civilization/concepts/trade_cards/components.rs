@@ -199,6 +199,23 @@ impl PlayerTradeCards {
         }
         grouped
     }
+
+    pub fn remove_n_trade_cards(&mut self, n: usize, trade_card_type: TradeCardType) -> Option<Vec<TradeCard>> {
+        match self.trade_cards.get_mut(&trade_card_type) {
+            Some(vector) => {
+                if vector.len() >= n {
+                    let removed_cards: Vec<TradeCard> = vector.drain(vector.len() - n..).collect();
+                    if vector.is_empty() {
+                        self.trade_cards.remove(&trade_card_type);
+                    }
+                    Some(removed_cards)
+                } else {
+                    None // Not enough cards of this type
+                }
+            },
+            None => None // No cards of this type
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Reflect)]

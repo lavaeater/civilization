@@ -1,14 +1,16 @@
-use crate::civilization::concepts::trade::components::{CanTrade, InSettlement, NeedsTradeMove, PlayerSettlements, PublishedOffer, TradeOffer};
-use crate::civilization::concepts::trade::functions::receiver_can_pay_for_offer;
-use crate::civilization::concepts::trade::resources::{
-    TradeCountdown, TradeUiState,
+use crate::civilization::concepts::trade::components::{
+    CanTrade, InSettlement, NeedsTradeMove, PlayerSettlements, PublishedOffer, TradeOffer,
 };
-use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
+use crate::civilization::concepts::trade::events::SendCardsToPlayerCommand;
+use crate::civilization::concepts::trade::functions::receiver_can_pay_for_offer;
+use crate::civilization::concepts::trade::resources::{TradeCountdown, TradeUiState};
+use crate::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
 use crate::civilization::concepts::trade_cards::enums::Commodity;
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
 use bevy::prelude::{
-    debug, Commands, Entity, Has, Name, NextState, Query, Res, ResMut, Time, With, Without,
+    debug, Commands, Entity, EventReader, Has, Name, NextState, Query, Res, ResMut, Time, With,
+    Without,
 };
 use bevy::utils::HashMap;
 use bevy_egui::{egui, EguiContexts};
@@ -20,7 +22,7 @@ pub fn setup_trade(
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     let mut has_any_human = false;
-   
+
     for (trade_cards, player, is_human) in trading_players_query.iter() {
         if trade_cards.can_trade() {
             if is_human {
@@ -47,13 +49,12 @@ pub fn remove_rejected_trades(
     }
 }
 
-
 /// Reset the trade countdown timer for every published trade offer that has been accepted.
 /// This queue is needed because a player can only accept one trade at a time, and we need to
 /// prevent them from accepting multiple trades, and prevent other players from accepting trades
 /// while another player is in the middle of a trade.
 /// Good description, but does it make any sense whatsoever?
-/// Yes, it kinda does, actually. This makes everyone on hold until the trade is DONE. Huh. 
+/// Yes, it kinda does, actually. This makes everyone on hold until the trade is DONE. Huh.
 ///
 pub fn delay_trade_moves_if_offers_are_accepted(
     trade_offers: Query<&TradeOffer, With<PublishedOffer>>,
@@ -80,32 +81,40 @@ pub fn begin_trade_settlement(
             Also, we need to "lock" that player from accepting other trades right now, until this
             particular trade is done. We need some kind of settlement order for trades. We could end
             up with a previously accepted trade that no longer is viable for either party.
-            
+
             So a trade, when ending up here, needs to be... prioritized?
             Needs a queue number? Needs to be put in a resource? AAAAH!!
-            
+
             No, we use components, as per usual. Use the ECS.
-            
-            So what we do is we check if a player already has a trade settlement in progress. 
-            
+
+            So what we do is we check if a player already has a trade settlement in progress.
+
             But that trade settlement needs to have a queue of sorts to keep track of all trades that needs settling.
-            
-            So the trade itself needs to be marked as "in settlement" and then added to a queue for the 
-            players involved with it. 
+
+            So the trade itself needs to be marked as "in settlement" and then added to a queue for the
+            players involved with it.
              */
             let initiator = offer.initiator;
             let receiver = offer.receiver.expect("There should be a receiver!");
-            
+
             if !player_settlement_query.contains(initiator) {
-                commands.entity(initiator).insert(PlayerSettlements::default());
+                commands
+                    .entity(initiator)
+                    .insert(PlayerSettlements::default());
             }
             if !player_settlement_query.contains(receiver) {
-                commands.entity(receiver).insert(PlayerSettlements::default());
+                commands
+                    .entity(receiver)
+                    .insert(PlayerSettlements::default());
             }
             commands.entity(trade_entity).insert(InSettlement); //Makes sure we don't end up here again!
-            let mut initiator_settlements = player_settlement_query.get_mut(initiator).expect("Player should have settlements");
+            let mut initiator_settlements = player_settlement_query
+                .get_mut(initiator)
+                .expect("Player should have settlements");
             initiator_settlements.trades.push_back(trade_entity);
-            let mut receiver_settlements = player_settlement_query.get_mut(receiver).expect("Player should have settlements");
+            let mut receiver_settlements = player_settlement_query
+                .get_mut(receiver)
+                .expect("Player should have settlements");
             receiver_settlements.trades.push_back(trade_entity);
         }
     }
@@ -319,6 +328,27 @@ pub fn trigger_trade_moves(
     {
         for entity in can_trade_query.iter() {
             commands.entity(entity).insert(NeedsTradeMove);
+        }
+    }
+}
+
+pub fn handle_card_sending(
+    mut send_cards_to_player_event: EventReader<SendCardsToPlayerCommand>,
+    mut player_query: Query<&mut PlayerTradeCards>,
+) {
+    for event in send_cards_to_player_event.read() {
+        let mut sender_trade_cards = player_query.get_mut(event.sending_player).unwrap();
+        let mut card_to_send: Vec<TradeCard> = Vec::new();
+        for (card_type, count) in event.cards.iter() {
+            if let Some(cards) = sender_trade_cards.remove_n_trade_cards(*count, *card_type) {
+                card_to_send.extend(cards);
+            }
+        }
+        if !card_to_send.is_empty() {
+            let mut target_trade_cards = player_query.get_mut(event.target_player).unwrap();
+            for card in card_to_send {
+                target_trade_cards.add_trade_card(card);
+            }
         }
     }
 }

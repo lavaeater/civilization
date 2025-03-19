@@ -1,7 +1,7 @@
 use bevy::prelude::Reflect;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Deserialize,
+#[derive(Copy, Clone, Deserialize,
     Serialize, Debug, Eq, Hash, PartialEq, Reflect)]
 pub enum TradeCardType {
     CommodityCard(Commodity),
@@ -46,7 +46,7 @@ impl Commodity {
     }
 }
 
-#[derive(Clone, Deserialize,
+#[derive(Clone, Copy, Deserialize,
     Serialize, Debug, Eq, Hash, PartialEq, Reflect)]
 pub enum Calamity {
     VolcanoEarthquake,

@@ -1,6 +1,6 @@
+use crate::civilization::concepts::trade_cards::enums::Commodity;
 use bevy::prelude::{Entity, Event, Reflect};
 use bevy::utils::HashMap;
-use crate::civilization::concepts::trade_cards::enums::Commodity;
 
 #[derive(Event, Debug, Reflect)]
 pub struct PlayerMovementEnded {
@@ -33,23 +33,6 @@ impl MoveTokenFromAreaToAreaCommand {
             target_area,
             number_of_tokens,
             player            
-        }
-    }
-}
-
-#[derive(Event, Debug, Reflect)]
-pub struct SendCardsToPlayerCommand {
-    pub source_player: Entity,
-    pub target_player: Entity,
-    pub cards: HashMap<Commodity, usize>,
-}
-
-impl SendCardsToPlayerCommand {
-    pub fn new(source_player: Entity, target_player: Entity, cards: HashMap<Commodity, usize>) -> Self {
-        SendCardsToPlayerCommand {
-            source_player,
-            target_player,
-            cards,
         }
     }
 }
