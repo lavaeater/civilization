@@ -63,16 +63,15 @@ impl PlayerTradeCards {
 
     pub fn add_trade_card(&mut self, trade_card: TradeCard) {
         self.trade_cards
-            .entry(trade_card.card_type.clone())
+            .entry(trade_card.card_type)
             .or_default()
             .push(trade_card);
     }
 
     pub fn add_trade_cards(&mut self, trade_cards: Vec<TradeCard>) {
-        self.trade_cards
-            .entry(trade_cards.first().unwrap().card_type.clone())
-            .or_default()
-            .extend(trade_cards);
+        for card in trade_cards.iter() {
+            self.add_trade_card(card.clone());
+        }
     }
 
     pub fn has_trade_card(&self, trade_card: &TradeCard) -> bool {

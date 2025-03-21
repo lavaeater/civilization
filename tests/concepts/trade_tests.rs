@@ -172,6 +172,17 @@ fn send_trade_cards_simple() {
         .world()
         .entity(p_one)
         .get::<PlayerTradeCards>().unwrap();
-    assert_eq!(p_one_trading_cards.number_of_cards_of_commodity(&Hides), 2);
-    assert_eq!(p_one_trading_cards.number_of_cards_of_commodity(&Ochre), 0);
+    let p_two_trading_cards = app
+        .world()
+        .entity(p_two)
+        .get::<PlayerTradeCards>().unwrap();
+    assert_eq!(p_one_trading_cards.number_of_cards_of_commodity(&Iron), 0, "Iron should be gone, actual: {}", p_one_trading_cards.number_of_cards_of_commodity(&Iron));
+    assert_eq!(p_one_trading_cards.number_of_cards_of_commodity(&Ochre), 0, "Ochre should be gone, actual: {}", p_one_trading_cards.number_of_cards_of_commodity(&Ochre));
+    assert_eq!(p_one_trading_cards.number_of_cards_of_commodity(&Hides), 2, "Hides should be 2, actual: {}", p_one_trading_cards.number_of_cards_of_commodity(&Hides));
+    assert_eq!(p_one_trading_cards.number_of_cards_of_commodity(&Salt), 1, "Salt should be 1, actual: {}", p_one_trading_cards.number_of_cards_of_commodity(&Salt));
+
+    assert_eq!(p_two_trading_cards.number_of_cards_of_commodity(&Iron), 1, "Iron should be 1, actual: {}", p_two_trading_cards.number_of_cards_of_commodity(&Iron));
+    assert_eq!(p_two_trading_cards.number_of_cards_of_commodity(&Ochre), 2, "Ochre should be 2, actual: {}", p_two_trading_cards.number_of_cards_of_commodity(&Ochre));
+    assert_eq!(p_two_trading_cards.number_of_cards_of_commodity(&Hides), 0, "Hides should be 0, actual: {}", p_two_trading_cards.number_of_cards_of_commodity(&Hides));
+    assert_eq!(p_two_trading_cards.number_of_cards_of_commodity(&Salt), 0, "Salt should be 0, actual: {}", p_two_trading_cards.number_of_cards_of_commodity(&Salt));
 }
