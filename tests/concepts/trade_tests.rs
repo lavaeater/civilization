@@ -54,8 +54,10 @@ fn create_entity() -> Entity {
 #[test]
 fn accept_trade_offer_test() {
     let mut trade_offer = TradeOffer::new(create_entity(), Name::new("Initiator"));
-    trade_offer.initiator_pays.insert(Ochre, 2);
-    trade_offer.initiator_pays.insert(Salt, 2);
+    trade_offer.initiator_pays_more(Ochre);
+    trade_offer.initiator_pays_more(Ochre);
+    trade_offer.initiator_pays_more(Salt);
+    trade_offer.initiator_pays_more(Salt);
     let mut player_cards = PlayerTradeCards::default();
     player_cards.add_trade_card(TradeCard::new(1, CommodityCard(Ochre), true));
     player_cards.add_trade_card(TradeCard::new(1, CommodityCard(Ochre), true));
@@ -67,7 +69,8 @@ fn accept_trade_offer_test() {
 #[test]
 fn accept_trade_offer_test_fail() {
     let mut trade_offer = TradeOffer::new(create_entity(), Name::new("Initiator"));
-    trade_offer.initiator_pays.insert(Salt, 2);
+    trade_offer.initiator_pays_more(Salt);
+    trade_offer.initiator_pays_more(Salt);
     let mut player_cards = PlayerTradeCards::default();
     player_cards.add_trade_card(TradeCard::new(1, CommodityCard(Salt), true));
     player_cards.add_trade_card(TradeCard::new(5, CommodityCard(Wine), true));
@@ -81,28 +84,35 @@ fn counter_trade_offer_test() {
     let receiver = create_entity();
     let mut trade_offer = TradeOffer::new(initiator, Name::new("Initiator"));
     trade_offer.receiver = Some(receiver);
-    trade_offer.initiator_pays.insert(Ochre, 2);
-    trade_offer.initiator_gets.insert(Salt, 3);
+    trade_offer.initiator_pays_more(Ochre);
+    trade_offer.initiator_pays_more(Ochre);
+    trade_offer.initiator_gets_more(Salt);
+    trade_offer.initiator_gets_more(Salt);
+    trade_offer.initiator_gets_more(Salt);
 
     let new_initiator = create_entity();
-    let new_initiator_commodities = Some(HashMap::from([(Wine, 4)]));
-    let new_receiver_commodities = Some(HashMap::from([(Ochre, 1)]));
+    let new_initiator_commodities = HashMap::from([(Wine, 4)]);
+    let new_receiver_commodities = HashMap::from([(Ochre, 1)]);
 
     let counter_offer = trade_offer.counter(
         new_initiator,
-        new_initiator_commodities.clone(),
-        new_receiver_commodities.clone(),
+        Some(new_initiator_commodities.clone()),
+        Some(new_receiver_commodities.clone()),
     );
 
     assert_eq!(counter_offer.initiator, new_initiator);
     assert_eq!(counter_offer.receiver, Some(initiator));
     assert_eq!(
-        counter_offer.initiator_pays,
-        new_initiator_commodities.unwrap()
+        counter_offer.initiator_pays_guaranteed,
+        HashMap::from([(Wine, 2)])
     );
     assert_eq!(
-        counter_offer.initiator_gets,
-        new_receiver_commodities.unwrap()
+        counter_offer.initiator_pays,
+        HashMap::from([(Wine, 2)])
+    );
+    assert_eq!(
+        counter_offer.initiator_gets_guaranteed,
+        new_receiver_commodities
     );
     assert!(counter_offer.accepts.is_empty());
     assert!(counter_offer.rejects.is_none());
@@ -114,8 +124,11 @@ fn counter_trade_offer_test_no_commodities() {
     let receiver = create_entity();
     let mut trade_offer = TradeOffer::new(initiator, Name::new("Initiator"));
     trade_offer.receiver = Some(receiver);
-    trade_offer.initiator_pays.insert(Ochre, 2);
-    trade_offer.initiator_gets.insert(Salt, 3);
+    trade_offer.initiator_pays_more(Ochre);
+    trade_offer.initiator_pays_more(Ochre);
+    trade_offer.initiator_gets_more(Salt);
+    trade_offer.initiator_gets_more(Salt);
+    trade_offer.initiator_gets_more(Salt);
 
     let new_initiator = create_entity();
 
@@ -123,8 +136,10 @@ fn counter_trade_offer_test_no_commodities() {
 
     assert_eq!(counter_offer.initiator, new_initiator);
     assert_eq!(counter_offer.receiver, Some(initiator));
-    assert_eq!(counter_offer.initiator_pays, HashMap::from([(Salt, 3)]));
-    assert_eq!(counter_offer.initiator_gets, HashMap::from([(Ochre, 2)]));
+    assert_eq!(counter_offer.initiator_gets_guaranteed, HashMap::from([(Ochre, 2)]));
+    assert_eq!(counter_offer.initiator_gets, HashMap::default());
+    assert_eq!(counter_offer.initiator_pays_guaranteed, HashMap::from([(Salt, 2)]));
+    assert_eq!(counter_offer.initiator_pays,HashMap::from([(Salt, 1)]));
     assert!(counter_offer.accepts.is_empty());
     assert!(counter_offer.rejects.is_none());
 }

@@ -255,7 +255,7 @@ pub fn trade_ui(
                                                         .button(format!("Add {:?}", commodity))
                                                         .clicked()
                                                 {
-                                                    new_offer.pay_more(commodity);
+                                                    new_offer.initiator_pays_more(commodity);
                                                 }
                                                 if ui
                                                     .button(format!("Remove {:?}", commodity))
@@ -275,7 +275,7 @@ pub fn trade_ui(
                                     ui.label("Request another commodity");
                                     for commodity in Commodity::iter() {
                                         if ui.button(format!("Request {:?}", commodity)).clicked() {
-                                            new_offer.get_more(commodity);
+                                            new_offer.initiator_gets_more(commodity);
                                         }
                                         if ui.button(format!("Remove {:?}", commodity)).clicked() {
                                             new_offer.get_less(commodity);

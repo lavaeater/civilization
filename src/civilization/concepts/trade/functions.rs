@@ -11,13 +11,14 @@ pub fn initiator_can_pay_for_offer(offer: &TradeOffer, initiator_cards: &PlayerT
         return false;
     }
 
-    // Step 3: Check if the player has at least two cards of any commodity type in the offer
+    // Step 3: Check if the player has the cards that are guaranteed
     offer
-        .initiator_pays
+        .initiator_pays_guaranteed
         .iter()
         .map(|(c, _)| initiator_cards.number_of_cards_of_commodity(c))
         .sum::<usize>()
-        >= 2
+        >= offer
+        .initiator_pays_guaranteed.values().sum()
 }
 
 #[allow(dead_code)]
@@ -64,9 +65,9 @@ pub fn receiver_can_pay_for_offer(offer: &TradeOffer, receiver_cards: &PlayerTra
 
     // Step 3: Check if the player has at least two cards of any commodity type in the offer
     offer
-        .initiator_gets
+        .initiator_gets_guaranteed
         .iter()
         .map(|(c, _)| receiver_cards.number_of_cards_of_commodity(c))
         .sum::<usize>()
-        >= 2
+        >= offer.initiator_gets_guaranteed.values().sum::<usize>()
 }

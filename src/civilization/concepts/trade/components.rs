@@ -245,11 +245,11 @@ impl TradeOffer {
     }
 
     pub fn pays_number_of_cards(&self) -> usize {
-        self.initiator_pays.values().sum()
+        self.initiator_pays.values().sum::<usize>() + self.initiator_pays_guaranteed.values().sum::<usize>()
     }
 
     pub fn gets_number_of_cards(&self) -> usize {
-        self.initiator_gets.values().sum()
+        self.initiator_gets.values().sum::<usize>() + self.initiator_gets_guaranteed.values().sum::<usize>()
     }
 
     pub fn prepare_counter_offer(&self, new_initiator: Entity) -> TradeOffer {
@@ -264,7 +264,7 @@ impl TradeOffer {
         self.initiator_gets_guaranteed.values().sum::<usize>() == 2
     }
 
-    pub fn pay_more(&mut self, commodity: Commodity) {
+    pub fn initiator_pays_more(&mut self, commodity: Commodity) {
         if self.guaranteed_pay_is_full() {
             *self.initiator_pays.entry(commodity).or_default() += 1;            
         } else {
@@ -290,7 +290,7 @@ impl TradeOffer {
         }
     }
 
-    pub fn get_more(&mut self, commodity: Commodity) {
+    pub fn initiator_gets_more(&mut self, commodity: Commodity) {
         if self.guaranteed_get_is_full() {
             *self.initiator_gets.entry(commodity).or_default() += 1;
         } else {
@@ -343,7 +343,7 @@ impl TradeOffer {
             new_offer.initiator_pays_guaranteed.clear();
             for (commodity, amount) in commodities {
                 for _ in 0..amount {
-                    new_offer.pay_more(commodity);
+                    new_offer.initiator_pays_more(commodity);
                 }
             }
         }
@@ -354,7 +354,7 @@ impl TradeOffer {
             new_offer.initiator_gets_guaranteed.clear();
             for (commodity, amount) in commodities {
                 for _ in 0..amount {
-                    new_offer.get_more(commodity);
+                    new_offer.initiator_gets_more(commodity);
                 }
             }
         }
