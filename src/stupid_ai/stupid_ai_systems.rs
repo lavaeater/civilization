@@ -28,7 +28,7 @@ pub fn select_stupid_move(
     target_area_info_query: Query<(&Population, Has<BuiltCity>)>,
     mut commands: Commands,
     mut trade_offer_query: Query<&mut TradeOffer>,
-    player_trade_cards: Query<&PlayerTradeCards>,
+    mut player_trade_cards: Query<&mut PlayerTradeCards>,
 ) {
     for event in event_reader.read() {
         // debug!("Selecting stupid AI move for player {:?}", event.player);
@@ -99,80 +99,72 @@ pub fn select_stupid_move(
                         send_movement_move(&mut move_tokens_writer, event, movement_move, true);
                     }
                     Move::Trade(trade_move) => {
-                        match trade_move.trade_move_type {
-                            TradeMoveType::OpenTradeOffer => {
-                                commands.spawn(TradeOffer::create_open_offer(
-                                    event.player,
-                                    player_name.clone(),
-                                    trade_move.initiator_gets.clone().unwrap(),
-                                ));
-                            }
-                            TradeMoveType::AcceptTradeOffer => {
-                                if let Some(offer_entity) = trade_move.trade_offer {
-                                    if let Ok(mut trade_offer) =
-                                        trade_offer_query.get_mut(offer_entity)
-                                    {
+                        if let Some(offer_entity) = trade_move.trade_offer {
+                            if let Ok(mut trade_offer) = trade_offer_query.get_mut(offer_entity) {
+                                match trade_move.trade_move_type {
+                                    TradeMoveType::AcceptTradeOffer => {
                                         trade_offer.accept(event.player);
                                     }
-                                }
-                            }
-                            TradeMoveType::DeclineTradeOffer => {
-                                if let Some(offer_entity) = trade_move.trade_offer {
-                                    if let Ok(mut trade_offer) =
-                                        trade_offer_query.get_mut(offer_entity)
-                                    {
+
+                                    TradeMoveType::DeclineTradeOffer => {
                                         trade_offer.reject(event.player);
                                     }
-                                }
-                            }
-                            TradeMoveType::CounterTradeOffer(TradeCounterType::TargetInitiator) => {
-                                /*
-                                Countering creates a completely new offer that can be to the initiating party or some other player etc etc
-                                it is intensely complex, it feels like. The counter off should probably be handled here since this is the ai Portion
-                                of the systems, however this function is beginning to become ridiculous.
-                                */
+                                    TradeMoveType::CounterTradeOffer(
+                                        TradeCounterType::TargetInitiator,
+                                    ) => {
+                                        /*
+                                        Countering creates a completely new offer that can be to the initiating party or some other player etc etc
+                                        it is intensely complex, it feels like. The counter off should probably be handled here since this is the ai Portion
+                                        of the systems, however this function is beginning to become ridiculous.
+                                        */
 
-                                if let Some(offer_entity) = trade_move.trade_offer {
-                                    if let Ok(trade_offer) = trade_offer_query.get(offer_entity) {
                                         let _counter_offer =
                                             trade_offer.prepare_counter_offer(event.player);
                                     }
-                                }
-                            }
-                            TradeMoveType::CounterTradeOffer(TradeCounterType::TargetReceiver) => {
-                                /*
-                                Countering creates a completely new offer that can be to the initiating party or some other player etc etc
-                                it is intensely complex, it feels like. The counter off should probably be handled here since this is the ai Portion
-                                of the systems, however this function is beginning to become ridiculous.
-                                */
+                                    TradeMoveType::CounterTradeOffer(
+                                        TradeCounterType::TargetReceiver,
+                                    ) => {
+                                        /*
+                                        Countering creates a completely new offer that can be to the initiating party or some other player etc etc
+                                        it is intensely complex, it feels like. The counter off should probably be handled here since this is the ai Portion
+                                        of the systems, however this function is beginning to become ridiculous.
+                                        */
 
-                                if let Some(offer_entity) = trade_move.trade_offer {
-                                    if let Ok(trade_offer) = trade_offer_query.get(offer_entity) {
                                         let _counter_offer =
                                             trade_offer.prepare_counter_offer(event.player);
                                     }
-                                }
-                            }
-                            TradeMoveType::StopTrading => {
-                                
-                            },
-                            TradeMoveType::SettleTrade => {
-                               /* 
-                               In fact a player can never know what trade cards are the true or false ones,
-                               all that is required is that two cards must be truthful. 
-                                */
-                                if let Some(offer_entity) = trade_move.trade_offer {
-                                    if let Ok(mut trade_offer) =
-                                        trade_offer_query.get_mut(offer_entity)
-                                    {
-                                        let my_cards = player_trade_cards.get(event.player).expect("Players should have cards");
+                                    TradeMoveType::StopTrading => {}
+                                    TradeMoveType::SettleTrade => {
+                                        /*
+                                        In fact a player can never know what trade cards are the true or false ones,
+                                        all that is required is that two cards must be truthful.
+                                         */
+                                        let mut my_cards = player_trade_cards
+                                            .get_mut(event.player)
+                                            .expect("Players should have cards");
                                         if trade_offer.initiator == event.player {
+                                            let mut cards_to_use = Vec::new();
+                                            let mut commodities_to_fulfill =
+                                                trade_offer.initiator_pays.clone();
+
+                                            // First, add any tradeable calamity cards we have
+                                            if let Some(card) =
+                                                my_cards.remove_worst_tradeable_calamity()
+                                            {
+                                                cards_to_use.push(card);
+                                            }
                                         } else if trade_offer.receiver == Some(event.player) {
-                                            
                                         }
                                     }
+                                    _ => {}
                                 }
                             }
+                        } else if trade_move.trade_move_type == TradeMoveType::OpenTradeOffer {
+                            commands.spawn(TradeOffer::create_open_offer(
+                                event.player,
+                                player_name.clone(),
+                                trade_move.initiator_gets.clone().unwrap(),
+                            ));
                         }
                     }
                 }

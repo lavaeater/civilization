@@ -30,7 +30,7 @@ impl CivilizationTradeCards {
     }
 }
 
-#[derive(Component, Debug, Reflect, Default)]
+#[derive(Component, Debug, Reflect, Default, Clone)]
 pub struct PlayerTradeCards {
     trade_cards: HashMap<TradeCardType, Vec<TradeCard>>,
 }
@@ -79,6 +79,23 @@ impl PlayerTradeCards {
             .get(&trade_card.card_type)
             .unwrap_or(&Vec::default())
             .contains(trade_card)
+    }
+    
+    pub fn remove_worst_tradeable_calamity(&mut self) -> Option<TradeCard> {
+        if let Some(calamity) = self.worst_tradeable_calamity() {
+            self.remove_card_for_calamity(&calamity)
+        } else { None }
+    }
+    
+    pub fn remove_card_for_calamity(&mut self, calamity: &Calamity) -> Option<TradeCard>{
+        if let Some(cards) = self.trade_cards
+            .get_mut(&TradeCardType::CalamityCard(*calamity)) {
+            let card = cards.pop();
+            if cards.is_empty() {
+                self.trade_cards.remove(&TradeCardType::CalamityCard(*calamity));
+            }
+            card
+        } else { None }
     }
 
     pub fn has_n_commodities(&self, n: usize, commodity: &Commodity) -> bool {
