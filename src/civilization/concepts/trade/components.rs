@@ -52,7 +52,9 @@ pub struct TradeOffer {
     pub receiver: Option<Entity>,
     pub receiver_name: Option<Name>,
     pub initiator_pays: HashMap<Commodity, usize>,
+    pub initiator_pays_guaranteed: HashMap<Commodity, usize>, // The "true" cards that are guaranteed
     pub initiator_gets: HashMap<Commodity, usize>,
+    pub initiator_gets_guaranteed: HashMap<Commodity, usize>, // The "true" cards that are guaranteed
     pub accepts: HashSet<Entity>,
     pub rejects: Option<Entity>,
     pub settled: HashSet<Entity>
@@ -66,7 +68,9 @@ impl TradeOffer {
             receiver: None,
             receiver_name: None,
             initiator_pays: HashMap::default(),
+            initiator_pays_guaranteed: HashMap::default(),
             initiator_gets: HashMap::default(),
+            initiator_gets_guaranteed: HashMap::default(),
             accepts: HashSet::default(),
             rejects: None,
             settled: HashSet::default(),
@@ -117,7 +121,9 @@ impl TradeOffer {
             receiver: Some(receiver),
             receiver_name: Some(receiver_name),
             initiator_pays: HashMap::default(),
+            initiator_pays_guaranteed: HashMap::default(),
             initiator_gets: HashMap::default(),
+            initiator_gets_guaranteed: HashMap::default(),
             accepts: HashSet::default(),
             rejects: None,
             settled: HashSet::default(),
@@ -129,16 +135,46 @@ impl TradeOffer {
         initiator_name: Name,
         initiator_gets: HashMap<Commodity, usize>,
     ) -> Self {
-        TradeOffer {
-            initiator,
-            initiator_name,
-            receiver: None,
-            receiver_name: None,
-            initiator_pays: HashMap::default(),
-            initiator_gets,
-            accepts: HashSet::default(),
-            rejects: None,
-            settled: HashSet::default(),
+        
+        if initiator_gets.values().sum::<usize>() > 2 {
+            /* 
+            This means that at least ONE commodity has 2 or more cards assigned to it.
+            Simply find it
+             */
+            let max_commodity = initiator_gets.iter().max_by_key(|(_, v)|*v).unwrap();
+            let mut initiator_gets_not_guaranteed = HashMap::from([(max_commodity.0.clone(), max_commodity.1 - 2)]);
+            initiator_gets_not_guaranteed
+                .extend(
+                    initiator_gets
+                        .iter()
+                        .filter(|(c, _)| *c != max_commodity.0));
+            TradeOffer {
+                initiator,
+                initiator_name,
+                receiver: None,
+                receiver_name: None,
+                initiator_pays: HashMap::default(),
+                initiator_pays_guaranteed: HashMap::default(),
+                initiator_gets_guaranteed: HashMap::from([(*max_commodity.0, 2)]), 
+                initiator_gets: initiator_gets_not_guaranteed,
+                accepts: HashSet::default(),
+                rejects: None,
+                settled: HashSet::default(),
+            }
+        } else {
+            TradeOffer {
+                initiator,
+                initiator_name,
+                receiver: None,
+                receiver_name: None,
+                initiator_pays: HashMap::default(),
+                initiator_pays_guaranteed: HashMap::default(),
+                initiator_gets_guaranteed: initiator_gets,
+                initiator_gets: HashMap::default(),
+                accepts: HashSet::default(),
+                rejects: None,
+                settled: HashSet::default(),
+            }            
         }
     }
 
@@ -219,9 +255,21 @@ impl TradeOffer {
     pub fn prepare_counter_offer(&self, new_initiator: Entity) -> TradeOffer {
         self.counter(new_initiator, None, None)
     }
+    
+    pub fn guaranteed_pay_is_full(&self) -> bool {
+        self.initiator_pays_guaranteed.values().sum::<usize>() == 2
+    }
+
+    pub fn guaranteed_get_is_full(&self) -> bool {
+        self.initiator_gets_guaranteed.values().sum::<usize>() == 2
+    }
 
     pub fn pay_more(&mut self, commodity: Commodity) {
-        *self.initiator_pays.entry(commodity).or_default() += 1;
+        if self.guaranteed_pay_is_full() {
+            *self.initiator_pays.entry(commodity).or_default() += 1;            
+        } else {
+            *self.initiator_pays_guaranteed.entry(commodity).or_default() += 1;
+        }
     }
 
     pub fn pay_less(&mut self, commodity: Commodity) {
@@ -232,11 +280,22 @@ impl TradeOffer {
             } else {
                 self.initiator_pays.remove(&commodity);
             }
+        } else if self.initiator_pays_guaranteed.contains_key(&commodity) {
+            let current_amount = self.initiator_pays_guaranteed.get_mut(&commodity).unwrap();
+            if *current_amount > 1 {
+                *current_amount -= 1;
+            } else {
+                self.initiator_pays_guaranteed.remove(&commodity);
+            }
         }
     }
 
     pub fn get_more(&mut self, commodity: Commodity) {
-        *self.initiator_gets.entry(commodity).or_default() += 1;
+        if self.guaranteed_get_is_full() {
+            *self.initiator_gets.entry(commodity).or_default() += 1;
+        } else {
+            *self.initiator_gets_guaranteed.entry(commodity).or_default() += 1;
+        }
     }
 
     pub fn get_less(&mut self, commodity: Commodity) {
@@ -246,6 +305,13 @@ impl TradeOffer {
                 *current_amount -= 1;
             } else {
                 self.initiator_gets.remove(&commodity);
+            }
+        } else if self.initiator_gets_guaranteed.contains_key(&commodity) {
+            let current_amount = self.initiator_gets_guaranteed.get_mut(&commodity).unwrap();
+            if *current_amount > 1 {
+                *current_amount -= 1;
+            } else {
+                self.initiator_gets_guaranteed.remove(&commodity);
             }
         }
     }
@@ -265,17 +331,32 @@ impl TradeOffer {
 
         //switch the commodities
         let temp = new_offer.initiator_pays.clone();
+        let temp_guaranteed = new_offer.initiator_pays_guaranteed.clone();
         new_offer.initiator_pays = new_offer.initiator_gets.clone();
+        new_offer.initiator_pays_guaranteed = new_offer.initiator_gets_guaranteed.clone();
         new_offer.initiator_gets = temp;
+        new_offer.initiator_gets_guaranteed = temp_guaranteed;
 
         // Update the commodities for the new initiator (if provided)
         if let Some(commodities) = new_pays {
-            new_offer.initiator_pays = commodities;
+            new_offer.initiator_pays.clear();
+            new_offer.initiator_pays_guaranteed.clear();
+            for (commodity, amount) in commodities {
+                for _ in 0..amount {
+                    new_offer.pay_more(commodity);
+                }
+            }
         }
 
         // Update the commodities for the new receiver (if provided)
         if let Some(commodities) = new_gets {
-            new_offer.initiator_gets = commodities;
+            new_offer.initiator_gets.clear();
+            new_offer.initiator_gets_guaranteed.clear();
+            for (commodity, amount) in commodities {
+                for _ in 0..amount {
+                    new_offer.get_more(commodity);
+                }
+            }
         }
 
         // Clear the acceptances and rejections for the new offer
