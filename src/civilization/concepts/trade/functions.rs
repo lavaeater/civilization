@@ -12,7 +12,6 @@ pub fn initiator_can_pay_for_offer(offer: &TradeOffer, initiator_cards: &PlayerT
     }
 
     // Step 3: Check if the player has at least two cards of any commodity type in the offer
-    // Step 3: Check if the player has at least two cards of any commodity type in the offer
     offer
         .initiator_pays
         .iter()

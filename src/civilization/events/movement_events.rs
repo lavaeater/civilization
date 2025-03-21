@@ -1,6 +1,4 @@
-use crate::civilization::concepts::trade_cards::enums::Commodity;
 use bevy::prelude::{Entity, Event, Reflect};
-use bevy::utils::HashMap;
 
 #[derive(Event, Debug, Reflect)]
 pub struct PlayerMovementEnded {

@@ -165,8 +165,8 @@ fn send_trade_cards_simple() {
         app
     });
 
-    let (p_one, p_one_tokens, p_one_city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
-    let (p_two, p_two_tokens, p_two_city_tokens) = setup_player(&mut app, "Player 2", GameFaction::Thrace);
+    let (p_one, _p_one_tokens, _p_one_city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
+    let (p_two, _p_two_tokens, _p_two_city_tokens) = setup_player(&mut app, "Player 2", GameFaction::Thrace);
     
     let mut p_one_trading_cards = PlayerTradeCards::default();
     p_one_trading_cards.add_trade_cards( vec![TradeCard::new(2, CommodityCard(Ochre), true), TradeCard::new(2, CommodityCard(Ochre), true), TradeCard::new(3, CommodityCard(Iron), true)]);
