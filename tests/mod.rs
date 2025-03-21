@@ -1,5 +1,6 @@
 mod general_components;
 mod concepts;
+mod stupid_ai;
 
 use adv_civ::player::Player;
 use adv_civ::{GameActivity, GameState};
