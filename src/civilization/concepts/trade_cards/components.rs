@@ -161,6 +161,16 @@ impl PlayerTradeCards {
             .map(|(commodity, _value)| *commodity)
     }
 
+    pub fn worst_tradeable_calamity(&self) -> Option<Calamity> {
+        match self.calamity_cards()
+            .iter()
+            .filter(|card| card.tradeable)
+            .max_by(|a,b| a.value.cmp(&b.value)) {
+            None => { None }
+            Some(card) => { card.get_calamity()}
+        }
+    }
+
     pub fn commodity_card_suites(&self) -> HashMap<Commodity, usize> {
         let mut suits: HashMap<Commodity, usize> = HashMap::default();
         for (commodity, cards) in self.commodity_cards_by_commodity() {

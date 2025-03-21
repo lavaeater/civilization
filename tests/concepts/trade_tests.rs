@@ -3,7 +3,7 @@ use adv_civ::civilization::concepts::trade::components::TradeOffer;
 use adv_civ::civilization::concepts::trade::events::SendTradingCardsCommand;
 use adv_civ::civilization::concepts::trade::functions::initiator_can_pay_for_offer;
 use adv_civ::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
-use adv_civ::civilization::concepts::trade_cards::enums::Calamity::BarbarianHordes;
+use adv_civ::civilization::concepts::trade_cards::enums::Calamity::{BarbarianHordes, CivilWar, Epidemic, Famine};
 use adv_civ::civilization::concepts::trade_cards::enums::Commodity::{Hides, Iron, Ochre, Salt, Wine};
 use adv_civ::civilization::concepts::trade_cards::enums::TradeCardType::{
     CalamityCard, CommodityCard,
@@ -127,6 +127,30 @@ fn counter_trade_offer_test_no_commodities() {
     assert_eq!(counter_offer.initiator_gets, HashMap::from([(Ochre, 2)]));
     assert!(counter_offer.accepts.is_empty());
     assert!(counter_offer.rejects.is_none());
+}
+
+#[test]
+fn worst_tradeable_calamity_test() {
+    let mut player_cards = PlayerTradeCards::default();
+    
+    // Initially there should be no calamity cards
+    assert_eq!(player_cards.worst_tradeable_calamity(), None);
+    
+    // Add some calamity cards with different values
+    player_cards.add_trade_card(TradeCard::new(1, CalamityCard(BarbarianHordes), true));
+    assert_eq!(player_cards.worst_tradeable_calamity().unwrap(), BarbarianHordes);
+    
+    // Add a lower value calamity (should become the new worst)
+    player_cards.add_trade_card(TradeCard::new(5, CalamityCard(CivilWar), true));
+    assert_eq!(player_cards.worst_tradeable_calamity().unwrap(), CivilWar);
+    
+    // Add a higher value calamity (should not change the worst)
+    player_cards.add_trade_card(TradeCard::new(3, CalamityCard(Epidemic), true));
+    assert_eq!(player_cards.worst_tradeable_calamity().unwrap(), CivilWar);
+    
+    // Add a non-tradeable calamity (should not be considered)
+    player_cards.add_trade_card(TradeCard::new(7, CalamityCard(Famine), false));
+    assert_eq!(player_cards.worst_tradeable_calamity().unwrap(), CivilWar);
 }
 
 #[test]
