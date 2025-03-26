@@ -1,0 +1,66 @@
+<template>
+    <image
+        display="grid"
+        image_mode="10px tile(1) tile(1) 4"
+        src="ui_panel.png"
+        border="2px"
+        margin="10px"
+        padding="30px"
+        row_gap="15px"
+    >
+        <text font_size="32">Widget Demo Scene</text>
+        <node
+            display="grid"
+            row_gap="5px"
+        >
+            <text font_size="20">Minimal slider</text>
+            <node
+                column_gap="5px"
+                height="200px"
+            >
+                <vslider target="t0" on_change="notify_slider_change">
+                    <text id="t0" font_size="20">0.00</text>
+                </vslider>
+
+                <vslider target="t1" on_change="notify_slider_change">
+                    <text id="t1" font_size="20">0.00</text>
+                </vslider>
+
+                <vslider target="t2" on_change="notify_slider_change">
+                    <text id="t2" font_size="20">0.00</text>
+                </vslider>
+
+                <vslider target="t3" on_change="notify_slider_change">
+                    <text id="t3" font_size="10">0.00</text>
+                </vslider>
+
+                <vslider target="t4" on_change="notify_slider_change">
+                    <text id="t4" font_size="20">0.00</text>
+                </vslider>
+
+            </node>
+            <node width="300px" column_gap="5px">
+                <hslider target="h0" on_change="notify_slider_change" />
+                <text id="h0" font_size="20">0.00</text>
+
+                <hslider target="h1" on_change="notify_slider_change" />
+                <text id="h1" font_size="20">0.00</text>
+            </node>
+        </node>
+
+        <node display="grid">
+            <text font_size="20">Minimal input</text>
+            <input on_change="notify_input_change"/>
+        </node>
+
+
+        <node display="grid">
+            <text font_size="20">Minimal select</text>
+            <select on_change="notify_select_change">
+				<option value="option 1" />
+				<option value="option 2" />
+				<option value="option 3" />
+			</select>
+        </node>
+    </image>
+</template>

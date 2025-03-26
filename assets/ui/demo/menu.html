@@ -1,0 +1,118 @@
+<template>
+    <property name="title">Not-Set-Yet</property>
+    <property name="author">Lommix</property>
+
+    <!-- the root node of each template can define default property values -->
+    <node>
+        <!-- this is a user defined node `panel` that maps to include a another template -->
+        <panel
+            primary="#AAF"
+            title="{title}"
+        >
+            <panel
+                title="box shadow"
+                primary="#FFF"
+            >
+                <button
+                    id="shadow_btn"
+                    padding="20px 5px"
+                    margin="20px"
+                    border_radius="5px"
+                    background="#515"
+                    hover:background="#618"
+                    justify_content="center"
+                    shadow_color="#000"
+                    hover:shadow_color="#F00"
+                    shadow_offset="5px 10px"
+                    shadow_blur="6px"
+                    shadow_spread="5px"
+                    delay="200ms"
+                    ease="cubic_in"
+                >
+                    <text
+                        font_size="24"
+                        pressed:font_size="32"
+                        delay="100ms"
+                        watch="shadow_btn"
+                        hover:font_color="#F00"
+                    >
+                        Button
+                    </text>
+                </button>
+            </panel>
+
+            <panel title="Item card">
+                <!-- properties can drip down the component tree -->
+                <preview
+                    source="bevy_bird_dark.png"
+                    title="{title}"
+                />
+            </panel>
+
+            <panel title="aseprite">
+                <aseprite
+                    source="cat.aseprite"
+                    animation="bongo"
+                />
+                <text>bevy_aseprite_ultra integration test</text>
+            </panel>
+
+            <panel
+                primary="#515"
+                secondary="#315"
+                title="Update Properties"
+            >
+                <node
+                    align_items="center"
+                    flex_direction="columns"
+                >
+                    <text font_size="40">- {title} -</text>
+                    <text font_size="40">- {title} -</text>
+                    <text font_size="40">- {title} -</text>
+                </node>
+
+                <button
+                    background="#002"
+                    justify_content="center"
+                    hover:background="#008"
+                    pressed:background="#955"
+                    hover:padding="10px 55px"
+                    border="2px"
+                    border_color="#FFF"
+                    delay="200ms"
+                    ease="cubic_in"
+                    border_radius="4px"
+                    padding="10px"
+                    on_press="debug"
+                >
+                    <text font_size="25">Change Title</text>
+                </button>
+            </panel>
+            <panel
+                secondary="#a02"
+                primary="#401"
+                title="Grid"
+            >
+                <node flex_direction="column">
+                    <button
+                        target="inventory"
+                        width="420px"
+                        overflow="visible scroll"
+                        align_content="center"
+                        justify_content="center"
+                    >
+                        <node
+                            on_spawn="inventory"
+                            id="inventory"
+                            display="grid"
+                            grid_template_columns="(6, auto)"
+                            padding="10px"
+                            column_gap="7px"
+                            row_gap="5px"
+                        />
+                    </button>
+                </node>
+            </panel>
+        </panel>
+    </node>
+</template>
