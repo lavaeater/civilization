@@ -34,7 +34,14 @@ struct Menu;
 
 fn setup_menu(mut commands: Commands, textures: Res<TextureAssets>) {
     info!("menu");
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2dBundle {
+        projection: OrthographicProjection {
+            far: 1000.,
+            near: -1000.,
+            scale: 1.025, 
+            ..Default::default()
+        },
+        ..default() });
     commands
         .spawn((
             NodeBundle {

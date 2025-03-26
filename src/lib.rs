@@ -1,4 +1,5 @@
 #![allow(clippy::type_complexity)]
+// #![feature(impl_trait_in_assoc_type, associated_type_defaults)]
 
 pub mod actions;
 pub mod audio;
@@ -13,7 +14,7 @@ use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
 use crate::menu::MenuPlugin;
 
-use crate::civilization::general::general_plugin::CivilizationPlugin;
+use civilization::plugins::general_plugin::CivilizationPlugin;
 use bevy::app::App;
 // #[cfg(debug_assertions)]
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
@@ -45,7 +46,7 @@ pub enum GameActivity {
     RemoveSurplusPopulation,
     CheckCitySupport,
     AcquireTradeCards,
-    // Trade,
+    Trade,
     // ResolveCalamities,
     // AcquireCivilizationCards,
     // MoveSuccessionMarkers,
