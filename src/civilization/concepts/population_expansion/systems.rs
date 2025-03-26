@@ -43,18 +43,15 @@ pub fn enter_population_expansion(
     game_info.round += 1;
     debug!("Entering population expansion round {}", game_info.round);
     for (area_entity, pop) in area.iter() {
-        debug!("Add expansion component to an area");
         if pop.has_population() {
             commands.entity(area_entity).insert(AreaIsExpanding::new(pop.players()));
         }
     }
 
     for (player, player_areas) in player_query.iter() {
-        debug!("Add expansion component to a player");
         commands.entity(player).insert(NeedsExpansion::new(player_areas.areas()));
         checker.send(CheckPlayerExpansionEligibility::new(player));
     }
-    debug!("We are DONE! pop exp setup! {}", game_info.round);
 }
 
 pub fn auto_expand_population(
@@ -90,7 +87,7 @@ pub fn population_expansion_gate(
     mut next_state: ResMut<NextState<GameActivity>>
 ) {
     for _ in check_gate.read() {
-        debug!("Checking gate");
+        debug!("Checking pop exp gate");
         // No players need expansion no more, so remove the NeedsExpansion component from all areas
         if player_gate_query.is_empty() {
             debug!("No players need expansion, let's do census!");

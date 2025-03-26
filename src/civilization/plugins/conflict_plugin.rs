@@ -12,8 +12,8 @@ impl Plugin for ConflictPlugin {
             .add_systems(
                 OnEnter(GameActivity::Conflict), find_conflict_zones)
             .add_systems(Update, (conflict_gate).run_if(in_state(GameActivity::Conflict)))
-            .observe(on_add_unresolved_conflict)
-            .observe(on_add_unresolved_city_conflict)
+            .add_observer(on_add_unresolved_conflict)
+            .add_observer(on_add_unresolved_city_conflict)
         ;
     }
 }

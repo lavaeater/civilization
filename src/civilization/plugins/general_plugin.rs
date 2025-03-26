@@ -67,7 +67,7 @@ impl Plugin for CivilizationPlugin {
                     fix_token_positions
                         .run_if(in_state(GameState::Playing)),
                 ))
-            .observe(on_add_return_token_to_stock)
+            .add_observer(on_add_return_token_to_stock)
         ;
     }
 }

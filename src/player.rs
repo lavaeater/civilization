@@ -12,19 +12,20 @@ pub struct Player;
 /// Player logic is only active during the State `GameState::Playing`
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(OnEnter(GameState::Playing), spawn_player)
+        app.add_systems(OnEnter(GameState::Playing), spawn_player)
             .add_systems(Update, move_player.run_if(in_state(GameState::Playing)));
     }
 }
 
 fn spawn_player(mut commands: Commands, textures: Res<TextureAssets>) {
     commands
-        .spawn(SpriteBundle {
-            texture: textures.bevy.clone(),
-            transform: Transform::from_translation(Vec3::new(0., 0., 1.)),
-            ..Default::default()
-        })
+        .spawn((
+            Sprite {
+                image: textures.bevy.clone(),
+                ..Default::default()
+            },
+            Transform::from_translation(Vec3::new(0., 0., 1.)),
+        ))
         .insert(Player);
 }
 
@@ -38,8 +39,8 @@ fn move_player(
     }
     let speed = 150.;
     let movement = Vec3::new(
-        actions.player_movement.unwrap().x * speed * time.delta_seconds(),
-        actions.player_movement.unwrap().y * speed * time.delta_seconds(),
+        actions.player_movement.unwrap().x * speed * time.delta_secs(),
+        actions.player_movement.unwrap().y * speed * time.delta_secs(),
         0.,
     );
     for mut player_transform in &mut player_query {

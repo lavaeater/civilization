@@ -1,29 +1,51 @@
-use bevy::asset::Handle;
-use bevy::math::Vec3;
-use bevy::prelude::{default, Commands, Entity, Image, Mut, SpriteBundle, Transform};
 use crate::civilization::components::prelude::*;
 use crate::civilization::events::prelude::*;
 use crate::civilization::triggers::prelude::*;
+use bevy::asset::Handle;
+use bevy::math::Vec3;
+use bevy::prelude::{default, Commands, Entity, Image, Mut, Sprite, Transform};
 
-pub fn move_from_stock_to_area(player: Entity, area: Entity, at_most_tokens: usize, population: &mut Population, token_stock: &mut TokenStock, player_areas: &mut PlayerAreas) {
-    let tokens = token_stock.remove_at_most_n_tokens_from_stock(at_most_tokens).unwrap_or_default();
+pub fn move_from_stock_to_area(
+    player: Entity,
+    area: Entity,
+    at_most_tokens: usize,
+    population: &mut Population,
+    token_stock: &mut TokenStock,
+    player_areas: &mut PlayerAreas,
+) {
+    let tokens = token_stock
+        .remove_at_most_n_tokens_from_stock(at_most_tokens)
+        .unwrap_or_default();
     population.add_tokens_to_area(player, tokens.clone());
     player_areas.add_tokens_to_area(area, tokens);
 }
 
-pub fn return_all_tokens_from_area_to_player(player: &Entity, area: &Entity, population: &mut Population, token_stock: &mut TokenStock, player_areas: &mut PlayerAreas) {
+pub fn return_all_tokens_from_area_to_player(
+    player: &Entity,
+    area: &Entity,
+    population: &mut Population,
+    token_stock: &mut TokenStock,
+    player_areas: &mut PlayerAreas,
+) {
     let tokens = population.remove_all_tokens_for_player(player);
     token_stock.return_tokens_to_stock(tokens.clone());
     player_areas.remove_area(area);
 }
 
-pub fn return_all_tokens_from_area_to_players(population: &mut Population, mut commands: &mut Commands) {
+pub fn return_all_tokens_from_area_to_players(
+    population: &mut Population,
+    mut commands: &mut Commands,
+) {
     for player in population.players() {
         return_all_tokens_from_area_for_player(population, &player, &mut commands);
     }
 }
 
-pub fn return_all_tokens_from_area_for_player(population: &mut Population, player: &Entity, commands: &mut Commands) {
+pub fn return_all_tokens_from_area_for_player(
+    population: &mut Population,
+    player: &Entity,
+    commands: &mut Commands,
+) {
     for token in population.remove_all_tokens_for_player(player) {
         commands.entity(token).insert(ReturnTokenToStock);
     }
@@ -39,22 +61,26 @@ pub fn build_city_in_area(
 ) {
     if let Some(city_token) = city_stock.get_token_from_stock() {
         player_cities.build_city_in_area(build_city.area, city_token);
-        commands.entity(build_city.area)
-            .insert(BuiltCity {
-                player: build_city.player,
-                city: city_token,
-            });
-        commands.entity(city_token)
-            .insert(SpriteBundle {
-                texture,
-                transform: Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
-                    .with_translation(area_transform.translation),
+        commands.entity(build_city.area).insert(BuiltCity {
+            player: build_city.player,
+            city: city_token,
+        });
+        commands.entity(city_token).insert((
+            Sprite {
+                image: texture,
                 ..default()
-            });
+            },
+            Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
+                .with_translation(area_transform.translation),
+        ));
     }
 }
 
-pub fn return_token_to_stock(token: Entity, token_stock: &mut TokenStock, player_areas: &mut PlayerAreas) {
+pub fn return_token_to_stock(
+    token: Entity,
+    token_stock: &mut TokenStock,
+    player_areas: &mut PlayerAreas,
+) {
     token_stock.return_token_to_stock(token);
     player_areas.remove_token(token);
 }
@@ -65,15 +91,31 @@ pub fn return_all_tokens_to_stock(population: &mut Population, commands: &mut Co
     }
 }
 
-pub fn return_all_but_n_tokens_to_stock_for_player(population: &mut Population, player: &Entity, n: usize, commands: &mut Commands) {
-    for token in population.remove_all_but_n_tokens(player, n).unwrap_or_default() {
+pub fn return_all_but_n_tokens_to_stock_for_player(
+    population: &mut Population,
+    player: &Entity,
+    n: usize,
+    commands: &mut Commands,
+) {
+    for token in population
+        .remove_all_but_n_tokens(player, n)
+        .unwrap_or_default()
+    {
         commands.entity(token).insert(ReturnTokenToStock);
     }
 }
 
-pub fn remove_n_tokens_from_each_player(players: &Vec<Entity>, population: &mut Population, commands: &mut Commands, token_rounds: usize) {
+pub fn remove_n_tokens_from_each_player(
+    players: &Vec<Entity>,
+    population: &mut Population,
+    commands: &mut Commands,
+    token_rounds: usize,
+) {
     for player in players {
-        for token in population.remove_tokens_from_area(player, token_rounds).unwrap_or_default() {
+        for token in population
+            .remove_tokens_from_area(player, token_rounds)
+            .unwrap_or_default()
+        {
             commands.entity(token).insert(ReturnTokenToStock);
         }
     }
@@ -90,7 +132,14 @@ pub fn replace_city_with_tokens_for_conflict(
 ) {
     player_cities.remove_city_from_area(area_entity);
     city_stock.return_token_to_stock(built_city.city);
-    move_from_stock_to_area(built_city.player, area_entity, 6, population, token_stock, player_areas);
+    move_from_stock_to_area(
+        built_city.player,
+        area_entity,
+        6,
+        population,
+        token_stock,
+        player_areas,
+    );
 }
 
 #[cfg(test)]
@@ -100,8 +149,8 @@ mod tests {
     use std::cell::RefCell;
 
     thread_local! {
-    static ENTITY_COUNTER: RefCell<u32> = RefCell::new(0);
-}
+        static ENTITY_COUNTER: RefCell<u32> = RefCell::new(0);
+    }
 
     fn create_entity() -> Entity {
         ENTITY_COUNTER.with(|counter| {
@@ -110,7 +159,6 @@ mod tests {
             Entity::from_raw(index)
         })
     }
-
 
     #[test]
     fn test_move_from_stock_to_area() {
@@ -122,12 +170,18 @@ mod tests {
         let player = create_entity();
         let area = create_entity();
 
-        move_from_stock_to_area(player, area, 1, &mut population, &mut token_stock, &mut player_areas);
+        move_from_stock_to_area(
+            player,
+            area,
+            1,
+            &mut population,
+            &mut token_stock,
+            &mut player_areas,
+        );
 
         assert!(population.has_player(&player));
         assert_eq!(token_stock.tokens_in_stock(), 1);
     }
-
 
     #[test]
     fn test_return_all_tokens_from_area_to_player() {
@@ -139,8 +193,21 @@ mod tests {
         let player = create_entity();
         let area = create_entity();
 
-        move_from_stock_to_area(player, area, 2, &mut population, &mut token_stock, &mut player_areas);
-        return_all_tokens_from_area_to_player(&player, &area, &mut population, &mut token_stock, &mut player_areas);
+        move_from_stock_to_area(
+            player,
+            area,
+            2,
+            &mut population,
+            &mut token_stock,
+            &mut player_areas,
+        );
+        return_all_tokens_from_area_to_player(
+            &player,
+            &area,
+            &mut population,
+            &mut token_stock,
+            &mut player_areas,
+        );
 
         assert!(token_stock.tokens_in_stock() >= 2);
         assert!(!player_areas.contains(area));
@@ -151,7 +218,7 @@ mod tests {
         let area_entity = create_entity();
         let mut population = Population::new(4);
         let city_token = create_entity();
-        let mut city_stock = CityTokenStock::new(7,vec![]);
+        let mut city_stock = CityTokenStock::new(7, vec![]);
         let mut token_stock = TokenStock::new(47, vec![]);
         let mut player_cities = PlayerCities::default();
         let mut player_areas = PlayerAreas::default();
@@ -179,6 +246,3 @@ mod tests {
         assert_eq!(city_stock.get_token_from_stock().unwrap(), city_token);
     }
 }
-
-
-

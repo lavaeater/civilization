@@ -135,11 +135,11 @@ fn given_a_city_to_eliminate_the_correct_things_happen() {
 
     // Assert
     let events = app.world_mut().resource::<Events<EliminateCity>>();
-    let reader = events.get_reader();
-    assert!(!reader.is_empty(events));
+    let cursor = events.get_cursor();
+    assert!(!cursor.is_empty(events));
     app.world_mut().entity(player).contains::<NeedsToCheckCitySupport>();
     assert!(app.world_mut().entity(player).get::<PlayerCities>().unwrap().has_no_cities());
     let events = app.world_mut().resource::<Events<MoveTokensFromStockToAreaCommand>>();
-    let reader = events.get_reader();
-    assert!(!reader.is_empty(events));
+    let cursor = events.get_cursor();
+    assert!(!cursor.is_empty(events));
 }
