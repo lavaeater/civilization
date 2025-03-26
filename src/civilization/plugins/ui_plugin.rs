@@ -193,7 +193,7 @@ fn greet(In(entity): In<Entity>, mut _cmd: Commands) {
 }
 
 
-fn setup(mut cmd: Commands, mut templates: ResMut<Assets<HtmlTemplate>>) {
+fn setup_maude(mut cmd: Commands, mut templates: ResMut<Assets<HtmlTemplate>>) {
     cmd.spawn(Camera2d);
 
     let html = greet_button("Maud").render();
