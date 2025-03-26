@@ -1,9 +1,7 @@
 use crate::{GameActivity, GameState};
-use bevy::image::ImageSamplerDescriptor;
 use bevy::remote::http::RemoteHttpPlugin;
 use bevy::remote::RemotePlugin;
 use bevy::{input::mouse::MouseWheel, prelude::*};
-use bevy_aseprite_ultra::AsepriteUltraPlugin;
 use bevy_hui::prelude::*;
 
 pub struct UiPlugin;
@@ -13,7 +11,6 @@ impl Plugin for UiPlugin {
         app.add_plugins((
             RemotePlugin::default(),
             RemoteHttpPlugin::default(),
-            AsepriteUltraPlugin,
             HuiPlugin,
             HuiAutoLoadPlugin::new(&["ui/components"]),
         ))
@@ -36,7 +33,6 @@ fn setup(
     mut html_funcs: HtmlFunctions,
     mut html_comps: HtmlComponents,
 ) {
-    cmd.spawn(Camera2d);
     cmd.spawn((
         HtmlNode(server.load("ui/demo/menu.html")),
         TemplateProperties::default().with("title", "Test-title"),
@@ -46,7 +42,6 @@ fn setup(
     html_funcs.register("greet", greet);
     html_funcs.register("inventory", init_inventory);
     html_funcs.register("scrollable", init_scrollable);
-    html_funcs.register("play_beep", play_beep);
     html_funcs.register("collapse", |In(entity), mut cmd: Commands| {
         cmd.entity(entity).insert(Collapse(true));
     });
@@ -172,27 +167,6 @@ fn init_inventory(In(entity): In<Entity>, mut cmd: Commands, server: Res<AssetSe
     });
 }
 
-fn play_beep(
-    In(entity): In<Entity>,
-    tags: Query<&Tags>,
-    mut cmd: Commands,
-    server: Res<AssetServer>,
-) {
-    let Some(path) = tags
-        .get(entity)
-        .ok()
-        .and_then(|t| t.get("source").map(|s| s.to_string()))
-    else {
-        return;
-    };
-
-    let beep: Handle<AudioSource> = server.load(&path);
-    cmd.spawn((
-        AudioPlayer(beep),
-        PlaybackSettings::ONCE,
-        LifeTime::new(0.5),
-    ));
-}
 
 #[derive(Component, Deref, DerefMut)]
 struct LifeTime(Timer);

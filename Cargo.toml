@@ -90,7 +90,6 @@ serde = { version = "1.0.197", features = ["derive"] }
 uuid = { version = "1.12.1", features = ["v4"] }
 ron = "0.9"
 bevy_hui = "0.3.0"
-bevy_aseprite_ultra = "0.4"
 bevy_hui_widgets = "0.2.0"
 
 [build-dependencies]

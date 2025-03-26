@@ -24,7 +24,7 @@ fn spawn_player(mut commands: Commands, textures: Res<TextureAssets>) {
                 image: textures.bevy.clone(),
                 ..Default::default()
             },
-            Transform::from_translation(Vec3::new(0., 0., 1.)),
+            Transform::from_translation(Vec3::new(0., 0., -10.0)),
         ))
         .insert(Player);
 }

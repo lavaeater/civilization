@@ -286,15 +286,14 @@ fn load_map(
         .collect();
 
         let (_, mut transform) = camera.single_mut();
-        transform.translation = Vec3::new(1250.0, 662.5, 0.0);
+        transform.translation = Vec3::new(1250.0, 662.5, 1.0);
 
         commands.spawn((
             Sprite {
                 image: textures.map.clone(),
-
                 ..Default::default()
             },
-            Transform::from_xyz(1250.0, 662.5, -1.0),
+            Transform::from_xyz(1250.0, 662.5, -10.0),
         ));
 
         for area in level.areas.clone() {
@@ -310,12 +309,7 @@ fn load_map(
                         sea_connections: area.sea_connections,
                     },
                     Population::new(area.max_population),
-                    Transform::from_xyz(area.x, area.y, 1.),
-                    // SpriteBundle {
-                    //     texture: textures.dot.clone(),
-                    //     transform: Transform::from_xyz(area.x, area.y, 1.),
-                    //     ..Default::default()
-                    // }
+                    Transform::from_xyz(area.x, area.y, -9.0),
                 ))
                 .id();
             if area.city_site {
