@@ -1,6 +1,6 @@
 use crate::civilization::components::prelude::*;
 use crate::civilization::functions::prelude::return_token_to_stock;
-use bevy::prelude::{Commands, Component, OnAdd, Query, Sprite, Trigger};
+use bevy::prelude::{Commands, Component, OnAdd, Query, Sprite, Transform, Trigger, Visibility};
 
 #[derive(Debug, Component)]
 pub struct ReturnTokenToStock;
@@ -13,8 +13,7 @@ pub fn on_add_return_token_to_stock(
 ) {
     commands
         .entity(trigger.entity())
-        .remove::<ReturnTokenToStock>()
-        .remove_with_requires::<Sprite>()
+        .remove::<(ReturnTokenToStock,Sprite, Transform, Visibility)>()
     ;
     if let Ok(token) = token_query.get(trigger.entity()) {
         if let Ok ((mut token_stock, mut player_areas)) = player_query.get_mut(token.player()) {
