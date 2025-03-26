@@ -9,9 +9,9 @@ pub fn on_add_unresolved_conflict(
     mut areas: Query<(Entity, &Name, &mut Population)>,
     mut commands: Commands,
 ) {
-    debug!("On Add Triggered");
+    // debug!("On Add Triggered");
     if let Ok((area_entity, _name, mut population)) = areas.get_mut(trigger.entity()) {
-        debug!("Lets resolve a regular conflict");
+        // debug!("Lets resolve a regular conflict");
         let temp_map = population.player_tokens().clone();
         let mut players = temp_map.keys().copied().collect::<Vec<Entity>>();
         players.sort_by(|a, b| temp_map[b].len().cmp(&temp_map[a].len()));
@@ -33,7 +33,7 @@ pub fn on_add_unresolved_city_conflict(
     mut areas: Query<(Entity, &Name, &mut Population, &BuiltCity)>,
     mut player_with_city: Query<(&mut CityTokenStock, &mut TokenStock, &mut PlayerCities, &mut PlayerAreas)>,
     mut commands: Commands) {
-    debug!("Lets resolve a City Conflict found");
+    // debug!("Lets resolve a City Conflict found");
     if let Ok((area_entity,
                   _name,
                   mut population,
@@ -43,10 +43,10 @@ pub fn on_add_unresolved_city_conflict(
         if other_players.iter().any(|p| population.population_for_player(*p) > 6) {
             match other_players.len().cmp(&1) {
                 Ordering::Less => {
-                    debug!("There are no other players here, bro");
+                    // debug!("There are no other players here, bro");
                 }
                 Ordering::Equal => {
-                    debug!("There is one other player, we eliminate the city and resolve a regular conflict");
+                    // debug!("There is one other player, we eliminate the city and resolve a regular conflict");
                     if let Ok((mut city_stock, mut token_stock, mut player_cities, mut player_areas)) = player_with_city.get_mut(built_city.player) {
                         commands.entity(area_entity).remove::<BuiltCity>();
                         replace_city_with_tokens_for_conflict(area_entity, &mut population, built_city, &mut city_stock, &mut token_stock, &mut player_cities, &mut player_areas);
@@ -58,12 +58,12 @@ pub fn on_add_unresolved_city_conflict(
                     This is a super special case that requires handling - battles between other parties are to be resolved first, which 
                     we incidentally actually CAN handle... yay!
                      */
-                    debug!("There are more than one other player with six or more tokens!");
+                    // debug!("There are more than one other player with six or more tokens!");
                     commands.entity(trigger.entity()).insert(UnresolvedConflict);
                 }
             }
         } else {
-            debug!("There are no players with six or more tokens, we eliminate all tokens");
+            // debug!("There are no players with six or more tokens, we eliminate all tokens");
             // Kill them all
             for player in other_players {
                 if let Ok((_, mut token_stock, _, mut player_areas)) = player_with_city.get_mut(player) {

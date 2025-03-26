@@ -87,10 +87,10 @@ pub fn population_expansion_gate(
     mut next_state: ResMut<NextState<GameActivity>>
 ) {
     for _ in check_gate.read() {
-        debug!("Checking pop exp gate");
+        // debug!("Checking pop exp gate");
         // No players need expansion no more, so remove the NeedsExpansion component from all areas
         if player_gate_query.is_empty() {
-            debug!("No players need expansion, let's do census!");
+            // debug!("No players need expansion, let's do census!");
             for area in area_gate_query.iter() {
                 commands.entity(area).remove::<AreaIsExpanding>();
             }

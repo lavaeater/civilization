@@ -17,7 +17,7 @@ pub fn eliminate_city(
         if let Ok(city_token) = city_token.get(eliminate.city) {
             if let Ok((mut city_stock, mut player_cities)) = city_token_stock.get_mut(city_token.player) {
                 if let Ok(population) = area_population.get(eliminate.area_entity) {
-                    debug!("Eliminating city, conflict: {}, max_pop: {}", eliminate.is_conflict, population.max_population);
+                    // debug!("Eliminating city, conflict: {}, max_pop: {}", eliminate.is_conflict, population.max_population);
                     move_tokens.send(MoveTokensFromStockToAreaCommand {
                         player_entity: city_token.player,
                         area_entity: eliminate.area_entity,
@@ -54,7 +54,7 @@ pub fn check_player_city_support(
         let required_population = number_of_cities * 2;
         
         if required_population > areas.total_population() {
-            debug!("A player has too many cities");
+            // debug!("A player has too many cities");
             commands
                 .entity(player)
                 .insert(HasTooManyCities::new((required_population - areas.total_population()) / 2,

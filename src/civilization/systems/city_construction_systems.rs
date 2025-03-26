@@ -11,7 +11,7 @@ pub fn city_building_gate(
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     if query.is_empty() {
-        debug!("No one is building cities, moving on!");
+        // debug!("No one is building cities, moving on!");
         next_state.set(GameActivity::RemoveSurplusPopulation);
     }
 }

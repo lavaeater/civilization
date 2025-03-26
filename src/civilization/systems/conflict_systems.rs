@@ -11,7 +11,7 @@ pub fn conflict_gate(
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     if conflicts.is_empty() && city_conflicts.is_empty() {
-        debug!("No conflicts found, moving to next state");
+          debug!("No conflicts found, moving to next state");
         next_state.set(GameActivity::CityConstruction);
     }
 }
@@ -24,10 +24,10 @@ pub fn find_conflict_zones(
         pop.is_conflict_zone(*has_city)
     }).for_each(|(conflict_zone, name, _, has_city)| {
         if has_city {
-            debug!("City Conflict Zone found: {:?}", name);
+              debug!("City Conflict Zone found: {:?}", name);
             commands.entity(conflict_zone).insert(UnresolvedCityConflict);
         } else {
-            debug!("Conflict Zone found: {:?}", name);
+               debug!("Conflict Zone found: {:?}", name);
             commands.entity(conflict_zone).insert(UnresolvedConflict);
         }
     });

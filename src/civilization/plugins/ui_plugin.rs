@@ -4,6 +4,9 @@ use bevy::remote::RemotePlugin;
 use bevy::{input::mouse::MouseWheel, prelude::*};
 use bevy_hui::prelude::*;
 use maud::*;
+use crate::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
+use crate::civilization::concepts::trade_cards::enums::{TradeCardType, Commodity, Calamity};
+use crate::stupid_ai::prelude::IsHuman;
 
 pub struct UiPlugin;
 
@@ -23,6 +26,7 @@ impl Plugin for UiPlugin {
                 update_collapse.run_if(in_state(GameState::Playing)),
                 update_scroll.run_if(in_state(GameState::Playing)),
                 cleaner.run_if(in_state(GameState::Playing)),
+                update_inventory.run_if(in_state(GameState::Playing)),
             ),
         );
     }
@@ -36,11 +40,10 @@ fn setup(
 ) {
     cmd.spawn((
         HtmlNode(server.load("ui/demo/menu.html")),
-        TemplateProperties::default().with("title", "Test-title"),
+        TemplateProperties::default().with("title", "Trading Cards"),
     ));
 
     // register function bindings
-    html_funcs.register("greet", greet);
     html_funcs.register("inventory", init_inventory);
     html_funcs.register("scrollable", init_scrollable);
     html_funcs.register("collapse", |In(entity), mut cmd: Commands| {
@@ -155,17 +158,72 @@ fn update_puls(mut query: Query<(&mut Node, &Puls)>, time: Res<Time>, mut elapse
     });
 }
 
-fn init_inventory(In(entity): In<Entity>, mut cmd: Commands, server: Res<AssetServer>) {
-    cmd.entity(entity).with_children(|cmd| {
-        for i in 0..200 {
-            cmd.spawn((
-                HtmlNode(server.load("ui/demo/card.html")),
-                TemplateProperties::default()
-                    .with("title", &format!("item {i}"))
-                    .with("bordercolor", if i % 2 == 0 { "#FFF" } else { "#F88" }),
-            ));
-        }
-    });
+fn init_inventory(In(entity): In<Entity>, mut cmd: Commands, server: Res<AssetServer>, human_query: Query<(&PlayerTradeCards, Entity), With<IsHuman>>) {
+    cmd.entity(entity).insert(InventoryContainer);
+    
+    if let Ok((player_cards, player_entity)) = human_query.get_single() {
+        cmd.entity(entity).with_children(|cmd| {
+            for card in player_cards.trade_cards() {
+                spawn_trade_card(cmd, &server, &card);
+            }
+        });
+    }
+}
+
+#[derive(Component)]
+pub struct InventoryContainer;
+
+/// Spawn a single trade card UI element
+fn spawn_trade_card(cmd: &mut ChildBuilder, server: &AssetServer, card: &TradeCard) {
+    let (title, border_color) = match &card.card_type {
+        TradeCardType::CommodityCard(commodity) => {
+            let color = match commodity {
+                Commodity::Ochre => "#CD7F32",  // Bronze-like
+                Commodity::Hides => "#8B4513",  // Brown
+                Commodity::Iron => "#708090",   // Slate gray
+                Commodity::Papyrus => "#F5DEB3", // Wheat
+                Commodity::Salt => "#FFFFFF",    // White
+                Commodity::Timber => "#8B4513",  // Brown
+                Commodity::Grain => "#FFD700",   // Gold
+                Commodity::Oil => "#000000",     // Black
+                Commodity::Cloth => "#E6E6FA",   // Lavender
+                Commodity::Wine => "#800020",    // Burgundy
+                Commodity::Bronze => "#CD7F32",  // Bronze
+                Commodity::Silver => "#C0C0C0",  // Silver
+                Commodity::Spices => "#FF4500",  // Orange Red
+                Commodity::Resin => "#DAA520",   // Golden Rod
+                Commodity::Gems => "#4B0082",    // Indigo
+                Commodity::Dye => "#9370DB",     // Medium Purple
+                Commodity::Gold => "#FFD700",    // Gold
+                Commodity::Ivory => "#FFFFF0",   // Ivory
+            };
+            (format!("{:?} ({})", commodity, card.value), color)
+        },
+        TradeCardType::CalamityCard(calamity) => {
+            (format!("{:?}", calamity), "#FF0000") // Red for calamities
+        },
+    };
+
+    debug!("Spawning trade card: {:?}", title);
+    
+    cmd.spawn((
+        HtmlNode(server.load("ui/demo/card.html")),
+        TemplateProperties::default()
+            .with("title", &title)
+            .with("primary", border_color),
+        TradeCardUI {
+            card_type: card.card_type.clone(),
+            value: card.value,
+            tradeable: card.tradeable,
+        },
+    ));
+}
+
+#[derive(Component, Clone)]
+pub struct TradeCardUI {
+    pub card_type: TradeCardType,
+    pub value: usize,
+    pub tradeable: bool,
 }
 
 
@@ -188,8 +246,58 @@ fn cleaner(mut expired: Query<(Entity, &mut LifeTime)>, mut cmd: Commands, time:
     });
 }
 
-fn greet(In(entity): In<Entity>, mut _cmd: Commands) {
-    info!("greetings from `{entity}`");
+/// System to update the inventory UI when player trade cards change
+fn update_inventory(
+    mut commands: Commands,
+    server: Res<AssetServer>,
+    human_query: Query<(&PlayerTradeCards, Entity), (With<IsHuman>, Changed<PlayerTradeCards>)>,
+    inventory_container_query: Query<(Entity, &Children), With<InventoryContainer>>,
+    card_ui_query: Query<(Entity, &TradeCardUI)>,
+) {
+    // Only proceed if the human player's trade cards have changed
+    if let Ok((player_cards, _)) = human_query.get_single() {
+        debug!("Player trade cards have changed");
+        if let Ok((container_entity, children)) = inventory_container_query.get_single() {
+            // Get current cards in UI
+            let mut current_ui_cards = Vec::new();
+            for &child in children.iter() {
+                if let Ok((entity, card_ui)) = card_ui_query.get(child) {
+                    current_ui_cards.push((entity, card_ui.clone()));
+                }
+            }
+            
+            // Get player's actual cards
+            let player_trade_cards = player_cards.trade_cards();
+            
+            // Remove cards that are no longer in the player's inventory
+            for (entity, card_ui) in current_ui_cards.iter() {
+                let card_exists = player_trade_cards.iter().any(|player_card| {
+                    player_card.card_type == card_ui.card_type && 
+                    player_card.value == card_ui.value && 
+                    player_card.tradeable == card_ui.tradeable
+                });
+                
+                if !card_exists {
+                    commands.entity(*entity).despawn_recursive();
+                }
+            }
+            
+            // Add new cards that aren't in the UI yet
+            for player_card in player_trade_cards.iter() {
+                let card_exists = current_ui_cards.iter().any(|(_, card_ui)| {
+                    player_card.card_type == card_ui.card_type && 
+                    player_card.value == card_ui.value && 
+                    player_card.tradeable == card_ui.tradeable
+                });
+                
+                if !card_exists {
+                    commands.entity(container_entity).with_children(|cmd| {
+                        spawn_trade_card(cmd, &server, player_card);
+                    });
+                }
+            }
+        }
+    }
 }
 
 
