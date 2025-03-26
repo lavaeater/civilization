@@ -1,20 +1,19 @@
 // disable console on windows for release builds
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use adv_civ::GamePlugin;
 use bevy::asset::AssetMetaCheck;
+use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy::winit::WinitWindows;
 use bevy::DefaultPlugins;
-use adv_civ::GamePlugin;
 use std::io::Cursor;
-use bevy::log::LogPlugin;
 use winit::window::Icon;
 
 
 fn main() {
     App::new()
-        .insert_resource(Msaa::Off)
         .insert_resource(ClearColor(Color::linear_rgb(0.4, 0.4, 0.4)))
         .add_plugins(
             DefaultPlugins

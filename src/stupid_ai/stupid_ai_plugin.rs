@@ -16,7 +16,7 @@ impl Plugin for StupidAiPlugin {
                     .run_if(
                         in_state(GameState::Playing))),
             )
-            .observe(on_add_available_moves)
+            .add_observer(on_add_available_moves)
         ;
     }
 }

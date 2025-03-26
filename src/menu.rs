@@ -33,16 +33,11 @@ impl Default for ButtonColors {
 #[derive(Component)]
 struct Menu;
 
-fn setup_menu(mut commands: Commands, textures: Res<TextureAssets>) {
+fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>) {
     info!("menu");
     commands.spawn((
         Camera2d::default(),
-        OrthographicProjection {
-            far: 1000.,
-            near: -1000.,
-            scale: 1.025,
-            ..Default::default()
-        },
+        OrthographicProjection::default_2d(),
     ));
     commands
         .spawn((Node::default(), Menu))

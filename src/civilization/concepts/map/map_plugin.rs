@@ -5,7 +5,7 @@ use crate::civilization::systems::prelude::setup_players;
 use crate::loading::TextureAssets;
 use crate::GameState;
 use bevy::core::Name;
-use bevy::prelude::{debug, App, AssetServer, Assets, Camera, Commands, Handle, Image, IntoSystemConfigs, OnEnter, Plugin, Query, Res, ResMut, Resource, SpriteBundle, Startup, Transform, Vec3};
+use bevy::prelude::{debug, App, AssetServer, Assets, Camera, Commands, Handle, Image, IntoSystemConfigs, OnEnter, Plugin, Query, Res, ResMut, Resource, Sprite, Startup, Transform, Vec3};
 use bevy::utils::{HashMap, HashSet};
 use bevy_common_assets::ron::RonAssetPlugin;
 use rand::seq::IteratorRandom;
@@ -14,13 +14,13 @@ pub struct MapPlugin;
 
 impl Plugin for MapPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_resource::<AvailableFactions>()
-            .add_plugins(
-                RonAssetPlugin::<Map>::new(&["map.ron"]))
+        app.init_resource::<AvailableFactions>()
+            .add_plugins(RonAssetPlugin::<Map>::new(&["map.ron"]))
             .add_systems(Startup, setup)
-            .add_systems(OnEnter(GameState::Playing), (load_map, setup_players).chain())
-        ;
+            .add_systems(
+                OnEnter(GameState::Playing),
+                (load_map, setup_players).chain(),
+            );
     }
 }
 
@@ -28,7 +28,7 @@ impl Plugin for MapPlugin {
 // struct MyState {
 //     id: i32,
 // }
-// 
+//
 // fn mouse_button_input(
 //     buttons: Res<ButtonInput<MouseButton>>,
 //     q_windows: Query<&Window, With<PrimaryWindow>>,
@@ -62,8 +62,9 @@ impl Plugin for MapPlugin {
 //     }
 // }
 
-
-#[derive(serde::Deserialize, serde::Serialize, bevy::asset::Asset, bevy::reflect::TypePath, Clone)]
+#[derive(
+    serde::Deserialize, serde::Serialize, bevy::asset::Asset, bevy::reflect::TypePath, Clone,
+)]
 pub struct Map {
     pub areas: Vec<Area>,
 }
@@ -76,7 +77,7 @@ pub struct AvailableFactions {
     factions: HashSet<GameFaction>,
     pub remaining_factions: HashSet<GameFaction>,
     pub faction_icons: HashMap<GameFaction, Handle<Image>>,
-    pub faction_city_icons: HashMap<GameFaction, Handle<Image>>
+    pub faction_city_icons: HashMap<GameFaction, Handle<Image>>,
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -100,12 +101,7 @@ fn remove_random_place(places: &mut HashSet<String>) -> Option<String> {
 }
 
 #[derive(
-    serde::Deserialize,
-    serde::Serialize,
-    bevy::asset::Asset,
-    bevy::reflect::TypePath,
-    Clone,
-    Debug
+    serde::Deserialize, serde::Serialize, bevy::asset::Asset, bevy::reflect::TypePath, Clone, Debug,
 )]
 pub struct Area {
     pub id: i32,
@@ -121,56 +117,191 @@ pub struct Area {
     pub volcano: bool,
 }
 
-fn load_map(mut commands: Commands,
-            map: Res<MapHandle>,
-            maps: Res<Assets<Map>>,
-            mut available_factions: ResMut<AvailableFactions>,
-            textures: Res<TextureAssets>,
-            mut camera: Query<(&Camera, &mut Transform)>,
+fn load_map(
+    mut commands: Commands,
+    map: Res<MapHandle>,
+    maps: Res<Assets<Map>>,
+    mut available_factions: ResMut<AvailableFactions>,
+    textures: Res<TextureAssets>,
+    mut camera: Query<(&Camera, &mut Transform)>,
 ) {
     debug!("2. Loading map");
     if let Some(level) = maps.get(map.0.id()).clone() {
-        let mut ancient_places: HashSet<String> = vec!["Assyria", "Numidia", "Carthage", "Troy", "Sparta", "Babylon", "Thebes",
-                                                       "Alexandria", "Athens", "Byzantium", "Pompeii", "Ephesus", "Ctesiphon",
-                                                       "Jerusalem", "Nineveh", "Sidon", "Tyre", "Memphis", "Heliopolis",
-                                                       "Pergamum", "Delphi", "Corinth", "Argos", "Syracuse", "Palmyra", "Damascus",
-                                                       "Antioch", "Petra", "Gadara", "Sidonia", "Susa", "Knossos", "Rhodes",
-                                                       "Pella", "Gortyn", "Leptis Magna", "Cyrene", "Tingis", "Volubilis", "Utica",
-                                                       "Sabratha", "Tanais", "Amarna", "Hattusa", "Ugarit", "Mari", "Arpad",
-                                                       "Qatna", "Alalakh", "Emar", "Aleppo", "Homs", "Edessa", "Tarsus",
-                                                       "Miletus", "Pergamon", "Amphipolis", "Mycenae", "Abydos", "Phaselis",
-                                                       "Halicarnassus", "Hierapolis", "Sardis", "Perge", "Gades", "Saguntum",
-                                                       "Tarraco", "Corduba", "Emerita Augusta", "Hispalis", "Lusitania", "Aquae Sulis",
-                                                       "Lutetia", "Massilia", "Nemausus", "Arelate", "Arretium", "Capua", "Neapolis",
-                                                       "Ravenna", "Tarentum", "Brundisium", "Venusia", "Cremona", "Mediolanum",
-                                                       "Patavium", "Aquileia", "Polis", "Teotoburgum", "Vindobona", "Carnuntum",
-                                                       "Sirmium", "Trebizond", "Chalcedon", "Nicopolis", "Heraclea", "Philippi",
-                                                       "Beroea", "Dura-Europos", "Seleucia", "Apamea", "Raphia", "Avaris",
-                                                       "Tanis", "Bubastis", "Herakleopolis", "Olynthus", "Thapsus", "Bulla Regia",
-                                                       "Hippo Regius", "Lepcis Magna", "Cirta", "Timgad", "Zama", "Thugga",
-                                                       "Kart Hadasht", "Rhegium", "Croton", "Selinus", "Acragas", "Himera",
-                                                       "Naxos", "Messina", "Segesta", "Catana", "Syracuse", "Thasos", "Amphipolis",
-                                                       "Potidaea", "Apollonia", "Abdera", "Athribis", "Berenice", "Oxyrhynchus",
-                                                       "Hermopolis", "Canopus", "Thonis", "Heracleion", "Marsa Matruh", "Baalbek",
-                                                       "Ebla", "Arwad", "Ashkelon", "Ascalon", "Gaza", "Megiddo", "Joppa",
-                                                       "Beersheba", "Hebron", "Aelia Capitolina", "Neapolis", "Hierapolis"
-        ].into_iter().map(|s| s.to_string()).collect();
-
+        let mut ancient_places: HashSet<String> = vec![
+            "Assyria",
+            "Numidia",
+            "Carthage",
+            "Troy",
+            "Sparta",
+            "Babylon",
+            "Thebes",
+            "Alexandria",
+            "Athens",
+            "Byzantium",
+            "Pompeii",
+            "Ephesus",
+            "Ctesiphon",
+            "Jerusalem",
+            "Nineveh",
+            "Sidon",
+            "Tyre",
+            "Memphis",
+            "Heliopolis",
+            "Pergamum",
+            "Delphi",
+            "Corinth",
+            "Argos",
+            "Syracuse",
+            "Palmyra",
+            "Damascus",
+            "Antioch",
+            "Petra",
+            "Gadara",
+            "Sidonia",
+            "Susa",
+            "Knossos",
+            "Rhodes",
+            "Pella",
+            "Gortyn",
+            "Leptis Magna",
+            "Cyrene",
+            "Tingis",
+            "Volubilis",
+            "Utica",
+            "Sabratha",
+            "Tanais",
+            "Amarna",
+            "Hattusa",
+            "Ugarit",
+            "Mari",
+            "Arpad",
+            "Qatna",
+            "Alalakh",
+            "Emar",
+            "Aleppo",
+            "Homs",
+            "Edessa",
+            "Tarsus",
+            "Miletus",
+            "Pergamon",
+            "Amphipolis",
+            "Mycenae",
+            "Abydos",
+            "Phaselis",
+            "Halicarnassus",
+            "Hierapolis",
+            "Sardis",
+            "Perge",
+            "Gades",
+            "Saguntum",
+            "Tarraco",
+            "Corduba",
+            "Emerita Augusta",
+            "Hispalis",
+            "Lusitania",
+            "Aquae Sulis",
+            "Lutetia",
+            "Massilia",
+            "Nemausus",
+            "Arelate",
+            "Arretium",
+            "Capua",
+            "Neapolis",
+            "Ravenna",
+            "Tarentum",
+            "Brundisium",
+            "Venusia",
+            "Cremona",
+            "Mediolanum",
+            "Patavium",
+            "Aquileia",
+            "Polis",
+            "Teotoburgum",
+            "Vindobona",
+            "Carnuntum",
+            "Sirmium",
+            "Trebizond",
+            "Chalcedon",
+            "Nicopolis",
+            "Heraclea",
+            "Philippi",
+            "Beroea",
+            "Dura-Europos",
+            "Seleucia",
+            "Apamea",
+            "Raphia",
+            "Avaris",
+            "Tanis",
+            "Bubastis",
+            "Herakleopolis",
+            "Olynthus",
+            "Thapsus",
+            "Bulla Regia",
+            "Hippo Regius",
+            "Lepcis Magna",
+            "Cirta",
+            "Timgad",
+            "Zama",
+            "Thugga",
+            "Kart Hadasht",
+            "Rhegium",
+            "Croton",
+            "Selinus",
+            "Acragas",
+            "Himera",
+            "Naxos",
+            "Messina",
+            "Segesta",
+            "Catana",
+            "Syracuse",
+            "Thasos",
+            "Amphipolis",
+            "Potidaea",
+            "Apollonia",
+            "Abdera",
+            "Athribis",
+            "Berenice",
+            "Oxyrhynchus",
+            "Hermopolis",
+            "Canopus",
+            "Thonis",
+            "Heracleion",
+            "Marsa Matruh",
+            "Baalbek",
+            "Ebla",
+            "Arwad",
+            "Ashkelon",
+            "Ascalon",
+            "Gaza",
+            "Megiddo",
+            "Joppa",
+            "Beersheba",
+            "Hebron",
+            "Aelia Capitolina",
+            "Neapolis",
+            "Hierapolis",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect();
 
         let (_, mut transform) = camera.single_mut();
         transform.translation = Vec3::new(1250.0, 662.5, 0.0);
 
-        commands.spawn(SpriteBundle {
-            texture: textures.map.clone(),
-            transform: Transform::from_xyz(1250.0, 662.5, -1.0),
-            ..Default::default()
-        });
+        commands.spawn((
+            Sprite {
+                image: textures.map.clone(),
+
+                ..Default::default()
+            },
+            Transform::from_xyz(1250.0, 662.5, -1.0),
+        ));
 
         for area in level.areas.clone() {
             let n = remove_random_place(&mut ancient_places).unwrap_or("STANDARD_NAME".to_string());
 
-            let entity = commands.spawn(
-                (
+            let entity = commands
+                .spawn((
                     Name::new(format!("{}:{}", area.id, n)),
                     GameArea::new(area.id),
                     LandPassage::default(),
@@ -185,8 +316,8 @@ fn load_map(mut commands: Commands,
                     //     transform: Transform::from_xyz(area.x, area.y, 1.),
                     //     ..Default::default()
                     // }
-                )
-            ).id();
+                ))
+                .id();
             if area.city_site {
                 commands.entity(entity).insert(CitySite);
             }
@@ -208,40 +339,76 @@ fn load_map(mut commands: Commands,
                 commands.entity(entity).insert(StartArea::new(faction));
                 match faction {
                     GameFaction::Egypt => {
-                        available_factions.faction_icons.insert(GameFaction::Egypt, textures.egypt.clone());
-                        available_factions.faction_city_icons.insert(GameFaction::Egypt, textures.egypt_city.clone());
+                        available_factions
+                            .faction_icons
+                            .insert(GameFaction::Egypt, textures.egypt.clone());
+                        available_factions
+                            .faction_city_icons
+                            .insert(GameFaction::Egypt, textures.egypt_city.clone());
                     }
                     GameFaction::Crete => {
-                        available_factions.faction_icons.insert(GameFaction::Crete, textures.crete.clone());
-                        available_factions.faction_city_icons.insert(GameFaction::Crete, textures.crete_city.clone());
+                        available_factions
+                            .faction_icons
+                            .insert(GameFaction::Crete, textures.crete.clone());
+                        available_factions
+                            .faction_city_icons
+                            .insert(GameFaction::Crete, textures.crete_city.clone());
                     }
                     GameFaction::Africa => {
-                        available_factions.faction_icons.insert(GameFaction::Africa, textures.africa.clone());
-                        available_factions.faction_city_icons.insert(GameFaction::Africa, textures.africa_city.clone());
+                        available_factions
+                            .faction_icons
+                            .insert(GameFaction::Africa, textures.africa.clone());
+                        available_factions
+                            .faction_city_icons
+                            .insert(GameFaction::Africa, textures.africa_city.clone());
                     }
                     GameFaction::Asia => {
-                        available_factions.faction_icons.insert(GameFaction::Asia, textures.asia.clone());
-                        available_factions.faction_city_icons.insert(GameFaction::Asia, textures.asia_city.clone());
+                        available_factions
+                            .faction_icons
+                            .insert(GameFaction::Asia, textures.asia.clone());
+                        available_factions
+                            .faction_city_icons
+                            .insert(GameFaction::Asia, textures.asia_city.clone());
                     }
                     GameFaction::Assyria => {
-                        available_factions.faction_icons.insert(GameFaction::Assyria, textures.assyria.clone());
-                        available_factions.faction_city_icons.insert(GameFaction::Assyria, textures.assyria_city.clone());
+                        available_factions
+                            .faction_icons
+                            .insert(GameFaction::Assyria, textures.assyria.clone());
+                        available_factions
+                            .faction_city_icons
+                            .insert(GameFaction::Assyria, textures.assyria_city.clone());
                     }
                     GameFaction::Babylon => {
-                        available_factions.faction_icons.insert(GameFaction::Babylon, textures.babylon.clone());
-                        available_factions.faction_city_icons.insert(GameFaction::Babylon, textures.babylon_city.clone());
+                        available_factions
+                            .faction_icons
+                            .insert(GameFaction::Babylon, textures.babylon.clone());
+                        available_factions
+                            .faction_city_icons
+                            .insert(GameFaction::Babylon, textures.babylon_city.clone());
                     }
                     GameFaction::Illyria => {
-                        available_factions.faction_icons.insert(GameFaction::Illyria, textures.illyria.clone());
-                        available_factions.faction_city_icons.insert(GameFaction::Illyria, textures.illyria_city.clone());
+                        available_factions
+                            .faction_icons
+                            .insert(GameFaction::Illyria, textures.illyria.clone());
+                        available_factions
+                            .faction_city_icons
+                            .insert(GameFaction::Illyria, textures.illyria_city.clone());
                     }
                     GameFaction::Iberia => {
-                        available_factions.faction_icons.insert(GameFaction::Iberia, textures.iberia.clone());
-                        available_factions.faction_city_icons.insert(GameFaction::Iberia, textures.iberia_city.clone());
+                        available_factions
+                            .faction_icons
+                            .insert(GameFaction::Iberia, textures.iberia.clone());
+                        available_factions
+                            .faction_city_icons
+                            .insert(GameFaction::Iberia, textures.iberia_city.clone());
                     }
                     GameFaction::Thrace => {
-                        available_factions.faction_icons.insert(GameFaction::Thrace, textures.thrace.clone());
-                        available_factions.faction_city_icons.insert(GameFaction::Thrace, textures.thrace_city.clone());
+                        available_factions
+                            .faction_icons
+                            .insert(GameFaction::Thrace, textures.thrace.clone());
+                        available_factions
+                            .faction_city_icons
+                            .insert(GameFaction::Thrace, textures.thrace_city.clone());
                     }
                 }
             }

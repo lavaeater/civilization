@@ -1,3 +1,4 @@
+use crate::setup_player;
 use adv_civ::civilization::components::prelude::*;
 use adv_civ::civilization::enums::prelude::GameFaction;
 use adv_civ::civilization::systems::prelude::*;
@@ -6,7 +7,6 @@ use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Name};
 use bevy::state::app::StatesPlugin;
-use crate::setup_player;
 /****************************************************
 Test for the find_conflict_zones system
 Given two players that have tokens in an area,
@@ -63,8 +63,8 @@ fn given_a_city_conflict_with_too_few_tokens() {
         )
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
-        .observe(on_add_unresolved_conflict)
-        .observe(on_add_unresolved_city_conflict)
+        .add_observer(on_add_unresolved_conflict)
+        .add_observer(on_add_unresolved_city_conflict)
     ;
 
     let (player_one, _, mut p_one_cities) = setup_player(&mut app, "player one", GameFaction::Egypt);
@@ -106,8 +106,8 @@ fn given_a_city_conflict_with_enough_tokens() {
         )
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
-        .observe(on_add_unresolved_conflict)
-        .observe(on_add_unresolved_city_conflict)
+        .add_observer(on_add_unresolved_conflict)
+        .add_observer(on_add_unresolved_city_conflict)
     ;
 
     let (player_one, _, mut p_one_cities) = setup_player(&mut app, "player one", GameFaction::Egypt);
@@ -266,8 +266,8 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
         )
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
-        .observe(on_add_unresolved_conflict)
-        .observe(on_add_unresolved_city_conflict)
+        .add_observer(on_add_unresolved_conflict)
+        .add_observer(on_add_unresolved_city_conflict)
     ;
 
     let test_cases = vec![
@@ -339,8 +339,8 @@ fn given_three_conflicteers_the_correct_result_is_obtained() {
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         // .add_systems(Update, resolve_conflicts);
-        .observe(on_add_unresolved_conflict)
-        .observe(on_add_unresolved_city_conflict)
+        .add_observer(on_add_unresolved_conflict)
+        .add_observer(on_add_unresolved_city_conflict)
     ;
 
     let test_cases = vec![
