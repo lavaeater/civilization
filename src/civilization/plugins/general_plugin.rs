@@ -42,6 +42,7 @@ impl Plugin for CivilizationPlugin {
                     MovementPlugin,
                     ConflictPlugin,
                     TradePlugin,
+                    UiPlugin,
                 )
             )
             .add_plugins(

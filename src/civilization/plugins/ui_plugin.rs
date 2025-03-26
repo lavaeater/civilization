@@ -1,9 +1,9 @@
-use bevy::{
-    prelude::*,
-    render::texture::ImageSamplerDescriptor,
-    input::mouse::MouseWheel,
-};
-use bevy_aseprite_ultra::prelude::*;
+use crate::{GameActivity, GameState};
+use bevy::image::ImageSamplerDescriptor;
+use bevy::remote::http::RemoteHttpPlugin;
+use bevy::remote::RemotePlugin;
+use bevy::{input::mouse::MouseWheel, prelude::*};
+use bevy_aseprite_ultra::AsepriteUltraPlugin;
 use bevy_hui::prelude::*;
 
 pub struct UiPlugin;
@@ -11,36 +11,34 @@ pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            DefaultPlugins.set(ImagePlugin {
-                default_sampler: ImageSamplerDescriptor::nearest(),
-            }),
+            RemotePlugin::default(),
+            RemoteHttpPlugin::default(),
             AsepriteUltraPlugin,
             HuiPlugin,
-            HuiAutoLoadPlugin::new(&["components"]),
+            HuiAutoLoadPlugin::new(&["ui/components"]),
         ))
-        .add_systems(OnEnter(AutoLoadState::Finished), setup)
+        .add_systems(OnEnter(GameState::Playing), setup)
         .add_systems(
             Update,
-            (update_puls, update_collapse, update_scroll, cleaner),
-        )
+            (
+                update_puls.run_if(in_state(GameState::Playing)),
+                update_collapse.run_if(in_state(GameState::Playing)),
+                update_scroll.run_if(in_state(GameState::Playing)),
+                cleaner.run_if(in_state(GameState::Playing)),
+            ),
+        );
     }
-}
-
-fn main() {
-    App::new()
-        .run();
 }
 
 fn setup(
     mut cmd: Commands,
     server: Res<AssetServer>,
-
     mut html_funcs: HtmlFunctions,
     mut html_comps: HtmlComponents,
 ) {
     cmd.spawn(Camera2d);
     cmd.spawn((
-        HtmlNode(server.load("demo/menu.html")),
+        HtmlNode(server.load("ui/demo/menu.html")),
         TemplateProperties::default().with("title", "Test-title"),
     ));
 
@@ -53,36 +51,10 @@ fn setup(
         cmd.entity(entity).insert(Collapse(true));
     });
 
-    html_funcs.register(
-        "attach_aseprite",
-        |In(entity), tags: Query<&Tags>, mut cmd: Commands, server: Res<AssetServer>| {
-            let Ok(tags) = tags.get(entity) else {
-                return;
-            };
-
-            let Some(ase_path) = tags.get("source") else {
-                warn!("missing `source` for aseprite component {entity}");
-                return;
-            };
-
-            let animation = tags
-                .get("animation")
-                .map(|s| Animation::tag(s))
-                .unwrap_or(Animation::default());
-
-            cmd.entity(entity).insert(AseUiAnimation {
-                aseprite: server.load(ase_path),
-                animation,
-            });
-        },
-    );
-
     // register custom node by passing a template handle
-    html_comps.register_with_spawn_fn("panel", server.load("demo/panel.html"), |mut cmd| {
+    html_comps.register_with_spawn_fn("panel", server.load("ui/demo/panel.html"), |mut cmd| {
         cmd.insert(Name::new("Panel"));
     });
-
-    html_comps.register("aseprite", server.load("demo/aseprite.html"));
 
     // a function that updates a property and triggers a recompile
     html_funcs.register(
@@ -169,7 +141,7 @@ fn update_scroll(
                 return;
             };
 
-            scroll.offset = scroll.offset + ev.y.signum() * scroll.speed * time.delta_seconds();
+            scroll.offset = scroll.offset + ev.y.signum() * scroll.speed * time.delta_secs();
             style.computed.node.top = Val::Px(scroll.offset);
         });
     });
@@ -179,7 +151,7 @@ fn update_scroll(
 pub struct Puls(f32);
 
 fn update_puls(mut query: Query<(&mut Node, &Puls)>, time: Res<Time>, mut elapsed: Local<f32>) {
-    *elapsed += time.delta_seconds();
+    *elapsed += time.delta_secs();
 
     query.iter_mut().for_each(|(mut style, rotatethis)| {
         style.width = Val::Percent((*elapsed * rotatethis.0).sin() * 5. + 90.);
@@ -191,7 +163,7 @@ fn init_inventory(In(entity): In<Entity>, mut cmd: Commands, server: Res<AssetSe
     cmd.entity(entity).with_children(|cmd| {
         for i in 0..200 {
             cmd.spawn((
-                HtmlNode(server.load("demo/card.html")),
+                HtmlNode(server.load("ui/demo/card.html")),
                 TemplateProperties::default()
                     .with("title", &format!("item {i}"))
                     .with("bordercolor", if i % 2 == 0 { "#FFF" } else { "#F88" }),

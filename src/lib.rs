@@ -2,7 +2,6 @@
 // #![feature(impl_trait_in_assoc_type, associated_type_defaults)]
 
 pub mod actions;
-pub mod audio;
 pub mod loading;
 pub mod menu;
 pub mod player;
@@ -10,15 +9,14 @@ pub mod civilization;
 pub mod stupid_ai;
 
 use crate::actions::ActionsPlugin;
-use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
 use crate::menu::MenuPlugin;
 
-use civilization::plugins::general_plugin::CivilizationPlugin;
 use bevy::app::App;
 // #[cfg(debug_assertions)]
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
+use civilization::plugins::general_plugin::CivilizationPlugin;
 
 #[derive(States, Clone, PartialEq, Eq, Hash, Debug, Default, Reflect)]
 pub enum GameState {
@@ -62,7 +60,6 @@ impl Plugin for GamePlugin {
                 LoadingPlugin,
                 MenuPlugin,
                 ActionsPlugin,
-                InternalAudioPlugin,
                 CivilizationPlugin,
             ));
 
