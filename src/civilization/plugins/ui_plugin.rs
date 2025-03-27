@@ -26,8 +26,8 @@ fn setup_trade_ui(mut commands: Commands) {
                 position_type: PositionType::Relative,
                 left: Val::Px(10.0),
                 top: Val::Px(10.0),
-                width: Val::Px(300.0),
-                height: Val::Px(800.0),
+                width: Val::Percent(25.0),
+                height: Val::Percent(100.0),
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Default,
                 padding: UiRect::all(Val::Px(10.0)),
@@ -50,12 +50,12 @@ fn setup_trade_ui(mut commands: Commands) {
                     width: Val::Percent(100.0),
                     height: Val::Percent(100.0),
                     display: Display::Flex,
-                    flex_direction: FlexDirection::Row,
+                    flex_direction: FlexDirection::Column,
                     flex_wrap: FlexWrap::Wrap,
                     align_items: AlignItems::FlexStart,
                     justify_content: JustifyContent::FlexStart,
-                    column_gap: Val::Px(10.0),
-                    row_gap: Val::Px(10.0),
+                    column_gap: Val::Px(5.0),
+                    row_gap: Val::Px(5.0),
                     overflow: Overflow::clip_y(),
                     ..default()
                 },
@@ -86,15 +86,18 @@ fn update_trade_ui(
                     grid.with_children(|parent| {
                         parent.spawn((
                             Node {
-                                width: Val::Px(100.0),
-                                height: Val::Px(120.0),
-                                flex_direction: FlexDirection::Row,
-                                align_items: AlignItems::Center,
-                                justify_content: JustifyContent::Center,
-                                padding: UiRect::all(Val::Px(5.0)),
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
+                                display: Display::Flex,
+                                flex_direction: FlexDirection::Column,
+                                flex_wrap: FlexWrap::Wrap,
+                                align_items: AlignItems::FlexStart,
+                                justify_content: JustifyContent::FlexStart,
+                                column_gap: Val::Px(5.0),
+                                row_gap: Val::Px(5.0),
+                                overflow: Overflow::clip_y(),
                                 ..default()
                             },
-                            BackgroundColor(Color::WHITE),
                         ))
                             .with_children(|value_parent| {
                                 // Card type (Commodity or Calamity name)
@@ -107,15 +110,18 @@ fn update_trade_ui(
                                 for (card_type, cards) in cards {
                                     value_parent.spawn( (
                                         Node {
-                                        width: Val::Px(100.0),
-                                        height: Val::Px(120.0),
-                                        flex_direction: FlexDirection::Row,
-                                        align_items: AlignItems::Center,
-                                        justify_content: JustifyContent::Center,
-                                        padding: UiRect::all(Val::Px(5.0)),
+                                            width: Val::Percent(100.0),
+                                            height: Val::Percent(100.0),
+                                            display: Display::Flex,
+                                            flex_direction: FlexDirection::Column,
+                                            flex_wrap: FlexWrap::Wrap,
+                                            align_items: AlignItems::FlexStart,
+                                            justify_content: JustifyContent::FlexStart,
+                                            column_gap: Val::Px(5.0),
+                                            row_gap: Val::Px(5.0),
+                                            overflow: Overflow::clip_y(),
                                         ..default()
                                     },
-                                                        BackgroundColor(Color::WHITE),
                                     )).with_children(|type_parent| {
                                         // Card type (Commodity or Calamity name)
                                         type_parent.spawn((
@@ -155,7 +161,7 @@ fn create_trade_card_node(grid: &mut EntityCommands, card: TradeCard) {
         parent
             .spawn((
                 Node {
-                    width: Val::Px(100.0),
+                    width: Val::Px(80.0),
                     height: Val::Px(120.0),
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Center,
@@ -169,14 +175,14 @@ fn create_trade_card_node(grid: &mut EntityCommands, card: TradeCard) {
                 // Card type (Commodity or Calamity name)
                 card_parent.spawn((
                     Text::new(card_type_text),
-                    TextFont::from_font_size(16.0),
+                    TextFont::from_font_size(14.0),
                     TextColor(Color::WHITE),
                 ));
 
                 // Card value
                 card_parent.spawn((
                     Text::new(format!("Value: {}", card.value)),
-                    TextFont::from_font_size(14.0),
+                    TextFont::from_font_size(12.0),
                     TextColor(Color::WHITE),
                 ));
 
