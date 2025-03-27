@@ -1,4 +1,4 @@
-use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
+use crate::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
 use crate::civilization::concepts::trade_cards::enums::TradeCardType;
 use crate::stupid_ai::prelude::IsHuman;
 use bevy::prelude::*;
@@ -83,64 +83,68 @@ fn update_trade_ui(
 
                 // Create a card for each trade card
                 for card in cards {
-                    let (card_type_text, card_color) = match card.card_type {
-                        TradeCardType::CommodityCard(commodity) => {
-                            let commodity_name = format!("{:?}", commodity);
-                            (commodity_name, Color::srgb(0.2, 0.6, 0.2))
-                        }
-                        TradeCardType::CalamityCard(calamity) => {
-                            let calamity_name = format!("{:?}", calamity);
-                            (calamity_name, Color::srgb(0.7, 0.2, 0.2))
-                        }
-                    };
-
-                    grid.with_children(|parent| {
-                        parent
-                            .spawn((
-                                Node {
-                                    width: Val::Px(100.0),
-                                    height: Val::Px(120.0),
-                                    flex_direction: FlexDirection::Column,
-                                    align_items: AlignItems::Center,
-                                    justify_content: JustifyContent::Center,
-                                    padding: UiRect::all(Val::Px(5.0)),
-                                    ..default()
-                                },
-                                BackgroundColor(card_color),
-                            ))
-                            .with_children(|card_parent| {
-                                // Card type (Commodity or Calamity name)
-                                card_parent.spawn((
-                                    Text::new(card_type_text),
-                                    TextFont::from_font_size(16.0),
-                                    TextColor(Color::WHITE),
-                                ));
-
-                                // Card value
-                                card_parent.spawn((
-                                    Text::new(format!("Value: {}", card.value)),
-                                    TextFont::from_font_size(14.0),
-                                    TextColor(Color::WHITE),
-                                ));
-
-                                // Tradeable status
-                                card_parent.spawn((
-                                    Text::new(if card.tradeable {
-                                        "Tradeable"
-                                    } else {
-                                        "Not Tradeable"
-                                    }),
-                                    TextFont::from_font_size(12.0),
-                                    TextColor(if card.tradeable {
-                                        Color::srgb(0.2, 0.8, 0.2)
-                                    } else {
-                                        Color::srgb(0.8, 0.2, 0.2)
-                                    }),
-                                ));
-                            });
-                    });
+                    create_trade_card_node(&mut grid, card);
                 }
             }
         }
     }
+}
+
+fn create_trade_card_node(grid: &mut EntityCommands, card: TradeCard) {
+    let (card_type_text, card_color) = match card.card_type {
+        TradeCardType::CommodityCard(commodity) => {
+            let commodity_name = format!("{:?}", commodity);
+            (commodity_name, Color::srgb(0.2, 0.6, 0.2))
+        }
+        TradeCardType::CalamityCard(calamity) => {
+            let calamity_name = format!("{:?}", calamity);
+            (calamity_name, Color::srgb(0.7, 0.2, 0.2))
+        }
+    };
+
+    grid.with_children(|parent| {
+        parent
+            .spawn((
+                Node {
+                    width: Val::Px(100.0),
+                    height: Val::Px(120.0),
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    padding: UiRect::all(Val::Px(5.0)),
+                    ..default()
+                },
+                BackgroundColor(card_color),
+            ))
+            .with_children(|card_parent| {
+                // Card type (Commodity or Calamity name)
+                card_parent.spawn((
+                    Text::new(card_type_text),
+                    TextFont::from_font_size(16.0),
+                    TextColor(Color::WHITE),
+                ));
+
+                // Card value
+                card_parent.spawn((
+                    Text::new(format!("Value: {}", card.value)),
+                    TextFont::from_font_size(14.0),
+                    TextColor(Color::WHITE),
+                ));
+
+                // Tradeable status
+                card_parent.spawn((
+                    Text::new(if card.tradeable {
+                        "Tradeable"
+                    } else {
+                        "Not Tradeable"
+                    }),
+                    TextFont::from_font_size(12.0),
+                    TextColor(if card.tradeable {
+                        Color::srgb(0.2, 0.8, 0.2)
+                    } else {
+                        Color::srgb(0.8, 0.2, 0.2)
+                    }),
+                ));
+            });
+    });
 }
