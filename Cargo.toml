@@ -43,7 +43,7 @@ dev = [
 # All of Bevy's default features exept for the audio related ones (bevy_audio, vorbis), since they clash with bevy_kira_audio
 #   and android_shared_stdcxx, since that is covered in `mobile`
 [dependencies]
-bevy = { version = "0.15", default-features = false, features = [
+bevy = { version = "0.15.3", default-features = false, features = [
     "animation",
     "bevy_asset",
     "bevy_state",
@@ -87,6 +87,7 @@ serde = { version = "1.0.197", features = ["derive"] }
 
 uuid = { version = "1.12.1", features = ["v4"] }
 ron = "0.9"
+uuid = { version = "1.12.1", features = ["v4"] }
 
 [build-dependencies]
 embed-resource = "3.0"
