@@ -245,7 +245,7 @@ impl PlayerTradeCards {
                     .or_insert_with(Vec::default)
                     .push(card.clone());
             }
-            grouped.insert(*value, by_type);
+            grouped.insert(value, by_type);
         }
         grouped
     }

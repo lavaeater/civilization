@@ -79,11 +79,60 @@ fn update_trade_ui(
                 grid.despawn_descendants();
 
                 // Get all trade cards
-                let cards = player_trade_cards.trade_cards();
+                let grouped_cards = player_trade_cards.trade_cards_grouped_by_value_and_type();
 
                 // Create a card for each trade card
-                for card in cards {
-                    create_trade_card_node(&mut grid, card);
+                for (value, cards) in grouped_cards {
+                    grid.with_children(|parent| {
+                        parent.spawn((
+                            Node {
+                                width: Val::Px(100.0),
+                                height: Val::Px(120.0),
+                                flex_direction: FlexDirection::Row,
+                                align_items: AlignItems::Center,
+                                justify_content: JustifyContent::Center,
+                                padding: UiRect::all(Val::Px(5.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::WHITE),
+                        ))
+                            .with_children(|value_parent| {
+                                // Card type (Commodity or Calamity name)
+                                value_parent.spawn((
+                                    Text::new(format!("Value: {}", value)),
+                                    TextFont::from_font_size(16.0),
+                                    TextColor(Color::WHITE),
+                                ));
+                                
+                                for (card_type, cards) in cards {
+                                    value_parent.spawn( (
+                                        Node {
+                                        width: Val::Px(100.0),
+                                        height: Val::Px(120.0),
+                                        flex_direction: FlexDirection::Row,
+                                        align_items: AlignItems::Center,
+                                        justify_content: JustifyContent::Center,
+                                        padding: UiRect::all(Val::Px(5.0)),
+                                        ..default()
+                                    },
+                                                        BackgroundColor(Color::WHITE),
+                                    )).with_children(|type_parent| {
+                                        // Card type (Commodity or Calamity name)
+                                        type_parent.spawn((
+                                            Text::new(format!("Type: {}", card_type)),
+                                            TextFont::from_font_size(16.0),
+                                            TextColor(Color::WHITE),
+                                        ));
+
+                                        for card in cards {
+                                            let mut card_list = type_parent.spawn((Node::default()
+                                            ));
+                                            create_trade_card_node(&mut card_list, card);
+                                        }
+                                    });
+                                }
+                            });
+                    });
                 }
             }
         }
