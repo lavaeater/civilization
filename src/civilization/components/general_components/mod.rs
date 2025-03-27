@@ -4,6 +4,9 @@ use bevy::utils::{HashMap, HashSet};
 
 pub mod population;
 
+#[derive(Component)]
+pub struct GameCamera;
+
 #[derive(Component, Debug, Reflect)]
 pub struct GameArea {
     pub id: i32,

@@ -68,6 +68,7 @@ bevy = { version = "0.15.3", default-features = false, features = [
     "default_font",
     "webgl2",
     "sysinfo_plugin",
+    "bevy_dev_tools"
 ] }
 bevy_kira_audio = { version = "0.22.0" }
 bevy_asset_loader = { version = "0.22.0", features = ["2d"] }

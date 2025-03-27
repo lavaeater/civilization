@@ -5,7 +5,7 @@ use crate::civilization::systems::prelude::setup_players;
 use crate::loading::TextureAssets;
 use crate::GameState;
 use bevy::core::Name;
-use bevy::prelude::{debug, App, AssetServer, Assets, Camera, Commands, Handle, Image, IntoSystemConfigs, OnEnter, Plugin, Query, Res, ResMut, Resource, Sprite, Startup, Transform, Vec3};
+use bevy::prelude::{debug, App, AssetServer, Assets, Camera, Commands, Handle, Image, IntoSystemConfigs, OnEnter, Plugin, Query, Res, ResMut, Resource, Sprite, Startup, Transform, Vec3, With};
 use bevy::utils::{HashMap, HashSet};
 use bevy_common_assets::ron::RonAssetPlugin;
 use rand::seq::IteratorRandom;
@@ -123,7 +123,7 @@ fn load_map(
     maps: Res<Assets<Map>>,
     mut available_factions: ResMut<AvailableFactions>,
     textures: Res<TextureAssets>,
-    mut camera: Query<(&Camera, &mut Transform)>,
+    mut camera: Query<(&Camera, &mut Transform), With<GameCamera>>,
 ) {
     //debug!("2. Loading map");
     if let Some(level) = maps.get(map.0.id()).clone() {

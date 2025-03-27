@@ -1,13 +1,16 @@
 use crate::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
 use crate::civilization::concepts::trade_cards::enums::TradeCardType;
 use crate::stupid_ai::prelude::IsHuman;
+use bevy::dev_tools::ui_debug_overlay::{DebugUiPlugin, UiDebugOptions};
 use bevy::prelude::*;
 
 pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_trade_ui)
+        app
+            .add_plugins(DebugUiPlugin)
+            .add_systems(Startup, setup_trade_ui)
             .add_systems(Update, update_trade_ui);
     }
 }
@@ -18,7 +21,8 @@ struct TradeCardsUI;
 #[derive(Component)]
 struct TradeCardsGrid;
 
-fn setup_trade_ui(mut commands: Commands) {
+fn setup_trade_ui(mut commands: Commands, mut debug_options: ResMut<UiDebugOptions>) {
+    debug_options.enabled = true;
     // Create the root node for the trade cards UI
     commands
         .spawn((
