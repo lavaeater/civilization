@@ -1,7 +1,7 @@
 pub mod city_construction_plugin;
 pub mod city_support_plugin;
 pub mod conflict_plugin;
-pub mod general_plugin;
+pub mod civilization_plugin;
 pub mod movement_plugin;
 pub mod remove_surplus_plugin;
 pub mod ui_plugin;
