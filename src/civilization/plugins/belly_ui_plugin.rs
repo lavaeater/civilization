@@ -6,32 +6,6 @@ impl Plugin for BellyUIPlugin {
     }
 }
 
-// examples/party-ediotor.rs
-// cargo run --example party-editor --release
-
-//! This example demonstrates how to build complex UI by creating
-//! custom widgets for custom logic, organize user input with
-//! <element on:event=run!(..)> blocks and bind data with
-//! <element bind:value=to!(..).
-//!
-//! There is only single startup `setup` system that populates
-//! the window with multimple `Animal` buttons and connects
-//! their `press` event to the show-me-the-editor clouser. This
-//! closure adds another popup widget, binds it inspector-like inner
-//! widgets to the `AnimalState` properties and provide the close button that
-//! removes the popup.
-//!
-//! Each time `Animal` is pressed the new `AnimalEditor` widget is
-//! created. It replaces the previous one becouse the `AnimalEditor` itself
-//! defined with id="editor" attribute. Widgets with custom ids are unique,
-//! so the  previous widget with the same id is removed when the new one
-//! is added.
-//!
-//! > NOTE: In this example a lot if ui entities spawned. With debug (default)
-//! target the FPS is really low (see https://github.com/jkb0o/belly/issues/48).
-//! Running example with --release flag results in better performance, but it
-//! is just hiding the problem.
-
 use belly::build::*;
 use belly::widgets::input::button::ButtonWidget;
 use bevy::prelude::*;
