@@ -9,7 +9,7 @@ use crate::civilization::concepts::trade_cards::enums::Commodity;
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
 use bevy::prelude::{
-    debug, Commands, Entity, EventReader, Has, Name, NextState, Query, Res, ResMut, Time, With,
+    Commands, Entity, EventReader, Has, Name, NextState, Query, Res, ResMut, Time, With,
     Without,
 };
 use bevy::utils::HashMap;
@@ -33,7 +33,7 @@ pub fn setup_trade(
         }
     }
     if !has_any_human {
-        debug!("No human player can trade. Skipping trade phase.");
+        //debug!("No human player can trade. Skipping trade phase.");
         next_state.set(GameActivity::PopulationExpansion)
     }
 }

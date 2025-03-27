@@ -81,7 +81,7 @@ pub struct AvailableFactions {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    debug!("1. Setting up map resource");
+    //debug!("1. Setting up map resource");
     let map = MapHandle(asset_server.load("maps/civilization.map.ron"));
     commands.insert_resource(map);
 }
@@ -125,7 +125,7 @@ fn load_map(
     textures: Res<TextureAssets>,
     mut camera: Query<(&Camera, &mut Transform)>,
 ) {
-    debug!("2. Loading map");
+    //debug!("2. Loading map");
     if let Some(level) = maps.get(map.0.id()).clone() {
         let mut ancient_places: HashSet<String> = vec![
             "Assyria",

@@ -1,14 +1,14 @@
-use crate::civilization::game_moves::components::AvailableMoves;
 use crate::civilization::components::general_components::population::Population;
 use crate::civilization::components::general_components::*;
 use crate::civilization::components::movement_components::{HasJustMoved, PerformingMovement, TokenHasMoved};
-use crate::civilization::game_moves::events::RecalculatePlayerMoves;
+use crate::civilization::concepts::census::prelude::GameInfoAndStuff;
 use crate::civilization::events::movement_events::MoveTokenFromAreaToAreaCommand;
 use crate::civilization::events::movement_events::{NextPlayerStarted, PlayerMovementEnded};
+use crate::civilization::game_moves::components::AvailableMoves;
+use crate::civilization::game_moves::events::RecalculatePlayerMoves;
 use crate::player::Player;
 use crate::GameActivity;
 use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, ResMut, Transform, With, Without};
-use crate::civilization::concepts::census::prelude::GameInfoAndStuff;
 
 pub fn start_movement_activity(
     mut game_info: ResMut<GameInfoAndStuff>,
@@ -54,11 +54,11 @@ pub fn player_end_movement(
     mut next_player: EventWriter<NextPlayerStarted>,
 ) {
     for end_movement_event in end_event.read() {
-        // debug!("Player {} has ended movement", end_movement_event.player);
+        // //debug!("Player {} has ended movement", end_movement_event.player);
         // commands.entity(end_movement_event.player).log_components();
         commands.entity(end_movement_event.player).remove::<PerformingMovement>();
         commands.entity(end_movement_event.player).remove::<AvailableMoves>();
-        // debug!("After removing components");
+        // //debug!("After removing components");
         // commands.entity(end_movement_event.player).log_components();
         next_player.send(NextPlayerStarted);
     }

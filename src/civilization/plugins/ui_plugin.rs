@@ -23,13 +23,13 @@ fn setup_trade_ui(mut commands: Commands) {
     commands
         .spawn((
             Node {
-                position_type: PositionType::Absolute,
-                right: Val::Px(10.0),
-                bottom: Val::Px(10.0),
-                width: Val::Px(600.0),
-                height: Val::Px(300.0),
+                position_type: PositionType::Relative,
+                left: Val::Px(10.0),
+                top: Val::Px(10.0),
+                width: Val::Px(300.0),
+                height: Val::Px(800.0),
                 flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
+                align_items: AlignItems::Default,
                 padding: UiRect::all(Val::Px(10.0)),
                 ..default()
             },
@@ -71,6 +71,7 @@ fn update_trade_ui(
 ) {
     // Find the human player and their trade cards
     if let Ok((_human_entity, player_trade_cards)) = human_query.get_single() {
+        debug!("Human player Trade Cards have changed, update the UI!");
         // Find the trade cards grid
         if let Ok(grid_entity) = card_grid_query.get_single() {
             // Clear existing cards

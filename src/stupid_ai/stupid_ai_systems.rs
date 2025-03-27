@@ -31,7 +31,7 @@ pub fn select_stupid_move(
     mut player_trade_cards: Query<&mut PlayerTradeCards>,
 ) {
     for event in event_reader.read() {
-        // debug!("Selecting stupid AI move for player {:?}", event.player);
+        // //debug!("Selecting stupid AI move for player {:?}", event.player);
         if let Ok((player_name, available_moves, _player_areas)) = player_moves.get(event.player) {
             /*
             So, the moves will always really be of maximum one or two types (for now).
@@ -144,7 +144,7 @@ pub fn select_stupid_move(
                                             .expect("Players should have cards");
                                         if trade_offer.initiator == event.player {
                                             let mut cards_to_use = Vec::new();
-                                            let mut commodities_to_fulfill =
+                                            let _commodities_to_fulfill =
                                                 trade_offer.initiator_pays.clone();
 
                                             // First, add any tradeable calamity cards we have

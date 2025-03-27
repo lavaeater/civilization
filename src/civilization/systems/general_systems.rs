@@ -21,14 +21,14 @@ pub fn start_game(
     mut writer: EventWriter<MoveTokensFromStockToAreaCommand>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    debug!("4. Starting the game!");
+    //debug!("4. Starting the game!");
     for (player_entity, name, player_faction) in player_query.iter() {
-        debug!("Starting the game for player: {:?}", name);
+        //debug!("Starting the game for player: {:?}", name);
         if let Some((area_entity, area_name, _)) = start_area_query
             .iter()
             .find(|(_, _, start_area)| start_area.faction == player_faction.faction)
         {
-            debug!("Putting a token in: {:?}", area_name);
+            //debug!("Putting a token in: {:?}", area_name);
             writer.send(MoveTokensFromStockToAreaCommand {
                 area_entity,
                 player_entity,
@@ -40,7 +40,7 @@ pub fn start_game(
 }
 
 pub fn setup_players(mut commands: Commands, mut available_factions: ResMut<AvailableFactions>) {
-    debug!("3. Setting up players!");
+    //debug!("3. Setting up players!");
     (1..=8).for_each(|n| {
         if let Some(faction) = available_factions
             .remaining_factions
@@ -89,7 +89,7 @@ pub fn setup_players(mut commands: Commands, mut available_factions: ResMut<Avai
             ));
         }
     });
-    debug!("Players are set up!");
+    //debug!("Players are set up!");
 }
 
 pub fn connect_areas(

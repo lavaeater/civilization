@@ -1,4 +1,5 @@
 use crate::civilization::components::general_components::PlayerCities;
+use crate::civilization::components::prelude::Faction;
 use crate::civilization::concepts::trade_cards::components::{CivilizationTradeCards, PlayerTradeCards};
 use crate::civilization::concepts::trade_cards::events::{CheckIfWeCanTrade, HumanPlayerPulledTradeCard};
 use crate::stupid_ai::prelude::IsHuman;
@@ -21,7 +22,7 @@ pub fn acquire_trade_cards(
         // for now, we pull trade cards every round because why not?
         (1..=player_cities.number_of_cities()).for_each(|pile| {
             if let Some(pulled_card) = trade_card_resource.pull_card_from(pile) {
-                debug!("Player acquired trade card: {:?}", pulled_card);
+                debug!("{} acquired trade card: {:?}", faction.faction, pulled_card);
                 player_trade_cards.add_trade_card(pulled_card);
                 pulled_card_event_writer.send(HumanPlayerPulledTradeCard::new(player_entity));
             } else {
@@ -40,10 +41,10 @@ pub fn transition_to_trade(
     for _ in check_if_we_can_trade.read() {
         if players_can_trade_query.iter().filter(|(trade, _)| trade.can_trade()).count() >= 2
             && players_can_trade_query.iter().filter(|(_, is_human)| *is_human).count() > 0 {
-            debug!("COMMENCE TRADING!");
+            //debug!("COMMENCE TRADING!");
             next_state.set(GameActivity::Trade);
         } else {
-            debug!("Not enough players can trade");
+            //debug!("Not enough players can trade");
             next_state.set(GameActivity::PopulationExpansion);
         }
     }

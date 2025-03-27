@@ -1,17 +1,17 @@
-use crate::civilization::concepts::map::map_plugin::AvailableFactions;
-use crate::player::Player;
-use crate::GameActivity;
-use bevy::prelude::{debug, Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, Transform, With};
 use crate::civilization::components::prelude::*;
+use crate::civilization::concepts::map::map_plugin::AvailableFactions;
 use crate::civilization::events::prelude::*;
 use crate::civilization::functions::prelude::*;
+use crate::player::Player;
+use crate::GameActivity;
+use bevy::prelude::{Commands, Entity, EventReader, EventWriter, NextState, Query, Res, ResMut, Transform, With};
 
 pub fn city_building_gate(
     query: Query<&IsBuilding>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     if query.is_empty() {
-        debug!("No one is building cities, moving on!");
+        //debug!("No one is building cities, moving on!");
         next_state.set(GameActivity::RemoveSurplusPopulation);
     }
 }
