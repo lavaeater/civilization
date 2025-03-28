@@ -14,7 +14,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         // Create a basic node entity with default settings
         let entity = commands.spawn_empty().id();
         commands.entity(entity).insert(Node::default());
-        
+
         Self {
             commands,
             current_entity: entity,
@@ -25,16 +25,13 @@ impl<'w, 's> UIBuilder<'w, 's> {
     /// Set width Node
     pub fn width(mut self, width: Val) -> Self {
         // Get the current entity
-        self.commands.entity(self.current_entity)
-        .entry::<Node>()
-        // Modify the component if it exists
-        .and_modify(|mut node| node.width = width)
-        // Otherwise insert a default value
-        .or_insert(Node {
-            width,
-            ..default()
-        });
-        
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            // Modify the component if it exists
+            .and_modify(move |mut node| node.width = width)
+            // Otherwise insert a default value
+            .or_insert(Node { width, ..default() });
         self
     }
 
@@ -42,14 +39,14 @@ impl<'w, 's> UIBuilder<'w, 's> {
     pub fn height(mut self, height: Val) -> Self {
         // Get the current entity
         let mut entity = self.commands.entity(self.current_entity);
-        
+
         // Create a new Node with the specified height
         let mut node = Node::default();
         node.height = height;
-        
+
         // Insert or replace the Node component
         entity.insert(node);
-        
+
         self
     }
 
@@ -57,14 +54,14 @@ impl<'w, 's> UIBuilder<'w, 's> {
     pub fn flex_direction(mut self, direction: FlexDirection) -> Self {
         // Get the current entity
         let mut entity = self.commands.entity(self.current_entity);
-        
+
         // Create a new Node with the specified flex direction
         let mut node = Node::default();
         node.flex_direction = direction;
-        
+
         // Insert or replace the Node component
         entity.insert(node);
-        
+
         self
     }
 
@@ -72,14 +69,14 @@ impl<'w, 's> UIBuilder<'w, 's> {
     pub fn justify_content(mut self, justify: JustifyContent) -> Self {
         // Get the current entity
         let mut entity = self.commands.entity(self.current_entity);
-        
+
         // Create a new Node with the specified justify content
         let mut node = Node::default();
         node.justify_content = justify;
-        
+
         // Insert or replace the Node component
         entity.insert(node);
-        
+
         self
     }
 
@@ -87,14 +84,14 @@ impl<'w, 's> UIBuilder<'w, 's> {
     pub fn align_items(mut self, align: AlignItems) -> Self {
         // Get the current entity
         let mut entity = self.commands.entity(self.current_entity);
-        
+
         // Create a new Node with the specified align items
         let mut node = Node::default();
         node.align_items = align;
-        
+
         // Insert or replace the Node component
         entity.insert(node);
-        
+
         self
     }
 
@@ -102,14 +99,14 @@ impl<'w, 's> UIBuilder<'w, 's> {
     pub fn padding(mut self, padding: UiRect) -> Self {
         // Get the current entity
         let mut entity = self.commands.entity(self.current_entity);
-        
+
         // Create a new Node with the specified padding
         let mut node = Node::default();
         node.padding = padding;
-        
+
         // Insert or replace the Node component
         entity.insert(node);
-        
+
         self
     }
 
@@ -117,14 +114,14 @@ impl<'w, 's> UIBuilder<'w, 's> {
     pub fn margin(mut self, margin: UiRect) -> Self {
         // Get the current entity
         let mut entity = self.commands.entity(self.current_entity);
-        
+
         // Create a new Node with the specified margin
         let mut node = Node::default();
         node.margin = margin;
-        
+
         // Insert or replace the Node component
         entity.insert(node);
-        
+
         self
     }
 
@@ -136,22 +133,33 @@ impl<'w, 's> UIBuilder<'w, 's> {
 
     /// Add background color
     pub fn background_color(mut self, color: Color) -> Self {
-        self.commands.entity(self.current_entity).insert(BackgroundColor(color));
+        self.commands
+            .entity(self.current_entity)
+            .insert(BackgroundColor(color));
         self
     }
 
     /// Add text to the current UI element
-    pub fn text(mut self, text: impl Into<String>, font: Handle<Font>, font_size: f32, color: Option<Color>) -> Self {
+    pub fn text(
+        mut self,
+        text: impl Into<String>,
+        font: Handle<Font>,
+        font_size: f32,
+        color: Option<Color>,
+    ) -> Self {
         let text_color = color.unwrap_or(Color::BLACK);
-        
+
         // Create a text component
-        let text_bundle = (Text::new(text.into()),
+        let text_bundle = (
+            Text::new(text.into()),
             TextFont::from_font(font).with_font_size(font_size),
             TextColor(text_color),
         );
-        
+
         // Add the text component to the entity
-        self.commands.entity(self.current_entity).insert(text_bundle);
+        self.commands
+            .entity(self.current_entity)
+            .insert(text_bundle);
         self
     }
 
@@ -159,11 +167,11 @@ impl<'w, 's> UIBuilder<'w, 's> {
     pub fn container(mut self) -> Self {
         // Push current entity to parent stack
         self.parent_stack.push_back(self.current_entity);
-        
+
         // Spawn a new node entity as child
         let child = self.commands.spawn_empty().id();
         self.commands.entity(child).insert(Node::default());
-        
+
         // Add the child to the current entity
         self.commands.entity(self.current_entity).add_child(child);
 
@@ -197,10 +205,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
 }
 
 /// Example system demonstrating UI builder usage
-fn create_ui_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>
-) {
+fn create_ui_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
 
     let root_ui = UIBuilder::new(commands)
