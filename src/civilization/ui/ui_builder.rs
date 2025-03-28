@@ -21,6 +21,31 @@ impl<'w, 's> UIBuilder<'w, 's> {
             parent_stack: VecDeque::new(),
         }
     }
+    pub fn block(mut self, width_percent: f32, height_percent: f32, bg_color: Color) -> Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut node| { 
+                node.width = Val::Percent(width_percent);
+                node.height = Val::Percent(height_percent);
+                node.display = Display::Block;
+            })
+            .or_insert(Node { 
+                width: Val::Percent(width_percent),
+                height: Val::Percent(height_percent),    
+                display: Display::Block,
+                ..default() });
+
+        self.commands
+            .entity(self.current_entity)
+            .entry::<BackgroundColor>()
+            .and_modify(move |mut bg| {
+                *bg = BackgroundColor(bg_color);
+            })
+            .or_insert(BackgroundColor(bg_color));
+        
+        self.container()
+    }
 
     /// Set width Node
     pub fn width(mut self, width: Val) -> Self {
@@ -174,22 +199,4 @@ impl<'w, 's> UIBuilder<'w, 's> {
             self.current_entity
         }
     }
-}
-
-/// Example system demonstrating UI builder usage
-fn create_ui_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-
-    let root_ui = UIBuilder::new(commands)
-        .width(Val::Percent(100.0))
-        .height(Val::Percent(100.0))
-        .flex_direction(FlexDirection::Column)
-        .background_color(Color::rgb(0.5, 0.5, 0.5))
-        .container()
-        .width(Val::Px(200.0))
-        .height(Val::Px(100.0))
-        .background_color(Color::WHITE)
-        .text("Hello, UI!", font.clone(), 24.0, Some(Color::BLACK))
-        .parent()
-        .build();
 }
