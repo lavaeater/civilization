@@ -1,16 +1,16 @@
+use crate::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
+use crate::civilization::concepts::trade_cards::enums::{Calamity, Commodity, TradeCardType};
+use crate::stupid_ai::prelude::IsHuman;
 use crate::GameState;
 use bevy::remote::http::RemoteHttpPlugin;
 use bevy::remote::RemotePlugin;
 use bevy::{input::mouse::MouseWheel, prelude::*};
 use bevy_hui::prelude::*;
 use maud::*;
-use crate::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
-use crate::civilization::concepts::trade_cards::enums::{TradeCardType, Commodity, Calamity};
-use crate::stupid_ai::prelude::IsHuman;
 
-pub struct UiPlugin;
+pub struct CobWebUiPlugin;
 
-impl Plugin for UiPlugin {
+impl Plugin for CobWebUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             RemotePlugin::default(),
@@ -22,7 +22,6 @@ impl Plugin for UiPlugin {
         .add_systems(
             Update,
             (
-                update_puls.run_if(in_state(GameState::Playing)),
                 update_collapse.run_if(in_state(GameState::Playing)),
                 update_scroll.run_if(in_state(GameState::Playing)),
                 cleaner.run_if(in_state(GameState::Playing)),
@@ -143,18 +142,6 @@ fn update_scroll(
             scroll.offset = scroll.offset + ev.y.signum() * scroll.speed * time.delta_secs();
             style.computed.node.top = Val::Px(scroll.offset);
         });
-    });
-}
-
-#[derive(Component)]
-pub struct Puls(f32);
-
-fn update_puls(mut query: Query<(&mut Node, &Puls)>, time: Res<Time>, mut elapsed: Local<f32>) {
-    *elapsed += time.delta_secs();
-
-    query.iter_mut().for_each(|(mut style, rotatethis)| {
-        style.width = Val::Percent((*elapsed * rotatethis.0).sin() * 5. + 90.);
-        style.height = Val::Percent((*elapsed * rotatethis.0).sin() * 5. + 90.);
     });
 }
 
