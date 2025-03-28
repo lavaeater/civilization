@@ -39,7 +39,7 @@ fn handle_player_draws_cards(
         {
             if let Ok(trade_card_list) = trade_card_list.get_single() {
                 if let Ok(player_trade_cards) = player_trade_cards.get_single() {
-                    let grouped_cards = player_trade_cards.trade_cards_grouped_by_value_and_type();
+                    let grouped_cards = player_trade_cards.trade_cards_grouped_by_value_and_type().iter();
                     let font: Handle<Font> = asset_server.load("fonts/FiraSans-Bold.ttf");
                     let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
 
