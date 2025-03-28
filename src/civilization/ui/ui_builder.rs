@@ -37,91 +37,61 @@ impl<'w, 's> UIBuilder<'w, 's> {
 
     /// Set height Node
     pub fn height(mut self, height: Val) -> Self {
-        // Get the current entity
-        let mut entity = self.commands.entity(self.current_entity);
-
-        // Create a new Node with the specified height
-        let mut node = Node::default();
-        node.height = height;
-
-        // Insert or replace the Node component
-        entity.insert(node);
-
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut node| node.height = height)
+            .or_insert(Node { height, ..default() });
         self
     }
 
     /// Set flex direction
     pub fn flex_direction(mut self, direction: FlexDirection) -> Self {
-        // Get the current entity
-        let mut entity = self.commands.entity(self.current_entity);
-
-        // Create a new Node with the specified flex direction
-        let mut node = Node::default();
-        node.flex_direction = direction;
-
-        // Insert or replace the Node component
-        entity.insert(node);
-
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut node| node.flex_direction = direction)
+            .or_insert(Node { flex_direction: direction, ..default() });
         self
     }
 
     /// Set justify content
     pub fn justify_content(mut self, justify: JustifyContent) -> Self {
-        // Get the current entity
-        let mut entity = self.commands.entity(self.current_entity);
-
-        // Create a new Node with the specified justify content
-        let mut node = Node::default();
-        node.justify_content = justify;
-
-        // Insert or replace the Node component
-        entity.insert(node);
-
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut node| node.justify_content = justify)
+            .or_insert(Node { justify_content: justify, ..default() });
         self
     }
 
     /// Set align items
     pub fn align_items(mut self, align: AlignItems) -> Self {
-        // Get the current entity
-        let mut entity = self.commands.entity(self.current_entity);
-
-        // Create a new Node with the specified align items
-        let mut node = Node::default();
-        node.align_items = align;
-
-        // Insert or replace the Node component
-        entity.insert(node);
-
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut node| node.align_items = align)
+            .or_insert(Node { align_items: align, ..default() });
         self
     }
 
     /// Set padding
     pub fn padding(mut self, padding: UiRect) -> Self {
-        // Get the current entity
-        let mut entity = self.commands.entity(self.current_entity);
-
-        // Create a new Node with the specified padding
-        let mut node = Node::default();
-        node.padding = padding;
-
-        // Insert or replace the Node component
-        entity.insert(node);
-
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut node| node.padding = padding)
+            .or_insert(Node { padding, ..default() });
         self
     }
 
     /// Set margin
     pub fn margin(mut self, margin: UiRect) -> Self {
-        // Get the current entity
-        let mut entity = self.commands.entity(self.current_entity);
-
-        // Create a new Node with the specified margin
-        let mut node = Node::default();
-        node.margin = margin;
-
-        // Insert or replace the Node component
-        entity.insert(node);
-
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut node| node.margin = margin)
+            .or_insert(Node { margin, ..default() });
         self
     }
 
@@ -135,7 +105,9 @@ impl<'w, 's> UIBuilder<'w, 's> {
     pub fn background_color(mut self, color: Color) -> Self {
         self.commands
             .entity(self.current_entity)
-            .insert(BackgroundColor(color));
+            .entry::<BackgroundColor>()
+            .and_modify(move |mut background| *background = BackgroundColor(color))
+            .or_insert(BackgroundColor(color));
         self
     }
 
