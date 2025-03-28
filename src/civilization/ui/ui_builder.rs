@@ -211,6 +211,20 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self
     }
 
+    pub fn for_each<I, F, T>(mut self, items: I, mut f: F) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        F: FnMut(T, &mut Self),
+    {
+        let mut items = items.into_iter();
+
+        while let Some(item) = items.next() {
+            f(item, &mut self);
+        }
+
+        self
+    }
+
     /// Finalize and get the root entity
     pub fn build(self) -> Entity {
         // Return the top-level entity (first one created)

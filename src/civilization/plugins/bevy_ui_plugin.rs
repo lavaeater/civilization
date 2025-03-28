@@ -36,17 +36,29 @@ fn handle_player_draws_cards(
     player_trade_cards: Query<&PlayerTradeCards, With<IsHuman>>,
 ) {
     for event in reader.read() {
-        {
-            if let Ok(trade_card_list) = trade_card_list.get_single() {
-                if let Ok(player_trade_cards) = player_trade_cards.get_single() {
-                    let grouped_cards = player_trade_cards.trade_cards_grouped_by_value_and_type().iter();
-                    let font: Handle<Font> = asset_server.load("fonts/FiraSans-Bold.ttf");
-                    let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
+        if let Ok(trade_card_list) = trade_card_list.get_single() {
+            if let Ok(player_trade_cards) = player_trade_cards.get(event.player_entity) {
+                let grouped_cards = player_trade_cards.trade_cards_grouped_by_value_and_type();
+                let font: Handle<Font> = asset_server.load("fonts/FiraSans-Bold.ttf");
+                let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
 
-                    commands = UIBuilder::from_entity(commands, trade_card_list, true)
-                        .block(100.0, 100.0, bg_color)
-                        .build_command();
+                let mut builder = UIBuilder::from_entity(commands, trade_card_list, true)
+                    .block(100.0, 100.0, bg_color);
+
+                for (value, type_map) in grouped_cards.iter() {
+                    // Create a container for each value
+                    builder = builder.block(50.0, 20.0, bg_color)
+                        .text(&format!("Value: {}", value), font.clone(), 18.0, Some(Color::WHITE));
+
+                    for (card_type, cards) in type_map.iter() {
+                        // Create elements for each card type
+                        builder = builder.block(40.0, 15.0, bg_color)
+                            .text(&format!("{:?}: {}", card_type, cards.len()),
+                                  font.clone(), 14.0, Some(Color::WHITE));
+                    }
                 }
+
+                commands = builder.build_command();
             }
         }
     }
