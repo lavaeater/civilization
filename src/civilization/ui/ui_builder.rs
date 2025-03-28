@@ -13,7 +13,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     pub fn new(mut commands: Commands<'w, 's>) -> Self {
         // Create a basic node entity with default settings
         let entity = commands.spawn_empty().id();
-        commands.entity(entity).insert(NodeBundle::default());
+        commands.entity(entity).insert(Node::default());
         
         Self {
             commands,
@@ -22,72 +22,72 @@ impl<'w, 's> UIBuilder<'w, 's> {
         }
     }
 
-    /// Set width style
+    /// Set width Node
     pub fn width(mut self, width: Val) -> Self {
-        if let Some(mut style) = self.commands.get_entity(self.current_entity)
-            .and_then(|e| e.get_mut::<Style>()) {
-            style.width = width;
+        if let Some(mut node) = self.commands.get_entity(self.current_entity)
+            .and_then(|e| e.get_mut::<Node>()) {
+            node.width = width;
         }
         self
     }
 
-    /// Set height style
+    /// Set height Node
     pub fn height(mut self, height: Val) -> Self {
-        if let Some(mut style) = self.commands.get_entity(self.current_entity)
-            .and_then(|e| e.get_mut::<Style>()) {
-            style.height = height;
+        if let Some(mut node) = self.commands.get_entity(self.current_entity)
+            .and_then(|e| e.get_mut::<Node>()) {
+            node.height = height;
         }
         self
     }
 
     /// Set flex direction
     pub fn flex_direction(mut self, direction: FlexDirection) -> Self {
-        if let Some(mut style) = self.commands.get_entity(self.current_entity)
-            .and_then(|e| e.get_mut::<Style>()) {
-            style.flex_direction = direction;
+        if let Some(mut node) = self.commands.get_entity(self.current_entity)
+            .and_then(|e| e.get_mut::<Node>()) {
+            node.flex_direction = direction;
         }
         self
     }
 
     /// Set justify content
     pub fn justify_content(mut self, justify: JustifyContent) -> Self {
-        if let Some(mut style) = self.commands.get_entity(self.current_entity)
-            .and_then(|e| e.get_mut::<Style>()) {
-            style.justify_content = justify;
+        if let Some(mut node) = self.commands.get_entity(self.current_entity)
+            .and_then(|e| e.get_mut::<Node>()) {
+            node.justify_content = justify;
         }
         self
     }
 
     /// Set align items
     pub fn align_items(mut self, align: AlignItems) -> Self {
-        if let Some(mut style) = self.commands.get_entity(self.current_entity)
-            .and_then(|e| e.get_mut::<Style>()) {
-            style.align_items = align;
+        if let Some(mut node) = self.commands.get_entity(self.current_entity)
+            .and_then(|e| e.get_mut::<Node>()) {
+            node.align_items = align;
         }
         self
     }
 
     /// Set padding
     pub fn padding(mut self, padding: UiRect) -> Self {
-        if let Some(mut style) = self.commands.get_entity(self.current_entity)
-            .and_then(|e| e.get_mut::<Style>()) {
-            style.padding = padding;
+        if let Some(mut node) = self.commands.get_entity(self.current_entity)
+            .and_then(|e| e.get_mut::<Node>()) {
+            node.padding = padding;
         }
         self
     }
 
     /// Set margin
     pub fn margin(mut self, margin: UiRect) -> Self {
-        if let Some(mut style) = self.commands.get_entity(self.current_entity)
-            .and_then(|e| e.get_mut::<Style>()) {
-            style.margin = margin;
+        if let Some(mut node) = self.commands.get_entity(self.current_entity)
+            .and_then(|e| e.get_mut::<Node>()) {
+            node.margin = margin;
         }
         self
     }
 
-    /// Apply a complete style
-    pub fn style(mut self, style: Style) -> Self {
-        self.commands.entity(self.current_entity).insert(style);
+    /// Apply a complete Node
+    pub fn node(mut self, node: Node) -> Self {
+        self.commands.entity(self.current_entity).insert(node);
         self
     }
 
@@ -102,17 +102,13 @@ impl<'w, 's> UIBuilder<'w, 's> {
         let text_color = color.unwrap_or(Color::BLACK);
         
         // Create a text component
-        let text = Text::from_section(
-            text.into(),
-            TextStyle {
-                font,
-                font_size,
-                color: text_color,
-            },
+        let text_bundle = (Text::new(text.into()),
+            TextFont::from_font(font).with_font_size(font_size),
+            TextColor(text_color),
         );
         
         // Add the text component to the entity
-        self.commands.entity(self.current_entity).insert(text);
+        self.commands.entity(self.current_entity).insert(text_bundle);
         self
     }
 
@@ -123,7 +119,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         
         // Spawn a new node entity as child
         let child = self.commands.spawn_empty().id();
-        self.commands.entity(child).insert(NodeBundle::default());
+        self.commands.entity(child).insert(Node::default());
         
         // Add the child to the current entity
         self.commands.entity(self.current_entity).add_child(child);
