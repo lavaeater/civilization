@@ -53,6 +53,7 @@ impl Plugin for CivilizationPlugin {
                     GameMovesPlugin,
                     TradeCardPlugin,
                     MapPlugin,
+                    BellyUIPlugin
                 )
             )
             .add_systems(OnEnter(GameActivity::StartGame), start_game)

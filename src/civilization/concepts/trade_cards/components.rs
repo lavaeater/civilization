@@ -6,6 +6,7 @@ use bevy::prelude::{Color, Component, Reflect, Resource, TypePath};
 use bevy::utils::{HashMap, HashSet};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Asset, TypePath, Clone)]
 pub struct CivilizationCardDefinitions {
@@ -255,6 +256,7 @@ impl PlayerTradeCards {
 
 #[derive(Clone, Debug, PartialEq, Reflect)]
 pub struct TradeCard {
+    pub id: Uuid,
     pub value: usize,
     pub card_type: TradeCardType,
     pub tradeable: bool,
@@ -265,6 +267,7 @@ impl Eq for TradeCard {}
 
 impl std::hash::Hash for TradeCard {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
         self.value.hash(state);
         self.card_type.hash(state);
         self.tradeable.hash(state);
@@ -280,6 +283,7 @@ impl std::hash::Hash for TradeCard {
 impl TradeCard {
     pub fn new(value: usize, card_type: TradeCardType, tradeable: bool) -> Self {
         Self {
+            id: Uuid::new_v4(),
             value,
             card_type,
             tradeable,
@@ -289,6 +293,7 @@ impl TradeCard {
     
     pub fn from_def(def: &TradeCardDefinition) -> Self {
         Self {
+            id: Uuid::new_v4(),
             value: def.value,
             card_type: def.card_type,
             tradeable: def.tradeable,

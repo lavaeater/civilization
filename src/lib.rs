@@ -14,11 +14,11 @@ use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
 use crate::menu::MenuPlugin;
 
-use civilization::plugins::general_plugin::CivilizationPlugin;
 use bevy::app::App;
 // #[cfg(debug_assertions)]
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
+use civilization::plugins::civilization_plugin::CivilizationPlugin;
 
 #[derive(States, Clone, PartialEq, Eq, Hash, Debug, Default, Reflect)]
 pub enum GameState {
