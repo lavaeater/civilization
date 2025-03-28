@@ -30,7 +30,15 @@ fn handle_cards_added(
             if let Ok(player_cards) = player_trade_cards
                .get(event.player_entity) {
                 
-                let trade_card_iter = player_cards.trade_cards_owned();
+                
+                
+                let trade_card_iter = player_cards
+                    .trade_cards_grouped_by_value_and_type().iter().map(|(value, by_type)|{
+                        CardValueGroup::new(format!("Value: {value}"), *value, by_type.iter().map(|(card_type, cards)| CardsInfo::new(card_type.to_string(), cards)).collect())
+                    });
+                
+                
+                
                     elements.add_child(
                         *trade_card_span,
                         eml! {
@@ -85,12 +93,41 @@ fn Animal(ctx: &mut WidgetContext, ch: &mut GroupedCards) {
 }
 
 #[derive(Component, Default, Clone)]
-/// The AnimalState acts like a model. Changing this model properties
-/// affects widgets binded to this model (the background of `Animal`
-/// widget is changed as well as background of editor when you edit the
-/// animal).
-pub struct GroupedCards {
+pub struct CardValueGroup {
     name: String,
-    avatar: Avatar,
-    color: Color,
+    value: usize,
+    cards: Vec<CardsInfo>
+}
+
+impl CardValueGroup {
+    pub fn new(name: String, value: usize, cards: Vec<CardsInfo>) -> Self {
+        CardValueGroup {
+            name,
+            value,
+            cards
+        }
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct CardsInfo {
+    name: String,
+    tradeable: bool,
+    value: usize,
+    calamity: bool,
+    commodity: bool,
+    count: usize
+}
+
+impl CardsInfo {
+    pub fn new(name: String, tradeable: bool, value: usize, calamity: bool, commodity: bool, count: usize) -> Self {
+        CardsInfo {
+            name,
+            tradeable,
+            value,
+            calamity,
+            commodity,
+            count
+        }
+    }
 }
