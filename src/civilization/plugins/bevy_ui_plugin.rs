@@ -24,12 +24,15 @@ impl Plugin for BevyUiPlugin {
     }
 }
 
+#[derive(Component, Default)]
+pub struct TradeCardUiRoot;
+
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // root node
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
     let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
     let root_ui = UIBuilder::new(commands)
-        .block(25.0, 100.0, bg_color)
+        .block_with::<TradeCardUiRoot>(25.0, 100.0, bg_color)
         .width(Val::Percent(100.0))
         .height(Val::Percent(100.0))
         .text("Hello, UI!", font.clone(), 24.0, Some(Color::WHITE))

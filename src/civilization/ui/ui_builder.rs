@@ -21,6 +21,17 @@ impl<'w, 's> UIBuilder<'w, 's> {
             parent_stack: VecDeque::new(),
         }
     }
+    
+    pub fn block_with<T: Component + Default>(self, width_percent: f32, height_percent: f32, bg_color: Color) -> Self {
+        let mut snake = self.block(width_percent, height_percent, bg_color);
+            snake.commands
+            .entity(snake.current_entity)
+            .entry::<T>()
+            .or_default();
+        
+        snake
+    }
+    
     pub fn block(mut self, width_percent: f32, height_percent: f32, bg_color: Color) -> Self {
         self.commands
             .entity(self.current_entity)
