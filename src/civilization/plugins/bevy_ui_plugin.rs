@@ -36,15 +36,14 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         })
         .insert(PickingBehavior::IGNORE)
         .with_children(|parent| {
-            // left vertical fill (border)
             parent
                 .spawn((
                     Node {
-                        width: Val::Percent(200.),
+                        width: Val::Percent(100.),
                         border: UiRect::all(Val::Px(5.)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgb(0.65, 0.65, 0.65)),
+                    BackgroundColor(Color::srgba(0.65, 0.65, 0.65, 0.25)),
                 ));
         });
         //         .with_children(|parent| {
