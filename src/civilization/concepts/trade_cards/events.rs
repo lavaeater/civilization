@@ -1,6 +1,4 @@
-use crate::civilization::concepts::trade_cards::components::TradeCard;
 use bevy::prelude::{Entity, Event, Reflect};
-use uuid::Uuid;
 
 #[derive(Event, Reflect, Default, Clone, PartialEq)]
 pub struct CheckIfWeCanTrade;

@@ -10,7 +10,7 @@ use crate::GameActivity;
 use bevy::core::Name;
 use bevy::math::{vec3, Vec3};
 use bevy::prelude::{
-    debug, default, info, Commands, Entity, EventReader, EventWriter, NextState, Query, Res,
+    default, info, Commands, Entity, EventReader, EventWriter, NextState, Query, Res,
     ResMut, Sprite, StateTransitionEvent, Transform, With, Without,
 };
 use rand::seq::IteratorRandom;
@@ -22,9 +22,9 @@ pub fn start_game(
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     //debug!("4. Starting the game!");
-    for (player_entity, name, player_faction) in player_query.iter() {
+    for (player_entity, _name, player_faction) in player_query.iter() {
         //debug!("Starting the game for player: {:?}", name);
-        if let Some((area_entity, area_name, _)) = start_area_query
+        if let Some((area_entity, _area_name, _)) = start_area_query
             .iter()
             .find(|(_, _, start_area)| start_area.faction == player_faction.faction)
         {

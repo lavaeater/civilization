@@ -87,6 +87,7 @@ checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
 name = "adv_civ"
 version = "0.1.0"
 dependencies = [
+ "accesskit",
  "bevy",
  "bevy_asset_loader",
  "bevy_common_assets",
@@ -99,7 +100,6 @@ dependencies = [
  "itertools 0.14.0",
  "log",
  "rand 0.9.0",
- "ron 0.9.0",
  "serde",
  "uuid",
  "webbrowser",
@@ -511,7 +511,7 @@ dependencies = [
  "downcast-rs",
  "either",
  "petgraph",
- "ron 0.8.1",
+ "ron",
  "serde",
  "smallvec",
  "thread_local",
@@ -565,7 +565,7 @@ dependencies = [
  "futures-lite",
  "js-sys",
  "parking_lot",
- "ron 0.8.1",
+ "ron",
  "serde",
  "stackfuture",
  "uuid",
@@ -632,7 +632,7 @@ checksum = "3521990269672c442f2bf0fbed0fce9db719e3dd136dd4012a97809464a4389d"
 dependencies = [
  "anyhow",
  "bevy",
- "ron 0.8.1",
+ "ron",
  "serde",
  "thiserror 1.0.69",
 ]
@@ -4796,19 +4796,6 @@ dependencies = [
  "bitflags 2.9.0",
  "serde",
  "serde_derive",
-]
-
-[[package]]
-name = "ron"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63f3aa105dea217ef30d89581b65a4d527a19afc95ef5750be3890e8d3c5b837"
-dependencies = [
- "base64 0.22.1",
- "bitflags 2.9.0",
- "serde",
- "serde_derive",
- "unicode-ident",
 ]
 
 [[package]]

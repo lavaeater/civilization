@@ -6,7 +6,7 @@ use bevy::prelude::{Commands, Has, Name, NextState, Query, ResMut};
 pub fn remove_surplus_population(
     mut next_state: ResMut<NextState<GameActivity>>,
     mut areas: Query<(&mut Population, Has<BuiltCity>)>,
-    name_query: Query<&Name>,
+    _name_query: Query<&Name>,
     mut commands: Commands
 ) {
     for (mut area, has_city) in areas.iter_mut() {
@@ -17,7 +17,7 @@ pub fn remove_surplus_population(
                     commands.entity(token).insert(ReturnTokenToStock);
                 }
             } else if area.number_of_players() > 1 {
-                for (player, tokens) in area.player_tokens().iter() {
+                for (_player, _tokens) in area.player_tokens().iter() {
                     //debug!("Player {:?} has {:?} tokens", name_query.get(*player), tokens.len());
                 }
             } else {

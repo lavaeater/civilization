@@ -22,7 +22,7 @@ pub fn find_conflict_zones(
 ) {
     pop_query.iter().filter(|(_, _, pop, has_city)| {
         pop.is_conflict_zone(*has_city)
-    }).for_each(|(conflict_zone, name, _, has_city)| {
+    }).for_each(|(conflict_zone, _name, _, has_city)| {
         if has_city {
             //debug!("City Conflict Zone found: {:?}", name);
             commands.entity(conflict_zone).insert(UnresolvedCityConflict);

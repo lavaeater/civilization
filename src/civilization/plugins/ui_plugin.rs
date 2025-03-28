@@ -135,8 +135,7 @@ fn update_trade_ui(
                                         ));
 
                                         for card in cards {
-                                            let mut card_list = type_parent.spawn((Node::default()
-                                            ));
+                                            let mut card_list = type_parent.spawn(Node::default());
                                             create_trade_card_node(&mut card_list, card);
                                         }
                                     });

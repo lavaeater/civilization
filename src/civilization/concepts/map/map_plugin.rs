@@ -5,7 +5,7 @@ use crate::civilization::systems::prelude::setup_players;
 use crate::loading::TextureAssets;
 use crate::GameState;
 use bevy::core::Name;
-use bevy::prelude::{debug, App, AssetServer, Assets, Camera, Commands, Handle, Image, IntoSystemConfigs, OnEnter, Plugin, Query, Res, ResMut, Resource, Sprite, Startup, Transform, Vec3, With};
+use bevy::prelude::{App, AssetServer, Assets, Camera, Commands, Handle, Image, IntoSystemConfigs, OnEnter, Plugin, Query, Res, ResMut, Resource, Sprite, Startup, Transform, Vec3, With};
 use bevy::utils::{HashMap, HashSet};
 use bevy_common_assets::ron::RonAssetPlugin;
 use rand::seq::IteratorRandom;
