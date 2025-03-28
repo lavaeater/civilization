@@ -103,7 +103,6 @@ dependencies = [
  "bevy_egui",
  "bevy_hui",
  "bevy_hui_widgets",
- "clap",
  "cucumber",
  "embed-resource",
  "futures",
