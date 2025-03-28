@@ -23,6 +23,7 @@ pub fn acquire_trade_cards(
             if let Some(pulled_card) = trade_card_resource.pull_card_from(pile) {
                 player_trade_cards.add_trade_card(pulled_card);
                 if is_human {
+                    debug!("Human player pulled trade card!");
                     pulled_card_event_writer.send(HumanPlayerPulledTradeCard::new(player_entity));                    
                 }
             } else {
