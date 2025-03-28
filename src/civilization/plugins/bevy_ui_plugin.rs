@@ -1,9 +1,7 @@
 //! This example illustrates the various features of Bevy UI.
 
-use accesskit::{Node as Accessible, Role};
 use bevy::dev_tools::ui_debug_overlay::DebugUiPlugin;
 use bevy::{
-    a11y::AccessibilityNode,
     color::palettes::{basic::LIME, css::DARK_GRAY},
     input::mouse::{MouseScrollUnit, MouseWheel},
     picking::focus::HoverMap,
@@ -46,6 +44,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     BackgroundColor(Color::srgba(0.65, 0.65, 0.65, 0.25)),
                 ));
         });
+    
+    
         //         .with_children(|parent| {
         //             // left vertical fill (content)
         //             parent
