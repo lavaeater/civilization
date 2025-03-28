@@ -293,6 +293,7 @@ impl std::hash::Hash for TradeCard {
         (self.color.to_srgba().alpha as u32).hash(state);
     }
 }
+
 pub fn hex(hex_str: &str) -> Color {
     let hex_str = hex_str.trim_start_matches('#');
     

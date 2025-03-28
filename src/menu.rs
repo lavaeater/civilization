@@ -1,8 +1,8 @@
+use crate::civilization::components::prelude::GameCamera;
 use crate::loading::TextureAssets;
 use crate::GameState;
 use bevy::color::palettes::basic::BLUE;
 use bevy::prelude::*;
-use crate::civilization::components::prelude::GameCamera;
 
 pub struct MenuPlugin;
 
@@ -34,12 +34,12 @@ impl Default for ButtonColors {
 #[derive(Component)]
 struct Menu;
 
-
-
 fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>) {
     info!("menu");
     commands.spawn((
-        Camera2d::default(),
+        Camera2d,
+        IsDefaultUiCamera,
+        UiBoxShadowSamples(6),
         OrthographicProjection::default_2d(),
         GameCamera,
     ));

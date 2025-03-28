@@ -11,6 +11,7 @@ use crate::stupid_ai::prelude::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{in_state, AppExtStates, IntoSystemConfigs, OnEnter};
+use crate::civilization::plugins::bevy_ui_plugin::BevyUiPlugin;
 
 pub struct CivilizationPlugin;
 
@@ -53,7 +54,7 @@ impl Plugin for CivilizationPlugin {
                     GameMovesPlugin,
                     TradeCardPlugin,
                     MapPlugin,
-                    UiPlugin
+                    BevyUiPlugin
                 )
             )
             .add_systems(OnEnter(GameActivity::StartGame), start_game)

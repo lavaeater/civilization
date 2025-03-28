@@ -1,7 +1,7 @@
+use crate::civilization::concepts::trade_cards::components::{CivilizationCardDefinitions, CivilizationTradeCards, TradeCard};
 use bevy::asset::{AssetServer, Assets, Handle};
 use bevy::prelude::{Commands, Res, Resource};
 use rand::prelude::SliceRandom;
-use crate::civilization::concepts::trade_cards::components::{CivilizationCardDefinitions, CivilizationTradeCards, TradeCard};
 
 pub fn load_civilization_cards(
     mut commands: Commands,
@@ -12,7 +12,7 @@ pub fn load_civilization_cards(
         let mut card_resource = CivilizationTradeCards::default();
         for trading_card in civ_cards.trading_cards.iter() {
             let cards = (0..trading_card.number).map(|_| {
-                TradeCard::new(trading_card.value, trading_card.card_type.clone(), trading_card.tradeable)
+                TradeCard::from_def(trading_card)
             }).collect::<Vec<_>>();
             card_resource.card_piles.entry(trading_card.value).or_insert(vec![]).extend(cards);
         }
