@@ -1,7 +1,8 @@
 use crate::civilization::concepts::trade_cards::enums::Commodity::Ochre;
 use crate::civilization::concepts::trade_cards::enums::{Calamity, Commodity, TradeCardType};
+use belly::prelude::ColorFromHexExtension;
 use bevy::asset::Asset;
-use bevy::prelude::{Component, Reflect, Resource, TypePath};
+use bevy::prelude::{Color, Component, Reflect, Resource, TypePath};
 use bevy::utils::{HashMap, HashSet};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -11,12 +12,13 @@ pub struct CivilizationCardDefinitions {
     pub trading_cards: Vec<TradeCardDefinition>,
 }
 
-#[derive(Deserialize, Serialize, Asset, TypePath, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Deserialize, Serialize, Asset, TypePath, Clone, Debug, PartialEq)]
 pub struct TradeCardDefinition {
     pub value: usize,
     pub card_type: TradeCardType,
     pub tradeable: bool,
     pub number: usize,
+    pub color: String
 }
 
 #[derive(Resource, Debug, Default)]
@@ -251,11 +253,28 @@ impl PlayerTradeCards {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Reflect)]
+#[derive(Clone, Debug, PartialEq, Reflect)]
 pub struct TradeCard {
     pub value: usize,
     pub card_type: TradeCardType,
     pub tradeable: bool,
+    pub color: Color
+}
+
+impl Eq for TradeCard {}
+
+impl std::hash::Hash for TradeCard {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.value.hash(state);
+        self.card_type.hash(state);
+        self.tradeable.hash(state);
+        // Skip hashing the Color field as it doesn't implement Hash
+        // Instead, we can hash some of its components if needed
+        (self.color.to_srgba().red as u32).hash(state);
+        (self.color.to_srgba().green as u32).hash(state);
+        (self.color.to_srgba().blue as u32).hash(state);
+        (self.color.to_srgba().alpha as u32).hash(state);
+    }
 }
 
 impl TradeCard {
@@ -264,6 +283,16 @@ impl TradeCard {
             value,
             card_type,
             tradeable,
+            color: Color::WHITE
+        }
+    }
+    
+    pub fn from_def(def: &TradeCardDefinition) -> Self {
+        Self {
+            value: def.value,
+            card_type: def.card_type,
+            tradeable: def.tradeable,
+            color: Color::from_hex(def.color.clone())
         }
     }
 
