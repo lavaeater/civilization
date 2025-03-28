@@ -24,64 +24,107 @@ impl<'w, 's> UIBuilder<'w, 's> {
 
     /// Set width Node
     pub fn width(mut self, width: Val) -> Self {
-        if let Some(mut node) = self.commands.get_entity(self.current_entity)
-            .and_then(|e| e.get_mut::<Node>()) {
-            node.width = width;
-        }
+        // Get the current entity
+        self.commands.entity(self.current_entity)
+        .entry::<Node>()
+        // Modify the component if it exists
+        .and_modify(|mut node| node.width = width)
+        // Otherwise insert a default value
+        .or_insert(Node {
+            width,
+            ..default()
+        });
+        
         self
     }
 
     /// Set height Node
     pub fn height(mut self, height: Val) -> Self {
-        if let Some(mut node) = self.commands.get_entity(self.current_entity)
-            .and_then(|e| e.get_mut::<Node>()) {
-            node.height = height;
-        }
+        // Get the current entity
+        let mut entity = self.commands.entity(self.current_entity);
+        
+        // Create a new Node with the specified height
+        let mut node = Node::default();
+        node.height = height;
+        
+        // Insert or replace the Node component
+        entity.insert(node);
+        
         self
     }
 
     /// Set flex direction
     pub fn flex_direction(mut self, direction: FlexDirection) -> Self {
-        if let Some(mut node) = self.commands.get_entity(self.current_entity)
-            .and_then(|e| e.get_mut::<Node>()) {
-            node.flex_direction = direction;
-        }
+        // Get the current entity
+        let mut entity = self.commands.entity(self.current_entity);
+        
+        // Create a new Node with the specified flex direction
+        let mut node = Node::default();
+        node.flex_direction = direction;
+        
+        // Insert or replace the Node component
+        entity.insert(node);
+        
         self
     }
 
     /// Set justify content
     pub fn justify_content(mut self, justify: JustifyContent) -> Self {
-        if let Some(mut node) = self.commands.get_entity(self.current_entity)
-            .and_then(|e| e.get_mut::<Node>()) {
-            node.justify_content = justify;
-        }
+        // Get the current entity
+        let mut entity = self.commands.entity(self.current_entity);
+        
+        // Create a new Node with the specified justify content
+        let mut node = Node::default();
+        node.justify_content = justify;
+        
+        // Insert or replace the Node component
+        entity.insert(node);
+        
         self
     }
 
     /// Set align items
     pub fn align_items(mut self, align: AlignItems) -> Self {
-        if let Some(mut node) = self.commands.get_entity(self.current_entity)
-            .and_then(|e| e.get_mut::<Node>()) {
-            node.align_items = align;
-        }
+        // Get the current entity
+        let mut entity = self.commands.entity(self.current_entity);
+        
+        // Create a new Node with the specified align items
+        let mut node = Node::default();
+        node.align_items = align;
+        
+        // Insert or replace the Node component
+        entity.insert(node);
+        
         self
     }
 
     /// Set padding
     pub fn padding(mut self, padding: UiRect) -> Self {
-        if let Some(mut node) = self.commands.get_entity(self.current_entity)
-            .and_then(|e| e.get_mut::<Node>()) {
-            node.padding = padding;
-        }
+        // Get the current entity
+        let mut entity = self.commands.entity(self.current_entity);
+        
+        // Create a new Node with the specified padding
+        let mut node = Node::default();
+        node.padding = padding;
+        
+        // Insert or replace the Node component
+        entity.insert(node);
+        
         self
     }
 
     /// Set margin
     pub fn margin(mut self, margin: UiRect) -> Self {
-        if let Some(mut node) = self.commands.get_entity(self.current_entity)
-            .and_then(|e| e.get_mut::<Node>()) {
-            node.margin = margin;
-        }
+        // Get the current entity
+        let mut entity = self.commands.entity(self.current_entity);
+        
+        // Create a new Node with the specified margin
+        let mut node = Node::default();
+        node.margin = margin;
+        
+        // Insert or replace the Node component
+        entity.insert(node);
+        
         self
     }
 
