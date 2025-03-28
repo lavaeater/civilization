@@ -22,6 +22,18 @@ impl<'w, 's> UIBuilder<'w, 's> {
         }
     }
     
+    pub fn from_entity(mut commands: Commands<'w, 's>, entity: Entity, clear_children: bool) -> Self {
+        if clear_children {
+            commands.entity(entity).despawn_descendants();
+        }
+        commands.entity(entity).entry::<Node>().or_default();
+        Self {  
+            commands,
+            current_entity: entity,
+            parent_stack: VecDeque::new(),
+        }
+    }
+
     pub fn block_with<T: Component + Default>(self, width_percent: f32, height_percent: f32, bg_color: Color) -> Self {
         let mut snake = self.block(width_percent, height_percent, bg_color);
             snake.commands
@@ -209,5 +221,9 @@ impl<'w, 's> UIBuilder<'w, 's> {
             // Otherwise return the current entity
             self.current_entity
         }
+    }
+    
+    pub fn build_command(self) -> Commands<'w, 's> {
+        self.commands
     }
 }
