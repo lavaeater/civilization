@@ -236,6 +236,21 @@ impl PlayerTradeCards {
         grouped
     }
 
+    pub fn trade_cards_grouped_by_value_and_type(&self) -> HashMap<usize, HashMap<TradeCardType, Vec<TradeCard>>> {
+        let mut grouped: HashMap<usize, HashMap<TradeCardType, Vec<TradeCard>>> = HashMap::default();
+        for (value, chunk) in &self.trade_cards().iter().chunk_by(|card| card.value) {
+            let mut by_type: HashMap<TradeCardType, Vec<TradeCard>> = HashMap::default();
+            for card in chunk {
+                by_type
+                    .entry(card.card_type)
+                    .or_insert_with(Vec::default)
+                    .push(card.clone());
+            }
+            grouped.insert(value, by_type);
+        }
+        grouped
+    }
+
     pub fn remove_n_trade_cards(&mut self, n: usize, trade_card_type: TradeCardType) -> Option<Vec<TradeCard>> {
         match self.trade_cards.get_mut(&trade_card_type) {
             Some(vector) => {
