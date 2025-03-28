@@ -213,12 +213,10 @@ impl<'w, 's> UIBuilder<'w, 's> {
 
     pub fn for_each<I, F, T>(mut self, items: I, mut f: F) -> Self
     where
-        I: IntoIterator<Item = T>,
+        I: Iterator<Item = T>,
         F: FnMut(T, &mut Self),
     {
-        let mut items = items.into_iter();
-
-        while let Some(item) = items.next() {
+        for item in items {
             f(item, &mut self);
         }
 
