@@ -8,9 +8,9 @@ use bevy::{input::mouse::MouseWheel, prelude::*};
 use bevy_hui::prelude::*;
 use maud::*;
 
-pub struct CobWebUiPlugin;
+pub struct HuiUiPlugin;
 
-impl Plugin for CobWebUiPlugin {
+impl Plugin for HuiUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             RemotePlugin::default(),

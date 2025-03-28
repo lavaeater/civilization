@@ -42,7 +42,7 @@ impl Plugin for CivilizationPlugin {
                     MovementPlugin,
                     ConflictPlugin,
                     TradePlugin,
-                    CobWebUiPlugin,
+                    HuiUiPlugin,
                 )
             )
             .add_plugins(
