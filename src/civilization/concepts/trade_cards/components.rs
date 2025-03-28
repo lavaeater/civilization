@@ -1,10 +1,11 @@
 use crate::civilization::concepts::trade_cards::enums::Commodity::Ochre;
 use crate::civilization::concepts::trade_cards::enums::{Calamity, Commodity, TradeCardType};
 use bevy::asset::Asset;
-use bevy::prelude::{Component, Reflect, Resource, TypePath};
+use bevy::prelude::{Color, Component, Reflect, Resource, TypePath};
 use bevy::utils::{HashMap, HashSet};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Asset, TypePath, Clone)]
 pub struct CivilizationCardDefinitions {
@@ -17,6 +18,7 @@ pub struct TradeCardDefinition {
     pub card_type: TradeCardType,
     pub tradeable: bool,
     pub number: usize,
+    pub color: String
 }
 
 #[derive(Resource, Debug, Default)]
@@ -233,6 +235,21 @@ impl PlayerTradeCards {
         grouped
     }
 
+    pub fn trade_cards_grouped_by_value_and_type(&self) -> HashMap<usize, HashMap<TradeCardType, Vec<TradeCard>>> {
+        let mut grouped: HashMap<usize, HashMap<TradeCardType, Vec<TradeCard>>> = HashMap::default();
+        for (value, chunk) in &self.trade_cards().iter().chunk_by(|card| card.value) {
+            let mut by_type: HashMap<TradeCardType, Vec<TradeCard>> = HashMap::default();
+            for card in chunk {
+                by_type
+                    .entry(card.card_type)
+                    .or_insert_with(Vec::default)
+                    .push(card.clone());
+            }
+            grouped.insert(value, by_type);
+        }
+        grouped
+    }
+
     pub fn remove_n_trade_cards(&mut self, n: usize, trade_card_type: TradeCardType) -> Option<Vec<TradeCard>> {
         match self.trade_cards.get_mut(&trade_card_type) {
             Some(vector) => {
@@ -251,21 +268,74 @@ impl PlayerTradeCards {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Reflect)]
+#[derive(Clone, Debug, PartialEq, Reflect)]
 pub struct TradeCard {
+    pub id: Uuid,
     pub value: usize,
     pub card_type: TradeCardType,
     pub tradeable: bool,
+    pub color: Color
+}
+
+impl Eq for TradeCard {}
+
+impl std::hash::Hash for TradeCard {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.value.hash(state);
+        self.card_type.hash(state);
+        self.tradeable.hash(state);
+        // Skip hashing the Color field as it doesn't implement Hash
+        // Instead, we can hash some of its components if needed
+        (self.color.to_srgba().red as u32).hash(state);
+        (self.color.to_srgba().green as u32).hash(state);
+        (self.color.to_srgba().blue as u32).hash(state);
+        (self.color.to_srgba().alpha as u32).hash(state);
+    }
+}
+pub fn hex(hex_str: &str) -> Color {
+    let hex_str = hex_str.trim_start_matches('#');
+    
+    if hex_str.len() != 6 && hex_str.len() != 8 {
+        return Color::WHITE;
+    }
+    
+    let r = u8::from_str_radix(&hex_str[0..2], 16).unwrap_or(255);
+    let g = u8::from_str_radix(&hex_str[2..4], 16).unwrap_or(255);
+    let b = u8::from_str_radix(&hex_str[4..6], 16).unwrap_or(255);
+    
+    let a = if hex_str.len() == 8 {
+        u8::from_str_radix(&hex_str[6..8], 16).unwrap_or(255)
+    } else {
+        255
+    };
+    
+    Color::srgba_u8(r, g, b, a)
 }
 
 impl TradeCard {
     pub fn new(value: usize, card_type: TradeCardType, tradeable: bool) -> Self {
         Self {
+            id: Uuid::new_v4(),
             value,
             card_type,
             tradeable,
+            color: Color::WHITE
         }
     }
+    
+    pub fn from_def(def: &TradeCardDefinition) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            value: def.value,
+            card_type: def.card_type,
+            tradeable: def.tradeable,
+            color: hex(def.color.as_str())
+        }
+    }
+
+    
+
 
     pub fn is_commmodity(&self) -> bool {
         matches!(self.card_type, TradeCardType::CommodityCard(_))

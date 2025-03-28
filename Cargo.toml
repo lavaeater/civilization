@@ -81,12 +81,11 @@ image = { version = "0.25.2", default-features = false }
 log = { version = "0.4.22", features = ["max_level_debug", "release_max_level_warn"] }
 
 itertools = "0.14.0"
-#bevy_console = "0.12.1"
-clap = { version = "4.5.16", features = ["derive"] }
 bevy_egui = "0.33"
-#bevy-inspector-egui = "0.25.2"
 bevy_common_assets = { version = "0.12", features = ["ron"] }
 serde = { version = "1.0.197", features = ["derive"] }
+
+uuid = { version = "1.12.1", features = ["v4"] }
 ron = "0.9"
 
 [build-dependencies]

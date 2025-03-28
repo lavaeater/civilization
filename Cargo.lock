@@ -92,7 +92,6 @@ dependencies = [
  "bevy_common_assets",
  "bevy_egui",
  "bevy_kira_audio",
- "clap",
  "cucumber",
  "embed-resource",
  "futures",
@@ -102,6 +101,7 @@ dependencies = [
  "rand 0.9.0",
  "ron 0.9.0",
  "serde",
+ "uuid",
  "webbrowser",
  "winit",
 ]
