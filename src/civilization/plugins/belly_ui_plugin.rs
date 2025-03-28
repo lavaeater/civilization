@@ -5,6 +5,8 @@ use belly::build::*;
 use belly::widgets::common::DivWidget;
 use bevy::prelude::OnAdd;
 use bevy::prelude::*;
+use bevy::render::render_resource::encase::private::RuntimeSizedArray;
+use itertools::Itertools;
 
 pub struct BellyUIPlugin;
 
@@ -32,10 +34,10 @@ fn handle_cards_added(
                 
                 
                 
-                let trade_card_iter = player_cards
+                let trade_card_iter: Vec<CardValueGroup> = player_cards
                     .trade_cards_grouped_by_value_and_type().iter().map(|(value, by_type)|{
-                        CardValueGroup::new(format!("Value: {value}"), *value, by_type.iter().map(|(card_type, cards)| CardsInfo::new(card_type.to_string(), cards)).collect())
-                    });
+                        CardValueGroup::new(format!("Value: {value}"), *value, by_type.iter().map(|(card_type, cards)| CardsInfo::new(card_type.to_string(), cards)).collect_vec())
+                    }).collect();
                 
                 
                 
@@ -73,30 +75,44 @@ fn setup(mut commands: Commands) {
 
 #[widget]
 #[extends(DivWidget)]
-fn Animal(ctx: &mut WidgetContext, ch: &mut GroupedCards) {
-    let seed = ctx.param("seed".into()).unwrap().take().unwrap();
-    ch.randomize(seed);
+fn card_group(ctx: &mut WidgetContext, card_value_group_state: &mut CardValueGroupState) {
     let this = ctx.entity();
     let color = ctx.spawn();
-    ctx.commands()
-        .queue(from!(this, AnimalState: color) >> to!(color, BackgroundColor:0));
+    let card_value_groups = card_value_group_state.card_value_groups.clone();
     ctx.render(eml! {
-        <button>
-            <span {color} c:animal s:background-color=managed()>
+        <for value_group in=card_value_groups>
+            <span c:trade-card>
                 <img modulate="#ffffff00" bind:src=from!(this, AnimalState:avatar.image())/>
                 <span c:label>
                     <label bind:value=from!(this, AnimalState:name)/>
                 </span>
             </span>
-        </button>
+        </for>
     })
 }
 
 #[derive(Component, Default, Clone)]
+pub struct CardValueGroupState {
+    pub card_value_groups: Vec<CardValueGroup>
+}
+
+impl From<CardValueGroupState> for Variant {
+    fn from(value: CardValueGroupState) -> Self {
+        Variant::boxed(value)
+    }
+}
+
+#[derive(Default, Clone)]
 pub struct CardValueGroup {
     name: String,
     value: usize,
     cards: Vec<CardsInfo>
+}
+
+impl From<CardValueGroup> for Variant {
+    fn from(value: CardValueGroup) -> Self {
+        Variant::boxed(value)
+    }
 }
 
 impl CardValueGroup {
@@ -116,18 +132,34 @@ pub struct CardsInfo {
     value: usize,
     calamity: bool,
     commodity: bool,
+    color: Color,
     count: usize
 }
 
+impl From<CardsInfo> for Variant {
+    fn from(value: CardsInfo) -> Self {
+        Variant::boxed(value)
+    }
+}
+
 impl CardsInfo {
-    pub fn new(name: String, tradeable: bool, value: usize, calamity: bool, commodity: bool, count: usize) -> Self {
-        CardsInfo {
-            name,
-            tradeable,
-            value,
-            calamity,
-            commodity,
-            count
+    pub fn new(name: String, cards: &Vec<TradeCard>) -> Self {
+        if let Some(card) = cards.first() {
+            CardsInfo {
+                name,
+                tradeable: card.tradeable,
+                value: card.value,
+                calamity: card.is_calamity(),
+                commodity: card.is_commmodity(),
+                color: card.color.clone(),
+                count: cards.len()
+            }
+        } else {
+            CardsInfo {
+                name,
+                ..default()
+            }
         }
+        
     }
 }
