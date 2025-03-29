@@ -46,7 +46,7 @@ fn handle_player_draws_cards(
                 let font: Handle<Font> = asset_server.load("fonts/FiraSans-Bold.ttf");
                 let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
 
-                let mut builder = UIBuilder::from_entity(commands, trade_card_list, false)
+                let mut builder = UIBuilder::from_entity(commands, trade_card_list,true)
                     .block(100.0, 100.0, bg_color);
 
                 for (value, type_map) in grouped_cards.iter() {
@@ -81,12 +81,16 @@ fn setup(commands: Commands, asset_server: Res<AssetServer>) {
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
     let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
     let root_ui = UIBuilder::new(commands)
-        .block_with::<TradeCardUiRoot>(25.0, 100.0, bg_color)
+        .add_component::<TradeCardUiRoot>()
+        .flex_column_with_props(25.0, 100.0, bg_color)
+        .add_component::<TradeCardList>()
         .width(Val::Percent(100.0))
         .height(Val::Percent(100.0))
         .text("Your trade cards!", font.clone(), 24.0, Some(Color::WHITE))
         .parent()
-        .block_with::<TradeCardList>(100., 100., bg_color)
+        .flex_column_with_props(25., 100., bg_color)
+        .text("TRADE CARD CHILD", font.clone(), 24.0, Some(Color::WHITE))
+        .parent()
         .build();
 }
 

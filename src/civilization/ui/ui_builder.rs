@@ -44,6 +44,94 @@ impl<'w, 's> UIBuilder<'w, 's> {
         snake
     }
     
+    /// Add a default instance of the given component to the current entity.
+    ///
+    /// If the entity does not already have the given component, this method will
+    /// add a default instance of it. This is a shorthand for calling
+    /// `commands.entity(self.current_entity).entry::<T>().or_default();`.
+    pub fn add_component<T: Component + Default>(mut self) -> Self {
+        self.commands.entity(self.current_entity).entry::<T>().or_default();
+        self
+    }
+    
+    /// Set the current entity to be a flexbox container with a row flex direction
+    ///
+    /// The entity will be set to be a block with a flexbox display mode and a row
+    /// flex direction. This means that any children of the entity will be laid out
+    /// horizontally from left to right.
+    ///
+    /// # Example
+    ///
+    pub fn flex_row(mut self) -> Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut node| {
+                node.display = Display::Flex;
+                node.flex_direction= FlexDirection::Row;
+            }).or_insert(Node {
+                display: Display::Flex,
+                flex_direction: FlexDirection::Row,
+                ..default()
+        });
+        self.container()
+    }
+    
+    /// Set the current entity to be a flexbox container with a column flex direction
+    ///
+    /// The entity will be set to be a block with a flexbox display mode and a column
+    /// flex direction. This means that any children of the entity will be laid out
+    /// vertically from top to bottom.
+    ///
+    /// # Example
+    ///
+    ///
+    pub fn flex_column(mut self) -> Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut node| {
+                node.display = Display::Flex;
+                node.flex_direction= FlexDirection::Column;
+            }).or_insert(Node {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            ..default()
+        });
+        self.container()
+    }
+    
+    pub fn flex_column_with_props(mut self, width_percent: f32, height_percent: f32, bg_color: Color) -> Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut node| {
+                node.display = Display::Flex;
+                node.flex_direction= FlexDirection::Column;
+                node.align_items = AlignItems::FlexStart;
+                node.align_content= AlignContent::FlexStart;
+                node.justify_content = JustifyContent::FlexStart;
+                node.width = Val::Percent(width_percent);
+                node.height = Val::Percent(height_percent);
+            }).or_insert(Node {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::FlexStart,
+            align_content: AlignContent::FlexStart,
+            justify_content: JustifyContent::FlexStart,
+            width: Val::Percent(width_percent),
+            height: Val::Percent(height_percent),
+            ..default()
+        });
+        self.commands
+            .entity(self.current_entity)
+            .entry::<BackgroundColor>()
+            .and_modify(move |mut bg| {
+                *bg = BackgroundColor(bg_color); 
+            }).or_insert(BackgroundColor(bg_color));
+        self.container()
+    }
+
     pub fn block(mut self, width_percent: f32, height_percent: f32, bg_color: Color) -> Self {
         self.commands
             .entity(self.current_entity)
