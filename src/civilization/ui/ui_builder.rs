@@ -235,7 +235,13 @@ impl<'w, 's> UIBuilder<'w, 's> {
         }
     }
     
-    pub fn build_command(self) -> Commands<'w, 's> {
-        self.commands
+    pub fn build_command(self) -> (Commands<'w, 's>, Entity) {
+        (self.commands, if !self.parent_stack.is_empty() {
+            // If we have parents, the first one is the root
+            self.parent_stack[0]
+        } else {
+            // Otherwise return the current entity
+            self.current_entity
+        })
     }
 }

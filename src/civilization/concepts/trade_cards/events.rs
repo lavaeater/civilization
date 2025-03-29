@@ -4,13 +4,13 @@ use bevy::prelude::{Entity, Event, Reflect};
 pub struct CheckIfWeCanTrade;
 
 #[derive(Event, Reflect, Clone, PartialEq)]
-pub struct HumanPlayerPulledTradeCard {
+pub struct HumanPlayerTradeCardsUpdated {
     pub player_entity: Entity
 }
 
-impl HumanPlayerPulledTradeCard {
+impl HumanPlayerTradeCardsUpdated {
     pub fn new(player_entity: Entity) -> Self {
-        HumanPlayerPulledTradeCard {
+        HumanPlayerTradeCardsUpdated {
             player_entity
         }
     }

@@ -1,7 +1,7 @@
 //! This example illustrates the various features of Bevy UI.
 
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
-use crate::civilization::concepts::trade_cards::events::HumanPlayerPulledTradeCard;
+use crate::civilization::concepts::trade_cards::events::HumanPlayerTradeCardsUpdated;
 use crate::civilization::ui::ui_builder::UIBuilder;
 use crate::stupid_ai::prelude::IsHuman;
 use bevy::dev_tools::ui_debug_overlay::DebugUiPlugin;
@@ -30,7 +30,7 @@ impl Plugin for BevyUiPlugin {
 }
 
 fn handle_player_draws_cards(
-    mut reader: EventReader<HumanPlayerPulledTradeCard>,
+    mut reader: EventReader<HumanPlayerTradeCardsUpdated>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     trade_card_list: Query<Entity, With<TradeCardList>>,
@@ -39,30 +39,32 @@ fn handle_player_draws_cards(
     for event in reader.read() {
         debug!("Received Event!");
         if let Ok(trade_card_list) = trade_card_list.get_single() {
+            debug!("Trade Card List exists!");
             if let Ok(player_trade_cards) = player_trade_cards.get(event.player_entity) {
+                debug!("Player Trade Cards: {:?}", player_trade_cards);
                 let grouped_cards = player_trade_cards.trade_cards_grouped_by_value_and_type();
                 let font: Handle<Font> = asset_server.load("fonts/FiraSans-Bold.ttf");
                 let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
 
-                let mut builder = UIBuilder::from_entity(commands, trade_card_list, true)
+                let mut builder = UIBuilder::from_entity(commands, trade_card_list, false)
                     .block(100.0, 100.0, bg_color);
 
                 for (value, type_map) in grouped_cards.iter() {
                     debug!("Value: {}", value);
                     // Create a container for each value
                     builder = builder.block(50.0, 20.0, bg_color)
-                        .text(&format!("Value: {}", value), font.clone(), 18.0, Some(Color::WHITE));
+                        .text(format!("Value: {}", value), font.clone(), 18.0, Some(Color::WHITE));
 
                     for (card_type, cards) in type_map.iter() {
                         debug!("Card type: {}, {}", card_type, cards.len());
                         // Create elements for each card type
                         builder = builder.block(40.0, 15.0, bg_color)
-                            .text(&format!("{:?}: {}", card_type, cards.len()),
+                            .text(format!("{:?}: {}", card_type, cards.len()),
                                   font.clone(), 14.0, Some(Color::WHITE));
                     }
                 }
 
-                commands = builder.build_command();
+                (commands, _) = builder.build_command();
             }
         }
     }

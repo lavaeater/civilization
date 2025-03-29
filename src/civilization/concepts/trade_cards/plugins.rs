@@ -1,5 +1,5 @@
 use crate::civilization::concepts::trade_cards::components::CivilizationCardDefinitions;
-use crate::civilization::concepts::trade_cards::events::{CheckIfWeCanTrade, HumanPlayerPulledTradeCard};
+use crate::civilization::concepts::trade_cards::events::{CheckIfWeCanTrade, HumanPlayerTradeCardsUpdated};
 use crate::civilization::concepts::trade_cards::setup_systems::{load_civilization_cards, setup};
 use crate::civilization::concepts::trade_cards::systems::{acquire_trade_cards, transition_to_trade};
 use crate::{GameActivity, GameState};
@@ -15,7 +15,7 @@ impl Plugin for TradeCardPlugin {
             .add_plugins(
                 RonAssetPlugin::<CivilizationCardDefinitions>::new(&["cards"]))
             .add_event::<CheckIfWeCanTrade>()
-            .add_event::<HumanPlayerPulledTradeCard>()
+            .add_event::<HumanPlayerTradeCardsUpdated>()
             .add_systems(Startup, setup)
             .add_systems(OnEnter(GameState::Playing), load_civilization_cards)
             .add_systems(
