@@ -47,7 +47,7 @@ fn handle_player_draws_cards(
                 let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
 
                 let mut builder = UIBuilder::from_entity(commands, trade_card_list,true)
-                    .block(100.0, 100.0, bg_color);
+                    .flex_column_with_props(100.0, 100.0, bg_color);
 
                 for (value, type_map) in grouped_cards.iter() {
                     debug!("Value: {}", value);
@@ -87,7 +87,6 @@ fn setup(commands: Commands, asset_server: Res<AssetServer>) {
         .width(Val::Percent(100.0))
         .height(Val::Percent(100.0))
         .text("Your trade cards!", font.clone(), 24.0, Some(Color::WHITE))
-        .parent()
         .flex_column_with_props(25., 100., bg_color)
         .text("TRADE CARD CHILD", font.clone(), 24.0, Some(Color::WHITE))
         .parent()

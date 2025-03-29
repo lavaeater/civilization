@@ -107,12 +107,13 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .entry::<Node>()
             .and_modify(move |mut node| {
                 node.display = Display::Flex;
-                node.flex_direction= FlexDirection::Column;
+                node.flex_direction= FlexDirection::ColumnReverse;
                 node.align_items = AlignItems::FlexStart;
                 node.align_content= AlignContent::FlexStart;
+                node.max_height = Val::Percent(height_percent);
                 node.justify_content = JustifyContent::FlexStart;
                 node.width = Val::Percent(width_percent);
-                node.height = Val::Percent(height_percent);
+                node.height = Val::Percent(height_percent / 4.0);
             }).or_insert(Node {
             display: Display::Flex,
             flex_direction: FlexDirection::Column,
