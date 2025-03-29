@@ -35,10 +35,10 @@ lto = true
 codegen-units = 1
 strip = true
 
-[features]
-dev = [
-    "bevy/dynamic_linking",
-]
+#[features]
+#dev = [
+#    "bevy/dynamic_linking",
+#]
 
 # All of Bevy's default features exept for the audio related ones (bevy_audio, vorbis), since they clash with bevy_kira_audio
 #   and android_shared_stdcxx, since that is covered in `mobile`
@@ -83,7 +83,6 @@ image = { version = "0.25.2", default-features = false }
 log = { version = "0.4.22", features = ["max_level_debug", "release_max_level_warn"] }
 
 itertools = "0.14.0"
-bevy_egui = "0.33"
 bevy_common_assets = { version = "0.12", features = ["ron"] }
 serde = { version = "1.0.197", features = ["derive"] }
 
