@@ -64,7 +64,7 @@ pub fn setup_players(mut commands: Commands, mut available_factions: ResMut<Avai
                 ))
                 .id();
 
-            if *faction == GameFaction::Babylon {
+            if *faction == GameFaction::Assyria {
                 commands.entity(player).insert(IsHuman);
             }
 

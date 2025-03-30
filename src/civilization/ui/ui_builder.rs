@@ -107,7 +107,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .entry::<Node>()
             .and_modify(move |mut node| {
                 node.display = Display::Flex;
-                node.flex_direction= FlexDirection::ColumnReverse;
+                node.flex_direction= FlexDirection::Column;
                 node.align_items = AlignItems::FlexStart;
                 node.align_content= AlignContent::FlexStart;
                 node.max_height = Val::Percent(height_percent);

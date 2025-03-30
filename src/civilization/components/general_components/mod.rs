@@ -96,6 +96,7 @@ pub struct Faction {
     pub faction: GameFaction,
 }
 
+
 impl Faction {
     pub fn new(faction: GameFaction) -> Self {
         Faction { faction }

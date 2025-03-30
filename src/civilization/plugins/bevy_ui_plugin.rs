@@ -52,15 +52,15 @@ fn handle_player_draws_cards(
                 for (value, type_map) in grouped_cards.iter() {
                     debug!("Value: {}", value);
                     // Create a container for each value
-                    builder = builder.block(50.0, 20.0, bg_color)
-                        .text(format!("Value: {}", value), font.clone(), 18.0, Some(Color::WHITE));
+                    builder = builder.flex_column_with_props(100.0, 20.0, bg_color)
+                        .text(format!("Value: {}", value), font.clone(), 40.0, Some(Color::WHITE));
 
                     for (card_type, cards) in type_map.iter() {
                         debug!("Card type: {}, {}", card_type, cards.len());
                         // Create elements for each card type
-                        builder = builder.block(40.0, 15.0, bg_color)
+                        builder = builder.flex_column_with_props(100.0, 15.0, bg_color)
                             .text(format!("{:?}: {}", card_type, cards.len()),
-                                  font.clone(), 14.0, Some(Color::WHITE));
+                                  font.clone(), 40.0, Some(Color::WHITE));
                     }
                 }
 
