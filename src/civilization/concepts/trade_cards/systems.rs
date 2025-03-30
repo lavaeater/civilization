@@ -4,13 +4,15 @@ use crate::civilization::concepts::trade_cards::components::{CivilizationTradeCa
 use crate::civilization::concepts::trade_cards::events::{CheckIfWeCanTrade, HumanPlayerTradeCardsUpdated};
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
-use bevy::prelude::{debug, Entity, EventReader, EventWriter, Has, NextState, Query, ResMut};
+use bevy::prelude::{debug, Entity, EventReader, EventWriter, Has, NextState, Query, Res, ResMut};
+use crate::civilization::plugins::civilization_plugin::DebugOptions;
 
 pub fn acquire_trade_cards(
     mut player_query: Query<(Entity,&Faction, &PlayerCities, &mut PlayerTradeCards, Has<IsHuman>)>,
     mut trade_card_resource: ResMut<CivilizationTradeCards>,
     mut check_if_we_can_trade: EventWriter<CheckIfWeCanTrade>,
-    mut pulled_card_event_writer: EventWriter<HumanPlayerTradeCardsUpdated>
+    mut pulled_card_event_writer: EventWriter<HumanPlayerTradeCardsUpdated>,
+    debug_options: Res<DebugOptions>
 ) {
     for (player_entity, faction, player_cities, mut player_trade_cards, is_human) in player_query
         .iter_mut()
@@ -18,19 +20,26 @@ pub fn acquire_trade_cards(
             v1.number_of_cities()
                 .cmp(&v2.number_of_cities())
         }) {
-
-//        player_cities.number_of_cities() +1
-        // for now, we pull trade cards every round because why not?
         let mut pulled_cards = false;
-        (1..=player_cities.number_of_cities()).for_each(|pile| {
-            if let Some(pulled_card) = trade_card_resource.pull_card_from(pile) {
-                pulled_cards = true;
-                player_trade_cards.add_trade_card(pulled_card);
-            } else {
-                debug!("No more trade cards in pile: {}", pile);
-            }
-
-        });
+        if is_human && debug_options.human_always_pulls_trade_cards {
+            (1..=player_cities.number_of_cities() + 1).for_each(|pile| {
+                if let Some(pulled_card) = trade_card_resource.pull_card_from(pile) {
+                    pulled_cards = true;
+                    player_trade_cards.add_trade_card(pulled_card);
+                } else {
+                    debug!("No more trade cards in pile: {}", pile);
+                }
+            });
+        } else {
+            (1..=player_cities.number_of_cities()).for_each(|pile| {
+                if let Some(pulled_card) = trade_card_resource.pull_card_from(pile) {
+                    pulled_cards = true;
+                    player_trade_cards.add_trade_card(pulled_card);
+                } else {
+                    debug!("No more trade cards in pile: {}", pile);
+                }
+            });
+        }
         if is_human && pulled_cards{
             debug!("Human player ({}) pulled trade card!", faction.faction);
             pulled_card_event_writer.send(HumanPlayerTradeCardsUpdated::new(player_entity));

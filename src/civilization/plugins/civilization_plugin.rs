@@ -4,14 +4,14 @@ use crate::civilization::concepts::map::map_plugin::MapPlugin;
 use crate::civilization::concepts::population_expansion::plugins::PopulationExpansionPlugin;
 use crate::civilization::concepts::trade_cards::plugins::TradeCardPlugin;
 use crate::civilization::events::prelude::*;
+use crate::civilization::plugins::bevy_ui_plugin::BevyUiPlugin;
 use crate::civilization::plugins::prelude::*;
 use crate::civilization::systems::prelude::*;
 use crate::civilization::triggers::general_triggers::on_add_return_token_to_stock;
 use crate::stupid_ai::prelude::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
-use bevy::prelude::{in_state, AppExtStates, IntoSystemConfigs, OnEnter};
-use crate::civilization::plugins::bevy_ui_plugin::BevyUiPlugin;
+use bevy::prelude::{in_state, AppExtStates, IntoSystemConfigs, OnEnter, Resource};
 
 pub struct CivilizationPlugin;
 
@@ -20,6 +20,7 @@ pub struct CivilizationPlugin;
 impl Plugin for CivilizationPlugin {
     fn build(&self, app: &mut App) {
         app
+            .insert_resource(DebugOptions::new(true))
             .register_type::<Token>()
             .register_type::<LandPassage>()
             .register_type::<TokenStock>()
@@ -71,6 +72,19 @@ impl Plugin for CivilizationPlugin {
                 ))
             .add_observer(on_add_return_token_to_stock)
         ;
+    }
+}
+
+#[derive(Resource)]
+pub struct DebugOptions {
+    pub human_always_pulls_trade_cards: bool
+}
+
+impl DebugOptions {
+    pub fn new(human_always_pulls_trade_cards: bool) -> Self {
+        Self {
+            human_always_pulls_trade_cards
+        }
     }
 }
 
