@@ -1,13 +1,13 @@
 use bevy::prelude::*;
-use std::collections::VecDeque;
 use bevy::utils::HashMap;
+use std::collections::VecDeque;
 
 /// Fluent UI Builder for creating Bevy UI elements
 pub struct UIBuilder<'w, 's> {
     commands: Commands<'w, 's>,
     current_entity: Entity,
     parent_stack: VecDeque<Entity>,
-    tagged_nodes: HashMap<String, Entity>
+    tagged_nodes: HashMap<String, Entity>,
 }
 
 impl<'w, 's> UIBuilder<'w, 's> {
@@ -24,13 +24,17 @@ impl<'w, 's> UIBuilder<'w, 's> {
             tagged_nodes: HashMap::new(),
         }
     }
-    
-    pub fn from_entity(mut commands: Commands<'w, 's>, entity: Entity, clear_children: bool) -> Self {
+
+    pub fn from_entity(
+        mut commands: Commands<'w, 's>,
+        entity: Entity,
+        clear_children: bool,
+    ) -> Self {
         if clear_children {
             commands.entity(entity).despawn_descendants();
         }
         commands.entity(entity).entry::<Node>().or_default();
-        Self {  
+        Self {
             commands,
             current_entity: entity,
             parent_stack: VecDeque::new(),
@@ -38,26 +42,77 @@ impl<'w, 's> UIBuilder<'w, 's> {
         }
     }
 
-    pub fn block_with<T: Component + Default>(self, width_percent: f32, height_percent: f32, bg_color: Color) -> Self {
-        let mut snake = self.block(width_percent, height_percent, bg_color);
-            snake.commands
-            .entity(snake.current_entity)
-            .entry::<T>()
-            .or_default();
-        
-        snake
+    pub fn with_children<F>(mut self, f: F) -> Self
+    where
+        F: FnOnce(&mut Self), // Closure gets mutable borrow to allow multiple calls
+    {
+        let original_entity = self.current_entity;
+        self.parent_stack.push_back(original_entity);
+
+        // Use catch_unwind to ensure stack cleanup even on panic
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            f(&mut self); // Call the closure
+        }));
+
+        // --- Cleanup ---
+        // Pop the stack regardless of panic
+        let popped = self.parent_stack.pop_back();
+        // Restore the original entity focus BEFORE checking the popped value or resuming panic
+        self.current_entity = original_entity;
+
+        // Verify correct parent was popped after restoring focus
+        if popped != Some(original_entity) {
+            // Log error or panic, stack is potentially corrupted
+            eprintln!("UIBuilder Internal Error: Stack mismatch on exiting with_children scope.");
+            // Depending on desired robustness, might panic here
+        }
+
+        // If a panic occurred within the closure, resume unwinding
+        if let Err(panic_payload) = result {
+            std::panic::resume_unwind(panic_payload);
+        }
+
+        // Return the builder, now focused on the original entity
+        self
+    }
+
+    pub fn block_with<T: Component + Default>(
+        self,
+        width: Val,
+        height: Val,
+        bg_color: Color,
+    ) -> Self {
+        self.block(width, height, bg_color).add_component::<T>()
     }
     
+    pub fn at(mut self, left: Val, top: Val, position_type: PositionType) -> Self {
+        self.commands.entity(self.current_entity)
+            .entry::<Node>().and_modify(move |mut node| { 
+            node.position_type = position_type;
+            node.left = left;
+            node.top = top;
+        }).or_insert(Node {
+            position_type,
+            left,
+            top,
+            ..Default::default()
+        });
+        self
+    }
+
     /// Add a default instance of the given component to the current entity.
     ///
     /// If the entity does not already have the given component, this method will
     /// add a default instance of it. This is a shorthand for calling
     /// `commands.entity(self.current_entity).entry::<T>().or_default();`.
     pub fn add_component<T: Component + Default>(mut self) -> Self {
-        self.commands.entity(self.current_entity).entry::<T>().or_default();
+        self.commands
+            .entity(self.current_entity)
+            .entry::<T>()
+            .or_default();
         self
     }
-    
+
     /// Set the current entity to be a flexbox container with a row flex direction
     ///
     /// The entity will be set to be a block with a flexbox display mode and a row
@@ -72,15 +127,16 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .entry::<Node>()
             .and_modify(move |mut node| {
                 node.display = Display::Flex;
-                node.flex_direction= FlexDirection::Row;
-            }).or_insert(Node {
+                node.flex_direction = FlexDirection::Row;
+            })
+            .or_insert(Node {
                 display: Display::Flex,
                 flex_direction: FlexDirection::Row,
                 ..default()
-        });
+            });
         self
     }
-    
+
     /// Set the current entity to be a flexbox container with a column flex direction
     ///
     /// The entity will be set to be a block with a flexbox display mode and a column
@@ -96,94 +152,70 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .entry::<Node>()
             .and_modify(move |mut node| {
                 node.display = Display::Flex;
-                node.flex_direction= FlexDirection::Column;
-            }).or_insert(Node {
-            display: Display::Flex,
-            flex_direction: FlexDirection::Column,
-            ..default()
-        });
-        self
-    }
-    
-    pub fn flex_column_with_props(mut self, width_percent: f32, height_percent: f32, bg_color: Color) -> Self {
-        self.commands
-            .entity(self.current_entity)
-            .entry::<Node>()
-            .and_modify(move |mut node| {
-                node.display = Display::Flex;
-                node.flex_direction= FlexDirection::Column;
-                node.align_items = AlignItems::FlexStart;
-                node.align_content= AlignContent::FlexStart;
-                node.max_height = Val::Percent(height_percent);
-                node.justify_content = JustifyContent::FlexStart;
-                node.width = Val::Percent(width_percent);
-                node.height = Val::Percent(height_percent / 4.0);
-            }).or_insert(Node {
-            display: Display::Flex,
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::FlexStart,
-            align_content: AlignContent::FlexStart,
-            justify_content: JustifyContent::FlexStart,
-            width: Val::Percent(width_percent),
-            height: Val::Percent(height_percent),
-            ..default()
-        });
-        self.commands
-            .entity(self.current_entity)
-            .entry::<BackgroundColor>()
-            .and_modify(move |mut bg| {
-                *bg = BackgroundColor(bg_color); 
-            }).or_insert(BackgroundColor(bg_color));
-        
+                node.flex_direction = FlexDirection::Column;
+            })
+            .or_insert(Node {
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
+                ..default()
+            });
         self
     }
 
-    pub fn flex_column_with_px(mut self, width: f32, height: f32, bg_color: Color) -> Self {
+    pub fn flex_column_with_props(
+        mut self,
+        width: Val,
+        height: Val,
+        bg_color: Color,
+    ) -> Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
             .and_modify(move |mut node| {
                 node.display = Display::Flex;
-                node.flex_direction= FlexDirection::Column;
+                node.flex_direction = FlexDirection::Column;
                 node.align_items = AlignItems::FlexStart;
-                node.align_content= AlignContent::FlexStart;
+                node.align_content = AlignContent::FlexStart;
                 node.justify_content = JustifyContent::FlexStart;
-                node.width = Val::Px(width);
-                node.height = Val::Px(height);
-            }).or_insert(Node {
-            display: Display::Flex,
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::FlexStart,
-            align_content: AlignContent::FlexStart,
-            justify_content: JustifyContent::FlexStart,
-            width: Val::Px(width),
-            height: Val::Px(height),
-            ..default()
-        });
+                node.width = width;
+                node.height = height;
+            })
+            .or_insert(Node {
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::FlexStart,
+                align_content: AlignContent::FlexStart,
+                justify_content: JustifyContent::FlexStart,
+                width,
+                height,
+                ..default()
+            });
         self.commands
             .entity(self.current_entity)
             .entry::<BackgroundColor>()
             .and_modify(move |mut bg| {
                 *bg = BackgroundColor(bg_color);
-            }).or_insert(BackgroundColor(bg_color));
+            })
+            .or_insert(BackgroundColor(bg_color));
 
         self
     }
 
-    pub fn block(mut self, width_percent: f32, height_percent: f32, bg_color: Color) -> Self {
+    pub fn block(mut self, width: Val, height: Val, bg_color: Color) -> Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
-            .and_modify(move |mut node| { 
-                node.width = Val::Percent(width_percent);
-                node.height = Val::Percent(height_percent);
+            .and_modify(move |mut node| {
+                node.width = width;
+                node.height = height;
                 node.display = Display::Block;
             })
-            .or_insert(Node { 
-                width: Val::Percent(width_percent),
-                height: Val::Percent(height_percent),    
+            .or_insert(Node {
+                width,
+                height,
                 display: Display::Block,
-                ..default() });
+                ..default()
+            });
 
         self.commands
             .entity(self.current_entity)
@@ -193,6 +225,10 @@ impl<'w, 's> UIBuilder<'w, 's> {
             })
             .or_insert(BackgroundColor(bg_color));
         self
+    }
+
+    pub fn with_size(self, width: Val, height: Val) -> Self {
+        self.width(width).height(height)
     }
 
     /// Set width Node
@@ -214,7 +250,10 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .entity(self.current_entity)
             .entry::<Node>()
             .and_modify(move |mut node| node.height = height)
-            .or_insert(Node { height, ..default() });
+            .or_insert(Node {
+                height,
+                ..default()
+            });
         self
     }
 
@@ -224,7 +263,10 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .entity(self.current_entity)
             .entry::<Node>()
             .and_modify(move |mut node| node.flex_direction = direction)
-            .or_insert(Node { flex_direction: direction, ..default() });
+            .or_insert(Node {
+                flex_direction: direction,
+                ..default()
+            });
         self
     }
 
@@ -234,7 +276,10 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .entity(self.current_entity)
             .entry::<Node>()
             .and_modify(move |mut node| node.justify_content = justify)
-            .or_insert(Node { justify_content: justify, ..default() });
+            .or_insert(Node {
+                justify_content: justify,
+                ..default()
+            });
         self
     }
 
@@ -244,7 +289,10 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .entity(self.current_entity)
             .entry::<Node>()
             .and_modify(move |mut node| node.align_items = align)
-            .or_insert(Node { align_items: align, ..default() });
+            .or_insert(Node {
+                align_items: align,
+                ..default()
+            });
         self
     }
 
@@ -254,7 +302,10 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .entity(self.current_entity)
             .entry::<Node>()
             .and_modify(move |mut node| node.padding = padding)
-            .or_insert(Node { padding, ..default() });
+            .or_insert(Node {
+                padding,
+                ..default()
+            });
         self
     }
 
@@ -264,7 +315,10 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .entity(self.current_entity)
             .entry::<Node>()
             .and_modify(move |mut node| node.margin = margin)
-            .or_insert(Node { margin, ..default() });
+            .or_insert(Node {
+                margin,
+                ..default()
+            });
         self
     }
 
@@ -274,8 +328,8 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self
     }
 
-    /// Add background color
-    pub fn background_color(mut self, color: Color) -> Self {
+    /// Add background color Component
+    pub fn with_bg_color(mut self, color: Color) -> Self {
         self.commands
             .entity(self.current_entity)
             .entry::<BackgroundColor>()
@@ -284,17 +338,25 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self
     }
 
-    /// Add text to the current UI element
-    pub fn text(
+    /// Add a text child Entity
+    pub fn add_text_child(
         mut self,
         text: impl Into<String>,
         font: Handle<Font>,
         font_size: f32,
         color: Option<Color>,
     ) -> Self {
+        self.move_to_new_child()
+            .add_text(text, font, font_size, color)
+            .parent()
+    }
+    
+    pub fn add_text(mut self, text: impl Into<String>,
+                    font: Handle<Font>,
+                    font_size: f32,
+                    color: Option<Color>,) -> Self {
         let text_color = color.unwrap_or(Color::BLACK);
-
-        // Create a text component
+        
         let text_bundle = (
             Text::new(text.into()),
             TextFont::from_font(font).with_font_size(font_size),
@@ -309,7 +371,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Create a child container
-    pub fn continue_with_child(mut self) -> Self {
+    pub fn move_to_new_child(mut self) -> Self {
         // Push current entity to parent stack
         self.parent_stack.push_back(self.current_entity);
 
@@ -325,7 +387,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
             commands: self.commands,
             current_entity: child,
             parent_stack: self.parent_stack,
-            tagged_nodes: self.tagged_nodes
+            tagged_nodes: self.tagged_nodes,
         }
     }
 
@@ -337,37 +399,15 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self
     }
 
-    pub fn for_each<I, F, T>(mut self, items: I, mut f: F) -> Self
-    where
-        I: Iterator<Item = T>,
-        F: FnMut(T, &mut Self),
-    {
-        for item in items {
-            f(item, &mut self);
-        }
-
-        self
-    }
-
     /// Finalize and get the root entity
-    pub fn build(self) -> Entity {
+    pub fn build(self) -> (Entity, Commands<'w, 's>) {
         // Return the top-level entity (first one created)
         if !self.parent_stack.is_empty() {
             // If we have parents, the first one is the root
-            self.parent_stack[0]
+            (self.parent_stack[0], self.commands)
         } else {
             // Otherwise return the current entity
-            self.current_entity
+            (self.current_entity, self.commands)
         }
-    }
-    
-    pub fn build_command(self) -> (Commands<'w, 's>, Entity) {
-        (self.commands, if !self.parent_stack.is_empty() {
-            // If we have parents, the first one is the root
-            self.parent_stack[0]
-        } else {
-            // Otherwise return the current entity
-            self.current_entity
-        })
     }
 }

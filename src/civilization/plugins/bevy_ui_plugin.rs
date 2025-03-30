@@ -6,14 +6,10 @@ use crate::civilization::ui::ui_builder::UIBuilder;
 use crate::stupid_ai::prelude::IsHuman;
 use bevy::dev_tools::ui_debug_overlay::DebugUiPlugin;
 use bevy::{
-    color::palettes::{basic::LIME, css::DARK_GRAY},
     input::mouse::{MouseScrollUnit, MouseWheel},
     picking::focus::HoverMap,
     prelude::*,
-    ui::widget::NodeImageMode,
-    winit::WinitSettings,
 };
-use std::f32::consts::PI;
 
 pub struct BevyUiPlugin;
 
@@ -46,30 +42,14 @@ fn handle_player_draws_cards(
                 let font: Handle<Font> = asset_server.load("fonts/FiraSans-Bold.ttf");
                 let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
 
-                let mut builder = UIBuilder::from_entity(commands, trade_card_list,true)
-                    .flex_column_with_props(100.0, 100.0, bg_color);
+                let booga = UIBuilder::from_entity(commands, trade_card_list,true).build();
+                // I doon't like it...
+                commands = booga.1;
 
                 for (value, type_map) in grouped_cards.iter() {
                     debug!("Value: {}", value);
                     // Create a container for each value
-                    builder = builder
-                        .continue_with_child()
-                        .continue_with_child()//.flex_column_with_px(100.0, 40.0, bg_color)
-                        .text(format!("Value: {}", value), font.clone(), 24.0, Some(Color::WHITE));
-
-                    for (card_type, cards) in type_map.iter() {
-                        debug!("Card type: {}, {}", card_type, cards.len());
-                        // Create elements for each card type
-                        builder = builder
-                            .parent()
-                            .continue_with_child()
-                            .text(format!("{:?}: {}", card_type, cards.len()),
-                                  font.clone(), 40.0, Some(Color::WHITE));
-                    }
-                    builder = builder.parent().parent();
                 }
-
-                (commands, _) = builder.build_command();
             }
         }
     }
@@ -85,19 +65,14 @@ fn setup(commands: Commands, asset_server: Res<AssetServer>) {
     // root node
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
     let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
-    let root_ui = UIBuilder::new(commands)
+    let mut root_ui = UIBuilder::new(commands);
+    root_ui = root_ui
         .add_component::<TradeCardUiRoot>()
-        .flex_column_with_props(25.0, 100.0, bg_color)
-        .continue_with_child()
-        .text("Your trade cards!", font.clone(), 24.0, Some(Color::WHITE))
-        .parent()
-        .continue_with_child()
-        .flex_column_with_props(25., 100., bg_color)
-        .add_component::<TradeCardList>()
-        .continue_with_child()
-        .text("TRADE CARD CHILD", font.clone(), 24.0, Some(Color::WHITE))
-        .parent()
-        .build();
+        .block(Val::Percent(25.), Val::Percent(100.), bg_color)
+        .add_text_child("Your trade cards!", font.clone(), 24.0, Some(Color::WHITE))
+        .with_children(|b: &mut UIBuilder| {
+            b.add_text_child("Gorf", font.clone(), 24.0, Some(Color::WHITE));
+        });
 }
 
 fn toggle_overlay(mut options: ResMut<bevy::dev_tools::ui_debug_overlay::UiDebugOptions>) {
