@@ -74,7 +74,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
                 flex_direction: FlexDirection::Row,
                 ..default()
         });
-        self.container()
+        self
     }
     
     /// Set the current entity to be a flexbox container with a column flex direction
@@ -98,7 +98,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
             flex_direction: FlexDirection::Column,
             ..default()
         });
-        self.container()
+        self
     }
     
     pub fn flex_column_with_props(mut self, width_percent: f32, height_percent: f32, bg_color: Color) -> Self {
@@ -130,7 +130,40 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .and_modify(move |mut bg| {
                 *bg = BackgroundColor(bg_color); 
             }).or_insert(BackgroundColor(bg_color));
-        self.container()
+        
+        self
+    }
+
+    pub fn flex_column_with_px(mut self, width: f32, height: f32, bg_color: Color) -> Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut node| {
+                node.display = Display::Flex;
+                node.flex_direction= FlexDirection::Column;
+                node.align_items = AlignItems::FlexStart;
+                node.align_content= AlignContent::FlexStart;
+                node.justify_content = JustifyContent::FlexStart;
+                node.width = Val::Px(width);
+                node.height = Val::Px(height);
+            }).or_insert(Node {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::FlexStart,
+            align_content: AlignContent::FlexStart,
+            justify_content: JustifyContent::FlexStart,
+            width: Val::Px(width),
+            height: Val::Px(height),
+            ..default()
+        });
+        self.commands
+            .entity(self.current_entity)
+            .entry::<BackgroundColor>()
+            .and_modify(move |mut bg| {
+                *bg = BackgroundColor(bg_color);
+            }).or_insert(BackgroundColor(bg_color));
+
+        self
     }
 
     pub fn block(mut self, width_percent: f32, height_percent: f32, bg_color: Color) -> Self {
@@ -155,8 +188,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
                 *bg = BackgroundColor(bg_color);
             })
             .or_insert(BackgroundColor(bg_color));
-        
-        self.container()
+        self
     }
 
     /// Set width Node
@@ -273,7 +305,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Create a child container
-    pub fn container(mut self) -> Self {
+    pub fn continue_with_child(mut self) -> Self {
         // Push current entity to parent stack
         self.parent_stack.push_back(self.current_entity);
 

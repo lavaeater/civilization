@@ -52,16 +52,21 @@ fn handle_player_draws_cards(
                 for (value, type_map) in grouped_cards.iter() {
                     debug!("Value: {}", value);
                     // Create a container for each value
-                    builder = builder.flex_column_with_props(100.0, 20.0, bg_color)
-                        .text(format!("Value: {}", value), font.clone(), 40.0, Some(Color::WHITE));
+                    builder = builder
+                        .continue_with_child()
+                        .continue_with_child()//.flex_column_with_px(100.0, 40.0, bg_color)
+                        .text(format!("Value: {}", value), font.clone(), 24.0, Some(Color::WHITE));
 
                     for (card_type, cards) in type_map.iter() {
                         debug!("Card type: {}, {}", card_type, cards.len());
                         // Create elements for each card type
-                        builder = builder.flex_column_with_props(100.0, 15.0, bg_color)
+                        builder = builder
+                            .parent()
+                            .continue_with_child()
                             .text(format!("{:?}: {}", card_type, cards.len()),
                                   font.clone(), 40.0, Some(Color::WHITE));
                     }
+                    builder = builder.parent().parent();
                 }
 
                 (commands, _) = builder.build_command();
@@ -83,11 +88,13 @@ fn setup(commands: Commands, asset_server: Res<AssetServer>) {
     let root_ui = UIBuilder::new(commands)
         .add_component::<TradeCardUiRoot>()
         .flex_column_with_props(25.0, 100.0, bg_color)
-        .add_component::<TradeCardList>()
-        .width(Val::Percent(100.0))
-        .height(Val::Percent(100.0))
+        .continue_with_child()
         .text("Your trade cards!", font.clone(), 24.0, Some(Color::WHITE))
+        .parent()
+        .continue_with_child()
         .flex_column_with_props(25., 100., bg_color)
+        .add_component::<TradeCardList>()
+        .continue_with_child()
         .text("TRADE CARD CHILD", font.clone(), 24.0, Some(Color::WHITE))
         .parent()
         .build();
