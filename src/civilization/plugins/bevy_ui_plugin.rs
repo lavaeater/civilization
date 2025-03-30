@@ -54,10 +54,10 @@ fn handle_player_draws_cards(
                             b.add_text_child(format!("Cards with value: {}", value), font.clone(), 24.0, Some(Color::WHITE));
                             for (card_type, cards) in group.iter() {
                                 b = b.move_to_new_child()
-                                    .as_block(Val::Px(50.), Val::Px(25.), bg_color)
-                                    .with_border(UiRect::all(Val::Px(2.0)), card_color)
-                                    .with_padding(UiRect::all(Val::Px(2.0)))
-                                    .with_margin(UiRect::all(Val::Px(2.0)))
+                                    .as_block(Val::Percent(50.), Val::Percent(20.), card_color)
+                                    .with_border(UiRect::all(Val::Percent(5.0)), Color::from(RED))
+                                    .with_padding(UiRect::all(Val::Percent(5.0)))
+                                    .with_margin(UiRect::all(Val::Percent(2.0)))
                                     .add_text_child(format!("{}: {}", card_type, cards.len()), font.clone(), 24.0, Some(Color::WHITE))
                                     .parent();
                             }
