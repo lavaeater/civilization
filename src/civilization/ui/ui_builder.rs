@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 use std::collections::VecDeque;
+use bevy::utils::HashMap;
 
 /// Fluent UI Builder for creating Bevy UI elements
 pub struct UIBuilder<'w, 's> {
     commands: Commands<'w, 's>,
     current_entity: Entity,
     parent_stack: VecDeque<Entity>,
+    tagged_nodes: HashMap<String, Entity>
 }
 
 impl<'w, 's> UIBuilder<'w, 's> {
@@ -19,6 +21,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
             commands,
             current_entity: entity,
             parent_stack: VecDeque::new(),
+            tagged_nodes: HashMap::new(),
         }
     }
     
@@ -31,6 +34,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
             commands,
             current_entity: entity,
             parent_stack: VecDeque::new(),
+            tagged_nodes: HashMap::new(),
         }
     }
 
@@ -321,6 +325,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
             commands: self.commands,
             current_entity: child,
             parent_stack: self.parent_stack,
+            tagged_nodes: self.tagged_nodes
         }
     }
 
