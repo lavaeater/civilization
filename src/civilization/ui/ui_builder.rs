@@ -25,7 +25,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         }
     }
 
-    pub fn from_entity(
+    pub fn start_from_entity(
         mut commands: Commands<'w, 's>,
         entity: Entity,
         clear_children: bool,
@@ -76,27 +76,30 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self
     }
 
-    pub fn block_with<T: Component + Default>(
+    pub fn as_block_with<T: Component + Default>(
         &mut self,
         width: Val,
         height: Val,
         bg_color: Color,
     ) -> &mut Self {
-        self.block(width, height, bg_color).add_component::<T>()
+        self.as_block(width, height, bg_color).with_component::<T>()
     }
-    
+
     pub fn at(&mut self, left: Val, top: Val, position_type: PositionType) -> &mut Self {
-        self.commands.entity(self.current_entity)
-            .entry::<Node>().and_modify(move |mut node| { 
-            node.position_type = position_type;
-            node.left = left;
-            node.top = top;
-        }).or_insert(Node {
-            position_type,
-            left,
-            top,
-            ..Default::default()
-        });
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut node| {
+                node.position_type = position_type;
+                node.left = left;
+                node.top = top;
+            })
+            .or_insert(Node {
+                position_type,
+                left,
+                top,
+                ..Default::default()
+            });
         self
     }
 
@@ -105,7 +108,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     /// If the entity does not already have the given component, this method will
     /// add a default instance of it. This is a shorthand for calling
     /// `commands.entity(self.current_entity).entry::<T>().or_default();`.
-    pub fn add_component<T: Component + Default>(&mut self) -> &mut Self {
+    pub fn with_component<T: Component + Default>(&mut self) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<T>()
@@ -121,7 +124,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     ///
     /// # Example
     ///
-    pub fn flex_row(&mut self) -> &mut Self {
+    pub fn as_flex_row(&mut self) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -146,7 +149,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     /// # Example
     ///
     ///
-    pub fn flex_column(&mut self) -> &mut Self {
+    pub fn as_flex_col(&mut self) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -161,7 +164,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
             });
         self
     }
-
+    
     pub fn flex_column_with_props(
         &mut self,
         width: Val,
@@ -201,7 +204,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self
     }
 
-    pub fn block(&mut self, width: Val, height: Val, bg_color: Color) -> &mut Self {
+    pub fn as_block(&mut self, width: Val, height: Val, bg_color: Color) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -297,7 +300,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Set padding
-    pub fn padding(&mut self, padding: UiRect) -> &mut Self {
+    pub fn with_padding(&mut self, padding: UiRect) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -310,7 +313,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Set margin
-    pub fn margin(&mut self, margin: UiRect) -> &mut Self {
+    pub fn with_margin(&mut self, margin: UiRect) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -319,6 +322,24 @@ impl<'w, 's> UIBuilder<'w, 's> {
                 margin,
                 ..default()
             });
+        self
+    }
+
+    pub fn with_border(&mut self, border: UiRect, border_color: Color) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut node| node.border = border)
+            .or_insert(Node {
+                border,
+                ..default()
+            });
+
+        self.commands
+            .entity(self.current_entity)
+            .entry::<BorderColor>()
+            .and_modify(move |mut b_color| *b_color = BorderColor(border_color))
+            .or_insert(BorderColor(border_color));
         self
     }
 
@@ -350,13 +371,16 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .add_text(text, font, font_size, color)
             .parent()
     }
-    
-    pub fn add_text(&mut self, text: impl Into<String>,
-                    font: Handle<Font>,
-                    font_size: f32,
-                    color: Option<Color>,) -> &mut Self {
+
+    pub fn add_text(
+        &mut self,
+        text: impl Into<String>,
+        font: Handle<Font>,
+        font_size: f32,
+        color: Option<Color>,
+    ) -> &mut Self {
         let text_color = color.unwrap_or(Color::BLACK);
-        
+
         let text_bundle = (
             Text::new(text.into()),
             TextFont::from_font(font).with_font_size(font_size),

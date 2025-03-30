@@ -11,7 +11,15 @@ pub enum TradeCardType {
 
 impl Display for TradeCardType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            TradeCardType::CommodityCard(commodity) => {
+                write!(f, "{:?}", commodity)
+                }
+            TradeCardType::CalamityCard(calamity) => {
+            write!(f, "{:?}", calamity)
+        }
+        }
+        
     }
 }
 
@@ -40,7 +48,62 @@ pub enum Commodity {
 
 impl Display for Commodity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            Commodity::Ochre => {
+                write!(f, "Ochre")  
+            }
+            Commodity::Hides => {
+                write!(f, "Hides")
+            }
+            Commodity::Iron => {
+                write!(f, "Iron")
+            }
+            Commodity::Papyrus => {
+                write!(f, "Papyrus")
+            }
+            Commodity::Salt => {
+                write!(f, "Salt")
+            }
+            Commodity::Timber => {
+                write!(f, "Timber")
+            }
+            Commodity::Grain => {
+                write!(f, "Grain")
+            }
+            Commodity::Oil => {
+                write!(f, "Oil")
+            }
+            Commodity::Cloth => {
+                write!(f, "Cloth")
+            }
+            Commodity::Wine => {
+                write!(f, "Wine")
+            }
+            Commodity::Bronze => {
+                write!(f, "Bronze")
+            }
+            Commodity::Silver => {
+                write!(f, "Silver")
+            }
+            Commodity::Spices => {
+                write!(f, "Spices")
+            }
+            Commodity::Resin => {
+                write!(f, "Resin")
+            }
+            Commodity::Gems => {
+                write!(f, "Gems")
+            }
+            Commodity::Dye => {
+                write!(f, "Dye")
+            }
+            Commodity::Gold => {
+                write!(f, "Gold")
+            }
+            Commodity::Ivory => {
+                write!(f, "Ivory")
+            }
+        }
     }
 }
 
@@ -78,7 +141,44 @@ pub enum Calamity {
 
 impl Display for Calamity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            Calamity::VolcanoEarthquake => {
+                write!(f, "Volcano Earthquake")
+            }
+            Calamity::Treachery => {
+                write!(f, "Treachery")
+            }
+            Calamity::Famine => {
+                write!(f, "Famine")
+            }
+            Calamity::Superstition => {
+                write!(f, "Superstition")
+            }
+            Calamity::CivilWar => {
+                write!(f, "Civil War")
+            }
+            Calamity::SlaveRevolt => {
+                write!(f, "Slave Revolt")
+            }
+            Calamity::Flood => {
+                write!(f, "Flood")
+            }
+            Calamity::BarbarianHordes => {
+                write!(f, "Barbarian Hordes")
+            }
+            Calamity::Epidemic => {
+                write!(f, "Epidemic")
+            }
+            Calamity::CivilDisorder => {
+                write!(f, "Civil Disorder")
+            }
+            Calamity::IconoclasmAndHeresy => {
+                write!(f, "Iconoclasm and Heresy")
+            }
+            Calamity::Piracy => {
+                write!(f, "Piracy")
+            }
+        }
     }
 }
 

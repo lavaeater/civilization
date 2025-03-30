@@ -4,6 +4,7 @@ use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::events::HumanPlayerTradeCardsUpdated;
 use crate::civilization::ui::ui_builder::UIBuilder;
 use crate::stupid_ai::prelude::IsHuman;
+use bevy::color::palettes::css::RED;
 use bevy::dev_tools::ui_debug_overlay::DebugUiPlugin;
 use bevy::{
     input::mouse::{MouseScrollUnit, MouseWheel},
@@ -36,6 +37,7 @@ fn handle_player_draws_cards(
     for event in reader.read() {
         let font = asset_server.load("fonts/FiraSans-Bold.ttf");
         let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
+        let card_color = Color::srgba(0.7, 0.6, 0.2, 0.8);
         
         debug!("Received Event!");
         if let Ok(trade_card_list) = trade_card_list.get_single() {
@@ -44,14 +46,20 @@ fn handle_player_draws_cards(
                 debug!("Player Trade Cards: {:?}", player_trade_cards);
                 let grouped_cards = player_trade_cards.trade_cards_grouped_by_value_and_type();
                 // Just debug values for now without rendering
-                let mut ui_builder = UIBuilder::from_entity(new_commands, trade_card_list, true);
+                let mut ui_builder = UIBuilder::start_from_entity(new_commands, trade_card_list, true);
                 for (value, group) in grouped_cards.iter() {
                     debug!("Value: {}", value);
                     ui_builder
-                        .with_children(|b| {
+                        .with_children(|mut b| {
                             b.add_text_child(format!("Cards with value: {}", value), font.clone(), 24.0, Some(Color::WHITE));
                             for (card_type, cards) in group.iter() {
-                                b.add_text_child(format!("{}: {}", card_type, cards.len()), font.clone(), 24.0, Some(Color::WHITE));
+                                b = b.move_to_new_child()
+                                    .as_block(Val::Px(50.), Val::Px(25.), bg_color)
+                                    .with_border(UiRect::all(Val::Px(2.0)), card_color)
+                                    .with_padding(UiRect::all(Val::Px(2.0)))
+                                    .with_margin(UiRect::all(Val::Px(2.0)))
+                                    .add_text_child(format!("{}: {}", card_type, cards.len()), font.clone(), 24.0, Some(Color::WHITE))
+                                    .parent();
                             }
                         });
                 }
@@ -75,11 +83,11 @@ fn setup(commands: Commands, asset_server: Res<AssetServer>) {
     let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
     let mut root_ui = UIBuilder::new(commands);
     root_ui
-        .add_component::<TradeCardUiRoot>()
-        .block(Val::Percent(25.), Val::Percent(100.), bg_color)
+        .with_component::<TradeCardUiRoot>()
+        .as_block(Val::Percent(25.), Val::Percent(100.), bg_color)
         .add_text_child("Your trade cards!", font.clone(), 24.0, Some(Color::WHITE))
         .move_to_new_child()
-        .block_with::<TradeCardList>(Val::Percent(100.), Val::Percent(100.), bg_color)
+        .as_block_with::<TradeCardList>(Val::Percent(100.), Val::Percent(100.), bg_color)
         .with_children(|b| {
             b.add_text_child("Gorf", font.clone(), 24.0, Some(Color::WHITE));
             b.add_text_child("Borf", font.clone(), 24.0, Some(Color::WHITE));
