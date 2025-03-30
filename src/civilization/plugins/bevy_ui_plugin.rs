@@ -32,7 +32,11 @@ fn handle_player_draws_cards(
     trade_card_list: Query<Entity, With<TradeCardList>>,
     player_trade_cards: Query<&PlayerTradeCards, With<IsHuman>>,
 ) {
+    let mut new_commands = commands;
     for event in reader.read() {
+        let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+        let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
+        
         debug!("Received Event!");
         if let Ok(trade_card_list) = trade_card_list.get_single() {
             debug!("Trade Card List exists!");
@@ -40,13 +44,23 @@ fn handle_player_draws_cards(
                 debug!("Player Trade Cards: {:?}", player_trade_cards);
                 let grouped_cards = player_trade_cards.trade_cards_grouped_by_value_and_type();
                 // Just debug values for now without rendering
-                for (value, _) in grouped_cards.iter() {
+                let mut ui_builder = UIBuilder::from_entity(new_commands, trade_card_list, true);
+                for (value, group) in grouped_cards.iter() {
                     debug!("Value: {}", value);
-                    // Create a container for each value
+                    ui_builder
+                        .with_children(|b| {
+                            b.add_text_child(format!("Cards with value: {}", value), font.clone(), 24.0, Some(Color::WHITE));
+                            for (card_type, cards) in group.iter() {
+                                b.add_text_child(format!("{}: {}", card_type, cards.len()), font.clone(), 24.0, Some(Color::WHITE));
+                            }
+                        });
                 }
+                new_commands = ui_builder.build().1;
             }
         }
     }
+    commands = new_commands;
+
 }
 
 #[derive(Component, Default)]
@@ -64,6 +78,8 @@ fn setup(commands: Commands, asset_server: Res<AssetServer>) {
         .add_component::<TradeCardUiRoot>()
         .block(Val::Percent(25.), Val::Percent(100.), bg_color)
         .add_text_child("Your trade cards!", font.clone(), 24.0, Some(Color::WHITE))
+        .move_to_new_child()
+        .block_with::<TradeCardList>(Val::Percent(100.), Val::Percent(100.), bg_color)
         .with_children(|b| {
             b.add_text_child("Gorf", font.clone(), 24.0, Some(Color::WHITE));
             b.add_text_child("Borf", font.clone(), 24.0, Some(Color::WHITE));
