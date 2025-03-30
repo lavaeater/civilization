@@ -42,7 +42,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         }
     }
 
-    pub fn with_children<F>(mut self, f: F) -> Self
+    pub fn with_children<F>(&mut self, f: F) -> &mut Self
     where
         F: FnOnce(&mut Self), // Closure gets mutable borrow to allow multiple calls
     {
@@ -51,7 +51,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
 
         // Use catch_unwind to ensure stack cleanup even on panic
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            f(&mut self); // Call the closure
+            f(self); // Call the closure
         }));
 
         // --- Cleanup ---
@@ -77,15 +77,15 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     pub fn block_with<T: Component + Default>(
-        self,
+        &mut self,
         width: Val,
         height: Val,
         bg_color: Color,
-    ) -> Self {
+    ) -> &mut Self {
         self.block(width, height, bg_color).add_component::<T>()
     }
     
-    pub fn at(mut self, left: Val, top: Val, position_type: PositionType) -> Self {
+    pub fn at(&mut self, left: Val, top: Val, position_type: PositionType) -> &mut Self {
         self.commands.entity(self.current_entity)
             .entry::<Node>().and_modify(move |mut node| { 
             node.position_type = position_type;
@@ -105,7 +105,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     /// If the entity does not already have the given component, this method will
     /// add a default instance of it. This is a shorthand for calling
     /// `commands.entity(self.current_entity).entry::<T>().or_default();`.
-    pub fn add_component<T: Component + Default>(mut self) -> Self {
+    pub fn add_component<T: Component + Default>(&mut self) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<T>()
@@ -121,7 +121,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     ///
     /// # Example
     ///
-    pub fn flex_row(mut self) -> Self {
+    pub fn flex_row(&mut self) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -146,7 +146,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     /// # Example
     ///
     ///
-    pub fn flex_column(mut self) -> Self {
+    pub fn flex_column(&mut self) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -163,11 +163,11 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     pub fn flex_column_with_props(
-        mut self,
+        &mut self,
         width: Val,
         height: Val,
         bg_color: Color,
-    ) -> Self {
+    ) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -201,7 +201,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self
     }
 
-    pub fn block(mut self, width: Val, height: Val, bg_color: Color) -> Self {
+    pub fn block(&mut self, width: Val, height: Val, bg_color: Color) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -227,12 +227,12 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self
     }
 
-    pub fn with_size(self, width: Val, height: Val) -> Self {
+    pub fn with_size(&mut self, width: Val, height: Val) -> &mut Self {
         self.width(width).height(height)
     }
 
     /// Set width Node
-    pub fn width(mut self, width: Val) -> Self {
+    pub fn width(&mut self, width: Val) -> &mut Self {
         // Get the current entity
         self.commands
             .entity(self.current_entity)
@@ -245,7 +245,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Set height Node
-    pub fn height(mut self, height: Val) -> Self {
+    pub fn height(&mut self, height: Val) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -258,7 +258,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Set flex direction
-    pub fn flex_direction(mut self, direction: FlexDirection) -> Self {
+    pub fn flex_direction(&mut self, direction: FlexDirection) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -271,7 +271,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Set justify content
-    pub fn justify_content(mut self, justify: JustifyContent) -> Self {
+    pub fn justify_content(&mut self, justify: JustifyContent) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -284,7 +284,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Set align items
-    pub fn align_items(mut self, align: AlignItems) -> Self {
+    pub fn align_items(&mut self, align: AlignItems) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -297,7 +297,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Set padding
-    pub fn padding(mut self, padding: UiRect) -> Self {
+    pub fn padding(&mut self, padding: UiRect) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -310,7 +310,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Set margin
-    pub fn margin(mut self, margin: UiRect) -> Self {
+    pub fn margin(&mut self, margin: UiRect) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -329,7 +329,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Add background color Component
-    pub fn with_bg_color(mut self, color: Color) -> Self {
+    pub fn with_bg_color(&mut self, color: Color) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<BackgroundColor>()
@@ -340,21 +340,21 @@ impl<'w, 's> UIBuilder<'w, 's> {
 
     /// Add a text child Entity
     pub fn add_text_child(
-        mut self,
+        &mut self,
         text: impl Into<String>,
         font: Handle<Font>,
         font_size: f32,
         color: Option<Color>,
-    ) -> Self {
+    ) -> &mut Self {
         self.move_to_new_child()
             .add_text(text, font, font_size, color)
             .parent()
     }
     
-    pub fn add_text(mut self, text: impl Into<String>,
+    pub fn add_text(&mut self, text: impl Into<String>,
                     font: Handle<Font>,
                     font_size: f32,
-                    color: Option<Color>,) -> Self {
+                    color: Option<Color>,) -> &mut Self {
         let text_color = color.unwrap_or(Color::BLACK);
         
         let text_bundle = (
@@ -371,7 +371,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Create a child container
-    pub fn move_to_new_child(mut self) -> Self {
+    pub fn move_to_new_child(&mut self) -> &mut Self {
         // Push current entity to parent stack
         self.parent_stack.push_back(self.current_entity);
 
@@ -382,17 +382,13 @@ impl<'w, 's> UIBuilder<'w, 's> {
         // Add the child to the current entity
         self.commands.entity(self.current_entity).add_child(child);
 
-        // Return a new builder with the child as the current entity
-        Self {
-            commands: self.commands,
-            current_entity: child,
-            parent_stack: self.parent_stack,
-            tagged_nodes: self.tagged_nodes,
-        }
+        // Update the current entity to the child
+        self.current_entity = child;
+        self
     }
 
     /// Return to parent container
-    pub fn parent(mut self) -> Self {
+    pub fn parent(&mut self) -> &mut Self {
         if let Some(parent) = self.parent_stack.pop_back() {
             self.current_entity = parent;
         }
