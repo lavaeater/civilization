@@ -12,7 +12,6 @@ pub struct UIBuilder<'w, 's> {
 
 #[derive(Default, Clone, Debug)]
 pub struct NodePartial {
-
     pub display: Option<Display>,
     pub position_type: Option<PositionType>,
     pub overflow: Option<Overflow>,
@@ -118,14 +117,13 @@ impl<'w, 's> UIBuilder<'w, 's> {
             tagged_nodes: HashMap::new(),
         }
     }
-    
+
     /// Apply a NodePartial to the current entity's node
     ///
     /// This function takes a NodePartial and applies any non-None properties to the current entity's node.
     /// This is useful for applying a set of properties at once without having to specify each one individually.
     pub fn with(&mut self, partial: NodePartial) -> &mut Self {
-        self
-            .commands
+        self.commands
             .entity(self.current_entity)
             .entry::<Node>()
             .and_modify(move |mut n| {
@@ -249,8 +247,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
 
     /// Set the display property of the current entity's node
     pub fn with_display(&mut self, display: Display) -> &mut Self {
-        self
-            .commands
+        self.commands
             .entity(self.current_entity)
             .entry::<Node>()
             .and_modify(move |mut n| {
@@ -258,11 +255,10 @@ impl<'w, 's> UIBuilder<'w, 's> {
             });
         self
     }
-    
+
     /// Set the position type property of the current entity's node
     pub fn with_position_type(&mut self, position_type: PositionType) -> &mut Self {
-        self
-            .commands
+        self.commands
             .entity(self.current_entity)
             .entry::<Node>()
             .and_modify(move |mut n| {
@@ -270,11 +266,10 @@ impl<'w, 's> UIBuilder<'w, 's> {
             });
         self
     }
-    
+
     /// Set the overflow property of the current entity's node
     pub fn with_overflow(&mut self, overflow: Overflow) -> &mut Self {
-        self
-            .commands
+        self.commands
             .entity(self.current_entity)
             .entry::<Node>()
             .and_modify(move |mut n| {
@@ -282,11 +277,10 @@ impl<'w, 's> UIBuilder<'w, 's> {
             });
         self
     }
-    
+
     /// Set the overflow clip margin property of the current entity's node
     pub fn with_overflow_clip_margin(&mut self, margin: OverflowClipMargin) -> &mut Self {
-        self
-            .commands
+        self.commands
             .entity(self.current_entity)
             .entry::<Node>()
             .and_modify(move |mut n| {
@@ -294,11 +288,10 @@ impl<'w, 's> UIBuilder<'w, 's> {
             });
         self
     }
-    
+
     /// Set the aspect ratio property of the current entity's node
     pub fn with_aspect_ratio(&mut self, ratio: f32) -> &mut Self {
-        self
-            .commands
+        self.commands
             .entity(self.current_entity)
             .entry::<Node>()
             .and_modify(move |mut n| {
@@ -306,15 +299,293 @@ impl<'w, 's> UIBuilder<'w, 's> {
             });
         self
     }
-    
+
     /// Clear the aspect ratio property of the current entity's node
     pub fn clear_aspect_ratio(&mut self) -> &mut Self {
-        self
-            .commands
+        self.commands
             .entity(self.current_entity)
             .entry::<Node>()
             .and_modify(move |mut n| {
                 n.aspect_ratio = None;
+            });
+        self
+    }
+
+    /// Set the left position of the current entity's node
+    pub fn with_left(&mut self, left: Val) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.left = left;
+            });
+        self
+    }
+
+    /// Set the right position of the current entity's node
+    pub fn with_right(&mut self, right: Val) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.right = right;
+            });
+        self
+    }
+
+    /// Set the top position of the current entity's node
+    pub fn with_top(&mut self, top: Val) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.top = top;
+            });
+        self
+    }
+
+    /// Set the bottom position of the current entity's node
+    pub fn with_bottom(&mut self, bottom: Val) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.bottom = bottom;
+            });
+        self
+    }
+
+    /// Set the position (left, right, top, bottom) of the current entity's node
+    pub fn with_position(&mut self, left: Val, right: Val, top: Val, bottom: Val) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.left = left;
+                n.right = right;
+                n.top = top;
+                n.bottom = bottom;
+            });
+        self
+    }
+
+    /// Set the flex direction property of the current entity's node
+    pub fn with_flex_direction(&mut self, direction: FlexDirection) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.flex_direction = direction;
+            });
+        self
+    }
+
+    /// Set the flex wrap property of the current entity's node
+    pub fn with_flex_wrap(&mut self, wrap: FlexWrap) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.flex_wrap = wrap;
+            });
+        self
+    }
+
+    /// Set the flex grow property of the current entity's node
+    pub fn with_flex_grow(&mut self, grow: f32) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.flex_grow = grow;
+            });
+        self
+    }
+
+    /// Set the flex shrink property of the current entity's node
+    pub fn with_flex_shrink(&mut self, shrink: f32) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.flex_shrink = shrink;
+            });
+        self
+    }
+
+    /// Set the flex basis property of the current entity's node
+    pub fn with_flex_basis(&mut self, basis: Val) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.flex_basis = basis;
+            });
+        self
+    }
+
+    /// Set the align items property of the current entity's node
+    pub fn with_align_items(&mut self, align: AlignItems) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.align_items = align;
+            });
+        self
+    }
+
+    /// Set the justify items property of the current entity's node
+    pub fn with_justify_items(&mut self, justify: JustifyItems) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.justify_items = justify;
+            });
+        self
+    }
+
+    /// Set the align self property of the current entity's node
+    pub fn with_align_self(&mut self, align: AlignSelf) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.align_self = align;
+            });
+        self
+    }
+
+    /// Set the justify self property of the current entity's node
+    pub fn with_justify_self(&mut self, justify: JustifySelf) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.justify_self = justify;
+            });
+        self
+    }
+
+    /// Set the align content property of the current entity's node
+    pub fn with_align_content(&mut self, align: AlignContent) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.align_content = align;
+            });
+        self
+    }
+
+    /// Set the justify content property of the current entity's node
+    pub fn with_justify_content(&mut self, justify: JustifyContent) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.justify_content = justify;
+            });
+        self
+    }
+
+    /// Set the row gap property of the current entity's node
+    pub fn with_row_gap(&mut self, gap: Val) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.row_gap = gap;
+            });
+        self
+    }
+
+    /// Set the column gap property of the current entity's node
+    pub fn with_column_gap(&mut self, gap: Val) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.column_gap = gap;
+            });
+        self
+    }
+
+    /// Set both row and column gap properties of the current entity's node
+    pub fn with_gap(&mut self, row_gap: Val, column_gap: Val) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.row_gap = row_gap;
+                n.column_gap = column_gap;
+            });
+        self
+    }
+
+    /// Set the width property of the current entity's node
+    pub fn with_width(&mut self, width: Val) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.width = width;
+            });
+        self
+    }
+
+    /// Set the height property of the current entity's node
+    pub fn with_height(&mut self, height: Val) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.height = height;
+            });
+        self
+    }
+
+    /// Set the min width property of the current entity's node
+    pub fn with_min_width(&mut self, min_width: Val) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.min_width = min_width;
+            });
+        self
+    }
+
+    /// Set the min height property of the current entity's node
+    pub fn with_min_height(&mut self, min_height: Val) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.min_height = min_height;
+            });
+        self
+    }
+
+    /// Set the max width property of the current entity's node
+    pub fn with_max_width(&mut self, max_width: Val) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.max_width = max_width;
+            });
+        self
+    }
+
+    /// Set the max height property of the current entity's node
+    pub fn with_max_height(&mut self, max_height: Val) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.max_height = max_height;
             });
         self
     }
@@ -425,7 +696,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
             });
         self
     }
-    
+
     pub fn as_flex_col_with_props(
         &mut self,
         width: Val,
