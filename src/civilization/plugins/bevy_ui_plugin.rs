@@ -4,6 +4,7 @@ use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::events::HumanPlayerTradeCardsUpdated;
 use crate::civilization::ui::ui_builder::UIBuilder;
 use crate::stupid_ai::prelude::IsHuman;
+use crate::GameActivity;
 use bevy::color::palettes::css::RED;
 use bevy::dev_tools::ui_debug_overlay::DebugUiPlugin;
 use bevy::{
@@ -11,6 +12,9 @@ use bevy::{
     picking::focus::HoverMap,
     prelude::*,
 };
+
+const BG_COLOR:Color = Color::srgba(0.5, 0.5, 0.5, 0.25);
+const CARD_COLOR:Color = Color::srgba(0.7, 0.6, 0.2, 0.8);
 
 pub struct BevyUiPlugin;
 
@@ -20,7 +24,7 @@ impl Plugin for BevyUiPlugin {
             // .insert_resource(WinitSettings::desktop_app())
             .add_plugins(DebugUiPlugin)
             .add_systems(Update, toggle_overlay)
-            .add_systems(Startup, setup)
+            .add_systems(OnEnter(GameActivity::StartGame), setup)
             .add_systems(Update, update_scroll_position)
             .add_systems(Update, handle_player_draws_cards);
     }
@@ -36,8 +40,6 @@ fn handle_player_draws_cards(
     let mut new_commands = commands;
     for event in reader.read() {
         let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-        let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
-        let card_color = Color::srgba(0.7, 0.6, 0.2, 0.8);
         
         debug!("Received Event!");
         if let Ok(trade_card_list) = trade_card_list.get_single() {
@@ -45,6 +47,7 @@ fn handle_player_draws_cards(
             if let Ok(player_trade_cards) = player_trade_cards.get(event.player_entity) {
                 debug!("Player Trade Cards: {:?}", player_trade_cards);
                 let grouped_cards = player_trade_cards.trade_cards_grouped_by_value_and_type();
+
                 // Just debug values for now without rendering
                 let mut ui_builder = UIBuilder::start_from_entity(new_commands, trade_card_list, true);
                 for (value, group) in grouped_cards.iter() {
@@ -54,7 +57,7 @@ fn handle_player_draws_cards(
                             b.add_text_child(format!("Cards with value: {}", value), font.clone(), 24.0, Some(Color::WHITE));
                             for (card_type, cards) in group.iter() {
                                 b = b.move_to_new_child()
-                                    .as_block(Val::Percent(50.), Val::Percent(20.), card_color)
+                                    .as_block(Val::Percent(50.), Val::Percent(20.), CARD_COLOR)
                                     .with_border(UiRect::all(Val::Percent(5.0)), Color::from(RED))
                                     .with_padding(UiRect::all(Val::Percent(5.0)))
                                     .with_margin(UiRect::all(Val::Percent(2.0)))
@@ -77,21 +80,36 @@ pub struct TradeCardUiRoot;
 #[derive(Component, Default)]
 pub struct TradeCardList;
 
-fn setup(commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(
+    commands: Commands, 
+    asset_server: Res<AssetServer>,
+    player_trade_cards: Query<&PlayerTradeCards, With<IsHuman>>
+) {
     // root node
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-    let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
     let mut root_ui = UIBuilder::new(commands);
+    let grouped_cards = player_trade_cards.get_single().unwrap().trade_cards_grouped_by_value_and_type();
+    
     root_ui
         .with_component::<TradeCardUiRoot>()
-        .as_block(Val::Percent(25.), Val::Percent(100.), bg_color)
+        .as_block(Val::Percent(25.), Val::Percent(100.), BG_COLOR)
         .add_text_child("Your trade cards!", font.clone(), 24.0, Some(Color::WHITE))
         .move_to_new_child()
-        .as_block_with::<TradeCardList>(Val::Percent(100.), Val::Percent(100.), bg_color)
-        .with_children(|b| {
-            b.add_text_child("Gorf", font.clone(), 24.0, Some(Color::WHITE));
-            b.add_text_child("Borf", font.clone(), 24.0, Some(Color::WHITE));
-            b.add_text_child("Slorf", font.clone(), 24.0, Some(Color::WHITE));
+        .as_block_with::<TradeCardList>(Val::Percent(100.), Val::Percent(100.), BG_COLOR)
+        .with_children(|mut b| {
+            for (value, group) in grouped_cards.iter() {
+                b.add_text_child(format!("Cards with value: {}", value), font.clone(), 24.0, Some(Color::WHITE));
+                for (card_type, cards) in group.iter() {
+                    b = b.move_to_new_child()
+                        .as_block(Val::Percent(50.), Val::Percent(20.), CARD_COLOR)
+                        .with_border(UiRect::all(Val::Percent(5.0)), Color::from(RED))
+                        .with_padding(UiRect::all(Val::Percent(5.0)))
+                        .with_margin(UiRect::all(Val::Percent(2.0)))
+                        .add_text_child(format!("{}: {}", card_type, cards.len()), font.clone(), 24.0, Some(Color::WHITE))
+                        .parent();
+                }
+            }
+            
         });
     
     // Get the built entity and commands back
@@ -100,7 +118,7 @@ fn setup(commands: Commands, asset_server: Res<AssetServer>) {
 
 fn toggle_overlay(mut options: ResMut<bevy::dev_tools::ui_debug_overlay::UiDebugOptions>) {
     info_once!("Will enable overlays automatically perhaps");
-    if !options.enabled {
+    if options.enabled {
         options.toggle();
     }
 }

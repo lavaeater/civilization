@@ -1,13 +1,14 @@
 use crate::civilization::components::prelude::*;
 use crate::civilization::concepts::census::components::Census;
 use crate::civilization::concepts::map::map_plugin::AvailableFactions;
-use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
+use crate::civilization::concepts::trade_cards::components::{CivilizationTradeCards, PlayerTradeCards};
 use crate::civilization::enums::prelude::GameFaction;
 use crate::civilization::events::prelude::*;
 use crate::player::Player;
 use crate::stupid_ai::prelude::*;
 use crate::GameActivity;
 use bevy::core::Name;
+use bevy::log::debug;
 use bevy::math::{vec3, Vec3};
 use bevy::prelude::{
     default, info, Commands, Entity, EventReader, EventWriter, NextState, Query, Res,
@@ -39,7 +40,10 @@ pub fn start_game(
     next_state.set(GameActivity::PopulationExpansion);
 }
 
-pub fn setup_players(mut commands: Commands, mut available_factions: ResMut<AvailableFactions>) {
+pub fn setup_players(
+    mut commands: Commands,
+    mut available_factions: ResMut<AvailableFactions>,
+    mut card_piles: ResMut<CivilizationTradeCards>) {
     //debug!("3. Setting up players!");
     (1..=8).for_each(|n| {
         if let Some(faction) = available_factions
@@ -66,6 +70,30 @@ pub fn setup_players(mut commands: Commands, mut available_factions: ResMut<Avai
 
             if *faction == GameFaction::Assyria {
                 commands.entity(player).insert(IsHuman);
+                
+                let mut player_trade_cards = PlayerTradeCards::default();
+
+                (1..=9).for_each(|pile| {
+                    if let Some(pulled_card) = card_piles.pull_card_from(pile) {
+                        player_trade_cards.add_trade_card(pulled_card);
+                    } else {
+                        debug!("No more trade cards in pile: {}", pile);
+                    }
+                    if let Some(pulled_card) = card_piles.pull_card_from(pile) {
+                        player_trade_cards.add_trade_card(pulled_card);
+                    } else {
+                        debug!("No more trade cards in pile: {}", pile);
+                    }
+                });
+                
+                commands.entity(player).insert(player_trade_cards);
+                
+                
+                
+                
+                
+                
+                
             }
 
             let tokens = (0..47)
