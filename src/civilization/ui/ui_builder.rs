@@ -96,7 +96,6 @@ impl<'w, 's> UIBuilder<'w, 's> {
             commands,
             current_entity: entity,
             parent_stack: VecDeque::new(),
-            tagged_nodes: HashMap::new(),
         }
     }
 
@@ -113,7 +112,6 @@ impl<'w, 's> UIBuilder<'w, 's> {
             commands,
             current_entity: entity,
             parent_stack: VecDeque::new(),
-            tagged_nodes: HashMap::new(),
         }
     }
 
