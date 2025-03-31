@@ -6,8 +6,7 @@ use std::collections::VecDeque;
 pub struct UIBuilder<'w, 's> {
     commands: Commands<'w, 's>,
     current_entity: Entity,
-    parent_stack: VecDeque<Entity>,
-    tagged_nodes: HashMap<String, Entity>,
+    parent_stack: VecDeque<Entity>
 }
 
 #[derive(Default, Clone, Debug)]
