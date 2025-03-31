@@ -11,7 +11,9 @@ use bevy::{
     picking::focus::HoverMap,
     prelude::*,
 };
+use bevy::reflect::Enum;
 use itertools::Itertools;
+use crate::civilization::components::prelude::TradeCounterType;
 
 const BG_COLOR: Color = Color::srgba(0.5, 0.5, 0.5, 0.25);
 const CARD_COLOR: Color = Color::srgba(0.7, 0.6, 0.2, 0.8);
@@ -29,6 +31,51 @@ impl Plugin for BevyUiPlugin {
             .add_systems(Update, handle_player_draws_cards);
     }
 }
+
+enum TradeButtonAction {
+    Ok,
+    Cancel,
+}
+
+#[derive(Component)]
+pub struct ButtonAction<T: Enum> {
+    pub action: T,
+}
+
+
+fn menu_action(
+    interaction_query: Query<
+        (&Interaction, &ButtonAction<TradeButtonAction>),
+        (Changed<Interaction>, With<Button>),
+    >,
+) {
+    for (interaction, menu_button_action) in &interaction_query {
+        if *interaction == Interaction::Pressed {
+            match menu_button_action.action {
+                TradeButtonAction::Quit => {
+                    app_exit_events.send(AppExit::Success);
+                }
+                TradeButtonAction::Play => {
+                    game_state.set(GameState::Game);
+                    menu_state.set(MenuState::Disabled);
+                }
+                TradeButtonAction::Settings => menu_state.set(MenuState::Settings),
+                TradeButtonAction::SettingsDisplay => {
+                    menu_state.set(MenuState::SettingsDisplay);
+                }
+                TradeButtonAction::SettingsSound => {
+                    menu_state.set(MenuState::SettingsSound);
+                }
+                TradeButtonAction::BackToMainMenu => menu_state.set(MenuState::Main),
+                TradeButtonAction::BackToSettings => {
+                    menu_state.set(MenuState::Settings);
+                }
+            }
+        }
+    }
+}
+
+
 
 fn handle_player_draws_cards(
     mut reader: EventReader<HumanPlayerTradeCardsUpdated>,

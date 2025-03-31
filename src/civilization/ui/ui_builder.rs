@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use std::collections::VecDeque;
+use cucumber::WriterExt;
 
 /// Fluent UI Builder for creating Bevy UI elements
 pub struct UIBuilder<'w, 's> {
@@ -113,6 +114,13 @@ impl<'w, 's> UIBuilder<'w, 's> {
             current_entity: entity,
             parent_stack: VecDeque::new(),
         }
+    }
+    
+    pub fn with_button(&mut self) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Button>().or_default();
+        self
     }
 
     /// Apply a NodePartial to the current entity's node
