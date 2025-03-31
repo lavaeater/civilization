@@ -433,11 +433,11 @@ impl<'w, 's> UIBuilder<'w, 's> {
         color: Option<Color>,
     ) -> &mut Self {
         self.move_to_new_child()
-            .add_text(text, font, font_size, color)
+            .with_text(text, font, font_size, color)
             .parent()
     }
 
-    pub fn add_text(
+    pub fn with_text(
         &mut self,
         text: impl Into<String>,
         font: Handle<Font>,

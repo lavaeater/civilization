@@ -102,13 +102,13 @@ fn setup(
                 b.add_text_child(format!("Cards with value: {}", value), font.clone(), 24.0, Some(Color::WHITE));
                 for (card_type, cards) in group.iter() {
                     b = b.move_to_new_child()
-                        .as_block(Val::Px(40.), Val::Px(80.), CARD_COLOR)
-                        .with_border(UiRect::all(Val::Px(2.0)), Color::from(RED))
-                        .with_padding(UiRect::all(Val::Px(10.0)))
+                        .as_block(Val::Px(120.), Val::Px(180.), CARD_COLOR)
+                        .with_border(UiRect::all(Val::Px(20.0)), Color::from(RED))
+                        .with_padding(UiRect::all(Val::Px(20.0)))
                         .move_to_new_child()
-                        .with_padding(UiRect::all(Val::Px(10.)))
+                        .with_padding(UiRect::all(Val::Px(20.)))
                         .with_size(Val::Percent(100.0), Val::Percent(100.0))
-                        .add_text(format!("{}: {}", card_type, cards.len()), font.clone(), 24.0, Some(Color::WHITE))
+                        .with_text(format!("{}: {}", card_type, cards.len()), font.clone(), 24.0, Some(Color::WHITE))
                         .parent()
                         .parent();
                 }
