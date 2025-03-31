@@ -116,10 +116,33 @@ impl<'w, 's> UIBuilder<'w, 's> {
         }
     }
     
+    /// Add a Button component to the current entity
     pub fn with_button(&mut self) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Button>().or_default();
+        self
+    }
+    
+    /// Add a Button component to the current entity with a specific component type
+    /// 
+    /// This version adds a default instance of the component type T
+    pub fn with_button_and_component<T: Component + Default>(&mut self) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Button>().or_default()
+            .entry::<T>().or_default();
+        self
+    }
+    
+    /// Add a Button component to the current entity with a specific component instance
+    /// 
+    /// This version adds the provided component instance
+    pub fn with_button_and<T: Component>(&mut self, component: T) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Button>().or_default()
+            .insert(component);
         self
     }
 

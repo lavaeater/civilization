@@ -1,19 +1,19 @@
 //! This example illustrates the various features of Bevy UI.
 
+use crate::civilization::components::prelude::TradeCounterType;
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::events::HumanPlayerTradeCardsUpdated;
 use crate::civilization::ui::ui_builder::UIBuilder;
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
 use bevy::dev_tools::ui_debug_overlay::DebugUiPlugin;
+use bevy::reflect::Enum;
 use bevy::{
     input::mouse::{MouseScrollUnit, MouseWheel},
     picking::focus::HoverMap,
     prelude::*,
 };
-use bevy::reflect::Enum;
 use itertools::Itertools;
-use crate::civilization::components::prelude::TradeCounterType;
 
 const BG_COLOR: Color = Color::srgba(0.5, 0.5, 0.5, 0.25);
 const CARD_COLOR: Color = Color::srgba(0.7, 0.6, 0.2, 0.8);
@@ -32,6 +32,7 @@ impl Plugin for BevyUiPlugin {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Reflect)]
 enum TradeButtonAction {
     Ok,
     Cancel,
