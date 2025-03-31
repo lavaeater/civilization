@@ -41,6 +41,134 @@ impl<'w, 's> UIBuilder<'w, 's> {
             tagged_nodes: HashMap::new(),
         }
     }
+    
+    pub fn with_props(&mut self, 
+                        display: Option<Display>,
+                        position_type: Option<PositionType>,
+                        left: Option<Val>,
+                        right: Option<Val>,
+                        top: Option<Val>,
+                        bottom: Option<Val>,
+                        flex_direction: Option<FlexDirection>,
+                        flex_wrap: Option<FlexWrap>,
+                        align_items: Option<AlignItems>,
+                        justify_items: Option<JustifyItems>,
+                        align_self: Option<AlignSelf>,
+                        justify_self: Option<JustifySelf>,
+                        align_content: Option<AlignContent>,
+                        justify_content: Option<JustifyContent>,
+                        margin: Option<UiRect>,
+                        padding: Option<UiRect>,
+                        border: Option<UiRect>,
+                        flex_grow: Option<f32>,
+                        flex_shrink: Option<f32>,
+                        flex_basis: Option<Val>,
+                        width: Option<Val>,
+                        height: Option<Val>,
+                        min_width: Option<Val>,
+                        min_height: Option<Val>,
+                        max_width: Option<Val>,
+                        max_height: Option<Val>,
+                        overflow: Option<Overflow>,
+                        overflow_clip_margin: Option<OverflowClipMargin>,
+                        row_gap: Option<Val>,
+                        column_gap: Option<Val>,
+                        grid_auto_flow: Option<GridAutoFlow>,
+                        grid_auto_columns: Option<Vec<GridTrack>>,
+                        grid_column: Option<GridPlacement>,
+                        grid_row: Option<GridPlacement>,
+                        
+    ) -> &mut Self {
+        self
+            .commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.display = display.unwrap_or(n.display);
+                n.position_type = position_type.unwrap_or(n.position_type);
+                n.left = left.unwrap_or(n.left);
+                n.right = right.unwrap_or(n.right);
+                n.top = top.unwrap_or(n.top);
+                n.bottom = bottom.unwrap_or(n.bottom);
+                n.flex_direction = flex_direction.unwrap_or(n.flex_direction);
+                n.flex_wrap = flex_wrap.unwrap_or(n.flex_wrap);
+                n.align_items = align_items.unwrap_or(n.align_items);
+                n.justify_items = justify_items.unwrap_or(n.justify_items);
+                n.align_self = align_self.unwrap_or(n.align_self);
+                n.justify_self = justify_self.unwrap_or(n.justify_self);
+                n.align_content = align_content.unwrap_or(n.align_content);
+                n.justify_content = justify_content.unwrap_or(n.justify_content);
+                n.margin = margin.unwrap_or(n.margin);
+                n.padding = padding.unwrap_or(n.padding);
+                n.border = border.unwrap_or(n.border);
+                n.flex_grow = flex_grow.unwrap_or(n.flex_grow);
+                n.flex_shrink = flex_shrink.unwrap_or(n.flex_shrink);
+                n.flex_basis = flex_basis.unwrap_or(n.flex_basis);
+                n.width = width.unwrap_or(n.width);
+                n.height = height.unwrap_or(n.height);
+                n.min_width = min_width.unwrap_or(n.min_width);
+                n.min_height = min_height.unwrap_or(n.min_height);
+                n.max_width = max_width.unwrap_or(n.max_width);
+                n.max_height = max_height.unwrap_or(n.max_height);
+                n.overflow = overflow.unwrap_or(n.overflow);
+                n.overflow_clip_margin = overflow_clip_margin.unwrap_or(n.overflow_clip_margin);
+                n.row_gap = row_gap.unwrap_or(n.row_gap);
+                n.column_gap = column_gap.unwrap_or(n.column_gap);
+                n.grid_auto_flow = grid_auto_flow.unwrap_or(n.grid_auto_flow);
+                n.grid_auto_columns = grid_auto_columns.unwrap_or(n.grid_auto_columns.clone());
+                n.grid_column = grid_column.unwrap_or(n.grid_column);
+                n.grid_row = grid_row.unwrap_or(n.grid_row);
+            });
+        self
+    }
+    
+    pub fn apply_node(&mut self, node: Node) -> &mut Self {
+        self
+            .commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+            n.display = node.display;
+            n.position_type = node.position_type;
+            n.left = node.left;
+            n.right = node.right;
+            n.top = node.top;
+            n.bottom = node.bottom;
+            n.flex_direction = node.flex_direction;
+            n.flex_wrap = node.flex_wrap;
+            n.align_items = node.align_items;
+            n.justify_items = node.justify_items;
+            n.align_self = node.align_self;
+            n.justify_self = node.justify_self;
+            n.align_content = node.align_content;
+            n.justify_content = node.justify_content;
+            n.margin = node.margin;
+            n.padding = node.padding;
+            n.border = node.border;
+            n.flex_grow = node.flex_grow;
+            n.flex_shrink = node.flex_shrink;
+            n.flex_basis = node.flex_basis;
+            n.width = node.width;
+            n.height = node.height;
+            n.min_width = node.min_width;
+            n.min_height = node.min_height;
+            n.max_width = node.max_width;
+            n.max_height = node.max_height;
+            n.aspect_ratio = node.aspect_ratio;
+            n.overflow = node.overflow;
+            n.overflow_clip_margin = node.overflow_clip_margin;
+            n.row_gap = node.row_gap;
+            n.column_gap = node.column_gap;
+            n.grid_auto_flow = node.grid_auto_flow;
+            n.grid_template_rows = node.grid_template_rows.clone();
+            n.grid_template_columns = node.grid_template_columns.clone();
+            n.grid_auto_rows = node.grid_auto_rows.clone();
+            n.grid_auto_columns = node.grid_auto_columns.clone();
+            n.grid_column = node.grid_column;
+            n.grid_row = node.grid_row;
+        });
+        self
+    }
 
     pub fn with_children<F>(&mut self, f: F) -> &mut Self
     where
@@ -93,12 +221,6 @@ impl<'w, 's> UIBuilder<'w, 's> {
                 node.position_type = position_type;
                 node.left = left;
                 node.top = top;
-            })
-            .or_insert(Node {
-                position_type,
-                left,
-                top,
-                ..Default::default()
             });
         self
     }
@@ -131,11 +253,6 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .and_modify(move |mut node| {
                 node.display = Display::Flex;
                 node.flex_direction = FlexDirection::Row;
-            })
-            .or_insert(Node {
-                display: Display::Flex,
-                flex_direction: FlexDirection::Row,
-                ..default()
             });
         self
     }
@@ -156,16 +273,11 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .and_modify(move |mut node| {
                 node.display = Display::Flex;
                 node.flex_direction = FlexDirection::Column;
-            })
-            .or_insert(Node {
-                display: Display::Flex,
-                flex_direction: FlexDirection::Column,
-                ..default()
             });
         self
     }
     
-    pub fn flex_column_with_props(
+    pub fn as_flex_col_with_props(
         &mut self,
         width: Val,
         height: Val,
@@ -182,16 +294,6 @@ impl<'w, 's> UIBuilder<'w, 's> {
                 node.justify_content = JustifyContent::FlexStart;
                 node.width = width;
                 node.height = height;
-            })
-            .or_insert(Node {
-                display: Display::Flex,
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::FlexStart,
-                align_content: AlignContent::FlexStart,
-                justify_content: JustifyContent::FlexStart,
-                width,
-                height,
-                ..default()
             });
         self.commands
             .entity(self.current_entity)
@@ -212,12 +314,6 @@ impl<'w, 's> UIBuilder<'w, 's> {
                 node.width = width;
                 node.height = height;
                 node.display = Display::Block;
-            })
-            .or_insert(Node {
-                width,
-                height,
-                display: Display::Block,
-                ..default()
             });
 
         self.commands
@@ -240,10 +336,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
-            // Modify the component if it exists
-            .and_modify(move |mut node| node.width = width)
-            // Otherwise insert a default value
-            .or_insert(Node { width, ..default() });
+            .and_modify(move |mut node| node.width = width);
         self
     }
 
@@ -252,11 +345,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
-            .and_modify(move |mut node| node.height = height)
-            .or_insert(Node {
-                height,
-                ..default()
-            });
+            .and_modify(move |mut node| node.height = height);
         self
     }
 
@@ -265,11 +354,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
-            .and_modify(move |mut node| node.flex_direction = direction)
-            .or_insert(Node {
-                flex_direction: direction,
-                ..default()
-            });
+            .and_modify(move |mut node| node.flex_direction = direction);
         self
     }
 
@@ -278,11 +363,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
-            .and_modify(move |mut node| node.justify_content = justify)
-            .or_insert(Node {
-                justify_content: justify,
-                ..default()
-            });
+            .and_modify(move |mut node| node.justify_content = justify);
         self
     }
 
@@ -291,11 +372,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
-            .and_modify(move |mut node| node.align_items = align)
-            .or_insert(Node {
-                align_items: align,
-                ..default()
-            });
+            .and_modify(move |mut node| node.align_items = align);
         self
     }
 
@@ -304,11 +381,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
-            .and_modify(move |mut node| node.padding = padding)
-            .or_insert(Node {
-                padding,
-                ..default()
-            });
+            .and_modify(move |mut node| node.padding = padding);
         self
     }
 
@@ -317,11 +390,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
-            .and_modify(move |mut node| node.margin = margin)
-            .or_insert(Node {
-                margin,
-                ..default()
-            });
+            .and_modify(move |mut node| node.margin = margin);
         self
     }
 
@@ -329,11 +398,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
-            .and_modify(move |mut node| node.border = border)
-            .or_insert(Node {
-                border,
-                ..default()
-            });
+            .and_modify(move |mut node| node.border = border);
 
         self.commands
             .entity(self.current_entity)

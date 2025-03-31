@@ -38,41 +38,40 @@ fn handle_player_draws_cards(
     trade_card_list: Query<Entity, With<TradeCardList>>,
     player_trade_cards: Query<&PlayerTradeCards, With<IsHuman>>,
 ) {
-    let mut new_commands = commands;
+    // let mut new_commands = commands;
     for event in reader.read() {
-        let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-        
-        debug!("Received Event!");
-        if let Ok(trade_card_list) = trade_card_list.get_single() {
-            debug!("Trade Card List exists!");
-            if let Ok(player_trade_cards) = player_trade_cards.get(event.player_entity) {
-                debug!("Player Trade Cards: {:?}", player_trade_cards);
-                let grouped_cards = player_trade_cards.trade_cards_grouped_by_value_and_type();
-
-                // Just debug values for now without rendering
-                let mut ui_builder = UIBuilder::start_from_entity(new_commands, trade_card_list, true);
-                for (value, group) in grouped_cards.iter() {
-                    debug!("Value: {}", value);
-                    ui_builder
-                        .with_children(|mut b| {
-                            b.add_text_child(format!("Cards with value: {}", value), font.clone(), 24.0, Some(Color::WHITE));
-                            for (card_type, cards) in group.iter() {
-                                b = b.move_to_new_child()
-                                    .as_block(Val::Percent(50.), Val::Percent(20.), CARD_COLOR)
-                                    .with_border(UiRect::all(Val::Percent(5.0)), Color::from(RED))
-                                    .with_padding(UiRect::all(Val::Percent(5.0)))
-                                    .with_margin(UiRect::all(Val::Percent(2.0)))
-                                    .add_text_child(format!("{}: {}", card_type, cards.len()), font.clone(), 24.0, Some(Color::WHITE))
-                                    .parent();
-                            }
-                        });
-                }
-                new_commands = ui_builder.build().1;
-            }
-        }
+        // let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+        // 
+        // debug!("Received Event!");
+        // if let Ok(trade_card_list) = trade_card_list.get_single() {
+        //     debug!("Trade Card List exists!");
+        //     if let Ok(player_trade_cards) = player_trade_cards.get(event.player_entity) {
+        //         debug!("Player Trade Cards: {:?}", player_trade_cards);
+        //         let grouped_cards = player_trade_cards.trade_cards_grouped_by_value_and_type();
+        // 
+        //         // Just debug values for now without rendering
+        //         let mut ui_builder = UIBuilder::start_from_entity(new_commands, trade_card_list, true);
+        //         for (value, group) in grouped_cards.iter() {
+        //             debug!("Value: {}", value);
+        //             ui_builder
+        //                 .with_children(|mut b| {
+        //                     b.add_text_child(format!("Cards with value: {}", value), font.clone(), 24.0, Some(Color::WHITE));
+        //                     for (card_type, cards) in group.iter() {
+        //                         b = b.move_to_new_child()
+        //                             .as_block(Val::Percent(50.), Val::Percent(20.), CARD_COLOR)
+        //                             .with_border(UiRect::all(Val::Percent(5.0)), Color::from(RED))
+        //                             .with_padding(UiRect::all(Val::Percent(5.0)))
+        //                             .with_margin(UiRect::all(Val::Percent(2.0)))
+        //                             .add_text_child(format!("{}: {}", card_type, cards.len()), font.clone(), 24.0, Some(Color::WHITE))
+        //                             .parent();
+        //                     }
+        //                 });
+        //         }
+        //         new_commands = ui_builder.build().1;
+        //     }
+        // }
     }
-    commands = new_commands;
-
+    // commands = new_commands;
 }
 
 #[derive(Component, Default)]
@@ -93,22 +92,24 @@ fn setup(
     
     root_ui
         .with_component::<TradeCardUiRoot>()
-        .as_block(Val::Percent(25.), Val::Percent(100.), BG_COLOR)
+        .as_flex_col_with_props(Val::Percent(25.), Val::Percent(100.), BG_COLOR)
         .add_text_child("Your trade cards!", font.clone(), 24.0, Some(Color::WHITE))
         .move_to_new_child()
-        .as_block_with::<TradeCardList>(Val::Percent(100.), Val::Percent(100.), BG_COLOR)
+        .as_flex_col_with_props(Val::Percent(100.), Val::Percent(100.), BG_COLOR)
+        .with_component::<TradeCardList>()
         .with_children(|mut b| {
-            for (value, group) in grouped_cards.iter() {
+            for (value, group) in grouped_cards.iter().sorted_by_key(|(value, _)| *value) {
                 b.add_text_child(format!("Cards with value: {}", value), font.clone(), 24.0, Some(Color::WHITE));
                 for (card_type, cards) in group.iter() {
                     b = b.move_to_new_child()
-                        .as_block(Val::Percent(40.), Val::Percent(80.), CARD_COLOR)
-                        .with_border(UiRect::all(Val::Percent(2.0)), Color::from(RED))
-                        .with_padding(UiRect::all(Val::Percent(5.0)))
-                        .with_margin(UiRect::all(Val::Percent(2.0)))
+                        .as_block(Val::Px(40.), Val::Px(80.), CARD_COLOR)
+                        .with_border(UiRect::all(Val::Px(2.0)), Color::from(RED))
+                        .with_padding(UiRect::all(Val::Px(10.0)))
                         .move_to_new_child()
                         .with_padding(UiRect::all(Val::Px(10.)))
+                        .with_size(Val::Percent(100.0), Val::Percent(100.0))
                         .add_text(format!("{}: {}", card_type, cards.len()), font.clone(), 24.0, Some(Color::WHITE))
+                        .parent()
                         .parent();
                 }
             }
@@ -121,7 +122,7 @@ fn setup(
 
 fn toggle_overlay(mut options: ResMut<bevy::dev_tools::ui_debug_overlay::UiDebugOptions>) {
     info_once!("Will enable overlays automatically perhaps");
-    if options.enabled {
+    if !options.enabled {
         options.toggle();
     }
 }
