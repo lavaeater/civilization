@@ -71,22 +71,22 @@ pub fn setup_players(
             if *faction == GameFaction::Assyria {
                 commands.entity(player).insert(IsHuman);
                 
-                let mut player_trade_cards = PlayerTradeCards::default();
-
-                (1..=9).for_each(|pile| {
-                    if let Some(pulled_card) = card_piles.pull_card_from(pile) {
-                        player_trade_cards.add_trade_card(pulled_card);
-                    } else {
-                        debug!("No more trade cards in pile: {}", pile);
-                    }
-                    if let Some(pulled_card) = card_piles.pull_card_from(pile) {
-                        player_trade_cards.add_trade_card(pulled_card);
-                    } else {
-                        debug!("No more trade cards in pile: {}", pile);
-                    }
-                });
-                
-                commands.entity(player).insert(player_trade_cards);
+                // let mut player_trade_cards = PlayerTradeCards::default();
+                // 
+                // (1..=9).for_each(|pile| {
+                //     if let Some(pulled_card) = card_piles.pull_card_from(pile) {
+                //         player_trade_cards.add_trade_card(pulled_card);
+                //     } else {
+                //         debug!("No more trade cards in pile: {}", pile);
+                //     }
+                //     if let Some(pulled_card) = card_piles.pull_card_from(pile) {
+                //         player_trade_cards.add_trade_card(pulled_card);
+                //     } else {
+                //         debug!("No more trade cards in pile: {}", pile);
+                //     }
+                // });
+                // 
+                // commands.entity(player).insert(player_trade_cards);
                 
                 
                 
