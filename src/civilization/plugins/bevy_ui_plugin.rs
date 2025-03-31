@@ -12,6 +12,7 @@ use bevy::{
     picking::focus::HoverMap,
     prelude::*,
 };
+use itertools::Itertools;
 
 const BG_COLOR:Color = Color::srgba(0.5, 0.5, 0.5, 0.25);
 const CARD_COLOR:Color = Color::srgba(0.7, 0.6, 0.2, 0.8);
@@ -101,11 +102,13 @@ fn setup(
                 b.add_text_child(format!("Cards with value: {}", value), font.clone(), 24.0, Some(Color::WHITE));
                 for (card_type, cards) in group.iter() {
                     b = b.move_to_new_child()
-                        .as_block(Val::Percent(50.), Val::Percent(20.), CARD_COLOR)
-                        .with_border(UiRect::all(Val::Percent(5.0)), Color::from(RED))
+                        .as_block(Val::Percent(40.), Val::Percent(80.), CARD_COLOR)
+                        .with_border(UiRect::all(Val::Percent(2.0)), Color::from(RED))
                         .with_padding(UiRect::all(Val::Percent(5.0)))
                         .with_margin(UiRect::all(Val::Percent(2.0)))
-                        .add_text_child(format!("{}: {}", card_type, cards.len()), font.clone(), 24.0, Some(Color::WHITE))
+                        .move_to_new_child()
+                        .with_padding(UiRect::all(Val::Px(10.)))
+                        .add_text(format!("{}: {}", card_type, cards.len()), font.clone(), 24.0, Some(Color::WHITE))
                         .parent();
                 }
             }
