@@ -291,6 +291,7 @@ impl UiBuilderDefaults {
     pub fn new() -> Self {
         Self::default()
     }
+    
 
     pub fn get_btn_def(&self, input: Option<ButtonPartial>) -> ButtonDef {
         let mut def = ButtonDef::default();

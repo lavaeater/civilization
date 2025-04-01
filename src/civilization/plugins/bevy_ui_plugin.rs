@@ -3,7 +3,7 @@
 use crate::civilization::components::prelude::{TradeCounterType, TradeMoveType};
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::events::HumanPlayerTradeCardsUpdated;
-use crate::civilization::ui::ui_builder::UIBuilder;
+use crate::civilization::ui::ui_builder::{UIBuilder, UiBuilderDefaults};
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
 use bevy::dev_tools::ui_debug_overlay::DebugUiPlugin;
@@ -25,6 +25,7 @@ impl Plugin for BevyUiPlugin {
         app
             // .insert_resource(WinitSettings::desktop_app())
             .add_plugins(DebugUiPlugin)
+            .add_resource(UiBuilderDefaults::new())
             .add_systems(Update, toggle_overlay)
             .add_systems(OnEnter(GameActivity::StartGame), setup)
             .add_systems(Update, update_scroll_position)
@@ -95,16 +96,15 @@ pub struct TradeCardList;
 fn setup(
     commands: Commands,
     asset_server: Res<AssetServer>,
-    player_trade_cards: Query<&PlayerTradeCards, With<IsHuman>>,
+    mut ui_defaults: ResMut<UiBuilderDefaults>
 ) {
     // root node
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-    let mut root_ui = UIBuilder::new(commands);
-    let grouped_cards = player_trade_cards
-        .get_single()
-        .unwrap()
-        .trade_cards_grouped_by_value_and_type();
-
+    ui_defaults.base_font = Some(font.clone_weak());
+    
+    
+    let mut root_ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
+    
     root_ui
         .with_component::<TradeCardUiRoot>()
         .as_flex_col_with_props(Val::Percent(25.), Val::Percent(100.), BG_COLOR)
