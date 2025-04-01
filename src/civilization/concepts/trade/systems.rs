@@ -10,28 +10,44 @@ use crate::GameActivity;
 use bevy::color::palettes::basic::GREEN;
 use bevy::math::vec2;
 use bevy::prelude::{debug, AssetServer, Button, Changed, Color, Commands, Entity, EventReader, Has, Interaction, JustifyContent, NextState, PositionType, Query, Res, ResMut, Time, UiRect, Val, With, Without};
+use bevy::ui::BackgroundColor;
+
+const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
+const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
+const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
 
 pub fn button_action(
-    interaction_query: Query<
-        (&Interaction, &ButtonAction<TradeButtonAction>),
+    mut interaction_query: Query<
+        (&Interaction, &ButtonAction<TradeButtonAction>, &mut BackgroundColor ),
         (Changed<Interaction>, With<Button>),
     >,
 ) {
-    for (interaction, menu_button_action) in &interaction_query {
-        if *interaction == Interaction::Pressed {
-            match menu_button_action.action {
-                TradeButtonAction::Ok => {}
-                TradeButtonAction::Cancel => {}
-                TradeButtonAction::TradeAction(trade_move_type) => match trade_move_type {
-                    TradeMoveType::OpenTradeOffer => {}
-                    TradeMoveType::AcceptTradeOffer => {}
-                    TradeMoveType::DeclineTradeOffer => {}
-                    TradeMoveType::CounterTradeOffer(_) => {}
-                    TradeMoveType::StopTrading => {}
-                    TradeMoveType::SettleTrade => {}
-                },
+    for (interaction, menu_button_action, mut bg_color) in &mut interaction_query {
+        match interaction {
+            Interaction::Pressed => {
+                *bg_color = PRESSED_BUTTON.into();
+                match menu_button_action.action {
+                    TradeButtonAction::Ok => {}
+                    TradeButtonAction::Cancel => {}
+                    TradeButtonAction::TradeAction(trade_move_type) => match trade_move_type {
+                        TradeMoveType::OpenTradeOffer => {
+                            debug!("Open trade offer");
+                        }
+                        TradeMoveType::AcceptTradeOffer => {}
+                        TradeMoveType::DeclineTradeOffer => {}
+                        TradeMoveType::CounterTradeOffer(_) => {}
+                        TradeMoveType::StopTrading => {}
+                        TradeMoveType::SettleTrade => {}
+                    },
+                }
             }
-        }
+            Interaction::Hovered => {
+                *bg_color = HOVERED_BUTTON.into();
+            }
+            Interaction::None => {
+                *bg_color = NORMAL_BUTTON.into();
+            }
+        } 
     }
 }
 
@@ -72,6 +88,7 @@ pub fn setup_trade(
             .with_children(|mut builder| {
                 builder.move_to_new_child()
                     .with_button_and(TradeButtonAction::TradeAction(OpenTradeOffer))
+                    .with_bg_color(Color::from(GREEN))
                     .with_padding(UiRect::all(Val::Px(10.0)))
                     .with_border(UiRect::all(Val::Px(5.)), border_color)
                     .with_box_shadow(vec2(5.0, 5.0), 5.0, 5.0)
