@@ -63,10 +63,10 @@ fn handle_player_draws_cards(
                         );
                         for (card_type, cards) in group.iter() {
                             b = b
-                                .move_to_new_child()
+                                .child()
                                 .as_block(Val::Percent(100.), Val::Px(80.), CARD_COLOR)
                                 .with_padding(UiRect::all(Val::Px(10.0)))
-                                .move_to_new_child()
+                                .child()
                                 .with_size(Val::Percent(100.0), Val::Percent(100.0))
                                 .with_text(
                                     format!("{}: {}", card_type, cards.len()),
@@ -109,7 +109,7 @@ fn setup(
         .with_component::<TradeCardUiRoot>()
         .as_flex_col_with_props(Val::Percent(25.), Val::Percent(100.), BG_COLOR)
         .add_text_child("Your trade cards!", font.clone(), 24.0, Some(Color::WHITE))
-        .move_to_new_child()
+        .child()
         .as_flex_col_with_props(Val::Percent(100.), Val::Percent(100.), BG_COLOR)
         .with_component::<TradeCardList>();
 

@@ -1,10 +1,11 @@
 use crate::civilization::concepts::trade::components::{
     PublishedOffer, PublishedOffersList, TradeOffer,
 };
-use crate::civilization::ui::ui_builder::UIBuilder;
+use crate::civilization::ui::ui_builder::{ButtonDef, NodePartial, UIBuilder};
 use bevy::color::palettes::basic::{GREEN, WHITE, YELLOW};
 use bevy::color::palettes::css::{DARK_GRAY, DARK_GREEN, DARK_RED};
-use bevy::prelude::{AssetServer, Color, Commands, Entity, JustifyContent, OnAdd, Query, Res, Trigger, UiRect, Val, With};
+use bevy::prelude::{default, AlignItems, AssetServer, Color, Commands, Entity, JustifyContent, OnAdd, Query, Res, Trigger, UiRect, Val, With};
+use bevy::ui::BorderRadius;
 
 pub fn offer_published(
     trigger: Trigger<OnAdd, PublishedOffer>,
@@ -24,21 +25,21 @@ pub fn offer_published(
             let mut ui_builder = UIBuilder::start_from_entity(new_commands, ui_list, false);
             
             ui_builder
-                .move_to_new_child()
+                .child()
                 .as_block(Val::Percent(100.0), Val::Auto, bg_color)
                 .with_margin(UiRect::all(Val::Px(10.0)))
                 .with_padding(UiRect::all(Val::Px(10.0)))
                 .with_border(UiRect::all(Val::Px(2.0)), border_color)
                 
                 // Add header with initiator name
-                .move_to_new_child()
+                .child()
                 .as_flex_row()
                 .with_justify_content(JustifyContent::SpaceBetween)
                 .with_size(Val::Percent(100.0), Val::Auto)
                 .with_margin(UiRect::bottom(Val::Px(10.0)))
                 
                 // Add initiator name
-                .move_to_new_child()
+                .child()
                 .with_text(
                     format!("Trade offer from: {}", trade_offer.initiator_name),
                     font.clone(),
@@ -48,7 +49,7 @@ pub fn offer_published(
                 .parent()
                 
                 // Add status indicators (open/direct/accepted)
-                .move_to_new_child()
+                .child()
                 .with_text(
                     if trade_offer.receiver.is_none() { "Open Offer" } 
                     else if trade_offer.trade_accepted() { "Accepted" }
@@ -61,18 +62,18 @@ pub fn offer_published(
                 .parent()
                 
                 // Trade details section
-                .move_to_new_child()
+                .child()
                 .as_flex_row()
                 .with_size(Val::Percent(100.0), Val::Auto)
                 .with_justify_content(JustifyContent::SpaceBetween)
                 
                 // What initiator offers
-                .move_to_new_child()
+                .child()
                 .as_flex_col_with_props(Val::Percent(48.0), Val::Auto, card_color)
                 .with_padding(UiRect::all(Val::Px(8.0)))
                 
                 // Header for what initiator offers
-                .move_to_new_child()
+                .child()
                 .with_text(
                     "Offers:",
                     font.clone(),
@@ -83,7 +84,7 @@ pub fn offer_published(
                 .with_children(|builder| {
                 for (commodity, count) in trade_offer.initiator_pays.iter() {
                     builder
-                        .move_to_new_child()
+                        .child()
                         .with_text(
                             format!("{}: {}", commodity, count),
                             font.clone(),
@@ -96,7 +97,7 @@ pub fn offer_published(
                 .with_children(|builder| {
                     for (commodity, count) in trade_offer.initiator_pays_guaranteed.iter() {
                         builder
-                            .move_to_new_child()
+                            .child()
                             .with_text(
                                 format!("{}: {} (Guaranteed)", commodity, count),
                                 font.clone(),
@@ -107,12 +108,12 @@ pub fn offer_published(
                     }
                 })
                 .parent()
-                .move_to_new_child()
+                .child()
                 .as_flex_col_with_props(Val::Percent(48.0), Val::Auto, card_color)
                 .with_padding(UiRect::all(Val::Px(8.0)))
                 
                 // Header for what initiator wants
-                .move_to_new_child()
+                .child()
                 .with_text(
                     "Wants:",
                     font.clone(),
@@ -123,7 +124,7 @@ pub fn offer_published(
                 .with_children(|builder| {
                     for (commodity, count) in trade_offer.initiator_gets.iter() {
                     builder
-                        .move_to_new_child()
+                        .child()
                         .with_text(
                             format!("{}: {}", commodity, count),
                             font.clone(),
@@ -134,7 +135,7 @@ pub fn offer_published(
                 }})
                 .with_children(|builder| {for (commodity, count) in trade_offer.initiator_gets_guaranteed.iter() {
                     builder
-                        .move_to_new_child()
+                        .child()
                         .with_text(
                             format!("{}: {} (Guaranteed)", commodity, count),
                             font.clone(),
@@ -155,14 +156,26 @@ pub fn offer_published(
                 ui_builder
                     .parent()
                     .parent()
-                    .move_to_new_child()
+                    .child()
                     .as_flex_row()
                     .with_size(Val::Percent(100.0), Val::Px(40.0))
                     .with_justify_content(JustifyContent::FlexEnd)
                     .with_margin(UiRect::top(Val::Px(10.0)))
                     
                     // Accept button
-                    .move_to_new_child()
+                    .child()
+                    .with_button(ButtonDef {
+                        text: "Accept".to_string(),
+                        font: font.clone_weak(),
+                        font_size: 18.0,
+                        text_color: Color::WHITE,
+                        bg_color,
+                        border_color,
+                        border_radius: BorderRadius::MAX,
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    })
                     .as_block(Val::Px(100.0), Val::Px(30.0), Color::from(DARK_GREEN))
                     .with_margin(UiRect::right(Val::Px(10.0)))
                     .with_button()
@@ -175,7 +188,7 @@ pub fn offer_published(
                     .parent()
                     
                     // Counter button
-                    .move_to_new_child()
+                    .child()
                     .as_block(Val::Px(100.0), Val::Px(30.0), Color::from(DARK_GRAY))
                     .with_margin(UiRect::right(Val::Px(10.0)))
                     .with_button()
@@ -188,7 +201,7 @@ pub fn offer_published(
                     .parent()
                     
                     // Decline button
-                    .move_to_new_child()
+                    .child()
                     .as_block(Val::Px(100.0), Val::Px(30.0), Color::from(DARK_RED))
                     .with_button()
                     .with_text(

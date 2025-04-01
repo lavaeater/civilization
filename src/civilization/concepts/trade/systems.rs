@@ -4,12 +4,12 @@ use crate::civilization::concepts::trade::components::{CanTrade, InSettlement, N
 use crate::civilization::concepts::trade::events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::resources::{TradeCountdown, TradeUiState};
 use crate::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
-use crate::civilization::ui::ui_builder::{ButtonAction, UIBuilder};
+use crate::civilization::ui::ui_builder::{ButtonAction, ButtonDef, UIBuilder};
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
 use bevy::color::palettes::basic::GREEN;
 use bevy::math::vec2;
-use bevy::prelude::{debug, AssetServer, Button, Changed, Color, Commands, Entity, EventReader, Has, Interaction, JustifyContent, NextState, PositionType, Query, Res, ResMut, Time, UiRect, Val, With, Without};
+use bevy::prelude::{debug, default, AssetServer, Button, Changed, Color, Commands, Entity, EventReader, Has, Interaction, JustifyContent, NextState, PositionType, Query, Res, ResMut, Time, UiRect, Val, With, Without};
 use bevy::ui::BackgroundColor;
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
@@ -82,21 +82,21 @@ pub fn setup_trade(
         ui_builder
             .as_flex_col_with_props(Val::Percent(60.), Val::Percent(100.), bg_color)
             .at(Val::Percent(60.), Val::Percent(0.0), PositionType::Absolute)
-            .move_to_new_child()
+            .child()
             .as_flex_row()
             .with_justify_content(JustifyContent::SpaceBetween)
             .with_children(|mut builder| {
-                builder.move_to_new_child()
-                    .with_button_and(TradeButtonAction::TradeAction(OpenTradeOffer))
-                    .with_bg_color(Color::from(GREEN))
-                    .with_padding(UiRect::all(Val::Px(10.0)))
-                    .with_border(UiRect::all(Val::Px(5.)), border_color)
-                    .with_box_shadow(vec2(5.0, 5.0), 5.0, 5.0)
-                    .with_text("Open Trade Offer", font, 15., Some(Color::WHITE))
+                builder
+                    .child()
+                    .with_button(ButtonDef {
+                        text: "Open Trade Offer".to_string(),
+                        font: font.clone_weak(),
+                        ..default()
+                    }, TradeButtonAction::TradeAction(OpenTradeOffer))
                     .parent();
             })
             .parent()
-            .move_to_new_child()
+            .child()
             .as_flex_col_with_props(Val::Percent(100.), Val::Percent(100.), bg_color)
             .with_component::<PublishedOffersList>();
 

@@ -1,3 +1,5 @@
+use bevy::color::palettes::basic::{BLACK, WHITE};
+use bevy::color::palettes::css::DARK_GRAY;
 use bevy::prelude::*;
 use bevy::reflect::Enum;
 use std::collections::VecDeque;
@@ -9,8 +11,176 @@ pub struct ButtonAction<T: Enum> {
 /// Fluent UI Builder for creating Bevy UI elements
 pub struct UIBuilder<'w, 's> {
     commands: Commands<'w, 's>,
+    defaults: Option<UiBuilderDefaults>,
     current_entity: Entity,
-    parent_stack: VecDeque<Entity>
+    parent_stack: VecDeque<Entity>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ButtonDef {
+    pub text: String,
+    pub font: Handle<Font>,
+    pub width: Val,
+    pub height: Val,
+    pub border: UiRect,
+    pub justify_content: JustifyContent,
+    pub align_items: AlignItems,
+    pub border_color: Color,
+    pub border_radius: BorderRadius,
+    pub bg_color: Color,
+    pub font_size: f32,
+    pub text_color: Color,
+}
+
+impl Default for ButtonDef {
+    fn default() -> Self {
+        Self {
+            text: "".to_string(),
+            font: Default::default(),
+            width: Val::Px(150.0),
+            height: Val::Px(75.0),
+            border: UiRect::all(Val::Px(5.0)),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            border_color: Color::from(BLACK),
+            border_radius: BorderRadius::ZERO,
+            bg_color: Color::from(DARK_GRAY),
+            font_size: 32.0,
+            text_color: Color::from(WHITE),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct NodeDef {
+    pub display: Display,
+    pub position_type: PositionType,
+    pub overflow: Overflow,
+    pub overflow_clip_margin: OverflowClipMargin,
+    pub left: Val,
+    pub right: Val,
+    pub top: Val,
+    pub bottom: Val,
+    pub width: Val,
+    pub height: Val,
+    pub min_width: Val,
+    pub min_height: Val,
+    pub max_width: Val,
+    pub max_height: Val,
+    pub aspect_ratio: Option<f32>,
+    pub align_items: AlignItems,
+    pub justify_items: JustifyItems,
+    pub align_self: AlignSelf,
+    pub justify_self: JustifySelf,
+    pub align_content: AlignContent,
+    pub justify_content: JustifyContent,
+    pub margin: UiRect,
+    pub padding: UiRect,
+    pub border: UiRect,
+    pub flex_direction: FlexDirection,
+    pub flex_wrap: FlexWrap,
+    pub flex_grow: f32,
+    pub flex_shrink: f32,
+    pub flex_basis: Val,
+    pub row_gap: Val,
+    pub column_gap: Val,
+    pub grid_auto_flow: GridAutoFlow,
+    pub grid_template_rows: Vec<RepeatedGridTrack>,
+    pub grid_template_columns: Vec<RepeatedGridTrack>,
+    pub grid_auto_rows: Vec<GridTrack>,
+    pub grid_auto_columns: Vec<GridTrack>,
+    pub grid_row: GridPlacement,
+    pub grid_column: GridPlacement,
+}
+
+impl Default for NodeDef {
+    fn default() -> Self {
+        Self {
+            display: Display::Flex,
+            position_type: PositionType::Relative,
+            overflow: Overflow::DEFAULT,
+            overflow_clip_margin: OverflowClipMargin::default(),
+            left: Val::Auto,
+            right: Val::Auto,
+            top: Val::Auto,
+            bottom: Val::Auto,
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            min_width: Val::Auto,
+            min_height: Val::Auto,
+            max_width: Val::Auto,
+            max_height: Val::Auto,
+            aspect_ratio: None,
+            align_items: AlignItems::Start,
+            justify_items: JustifyItems::Start,
+            align_self: AlignSelf::Auto,
+            justify_self: JustifySelf::Auto,
+            align_content: AlignContent::Default,
+            justify_content: JustifyContent::Default,
+            margin: UiRect::all(Val::Auto),
+            padding: UiRect::all(Val::Auto),   
+            border: UiRect::all(Val::Auto),
+            flex_direction: FlexDirection::Column,
+            flex_wrap: FlexWrap::Wrap,
+            flex_grow: 0.0,
+            flex_shrink: 1.0,
+            flex_basis: Val::Auto,
+            row_gap: Val::Auto,
+            column_gap: Val::Auto,
+            grid_auto_flow: GridAutoFlow::Column,
+            grid_template_rows: vec![],
+            grid_template_columns: vec![],
+            grid_auto_rows: vec![],
+            grid_auto_columns: vec![],
+            grid_row: GridPlacement::DEFAULT,
+            grid_column: GridPlacement::DEFAULT,
+        }
+    }
+}
+
+impl Into<Node> for NodeDef {
+    fn into(self) -> Node {
+        Node {
+            display: self.display,
+            position_type: self.position_type,
+            overflow: self.overflow,
+            overflow_clip_margin: self.overflow_clip_margin,
+            left: self.left,
+            right: self.right,
+            top: self.top,
+            bottom: self.bottom,
+            width: self.width,
+            height: self.height,
+            min_width: self.min_width,
+            min_height: self.min_height,
+            max_width: self.max_width,
+            max_height: self.max_height,
+            aspect_ratio: self.aspect_ratio,
+            align_items: self.align_items,
+            justify_items: self.justify_items,
+            align_self: self.align_self,
+            justify_self: self.justify_self,
+            align_content: self.align_content,
+            justify_content: self.justify_content,
+            margin: self.margin,
+            padding: self.padding,
+            border: self.border,
+            flex_direction: self.flex_direction,
+            flex_wrap: self.flex_wrap,
+            flex_grow: self.flex_grow,
+            flex_shrink: self.flex_shrink,
+            flex_basis: self.flex_basis,
+            row_gap: self.row_gap,
+            column_gap: self.column_gap,
+            grid_auto_flow: self.grid_auto_flow,
+            grid_template_rows: self.grid_template_rows,
+            grid_template_columns: self.grid_template_columns,
+            grid_auto_rows: self.grid_auto_rows,
+            grid_auto_columns: self.grid_auto_columns,
+            grid_row: self.grid_row,
+            grid_column: self.grid_column,
+        }
+    }
 }
 
 #[derive(Default, Clone, Debug)]
@@ -89,17 +259,32 @@ pub struct NodePartial {
     pub grid_column: Option<GridPlacement>,
 }
 
+pub struct UiBuilderDefaults {
+    pub node_def: Option<NodeDef>,
+    pub button_def: Option<ButtonDef>,
+    pub base_font: Option<Handle<Font>>,
+    pub font_size: Option<f32>,
+    pub bg_color: Option<Color>,
+    pub border_color: Option<Color>,
+    pub text_color: Option<Color>,
+}
+
 impl<'w, 's> UIBuilder<'w, 's> {
     /// Create a new root UI container
-    pub fn new(mut commands: Commands<'w, 's>) -> Self {
+    pub fn new(mut commands: Commands<'w, 's>,
+               defaults: Option<UiBuilderDefaults>
+               
+    ) -> Self {
         // Create a basic node entity with default settings
         let entity = commands.spawn_empty().id();
         commands.entity(entity).insert(Node::default());
 
         Self {
             commands,
+            defaults,
             current_entity: entity,
             parent_stack: VecDeque::new(),
+            
         }
     }
 
@@ -107,6 +292,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         mut commands: Commands<'w, 's>,
         entity: Entity,
         clear_children: bool,
+        defaults: Option<UiBuilderDefaults>
     ) -> Self {
         if clear_children {
             commands.entity(entity).despawn_descendants();
@@ -114,40 +300,88 @@ impl<'w, 's> UIBuilder<'w, 's> {
         commands.entity(entity).entry::<Node>().or_default();
         Self {
             commands,
+            defaults,
             current_entity: entity,
             parent_stack: VecDeque::new(),
         }
     }
-    
-    /// Add a Button component to the current entity
-    pub fn with_button(&mut self) -> &mut Self {
-        self.commands
-            .entity(self.current_entity)
-            .entry::<Button>().or_default();
-        self
+
+    pub fn with_button<T: Component>(
+        &mut self,
+        button_def: ButtonDef,
+        component: T,
+    ) -> &mut Self {
+        let mut internal = self.child();
+        internal.commands
+            .entity(internal.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut node| {
+                node.width = button_def.width;
+                node.height = button_def.height;
+                node.border = button_def.border;
+                node.justify_content = button_def.justify_content;
+                node.align_items = button_def.align_items;
+            });
+
+        internal.commands
+            .entity(internal.current_entity)
+            .insert((
+                component,
+                Button,
+                BorderColor(button_def.border_color),
+                button_def.border_radius,
+                BackgroundColor(button_def.bg_color),
+            ))
+            .with_child((
+                Text::new(button_def.text),
+                TextFont::from_font(button_def.font).with_font_size(button_def.font_size),
+                TextColor(button_def.text_color),
+            ));
+        internal
     }
-    
-    /// Add a Button component to the current entity with a specific component type
-    /// 
-    /// This version adds a default instance of the component type T
-    pub fn with_button_and_component<T: Component + Default>(&mut self) -> &mut Self {
+
+    pub fn add_button<T: Component>(
+        &mut self,
+        text: impl Into<String>,
+        font: Handle<Font>,
+        component: Option<T>,
+        width: Option<Val>,
+        height: Option<Val>,
+        border: Option<UiRect>,
+        justify_content: Option<JustifyContent>,
+        align_items: Option<AlignItems>,
+        border_color: Option<Color>,
+        border_radius: Option<BorderRadius>,
+        background_color: Option<Color>,
+        font_size: Option<f32>,
+        text_color: Option<Color>,
+    ) -> &mut Self {
         self.commands
             .entity(self.current_entity)
-            .entry::<Button>().or_default();
+            .entry::<Node>()
+            .and_modify(move |mut node| {
+                node.width = width.unwrap_or(Val::Px(150.0));
+                node.height = height.unwrap_or(Val::Px(65.0));
+                node.border = border.unwrap_or(UiRect::all(Val::Px(5.0)));
+                node.justify_content = justify_content.unwrap_or(JustifyContent::Center);
+                node.align_items = align_items.unwrap_or(AlignItems::Center);
+            });
+        if let Some(component) = component {
+            self.commands.entity(self.current_entity).insert(component);
+        }
         self.commands
             .entity(self.current_entity)
-            .entry::<T>().or_default();
-        self
-    }
-    
-    /// Add a Button component to the current entity with a specific component instance
-    /// 
-    /// This version adds the provided component instance
-    pub fn with_button_and<T: Component>(&mut self, component: T) -> &mut Self {
-        self.commands
-            .entity(self.current_entity)
-            .insert(Button)
-            .insert(component);
+            .insert((
+                Button,
+                BorderColor(border_color.unwrap_or(Color::BLACK)),
+                border_radius.unwrap_or(BorderRadius::ZERO),
+                BackgroundColor(background_color.unwrap_or(Color::from(DARK_GRAY))),
+            ))
+            .with_child((
+                Text::new(text),
+                TextFont::from_font(font).with_font_size(font_size.unwrap_or(20.0)),
+                TextColor(text_color.unwrap_or(Color::from(WHITE))),
+            ));
         self
     }
 
@@ -860,19 +1094,16 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .or_insert(BorderColor(border_color));
         self
     }
-    
-    pub fn with_box_shadow(&mut self, offset: Vec2, spread: f32, blur:f32) -> &mut Self {
-        self.commands
-            .entity(self.current_entity)
-            .insert(BoxShadow {
-                color: Color::BLACK.with_alpha(0.8),
-                x_offset: Val::Percent(offset.x),
-                y_offset: Val::Percent(offset.y),
-                spread_radius: Val::Percent(spread),
-                blur_radius: Val::Px(blur),
-            });
+
+    pub fn with_box_shadow(&mut self, offset: Vec2, spread: f32, blur: f32) -> &mut Self {
+        self.commands.entity(self.current_entity).insert(BoxShadow {
+            color: Color::BLACK.with_alpha(0.8),
+            x_offset: Val::Percent(offset.x),
+            y_offset: Val::Percent(offset.y),
+            spread_radius: Val::Percent(spread),
+            blur_radius: Val::Px(blur),
+        });
         self
-        
     }
 
     /// Apply a complete Node
@@ -899,7 +1130,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         font_size: f32,
         color: Option<Color>,
     ) -> &mut Self {
-        self.move_to_new_child()
+        self.child()
             .with_text(text, font, font_size, color)
             .parent()
     }
@@ -927,7 +1158,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Create a child container
-    pub fn move_to_new_child(&mut self) -> &mut Self {
+    pub fn child(&mut self) -> &mut Self {
         // Push current entity to parent stack
         self.parent_stack.push_back(self.current_entity);
 
