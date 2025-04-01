@@ -4,7 +4,7 @@ use crate::civilization::concepts::trade::components::{CanTrade, InSettlement, N
 use crate::civilization::concepts::trade::events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::resources::{TradeCountdown, TradeUiState};
 use crate::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
-use crate::civilization::ui::ui_builder::{ButtonAction, ButtonDef, UIBuilder};
+use crate::civilization::ui::ui_builder::{ButtonAction, ButtonDef, ButtonPartial, UIBuilder, UiBuilderDefaults};
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
 use bevy::color::palettes::basic::GREEN;
@@ -54,7 +54,7 @@ pub fn button_action(
 pub fn setup_trade(
     mut commands: Commands,
     trading_players_query: Query<(&PlayerTradeCards, Entity, Has<IsHuman>)>,
-    asset_server: ResMut<AssetServer>,
+    ui_builder_defaults: Res<UiBuilderDefaults>,
     mut trade_ui_state: ResMut<TradeUiState>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
@@ -72,15 +72,9 @@ pub fn setup_trade(
         debug!("No human player can trade. Skipping trade phase.");
         next_state.set(GameActivity::PopulationExpansion)
     } else {
-
-        let card_color = Color::srgba(0.7, 0.6, 0.2, 0.8);
-        let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
-        let border_color = Color::srgba(0.2, 0.2, 0.2, 0.8);
-        let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-
-        let mut ui_builder =  UIBuilder::new(commands);
+        let mut ui_builder =  UIBuilder::new(commands, Some(ui_builder_defaults.clone()));
         ui_builder
-            .as_flex_col_with_props(Val::Percent(60.), Val::Percent(100.), bg_color)
+            .as_flex_col_with_props(Val::Percent(60.), Val::Percent(100.), ui_builder_defaults.bg_color.unwrap())
             .at(Val::Percent(60.), Val::Percent(0.0), PositionType::Absolute)
             .child()
             .as_flex_row()
@@ -88,16 +82,15 @@ pub fn setup_trade(
             .with_children(|mut builder| {
                 builder
                     .child()
-                    .with_button(ButtonDef {
-                        text: "Open Trade Offer".to_string(),
-                        font: font.clone_weak(),
+                    .with_button(Some(ButtonPartial {
+                        text: Some("Open Trade Offer".to_string()),
                         ..default()
-                    }, TradeButtonAction::TradeAction(OpenTradeOffer))
+                    }), TradeButtonAction::TradeAction(OpenTradeOffer))
                     .parent();
             })
             .parent()
             .child()
-            .as_flex_col_with_props(Val::Percent(100.), Val::Percent(100.), bg_color)
+            .as_flex_col_with_props(Val::Percent(100.), Val::Percent(100.), ui_builder_defaults.bg_color.unwrap())
             .with_component::<PublishedOffersList>();
 
         let (ui_entity, commands) = ui_builder.build();

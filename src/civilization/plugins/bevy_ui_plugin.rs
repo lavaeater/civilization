@@ -3,7 +3,7 @@
 use crate::civilization::components::prelude::{TradeCounterType, TradeMoveType};
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::events::HumanPlayerTradeCardsUpdated;
-use crate::civilization::ui::ui_builder::{UIBuilder, UiBuilderDefaults};
+use crate::civilization::ui::ui_builder::{ButtonPartial, NodePartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR, CARD_COLOR, TEXT_COLOR};
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
 use bevy::dev_tools::ui_debug_overlay::DebugUiPlugin;
@@ -13,10 +13,8 @@ use bevy::{
     picking::focus::HoverMap,
     prelude::*,
 };
+use bevy::color::palettes::css::WHITE;
 use itertools::Itertools;
-
-const BG_COLOR: Color = Color::srgba(0.5, 0.5, 0.5, 0.25);
-const CARD_COLOR: Color = Color::srgba(0.7, 0.6, 0.2, 0.8);
 
 pub struct BevyUiPlugin;
 
@@ -25,7 +23,7 @@ impl Plugin for BevyUiPlugin {
         app
             // .insert_resource(WinitSettings::desktop_app())
             .add_plugins(DebugUiPlugin)
-            .add_resource(UiBuilderDefaults::new())
+            .insert_resource(UiBuilderDefaults::new())
             .add_systems(Update, toggle_overlay)
             .add_systems(OnEnter(GameActivity::StartGame), setup)
             .add_systems(Update, update_scroll_position)
@@ -37,6 +35,7 @@ fn handle_player_draws_cards(
     mut reader: EventReader<HumanPlayerTradeCardsUpdated>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    ui_builder_defaults: Res<UiBuilderDefaults>,
     trade_card_list: Query<Entity, With<TradeCardList>>,
     player_trade_cards: Query<&PlayerTradeCards, With<IsHuman>>,
 ) {
@@ -53,7 +52,7 @@ fn handle_player_draws_cards(
 
                 // Just debug values for now without rendering
                 let mut ui_builder =
-                    UIBuilder::start_from_entity(new_commands, trade_card_list, true);
+                    UIBuilder::start_from_entity(new_commands, trade_card_list, true, Some(ui_builder_defaults.clone()));
                 ui_builder.with_children(|mut b| {
                     for (value, group) in grouped_cards.iter().sorted_by_key(|(value, _)| *value) {
                         b.add_text_child(
@@ -101,7 +100,25 @@ fn setup(
     // root node
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
     ui_defaults.base_font = Some(font.clone_weak());
+    ui_defaults.bg_color = Some(BG_COLOR);
+    ui_defaults.text_color = Some(TEXT_COLOR);
+    ui_defaults.font_size = Some(24.0);
+    ui_defaults.border_color = Some(Color::srgba(0.2, 0.2, 0.2, 0.8));
+    ui_defaults.button_def = Some(ButtonPartial {
+        border_radius: Some(BorderRadius::MAX),
+        border_color: Some(BORDER_COLOR),
+        bg_color: Some(BG_COLOR),
+        text_color: Some(TEXT_COLOR),
+        ..default()
+    });
     
+    ui_defaults.node_def = Some(NodePartial {
+        border_radius: Some(BorderRadius::MAX),
+        margin: Some(UiRect::all(Val::Px(10.0))),
+        border_color: Some(BORDER_COLOR),
+        bg_color: Some(BG_COLOR),
+        ..default()
+    });
     
     let mut root_ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
     
