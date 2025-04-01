@@ -1,18 +1,59 @@
-use crate::civilization::concepts::trade::components::{
-    CanTrade, InSettlement, NeedsTradeMove, PlayerSettlements, PublishedOffer, TradeOffer,
-};
+use crate::civilization::components::prelude::TradeMoveType;
+use crate::civilization::concepts::trade::components::{CanTrade, InSettlement, NeedsTradeMove, PlayerSettlements, PublishedOffer, TradeButtonAction, TradeOffer};
 use crate::civilization::concepts::trade::events::SendTradingCardsCommand;
-use crate::civilization::concepts::trade::functions::receiver_can_pay_for_offer;
 use crate::civilization::concepts::trade::resources::{TradeCountdown, TradeUiState};
 use crate::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
-use crate::civilization::concepts::trade_cards::enums::Commodity;
+use crate::civilization::ui::ui_builder::ButtonAction;
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
-use bevy::prelude::{
-    Commands, Entity, EventReader, Has, Name, NextState, Query, Res, ResMut, Time, With,
-    Without,
-};
-use bevy::utils::HashMap;
+use bevy::prelude::{debug, Button, Changed, Commands, Entity, EventReader, Has, Interaction, NextState, Query, Res, ResMut, Time, With, Without};
+
+pub fn button_action(
+    interaction_query: Query<
+        (&Interaction, &ButtonAction<TradeButtonAction>),
+        (Changed<Interaction>, With<Button>),
+    >,
+) {
+    for (interaction, menu_button_action) in &interaction_query {
+        if *interaction == Interaction::Pressed {
+            match menu_button_action.action {
+                TradeButtonAction::Ok => {}
+                TradeButtonAction::Cancel => {}
+                TradeButtonAction::TradeAction(trade_move_type) => match trade_move_type {
+                    TradeMoveType::OpenTradeOffer => {}
+                    TradeMoveType::AcceptTradeOffer => {}
+                    TradeMoveType::DeclineTradeOffer => {}
+                    TradeMoveType::CounterTradeOffer(_) => {}
+                    TradeMoveType::StopTrading => {}
+                    TradeMoveType::SettleTrade => {}
+                },
+            }
+        }
+    }
+}
+
+pub fn setup_trade_ui(
+    mut commands: Commands,
+    trading_players_query: Query<(&PlayerTradeCards, Entity, Has<IsHuman>)>,
+    mut trade_ui_state: ResMut<TradeUiState>,
+    mut next_state: ResMut<NextState<GameActivity>>,
+) {
+    let mut has_any_human = false;
+
+    for (trade_cards, player, is_human) in trading_players_query.iter() {
+        if trade_cards.can_trade() {
+            if is_human {
+                has_any_human = true;
+                trade_ui_state.human_player = Some(player);
+            }
+            commands.entity(player).insert(CanTrade);
+        }
+    }
+    if !has_any_human {
+        debug!("No human player can trade. Skipping trade phase.");
+        next_state.set(GameActivity::PopulationExpansion)
+    }
+}
 
 pub fn setup_trade(
     mut commands: Commands,
@@ -32,7 +73,7 @@ pub fn setup_trade(
         }
     }
     if !has_any_human {
-        //debug!("No human player can trade. Skipping trade phase.");
+        debug!("No human player can trade. Skipping trade phase.");
         next_state.set(GameActivity::PopulationExpansion)
     }
 }

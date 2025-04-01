@@ -1,8 +1,16 @@
+use crate::civilization::components::prelude::TradeMoveType;
 use crate::civilization::concepts::trade_cards::enums::Commodity;
 use bevy::core::Name;
 use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
 use std::collections::VecDeque;
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Reflect)]
+pub enum TradeButtonAction {
+    Ok,
+    Cancel,
+    TradeAction(TradeMoveType),
+}
 
 #[derive(Component, Reflect, Debug)]
 pub struct InSettlement;
@@ -26,6 +34,9 @@ pub trait CoolDown {
 
 #[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]
 pub struct PublishedOffer;
+
+#[derive(Component, Default)]
+pub struct PublishedOffersList;
 
 #[derive(Debug, Reflect, Hash, Clone, Eq, PartialEq)]
 pub enum AvailableTradeOfferActions {

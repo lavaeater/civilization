@@ -1,6 +1,11 @@
 use bevy::prelude::*;
+use bevy::reflect::Enum;
 use std::collections::VecDeque;
 
+#[derive(Component)]
+pub struct ButtonAction<T: Enum> {
+    pub action: T,
+}
 /// Fluent UI Builder for creating Bevy UI elements
 pub struct UIBuilder<'w, 's> {
     commands: Commands<'w, 's>,
