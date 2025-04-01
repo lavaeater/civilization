@@ -146,7 +146,8 @@ impl<'w, 's> UIBuilder<'w, 's> {
     pub fn with_button_and<T: Component>(&mut self, component: T) -> &mut Self {
         self.commands
             .entity(self.current_entity)
-            .insert((Button, component));
+            .insert(Button)
+            .insert(component);
         self
     }
 

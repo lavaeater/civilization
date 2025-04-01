@@ -18,15 +18,15 @@ const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
 
 pub fn button_action(
     mut interaction_query: Query<
-        (&Interaction, &ButtonAction<TradeButtonAction>, &mut BackgroundColor ),
-        (Changed<Interaction>, With<Button>),
+        (&Interaction, &TradeButtonAction, &mut BackgroundColor),
+        (Changed<Interaction>),
     >,
 ) {
     for (interaction, menu_button_action, mut bg_color) in &mut interaction_query {
         match interaction {
             Interaction::Pressed => {
                 *bg_color = PRESSED_BUTTON.into();
-                match menu_button_action.action {
+                match menu_button_action {
                     TradeButtonAction::Ok => {}
                     TradeButtonAction::Cancel => {}
                     TradeButtonAction::TradeAction(trade_move_type) => match trade_move_type {
