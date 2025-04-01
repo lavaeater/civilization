@@ -55,7 +55,7 @@ fn handle_player_draws_cards(
                     UIBuilder::start_from_entity(new_commands, trade_card_list, true, Some(ui_builder_defaults.clone()));
                 ui_builder.with_children(|mut b| {
                     for (value, group) in grouped_cards.iter().sorted_by_key(|(value, _)| *value) {
-                        b.add_text_child(
+                        b = b.add_text_child(
                             format!("Cards with value: {}", value),
                             font.clone(),
                             24.0,
