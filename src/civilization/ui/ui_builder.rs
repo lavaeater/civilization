@@ -1,7 +1,5 @@
 use bevy::prelude::*;
-use bevy::utils::HashMap;
 use std::collections::VecDeque;
-use cucumber::WriterExt;
 
 /// Fluent UI Builder for creating Bevy UI elements
 pub struct UIBuilder<'w, 's> {
@@ -130,7 +128,9 @@ impl<'w, 's> UIBuilder<'w, 's> {
     pub fn with_button_and_component<T: Component + Default>(&mut self) -> &mut Self {
         self.commands
             .entity(self.current_entity)
-            .entry::<Button>().or_default()
+            .entry::<Button>().or_default();
+        self.commands
+            .entity(self.current_entity)
             .entry::<T>().or_default();
         self
     }
@@ -141,8 +141,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     pub fn with_button_and<T: Component>(&mut self, component: T) -> &mut Self {
         self.commands
             .entity(self.current_entity)
-            .entry::<Button>().or_default()
-            .insert(component);
+            .insert((Button, component));
         self
     }
 

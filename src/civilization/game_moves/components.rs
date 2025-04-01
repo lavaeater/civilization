@@ -96,13 +96,13 @@ impl PopExpMove {
     }
 }
 
-#[derive(Clone, Debug, Reflect, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug, Reflect, Copy, PartialEq, Eq, Hash)]
 pub enum TradeCounterType {
     TargetInitiator,
     TargetReceiver,
 }
 
-#[derive(Clone, Debug, Reflect, PartialEq, Eq, Copy)]
+#[derive(Clone, Debug, Reflect, PartialEq, Eq, Copy, Hash)]
 pub enum TradeMoveType {
     OpenTradeOffer,
     AcceptTradeOffer,

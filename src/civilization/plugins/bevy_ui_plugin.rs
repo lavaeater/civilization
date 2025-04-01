@@ -1,6 +1,6 @@
 //! This example illustrates the various features of Bevy UI.
 
-use crate::civilization::components::prelude::TradeCounterType;
+use crate::civilization::components::prelude::{TradeCounterType, TradeMoveType};
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::events::HumanPlayerTradeCardsUpdated;
 use crate::civilization::ui::ui_builder::UIBuilder;
@@ -36,6 +36,7 @@ impl Plugin for BevyUiPlugin {
 enum TradeButtonAction {
     Ok,
     Cancel,
+    TradeAction(TradeMoveType)
 }
 
 #[derive(Component)]
@@ -44,7 +45,7 @@ pub struct ButtonAction<T: Enum> {
 }
 
 
-fn menu_action(
+fn button_action(
     interaction_query: Query<
         (&Interaction, &ButtonAction<TradeButtonAction>),
         (Changed<Interaction>, With<Button>),
@@ -53,23 +54,17 @@ fn menu_action(
     for (interaction, menu_button_action) in &interaction_query {
         if *interaction == Interaction::Pressed {
             match menu_button_action.action {
-                TradeButtonAction::Quit => {
-                    app_exit_events.send(AppExit::Success);
-                }
-                TradeButtonAction::Play => {
-                    game_state.set(GameState::Game);
-                    menu_state.set(MenuState::Disabled);
-                }
-                TradeButtonAction::Settings => menu_state.set(MenuState::Settings),
-                TradeButtonAction::SettingsDisplay => {
-                    menu_state.set(MenuState::SettingsDisplay);
-                }
-                TradeButtonAction::SettingsSound => {
-                    menu_state.set(MenuState::SettingsSound);
-                }
-                TradeButtonAction::BackToMainMenu => menu_state.set(MenuState::Main),
-                TradeButtonAction::BackToSettings => {
-                    menu_state.set(MenuState::Settings);
+                TradeButtonAction::Ok => {}
+                TradeButtonAction::Cancel => {}
+                TradeButtonAction::TradeAction(trade_move_type) => {
+                    match trade_move_type {
+                        TradeMoveType::OpenTradeOffer => {}
+                        TradeMoveType::AcceptTradeOffer => {}
+                        TradeMoveType::DeclineTradeOffer => {}
+                        TradeMoveType::CounterTradeOffer(_) => {}
+                        TradeMoveType::StopTrading => {}
+                        TradeMoveType::SettleTrade => {}
+                    }
                 }
             }
         }
