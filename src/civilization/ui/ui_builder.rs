@@ -1,5 +1,4 @@
 use bevy::color::palettes::basic::{BLACK, WHITE};
-use bevy::color::palettes::css::DARK_GRAY;
 use bevy::prelude::*;
 use bevy::reflect::Enum;
 use std::collections::VecDeque;
@@ -66,8 +65,8 @@ impl Default for ButtonDef {
             align_items: AlignItems::Center,
             border_color: Color::from(BLACK),
             border_radius: BorderRadius::ZERO,
-            bg_color: Color::from(DARK_GRAY),
-            font_size: 32.0,
+            bg_color: Color::default(),
+            font_size: default(),
             text_color: Color::from(WHITE),
         }
     }
@@ -108,8 +107,8 @@ impl ButtonDef {
         TextColor::from(self.text_color)
     }
 
-    pub fn get_button_bundle(&self) -> (Button, Node, BackgroundColor, BorderColor, BorderRadius) {
-        (Button, self.get_node(), self.get_background_color(), self.get_border_color(), self.get_border_radius())
+    pub fn get_button_bundle(&self) -> (Button, BackgroundColor, BorderColor, BorderRadius) {
+        (Button, self.get_background_color(), self.get_border_color(), self.get_border_radius())
     }
 
     pub fn get_text_bundle(&self) -> (Text, TextFont, TextColor) {
@@ -354,11 +353,11 @@ pub struct NodePartial {
 pub struct UiBuilderDefaults {
     pub node_def: Option<NodePartial>,
     pub button_def: Option<ButtonPartial>,
-    pub base_font: Option<Handle<Font>>,
-    pub font_size: Option<f32>,
-    pub bg_color: Option<Color>,
-    pub border_color: Option<Color>,
-    pub text_color: Option<Color>,
+    pub base_font: Handle<Font>,
+    pub font_size: f32,
+    pub bg_color: Color,
+    pub border_color: Color,
+    pub text_color: Color,
 }
 
 impl UiBuilderDefaults {
@@ -390,33 +389,21 @@ impl UiBuilderDefaults {
                 def.align_items = input
                     .align_items
                     .unwrap_or(internal.align_items.unwrap_or(def.align_items));
-                def.border_radius = (input
+                def.border_radius = input
                     .border_radius
-                    .unwrap_or(internal.border_radius.unwrap_or(def.border_radius)))
-                .clone();
+                    .unwrap_or(internal.border_radius.unwrap_or(def.border_radius));
                 def.font_size = input.font_size.unwrap_or(
                     internal
                         .font_size
-                        .unwrap_or(self.font_size.unwrap_or(def.font_size)),
+                        .unwrap_or(self.font_size),
                 );
-                def.bg_color = input.bg_color.unwrap_or(
-                    internal.bg_color.unwrap_or(
-                        self.bg_color
-                            .unwrap_or(self.bg_color.unwrap_or(def.bg_color)),
-                    ),
-                );
+                def.bg_color = input.bg_color.unwrap_or(internal.bg_color.unwrap_or(self.bg_color));
                 def.text_color = input.text_color.unwrap_or(
                     internal.text_color.unwrap_or(
-                        self.text_color
-                            .unwrap_or(self.text_color.unwrap_or(def.text_color)),
-                    ),
-                );
+                        self.text_color));
                 def.border_color = input.border_color.unwrap_or(
                     internal.border_color.unwrap_or(
-                        self.border_color
-                            .unwrap_or(self.border_color.unwrap_or(def.border_color)),
-                    ),
-                );
+                        self.border_color));
             }
             (None, Some(input)) => {
                 def.text = input.text.unwrap_or(def.text);
@@ -576,7 +563,7 @@ impl UiBuilderDefaults {
                 def.bg_color = input.bg_color.unwrap_or(
                     internal
                         .bg_color
-                        .unwrap_or(self.bg_color.unwrap_or(def.bg_color)),
+                        .unwrap_or(self.bg_color),
                 );
                 def.border_radius = input
                     .border_radius
@@ -584,7 +571,7 @@ impl UiBuilderDefaults {
                 def.border_color = input.border_color.unwrap_or(
                     internal
                         .border_color
-                        .unwrap_or(self.border_color.unwrap_or(def.border_color)),
+                        .unwrap_or(self.border_color),
                 );
             }
             (None, Some(input)) => {
@@ -642,11 +629,11 @@ impl UiBuilderDefaults {
                 def.grid_column = input.grid_column.unwrap_or(def.grid_column);
                 def.bg_color = input
                     .bg_color
-                    .unwrap_or(self.bg_color.unwrap_or(def.bg_color));
+                    .unwrap_or(self.bg_color);
                 def.border_radius = input.border_radius.unwrap_or(def.border_radius);
                 def.border_color = input
                     .border_color
-                    .unwrap_or(self.border_color.unwrap_or(def.border_color));
+                    .unwrap_or(self.border_color);
             }
             (Some(internal), None) => {
                 def.display = internal.display.unwrap_or(def.display);
@@ -703,11 +690,11 @@ impl UiBuilderDefaults {
                 def.grid_column = internal.grid_column.unwrap_or(def.grid_column);
                 def.bg_color = internal
                     .bg_color
-                    .unwrap_or(self.bg_color.unwrap_or(def.bg_color));
+                    .unwrap_or(self.bg_color);
                 def.border_radius = internal.border_radius.unwrap_or(def.border_radius);
                 def.border_color = internal
                     .border_color
-                    .unwrap_or(self.border_color.unwrap_or(def.border_color));
+                    .unwrap_or(self.border_color);
             }
             (None, None) => {}
         }
@@ -721,10 +708,28 @@ impl UiBuilderDefaults {
         self.get_node_def(input).get_node_bundle()
     }
 
+
+    pub fn get_btn_node(
+        &self,
+        input: Option<ButtonPartial>,
+    ) -> Node {
+        let btn_def = self.get_btn_def(input);
+        
+        let node_partial = NodePartial {
+            width: Some(btn_def.width),
+            height: Some(btn_def.height),
+            border: Some(btn_def.border),
+            justify_content: Some(btn_def.justify_content),
+            align_items: Some(btn_def.align_items),
+            ..default()
+        };
+        self.get_node_def(Some(node_partial)).get_node()
+    }
+
     pub fn get_btn_bundle(
         &self,
         input: Option<ButtonPartial>,
-    ) -> (Button, Node, BackgroundColor, BorderColor, BorderRadius) {
+    ) -> (Button, BackgroundColor, BorderColor, BorderRadius) {
         self.get_btn_def(input).get_button_bundle()
     }
 
@@ -781,6 +786,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         internal
             .commands
             .entity(internal.current_entity)
+            .insert(internal.defaults.get_btn_node(button_def.clone()))
             .insert(internal.defaults.get_btn_bundle(button_def.clone()))
             .insert(component)
             .with_child(internal.defaults.get_btn_text_bundle(button_def));
@@ -1346,31 +1352,11 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self
     }
 
-    /// Set the current entity to be a flexbox container with a column flex direction
-    ///
-    /// The entity will be set to be a block with a flexbox display mode and a column
-    /// flex direction. This means that any children of the entity will be laid out
-    /// vertically from top to bottom.
-    ///
-    /// # Example
-    ///
-    ///
-    pub fn as_flex_col(&mut self) -> &mut Self {
-        self.commands
-            .entity(self.current_entity)
-            .entry::<Node>()
-            .and_modify(move |mut node| {
-                node.display = Display::Flex;
-                node.flex_direction = FlexDirection::Column;
-            });
-        self
-    }
 
-    pub fn as_flex_col_with_props(
+    pub fn as_flex_col(
         &mut self,
         width: Val,
         height: Val,
-        bg_color: Color,
     ) -> &mut Self {
         self.commands
             .entity(self.current_entity)
@@ -1384,14 +1370,6 @@ impl<'w, 's> UIBuilder<'w, 's> {
                 node.width = width;
                 node.height = height;
             });
-        self.commands
-            .entity(self.current_entity)
-            .entry::<BackgroundColor>()
-            .and_modify(move |mut bg| {
-                *bg = BackgroundColor(bg_color);
-            })
-            .or_insert(BackgroundColor(bg_color));
-
         self
     }
 
@@ -1528,27 +1506,35 @@ impl<'w, 's> UIBuilder<'w, 's> {
     pub fn add_text_child(
         &mut self,
         text: impl Into<String>,
-        font: Handle<Font>,
-        font_size: f32,
+        font: Option<Handle<Font>>,
+        font_size: Option<f32>,
         color: Option<Color>,
     ) -> &mut Self {
         self.child()
             .with_text(text, font, font_size, color)
             .parent()
     }
-
+    
+    pub fn add_default_text_child(&mut self, text: impl Into<String>) -> &mut Self {
+        self.add_text_child(text, None, None, None)
+    }
+    
+    pub fn with_default_text(&mut self, text: impl Into<String>) -> &mut Self {
+        self.with_text(text, None, None, None)
+    }
+    
     pub fn with_text(
         &mut self,
         text: impl Into<String>,
-        font: Handle<Font>,
-        font_size: f32,
+        font: Option<Handle<Font>>,
+        font_size: Option<f32>,
         color: Option<Color>,
     ) -> &mut Self {
-        let text_color = color.unwrap_or(Color::BLACK);
+        let text_color = color.unwrap_or(self.defaults.text_color);
 
         let text_bundle = (
             Text::new(text.into()),
-            TextFont::from_font(font).with_font_size(font_size),
+            TextFont::from_font(font.unwrap_or(self.defaults.base_font.clone_weak())).with_font_size(font_size.unwrap_or(self.defaults.font_size)),
             TextColor(text_color),
         );
 

@@ -28,7 +28,7 @@ pub fn button_action(
                     TradeButtonAction::Ok => {}
                     TradeButtonAction::Cancel => {}
                     TradeButtonAction::TradeAction(trade_move_type) => match trade_move_type {
-                        TradeMoveType::OpenTradeOffer => {
+                        OpenTradeOffer => {
                             debug!("Open trade offer");
                         }
                         TradeMoveType::AcceptTradeOffer => {}
@@ -72,23 +72,20 @@ pub fn setup_trade(
     } else {
         let mut ui_builder =  UIBuilder::new(commands, Some(ui_builder_defaults.clone()));
         ui_builder
-            .as_flex_col_with_props(Val::Percent(60.), Val::Percent(100.), ui_builder_defaults.bg_color.unwrap())
+            .as_flex_col(Val::Percent(60.), Val::Percent(100.))
             .at(Val::Percent(60.), Val::Percent(0.0), PositionType::Absolute)
             .child()
             .as_flex_row()
             .with_justify_content(JustifyContent::SpaceBetween)
             .with_children(|builder| {
                 builder
-                    .child()
                     .with_button(Some(ButtonPartial {
                         text: Some("Open Trade Offer".to_string()),
                         ..default()
-                    }), TradeButtonAction::TradeAction(OpenTradeOffer))
-                    .parent();
+                    }), TradeButtonAction::TradeAction(OpenTradeOffer));
             })
-            .parent()
             .child()
-            .as_flex_col_with_props(Val::Percent(100.), Val::Percent(100.), ui_builder_defaults.bg_color.unwrap())
+            .as_flex_col(Val::Percent(100.), Val::Percent(100.))
             .with_component::<PublishedOffersList>();
 
         let (_ui_entity, _commands) = ui_builder.build();
