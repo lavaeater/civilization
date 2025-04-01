@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::reflect::Enum;
 use std::collections::VecDeque;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct ButtonAction<T: Enum> {
     pub action: T,
 }
@@ -858,6 +858,20 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .and_modify(move |mut b_color| *b_color = BorderColor(border_color))
             .or_insert(BorderColor(border_color));
         self
+    }
+    
+    pub fn with_box_shadow(&mut self, offset: Vec2, spread: f32, blur:f32) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .insert(BoxShadow {
+                color: Color::BLACK.with_alpha(0.8),
+                x_offset: Val::Percent(offset.x),
+                y_offset: Val::Percent(offset.y),
+                spread_radius: Val::Percent(spread),
+                blur_radius: Val::Px(blur),
+            });
+        self
+        
     }
 
     /// Apply a complete Node

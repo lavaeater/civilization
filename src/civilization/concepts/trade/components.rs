@@ -5,8 +5,9 @@ use bevy::prelude::{Component, Entity, Reflect};
 use bevy::utils::{HashMap, HashSet};
 use std::collections::VecDeque;
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Reflect)]
+#[derive(Component, Default, Clone, PartialEq, Eq, Hash, Debug, Reflect)]
 pub enum TradeButtonAction {
+    #[default]
     Ok,
     Cancel,
     TradeAction(TradeMoveType),

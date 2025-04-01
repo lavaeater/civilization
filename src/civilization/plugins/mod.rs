@@ -4,7 +4,6 @@ pub mod conflict_plugin;
 pub mod civilization_plugin;
 pub mod movement_plugin;
 pub mod remove_surplus_plugin;
-pub mod ui_plugin;
 mod bevy_ui_plugin;
 
 pub mod prelude {
@@ -15,5 +14,5 @@ pub mod prelude {
     pub use crate::civilization::plugins::conflict_plugin::*;
     pub use crate::civilization::plugins::movement_plugin::*;
     pub use crate::civilization::plugins::remove_surplus_plugin::*;
-    pub use crate::civilization::plugins::ui_plugin::*;
+    pub use crate::civilization::plugins::bevy_ui_plugin::*;
 }

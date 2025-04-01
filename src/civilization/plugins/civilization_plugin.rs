@@ -20,7 +20,7 @@ pub struct CivilizationPlugin;
 impl Plugin for CivilizationPlugin {
     fn build(&self, app: &mut App) {
         app
-            .insert_resource(DebugOptions::new(true))
+            .insert_resource(DebugOptions::new(false))
             .register_type::<Token>()
             .register_type::<LandPassage>()
             .register_type::<TokenStock>()

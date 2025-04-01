@@ -1,12 +1,15 @@
 use crate::civilization::components::prelude::TradeMoveType;
-use crate::civilization::concepts::trade::components::{CanTrade, InSettlement, NeedsTradeMove, PlayerSettlements, PublishedOffer, TradeButtonAction, TradeOffer};
+use crate::civilization::components::prelude::TradeMoveType::OpenTradeOffer;
+use crate::civilization::concepts::trade::components::{CanTrade, InSettlement, NeedsTradeMove, PlayerSettlements, PublishedOffer, PublishedOffersList, TradeButtonAction, TradeOffer};
 use crate::civilization::concepts::trade::events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::resources::{TradeCountdown, TradeUiState};
 use crate::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
-use crate::civilization::ui::ui_builder::ButtonAction;
+use crate::civilization::ui::ui_builder::{ButtonAction, UIBuilder};
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
-use bevy::prelude::{debug, Button, Changed, Commands, Entity, EventReader, Has, Interaction, NextState, Query, Res, ResMut, Time, With, Without};
+use bevy::color::palettes::basic::GREEN;
+use bevy::math::vec2;
+use bevy::prelude::{debug, AssetServer, Button, Changed, Color, Commands, Entity, EventReader, Has, Interaction, JustifyContent, NextState, PositionType, Query, Res, ResMut, Time, UiRect, Val, With, Without};
 
 pub fn button_action(
     interaction_query: Query<
@@ -32,37 +35,14 @@ pub fn button_action(
     }
 }
 
-pub fn setup_trade_ui(
-    mut commands: Commands,
-    trading_players_query: Query<(&PlayerTradeCards, Entity, Has<IsHuman>)>,
-    mut trade_ui_state: ResMut<TradeUiState>,
-    mut next_state: ResMut<NextState<GameActivity>>,
-) {
-    let mut has_any_human = false;
-
-    for (trade_cards, player, is_human) in trading_players_query.iter() {
-        if trade_cards.can_trade() {
-            if is_human {
-                has_any_human = true;
-                trade_ui_state.human_player = Some(player);
-            }
-            commands.entity(player).insert(CanTrade);
-        }
-    }
-    if !has_any_human {
-        debug!("No human player can trade. Skipping trade phase.");
-        next_state.set(GameActivity::PopulationExpansion)
-    }
-}
-
 pub fn setup_trade(
     mut commands: Commands,
     trading_players_query: Query<(&PlayerTradeCards, Entity, Has<IsHuman>)>,
+    asset_server: ResMut<AssetServer>,
     mut trade_ui_state: ResMut<TradeUiState>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     let mut has_any_human = false;
-
     for (trade_cards, player, is_human) in trading_players_query.iter() {
         if trade_cards.can_trade() {
             if is_human {
@@ -75,6 +55,36 @@ pub fn setup_trade(
     if !has_any_human {
         debug!("No human player can trade. Skipping trade phase.");
         next_state.set(GameActivity::PopulationExpansion)
+    } else {
+
+        let card_color = Color::srgba(0.7, 0.6, 0.2, 0.8);
+        let bg_color = Color::srgba(0.5, 0.5, 0.5, 0.25);
+        let border_color = Color::srgba(0.2, 0.2, 0.2, 0.8);
+        let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+
+        let mut ui_builder =  UIBuilder::new(commands);
+        ui_builder
+            .as_flex_col_with_props(Val::Percent(60.), Val::Percent(100.), bg_color)
+            .at(Val::Percent(60.), Val::Percent(0.0), PositionType::Absolute)
+            .move_to_new_child()
+            .as_flex_row()
+            .with_justify_content(JustifyContent::SpaceBetween)
+            .with_children(|mut builder| {
+                builder.move_to_new_child()
+                    .with_button_and(TradeButtonAction::TradeAction(OpenTradeOffer))
+                    .with_padding(UiRect::all(Val::Px(10.0)))
+                    .with_border(UiRect::all(Val::Px(5.)), border_color)
+                    .with_box_shadow(vec2(5.0, 5.0), 5.0, 5.0)
+                    .with_text("Open Trade Offer", font, 15., Some(Color::WHITE))
+                    .parent();
+            })
+            .parent()
+            .move_to_new_child()
+            .as_flex_col_with_props(Val::Percent(100.), Val::Percent(100.), bg_color)
+            .with_component::<PublishedOffersList>();
+
+        let (ui_entity, commands) = ui_builder.build();
+        
     }
 }
 
