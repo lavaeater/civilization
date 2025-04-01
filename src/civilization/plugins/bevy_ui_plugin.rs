@@ -41,12 +41,8 @@ fn handle_player_draws_cards(
     let mut new_commands = commands;
     for event in reader.read() {
         if let Ok(trade_card_list) = trade_card_list.get_single() {
-            debug!("Trade Card List exists!");
             if let Ok(player_trade_cards) = player_trade_cards.get(event.player_entity) {
-                debug!("Player Trade Cards: {:?}", player_trade_cards);
                 let grouped_cards = player_trade_cards.trade_cards_grouped_by_value_and_type();
-
-                // Just debug values for now without rendering
                 let mut ui_builder = UIBuilder::start_from_entity(
                     new_commands,
                     trade_card_list,
@@ -55,19 +51,15 @@ fn handle_player_draws_cards(
                 );
                 ui_builder.with_children(|mut b| {
                     for (value, group) in grouped_cards.iter().sorted_by_key(|(value, _)| *value) {
-                        b = b
-                            .add_default_text_child(
-                                format!("Cards with value: {}", value),
-                            );
+                        b.add_default_text_child(format!("Cards with value: {}", value));
                         for (card_type, cards) in group.iter() {
-                            b = b
+                            b
                                 .child()
                                 .as_block(Val::Percent(100.), Val::Px(80.), CARD_COLOR)
                                 .with_padding(UiRect::all(Val::Px(10.0)))
                                 .child()
                                 .with_size(Val::Percent(100.0), Val::Percent(100.0))
-                                .with_default_text(
-                                    format!("{}: {}", card_type, cards.len()))
+                                .with_default_text(format!("{}: {}", card_type, cards.len()))
                                 .parent();
                         }
                     }
@@ -91,7 +83,7 @@ fn setup(
 ) {
     // root node
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-    ui_defaults.base_font = font.clone_weak();
+    ui_defaults.base_font = font.clone();
     ui_defaults.bg_color = BG_COLOR;
     ui_defaults.text_color = TEXT_COLOR;
     ui_defaults.font_size = 24.0;
@@ -103,9 +95,7 @@ fn setup(
 
     ui_defaults.node_def = Some(NodePartial {
         display: Some(Display::Flex),
-        flex_direction: Some(FlexDirection::Column),
-        justify_content: Some(JustifyContent::SpaceBetween),
-        border_radius: Some(BorderRadius::MAX),
+        border_radius: Some(BorderRadius::ZERO),
         margin: Some(UiRect::all(Val::Px(10.0))),
         ..default()
     });
@@ -126,7 +116,7 @@ fn setup(
 
 fn toggle_overlay(mut options: ResMut<bevy::dev_tools::ui_debug_overlay::UiDebugOptions>) {
     info_once!("Will enable overlays automatically perhaps");
-    if !options.enabled {
+    if options.enabled {
         options.toggle();
     }
 }

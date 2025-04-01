@@ -100,7 +100,7 @@ impl ButtonDef {
     }
 
     pub fn get_text_font(&self) -> TextFont {
-        TextFont::from_font(self.font.clone_weak()).with_font_size(self.font_size)
+        TextFont::from_font(self.font.clone()).with_font_size(self.font_size)
     }
 
     pub fn get_text_color(&self) -> TextColor {
@@ -165,9 +165,9 @@ impl Default for NodeDef {
     fn default() -> Self {
         Self {
             display: Display::Flex,
-            position_type: PositionType::Relative,
-            overflow: Overflow::DEFAULT,
-            overflow_clip_margin: OverflowClipMargin::default(),
+            position_type: PositionType::Absolute,
+            overflow: Overflow::clip(),
+            overflow_clip_margin: OverflowClipMargin::DEFAULT,
             left: Val::Auto,
             right: Val::Auto,
             top: Val::Auto,
@@ -192,9 +192,9 @@ impl Default for NodeDef {
             flex_wrap: FlexWrap::Wrap,
             flex_grow: 0.0,
             flex_shrink: 1.0,
-            flex_basis: Val::Auto,
-            row_gap: Val::Auto,
-            column_gap: Val::Auto,
+            flex_basis: Val::DEFAULT,
+            row_gap: Val::DEFAULT,
+            column_gap: Val::DEFAULT,
             grid_auto_flow: GridAutoFlow::Column,
             grid_template_rows: vec![],
             grid_template_columns: vec![],
@@ -202,8 +202,8 @@ impl Default for NodeDef {
             grid_auto_columns: vec![],
             grid_row: GridPlacement::DEFAULT,
             grid_column: GridPlacement::DEFAULT,
-            bg_color: Color::from(BG_COLOR),
-            border_color: Color::from(BLACK),
+            bg_color: BG_COLOR,
+            border_color: BORDER_COLOR,
             border_radius: BorderRadius::ZERO,
         }
     }
@@ -375,7 +375,7 @@ impl UiBuilderDefaults {
                 def.font = (input
                     .font
                     .unwrap_or(internal.font.clone().unwrap_or(def.font)))
-                .clone_weak();
+                .clone();
                 def.width = input.width.unwrap_or(internal.width.unwrap_or(def.width));
                 def.height = input
                     .height
@@ -407,7 +407,7 @@ impl UiBuilderDefaults {
             }
             (None, Some(input)) => {
                 def.text = input.text.unwrap_or(def.text);
-                def.font = (input.font.unwrap_or(def.font)).clone_weak();
+                def.font = input.font.unwrap_or(def.font).clone();
                 def.width = input.width.unwrap_or(def.width);
                 def.height = input.height.unwrap_or(def.height);
                 def.border = input.border.unwrap_or(def.border);
@@ -421,7 +421,7 @@ impl UiBuilderDefaults {
             }
             (Some(internal), None) => {
                 def.text = internal.text.clone().unwrap_or(def.text);
-                def.font = (internal.font.clone().unwrap_or(def.font)).clone_weak();
+                def.font = internal.font.clone().unwrap_or(def.font).clone();
                 def.width = internal.width.unwrap_or(def.width);
                 def.height = internal.height.unwrap_or(def.height);
                 def.border = internal.border.unwrap_or(def.border);
@@ -1534,7 +1534,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
 
         let text_bundle = (
             Text::new(text.into()),
-            TextFont::from_font(font.unwrap_or(self.defaults.base_font.clone_weak())).with_font_size(font_size.unwrap_or(self.defaults.font_size)),
+            TextFont::from_font(font.unwrap_or(self.defaults.base_font.clone())).with_font_size(font_size.unwrap_or(self.defaults.font_size)),
             TextColor(text_color),
         );
 
