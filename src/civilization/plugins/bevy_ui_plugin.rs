@@ -28,6 +28,7 @@ impl Plugin for BevyUiPlugin {
             .add_systems(Update, toggle_overlay)
             .add_systems(OnEnter(GameActivity::StartGame), setup)
             .add_systems(Update, update_scroll_position)
+            .add_systems(Update, button_action)
             .add_systems(Update, handle_player_draws_cards);
     }
 }
@@ -58,7 +59,9 @@ fn button_action(
                 TradeButtonAction::Cancel => {}
                 TradeButtonAction::TradeAction(trade_move_type) => {
                     match trade_move_type {
-                        TradeMoveType::OpenTradeOffer => {}
+                        TradeMoveType::OpenTradeOffer => {
+                            
+                        }
                         TradeMoveType::AcceptTradeOffer => {}
                         TradeMoveType::DeclineTradeOffer => {}
                         TradeMoveType::CounterTradeOffer(_) => {}
