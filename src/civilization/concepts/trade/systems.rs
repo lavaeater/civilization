@@ -4,12 +4,10 @@ use crate::civilization::concepts::trade::components::{CanTrade, InSettlement, N
 use crate::civilization::concepts::trade::events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::resources::{TradeCountdown, TradeUiState};
 use crate::civilization::concepts::trade_cards::components::{PlayerTradeCards, TradeCard};
-use crate::civilization::ui::ui_builder::{ButtonAction, ButtonDef, ButtonPartial, UIBuilder, UiBuilderDefaults};
+use crate::civilization::ui::ui_builder::{ButtonPartial, UIBuilder, UiBuilderDefaults};
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
-use bevy::color::palettes::basic::GREEN;
-use bevy::math::vec2;
-use bevy::prelude::{debug, default, AssetServer, Button, Changed, Color, Commands, Entity, EventReader, Has, Interaction, JustifyContent, NextState, PositionType, Query, Res, ResMut, Time, UiRect, Val, With, Without};
+use bevy::prelude::{debug, default, Changed, Color, Commands, Entity, EventReader, Has, Interaction, JustifyContent, NextState, PositionType, Query, Res, ResMut, Time, Val, With, Without};
 use bevy::ui::BackgroundColor;
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
@@ -19,7 +17,7 @@ const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
 pub fn button_action(
     mut interaction_query: Query<
         (&Interaction, &TradeButtonAction, &mut BackgroundColor),
-        (Changed<Interaction>),
+        Changed<Interaction>,
     >,
 ) {
     for (interaction, menu_button_action, mut bg_color) in &mut interaction_query {
@@ -79,7 +77,7 @@ pub fn setup_trade(
             .child()
             .as_flex_row()
             .with_justify_content(JustifyContent::SpaceBetween)
-            .with_children(|mut builder| {
+            .with_children(|builder| {
                 builder
                     .child()
                     .with_button(Some(ButtonPartial {
@@ -93,7 +91,7 @@ pub fn setup_trade(
             .as_flex_col_with_props(Val::Percent(100.), Val::Percent(100.), ui_builder_defaults.bg_color.unwrap())
             .with_component::<PublishedOffersList>();
 
-        let (ui_entity, commands) = ui_builder.build();
+        let (_ui_entity, _commands) = ui_builder.build();
         
     }
 }

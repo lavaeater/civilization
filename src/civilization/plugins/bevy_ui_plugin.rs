@@ -1,19 +1,16 @@
 //! This example illustrates the various features of Bevy UI.
 
-use crate::civilization::components::prelude::{TradeCounterType, TradeMoveType};
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::events::HumanPlayerTradeCardsUpdated;
 use crate::civilization::ui::ui_builder::{ButtonPartial, NodePartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR, CARD_COLOR, TEXT_COLOR};
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
 use bevy::dev_tools::ui_debug_overlay::DebugUiPlugin;
-use bevy::reflect::Enum;
 use bevy::{
     input::mouse::{MouseScrollUnit, MouseWheel},
     picking::focus::HoverMap,
     prelude::*,
 };
-use bevy::color::palettes::css::WHITE;
 use itertools::Itertools;
 
 pub struct BevyUiPlugin;
@@ -33,7 +30,7 @@ impl Plugin for BevyUiPlugin {
 
 fn handle_player_draws_cards(
     mut reader: EventReader<HumanPlayerTradeCardsUpdated>,
-    mut commands: Commands,
+    commands: Commands,
     asset_server: Res<AssetServer>,
     ui_builder_defaults: Res<UiBuilderDefaults>,
     trade_card_list: Query<Entity, With<TradeCardList>>,
@@ -60,7 +57,7 @@ fn handle_player_draws_cards(
                             font.clone(),
                             24.0,
                             Some(Color::WHITE),
-                        );
+                        ).parent();
                         for (card_type, cards) in group.iter() {
                             b = b
                                 .child()
@@ -83,7 +80,6 @@ fn handle_player_draws_cards(
             }
         }
     }
-    commands = new_commands;
 }
 
 #[derive(Component, Default)]
@@ -131,12 +127,12 @@ fn setup(
         .with_component::<TradeCardList>();
 
     // Get the built entity and commands back
-    let (root_entity, commands) = root_ui.build();
+    let (_root_entity, _commands) = root_ui.build();
 }
 
 fn toggle_overlay(mut options: ResMut<bevy::dev_tools::ui_debug_overlay::UiDebugOptions>) {
     info_once!("Will enable overlays automatically perhaps");
-    if options.enabled {
+    if !options.enabled {
         options.toggle();
     }
 }

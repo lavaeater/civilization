@@ -1,11 +1,9 @@
-use crate::civilization::concepts::trade::components::{PublishedOffer, PublishedOffersList, TradeButtonAction, TradeOffer};
-use crate::civilization::ui::ui_builder::{ButtonDef, ButtonPartial, NodePartial, UIBuilder, UiBuilderDefaults};
-use bevy::color::palettes::basic::{GREEN, WHITE, YELLOW};
-use bevy::color::palettes::css::{DARK_GRAY, DARK_GREEN, DARK_RED};
-use bevy::prelude::{default, AlignItems, AssetServer, Color, Commands, Entity, JustifyContent, OnAdd, Query, Res, Trigger, UiRect, Val, With};
-use bevy::ui::BorderRadius;
 use crate::civilization::components::prelude::TradeCounterType::TargetInitiator;
 use crate::civilization::components::prelude::TradeMoveType::{AcceptTradeOffer, CounterTradeOffer};
+use crate::civilization::concepts::trade::components::{PublishedOffer, PublishedOffersList, TradeButtonAction, TradeOffer};
+use crate::civilization::ui::ui_builder::{ButtonPartial, UIBuilder, UiBuilderDefaults};
+use bevy::color::palettes::basic::{GREEN, WHITE, YELLOW};
+use bevy::prelude::{default, AssetServer, Color, Commands, Entity, JustifyContent, OnAdd, Query, Res, Trigger, UiRect, Val, With};
 
 pub fn offer_published(
     trigger: Trigger<OnAdd, PublishedOffer>,
@@ -153,7 +151,7 @@ pub fn offer_published(
             
             
             // Add action buttons if this is a direct offer to the player
-            if let Some(receiver) = trade_offer.receiver {
+            if let Some(_receiver) = trade_offer.receiver {
                 ui_builder
                     .parent()
                     .parent()
