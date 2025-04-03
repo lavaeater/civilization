@@ -378,3 +378,9 @@ impl TradeOffer {
         new_offer
     }
 }
+
+#[derive(Component, Default)]
+pub struct TradeCardUiRoot;
+
+#[derive(Component, Default)]
+pub struct TradeCardList;

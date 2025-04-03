@@ -1,5 +1,6 @@
 //! This example illustrates the various features of Bevy UI.
 
+use crate::civilization::concepts::trade::components::{TradeCardList, TradeCardUiRoot};
 use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
 use crate::civilization::concepts::trade_cards::events::HumanPlayerTradeCardsUpdated;
 use crate::civilization::ui::ui_builder::{
@@ -30,6 +31,47 @@ impl Plugin for BevyUiPlugin {
             .add_systems(Update, handle_player_draws_cards);
     }
 }
+fn setup(
+    commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut ui_defaults: ResMut<UiBuilderDefaults>,
+) {
+    // root node
+    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    ui_defaults.base_font = font.clone();
+    ui_defaults.bg_color = BG_COLOR;
+    ui_defaults.text_color = TEXT_COLOR;
+    ui_defaults.font_size = 18.0;
+    ui_defaults.border_color = BORDER_COLOR;
+    ui_defaults.button_def = Some(ButtonPartial {
+        border_radius: Some(BorderRadius::MAX),
+        ..default()
+    });
+    ui_defaults.node_def =  Some(NodePartial {
+        border_radius: Some(BorderRadius::ZERO),
+        padding: Some(UiRect::all(Val::Px(5.0))),
+        margin: Some(UiRect::all(Val::Px(2.5))),
+        justify_content: Some(JustifyContent::FlexStart),
+        align_items: Some(AlignItems::FlexStart),
+        align_content: Some(AlignContent::Center),
+        justify_items: Some(JustifyItems::Center),
+        justify_self: Some(JustifySelf::Auto),
+        ..default()
+    });
+
+    let mut root_ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
+
+    root_ui
+        .with_component::<TradeCardUiRoot>()
+        .as_flex_col(Val::Percent(25.), Val::Percent(100.))
+        .add_default_text_child("Your trade cards!")
+        .child()
+        .as_flex_col(Val::Percent(100.), Val::Percent(100.))
+        .with_component::<TradeCardList>();
+
+    // Get the built entity and commands back
+    let (_root_entity, _commands) = root_ui.build();
+}
 
 fn handle_player_draws_cards(
     mut reader: EventReader<HumanPlayerTradeCardsUpdated>,
@@ -57,10 +99,7 @@ fn handle_player_draws_cards(
                         for (card_type, cards) in group.iter() {
                             b = b
                                 .child()
-                                .as_block(Val::Percent(100.), Val::Px(80.), CARD_COLOR)
-                                .with_padding(UiRect::all(Val::Px(10.0)))
-                                .child()
-                                .with_size(Val::Percent(100.0), Val::Percent(100.0))
+                                .as_block(Val::Px(160.), Val::Px(40.), CARD_COLOR)
                                 .with_default_text(format!("{}: {}", card_type, cards.len()))
                                 .parent();
                         }
@@ -72,58 +111,7 @@ fn handle_player_draws_cards(
     }
 }
 
-#[derive(Component, Default)]
-pub struct TradeCardUiRoot;
 
-#[derive(Component, Default)]
-pub struct TradeCardList;
-
-fn setup(
-    commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut ui_defaults: ResMut<UiBuilderDefaults>,
-) {
-    // root node
-    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-    ui_defaults.base_font = font.clone();
-    ui_defaults.bg_color = BG_COLOR;
-    ui_defaults.text_color = TEXT_COLOR;
-    ui_defaults.font_size = 24.0;
-    ui_defaults.border_color = BORDER_COLOR;
-    ui_defaults.button_def = Some(ButtonPartial {
-        border_radius: Some(BorderRadius::MAX),
-        ..default()
-    });
-
-    /*
-    node.flex_direction = FlexDirection::Column;
-node.align_items = AlignItems::FlexStart;
-node.align_content = AlignContent::FlexStart;
-node.justify_content = JustifyContent::FlexStart;
-node.width = width;
-node.height = height;
-     */
-    
-    ui_defaults.node_def = None; 
-    // Some(NodePartial {
-    //     border_radius: Some(BorderRadius::ZERO),
-    //     margin: Some(UiRect::all(Val::Px(10.0))),
-    //     ..default()
-    // });
-
-    let mut root_ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
-
-    root_ui
-        .with_component::<TradeCardUiRoot>()
-        .as_flex_col(Val::Percent(25.), Val::Percent(100.))
-        .add_default_text_child("Your trade cards!")
-        .child()
-        .as_flex_col(Val::Percent(100.), Val::Percent(100.))
-        .with_component::<TradeCardList>();
-
-    // Get the built entity and commands back
-    let (_root_entity, _commands) = root_ui.build();
-}
 
 fn toggle_overlay(mut options: ResMut<bevy::dev_tools::ui_debug_overlay::UiDebugOptions>) {
     info_once!("Will enable overlays automatically perhaps");
