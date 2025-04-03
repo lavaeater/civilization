@@ -1,9 +1,10 @@
 use crate::civilization::components::prelude::*;
 use crate::civilization::concepts::census::components::Census;
 use crate::civilization::concepts::map::map_plugin::AvailableFactions;
-use crate::civilization::concepts::trade_cards::components::PlayerTradeCards;
+use crate::civilization::concepts::trade_cards::components::{CivilizationTradeCards, PlayerTradeCards};
 use crate::civilization::enums::prelude::GameFaction;
 use crate::civilization::events::prelude::*;
+use crate::civilization::plugins::civilization_plugin::DebugOptions;
 use crate::player::Player;
 use crate::stupid_ai::prelude::*;
 use crate::GameActivity;
@@ -15,6 +16,7 @@ use rand::seq::IteratorRandom;
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
     start_area_query: Query<(Entity, &Name, &StartArea)>,
+    debug_options: Res<DebugOptions>,
     mut writer: EventWriter<MoveTokensFromStockToAreaCommand>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
@@ -37,6 +39,8 @@ pub fn start_game(
 }
 
 pub fn setup_players(
+    debug_options: Res<DebugOptions>,
+    mut trade_card_resource: ResMut<CivilizationTradeCards>,
     mut commands: Commands,
     mut available_factions: ResMut<AvailableFactions>) {
     debug!("3. Setting up players!");
@@ -59,12 +63,21 @@ pub fn setup_players(
                     PlayerAreas::default(),
                     PlayerCities::default(),
                     StupidAi,
-                    PlayerTradeCards::default(),
+                    PlayerTradeCards::default()
                 ))
                 .id();
 
             if *faction == GameFaction::Assyria {
                 commands.entity(player).insert(IsHuman);
+                if debug_options.human_starts_with_trade_cards {
+                    let mut player_trade_cards = PlayerTradeCards::default();
+                        (1..=9).for_each(|pile| {
+                        if let Some(pulled_card) = trade_card_resource.pull_card_from(pile) {
+                            player_trade_cards.add_trade_card(pulled_card);
+                        }
+                    });
+                    commands.entity(player).insert(player_trade_cards);
+                }
             }
 
             let tokens = (0..47)
@@ -120,10 +133,10 @@ pub fn fix_token_positions(
                 if let Ok(mut token_transform) = token_transform_query.get_mut(*token) {
                     token_transform.translation = area_transform.translation
                         + vec3(
-                            (player_index * 15) as f32,
-                            ((token_index as i32) * -5) as f32,
-                            0.0,
-                        );
+                        (player_index * 15) as f32,
+                        ((token_index as i32) * -5) as f32,
+                        0.0,
+                    );
                 }
             }
         }

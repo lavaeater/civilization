@@ -49,11 +49,13 @@ fn handle_player_draws_cards(
                     true,
                     Some(ui_builder_defaults.clone()),
                 );
-                ui_builder.with_children(|mut b| {
+                let mut b = ui_builder.with_children(|mut b| {
                     for (value, group) in grouped_cards.iter().sorted_by_key(|(value, _)| *value) {
-                        b.add_default_text_child(format!("Cards with value: {}", value));
+                        b = b
+                            .add_default_text_child(format!("Cards with value: {}", value))
+                            .parent();
                         for (card_type, cards) in group.iter() {
-                            b
+                            b = b
                                 .child()
                                 .as_block(Val::Percent(100.), Val::Px(80.), CARD_COLOR)
                                 .with_padding(UiRect::all(Val::Px(10.0)))
@@ -93,12 +95,21 @@ fn setup(
         ..default()
     });
 
-    ui_defaults.node_def = Some(NodePartial {
-        display: Some(Display::Flex),
-        border_radius: Some(BorderRadius::ZERO),
-        margin: Some(UiRect::all(Val::Px(10.0))),
-        ..default()
-    });
+    /*
+    node.flex_direction = FlexDirection::Column;
+node.align_items = AlignItems::FlexStart;
+node.align_content = AlignContent::FlexStart;
+node.justify_content = JustifyContent::FlexStart;
+node.width = width;
+node.height = height;
+     */
+    
+    ui_defaults.node_def = None; 
+    // Some(NodePartial {
+    //     border_radius: Some(BorderRadius::ZERO),
+    //     margin: Some(UiRect::all(Val::Px(10.0))),
+    //     ..default()
+    // });
 
     let mut root_ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
 

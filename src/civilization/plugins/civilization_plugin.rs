@@ -20,7 +20,7 @@ pub struct CivilizationPlugin;
 impl Plugin for CivilizationPlugin {
     fn build(&self, app: &mut App) {
         app
-            .insert_resource(DebugOptions::new(true))
+            .insert_resource(DebugOptions::new(true, true))
             .register_type::<Token>()
             .register_type::<LandPassage>()
             .register_type::<TokenStock>()
@@ -77,13 +77,15 @@ impl Plugin for CivilizationPlugin {
 
 #[derive(Resource)]
 pub struct DebugOptions {
-    pub human_always_pulls_trade_cards: bool
+    pub human_always_pulls_trade_cards: bool,
+    pub human_starts_with_trade_cards: bool,
 }
 
 impl DebugOptions {
-    pub fn new(human_always_pulls_trade_cards: bool) -> Self {
+    pub fn new(human_always_pulls_trade_cards: bool, human_starts_with_trade_cards: bool,) -> Self {
         Self {
-            human_always_pulls_trade_cards
+            human_always_pulls_trade_cards,
+            human_starts_with_trade_cards
         }
     }
 }
