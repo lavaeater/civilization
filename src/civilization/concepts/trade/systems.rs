@@ -57,6 +57,7 @@ pub fn setup_trade(
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     let mut has_any_human = false;
+    let mut players_that_can_trade_count: usize = 0;
     for (trade_cards, player, is_human) in trading_players_query.iter() {
         if trade_cards.can_trade() {
             if is_human {
@@ -64,9 +65,10 @@ pub fn setup_trade(
                 trade_ui_state.human_player = Some(player);
             }
             commands.entity(player).insert(CanTrade);
+            players_that_can_trade_count += 1;
         }
     }
-    if !has_any_human {
+    if !has_any_human || players_that_can_trade_count < 2 {
         debug!("No human player can trade. Skipping trade phase.");
         next_state.set(GameActivity::PopulationExpansion)
     } else {
