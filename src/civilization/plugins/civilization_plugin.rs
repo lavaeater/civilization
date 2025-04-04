@@ -19,8 +19,7 @@ pub struct CivilizationPlugin;
 /// Player logic is only active during the State `GameState::Playing`
 impl Plugin for CivilizationPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .insert_resource(DebugOptions::new(true, false))
+        app.insert_resource(DebugOptions::new(true, false, true))
             .register_type::<Token>()
             .register_type::<LandPassage>()
             .register_type::<TokenStock>()
@@ -32,46 +31,39 @@ impl Plugin for CivilizationPlugin {
             .add_event::<MoveTokensFromStockToAreaCommand>()
             .add_sub_state::<GameActivity>()
             .add_systems(
-                Update, (
-                    print_names_of_phases.run_if(in_state(GameState::Playing)),
-                ),
+                Update,
+                (print_names_of_phases.run_if(in_state(GameState::Playing)),),
             )
-            .add_plugins(
-                (
-                    // CommandsPlugin,
-                    PopulationExpansionPlugin,
-                    CensusPlugin,
-                    MovementPlugin,
-                    ConflictPlugin,
-                    TradePlugin,
-                )
-            )
-            .add_plugins(
-                (
-                    CityConstructionPlugin,
-                    RemoveSurplusPlugin,
-                    CitySupportPlugin,
-                    StupidAiPlugin,
-                    GameMovesPlugin,
-                    TradeCardPlugin,
-                    MapPlugin,
-                    BevyUiPlugin
-                )
-            )
+            .add_plugins((
+                // CommandsPlugin,
+                PopulationExpansionPlugin,
+                CensusPlugin,
+                MovementPlugin,
+                ConflictPlugin,
+                TradePlugin,
+            ))
+            .add_plugins((
+                CityConstructionPlugin,
+                RemoveSurplusPlugin,
+                CitySupportPlugin,
+                StupidAiPlugin,
+                GameMovesPlugin,
+                TradeCardPlugin,
+                MapPlugin,
+                BevyUiPlugin,
+            ))
             .add_systems(OnEnter(GameActivity::StartGame), start_game)
             // .add_plugins(WorldInspectorPlugin::new())
             .insert_resource(GameInfoAndStuff::default())
             .add_systems(
-                Update, (
-                    connect_areas
-                        .run_if(in_state(GameState::Playing)),
-                    move_tokens_from_stock_to_area
-                        .run_if(in_state(GameState::Playing)),
-                    fix_token_positions
-                        .run_if(in_state(GameState::Playing)),
-                ))
-            .add_observer(on_add_return_token_to_stock)
-        ;
+                Update,
+                (
+                    connect_areas.run_if(in_state(GameState::Playing)),
+                    move_tokens_from_stock_to_area.run_if(in_state(GameState::Playing)),
+                    fix_token_positions.run_if(in_state(GameState::Playing)),
+                ),
+            )
+            .add_observer(on_add_return_token_to_stock);
     }
 }
 
@@ -79,14 +71,19 @@ impl Plugin for CivilizationPlugin {
 pub struct DebugOptions {
     pub human_always_pulls_trade_cards: bool,
     pub human_starts_with_trade_cards: bool,
+    pub auto_trading: bool,
 }
 
 impl DebugOptions {
-    pub fn new(human_always_pulls_trade_cards: bool, human_starts_with_trade_cards: bool,) -> Self {
+    pub fn new(
+        human_always_pulls_trade_cards: bool,
+        human_starts_with_trade_cards: bool,
+        auto_trading: bool,
+    ) -> Self {
         Self {
             human_always_pulls_trade_cards,
-            human_starts_with_trade_cards
+            human_starts_with_trade_cards,
+            auto_trading,
         }
     }
 }
-
