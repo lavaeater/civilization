@@ -73,14 +73,14 @@ pub fn setup_trade(
         let mut ui_builder =  UIBuilder::new(commands, Some(ui_builder_defaults.clone()));
         ui_builder
             .as_flex_col(Val::Percent(60.), Val::Percent(100.))
-            .at(Val::Percent(60.), Val::Percent(0.0), PositionType::Absolute)
+            .at(Val::Percent(60.), Val::Percent(0.0), PositionType::Relative)
             .child()
-            .as_flex_row()
             .with_justify_content(JustifyContent::SpaceBetween)
             .with_children(|builder| {
                 builder
                     .with_button(Some(ButtonPartial {
                         text: Some("Open Trade Offer".to_string()),
+                        width: Some(Val::Px(400.)),
                         ..default()
                     }), TradeButtonAction::TradeAction(OpenTradeOffer));
             })

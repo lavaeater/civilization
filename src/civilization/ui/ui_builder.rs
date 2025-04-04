@@ -779,17 +779,17 @@ impl<'w, 's> UIBuilder<'w, 's> {
 
     pub fn with_button<T: Component>(
         &mut self,
-        button_def: Option<ButtonPartial>,
+        button_partial: Option<ButtonPartial>,
         component: T,
     ) -> &mut Self {
         let internal = self.child();
         internal
             .commands
             .entity(internal.current_entity)
-            .insert(internal.defaults.get_btn_node(button_def.clone()))
-            .insert(internal.defaults.get_btn_bundle(button_def.clone()))
+            .insert(internal.defaults.get_btn_node(button_partial.clone()))
+            .insert(internal.defaults.get_btn_bundle(button_partial.clone()))
             .insert(component)
-            .with_child(internal.defaults.get_btn_text_bundle(button_def));
+            .with_child(internal.defaults.get_btn_text_bundle(button_partial));
         internal.parent()
     }
 
