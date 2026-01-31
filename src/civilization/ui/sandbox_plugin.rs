@@ -15,16 +15,16 @@ impl Plugin for SandboxPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(UiBuilderDefaults::new())
             .init_resource::<AvailableFactions>()
-            .insert_resource(DebugOptions {
-                number_of_players: 3,
-                human_faction: GameFaction::Egypt,
-                human_always_pulls_trade_cards: true,
-                ai_always_pulls_trade_cards: false,
-                human_starts_with_trade_cards: true,
-                auto_trading: false,
-                add_human_player: true,
-                print_selected_moves: false,
-            })
+            // .insert_resource(DebugOptions {
+            //     number_of_players: 3,
+            //     human_faction: GameFaction::Egypt,
+            //     human_always_pulls_trade_cards: true,
+            //     ai_always_pulls_trade_cards: false,
+            //     human_starts_with_trade_cards: true,
+            //     auto_trading: false,
+            //     add_human_player: true,
+            //     print_selected_moves: false,
+            // })
             .init_resource::<SandboxLayoutState>()
             .add_systems(
                 OnEnter(GameState::Sandbox),
@@ -95,14 +95,20 @@ const CONTROL_BTN_HOVER: Color = Color::srgba(0.5, 0.5, 0.5, 1.0);
 fn setup_factions(
     mut available_factions: ResMut<AvailableFactions>
 ) {
-    available_factions.factions.insert(GameFaction::Egypt);
-    available_factions.remaining_factions.insert(GameFaction::Egypt);
-    available_factions.factions.insert(GameFaction::Thrace);
-    available_factions.remaining_factions.insert(GameFaction::Thrace);
-    available_factions.factions.insert(GameFaction::Africa);
-    available_factions.remaining_factions.insert(GameFaction::Africa);
-    available_factions.factions.insert(GameFaction::Crete);
-    available_factions.remaining_factions.insert(GameFaction::Crete);
+    for faction in [
+        GameFaction::Egypt,
+        GameFaction::Crete,
+        GameFaction::Africa,
+        GameFaction::Asia,
+        GameFaction::Assyria,
+        GameFaction::Babylon,
+        GameFaction::Illyria,
+        GameFaction::Iberia,
+        GameFaction::Thrace,
+    ] {
+        available_factions.factions.insert(faction);
+        available_factions.remaining_factions.insert(faction);
+    }
 }
 
 fn setup_trade_ui(
