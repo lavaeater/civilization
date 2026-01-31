@@ -234,20 +234,11 @@ fn build_control_row(
 
         // Value display
         ui.build_text(format!("{:.0}", initial_value), |ui| {
-            ui.width_px(40.)
-                .align_items_center()
-                .justify_center()
+            ui
+                .width_px(40.)
+                .text_justify_center()  // This centers the text content
                 .insert(LayoutValueDisplay { property });
         });
-        
-        // ui.with_child(|ui| {
-        //     ui.default_text(format!("{:.0}", initial_value))
-        //         .width_px(40.)
-        //         .align_items_center()
-        //         .justify_center()
-        //         .insert(LayoutValueDisplay { property });
-        // });
-
         // Increase button (+1)
         ui.with_child(|ui| {
             ui.add_button(

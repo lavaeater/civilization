@@ -2395,6 +2395,15 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self
     }
 
+    pub fn text_align(&mut self, justify: Justify) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<TextLayout>()
+            .and_modify(move |mut tl| tl.justify = justify)
+            .or_insert(TextLayout::new(justify, LineBreak::default()));
+        self
+    }
+
     /// Center text content within the text node
     pub fn text_justify_center(&mut self) -> &mut Self {
         self.text_justify(Justify::Center)
