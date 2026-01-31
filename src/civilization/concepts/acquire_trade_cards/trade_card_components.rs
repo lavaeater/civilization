@@ -33,6 +33,16 @@ impl CivilizationTradeCards {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct PlayerCardStack {
+    pub card_type: TradeCard,
+    pub count: usize,
+    pub suite_value: usize,
+    pub is_tradeable: bool,
+    pub is_commodity: bool,
+    pub is_calamity: bool,
+}
+
 #[derive(Component, Debug, Reflect, Default, Clone)]
 pub struct PlayerTradeCards {
     cards: HashMap<TradeCard, usize>,
@@ -221,6 +231,30 @@ impl PlayerTradeCards {
             *entry.entry(*card).or_insert(0) = *count;
         }
         grouped
+    }
+
+    pub fn as_card_stacks(&self) -> Vec<PlayerCardStack> {
+        self.cards
+            .iter()
+            .map(|(card, &count)| PlayerCardStack {
+                card_type: *card,
+                count,
+                suite_value: if card.is_commodity() {
+                    count * count * card.value()
+                } else {
+                    0
+                },
+                is_tradeable: card.is_tradeable(),
+                is_commodity: card.is_commodity(),
+                is_calamity: card.is_calamity(),
+            })
+            .collect()
+    }
+
+    pub fn as_card_stacks_sorted_by_value(&self) -> Vec<PlayerCardStack> {
+        let mut stacks = self.as_card_stacks();
+        stacks.sort_by(|a, b| b.card_type.value().cmp(&a.card_type.value()));
+        stacks
     }
 
     pub fn remove_n_trade_cards(&mut self, n: usize, trade_card: TradeCard) -> Option<usize> {

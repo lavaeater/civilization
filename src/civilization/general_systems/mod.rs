@@ -38,12 +38,17 @@ pub fn start_game(
     next_state.set(GameActivity::PopulationExpansion);
 }
 
+pub fn start_game_after_player_setup(
+    mut next_state: ResMut<NextState<GameActivity>>,
+) {
+    next_state.set(GameActivity::StartGame);
+}
+
 pub fn setup_players(
     debug_options: Res<DebugOptions>,
     mut trade_card_resource: ResMut<CivilizationTradeCards>,
     mut commands: Commands,
     mut available_factions: ResMut<AvailableFactions>,
-    mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     debug!("3. Setting up players!");
     (1..=debug_options.number_of_players).for_each(|n| {
@@ -103,8 +108,6 @@ pub fn setup_players(
             ));
         }
     });
-    next_state.set(GameActivity::StartGame);
-    //debug!("Players are set up!");
 }
 
 pub fn connect_areas(

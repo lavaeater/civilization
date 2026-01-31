@@ -9,6 +9,7 @@ use bevy::prelude::{in_state, App, AssetServer, Assets, Camera, Commands, Handle
 use bevy::window::{PrimaryWindow, WindowResized};
 use bevy_common_assets::ron::RonAssetPlugin;
 use rand::seq::IteratorRandom;
+use crate::civilization::start_game_after_player_setup;
 
 pub struct MapPlugin;
 
@@ -19,7 +20,7 @@ impl Plugin for MapPlugin {
             .add_systems(Startup, setup)
             .add_systems(
                 OnEnter(GameActivity::PrepareGame),
-                (load_map, setup_players).chain(),
+                (load_map, setup_players, start_game_after_player_setup).chain(),
             )
             .add_systems(
                 Update,
@@ -103,7 +104,7 @@ struct MapHandle(Handle<Map>);
 
 #[derive(Resource, Default)]
 pub struct AvailableFactions {
-    factions: HashSet<GameFaction>,
+    pub factions: HashSet<GameFaction>,
     pub remaining_factions: HashSet<GameFaction>,
     pub faction_icons: HashMap<GameFaction, Handle<Image>>,
     pub faction_city_icons: HashMap<GameFaction, Handle<Image>>,

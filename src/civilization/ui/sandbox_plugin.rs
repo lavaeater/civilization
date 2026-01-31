@@ -2,18 +2,34 @@ use crate::civilization::ui::ui_builder::{
     ButtonPartial, NodePartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR, TEXT_COLOR,
 };
 
-
+use crate::civilization::civilization_plugin::DebugOptions;
+use crate::civilization::{setup_players, AvailableFactions, GameFaction, PlayerTradeCards};
+use crate::player::Player;
 use crate::GameState;
 use bevy::prelude::*;
+use crate::stupid_ai::prelude::IsHuman;
 
 pub struct SandboxPlugin;
 
 impl Plugin for SandboxPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .insert_resource(UiBuilderDefaults::new())
+        app.insert_resource(UiBuilderDefaults::new())
+            .init_resource::<AvailableFactions>()
+            .insert_resource(DebugOptions {
+                number_of_players: 3,
+                human_faction: GameFaction::Egypt,
+                human_always_pulls_trade_cards: true,
+                ai_always_pulls_trade_cards: false,
+                human_starts_with_trade_cards: true,
+                auto_trading: false,
+                add_human_player: true,
+                print_selected_moves: false,
+            })
             .init_resource::<SandboxLayoutState>()
-            .add_systems(OnEnter(GameState::Sandbox), setup)
+            .add_systems(
+                OnEnter(GameState::Sandbox),
+                (setup_factions, setup_players, setup_trade_ui).chain(),
+            )
             .add_systems(
                 Update,
                 (handle_layout_controls, update_sample_box).run_if(in_state(GameState::Sandbox)),
@@ -76,7 +92,88 @@ const CONTROL_PANEL_COLOR: Color = Color::srgba(0.2, 0.2, 0.2, 0.95);
 const CONTROL_BTN_COLOR: Color = Color::srgba(0.4, 0.4, 0.4, 1.0);
 const CONTROL_BTN_HOVER: Color = Color::srgba(0.5, 0.5, 0.5, 1.0);
 
-fn setup(
+fn setup_factions(
+    mut available_factions: ResMut<AvailableFactions>
+) {
+    available_factions.factions.insert(GameFaction::Egypt);
+    available_factions.remaining_factions.insert(GameFaction::Egypt);
+    available_factions.factions.insert(GameFaction::Thrace);
+    available_factions.remaining_factions.insert(GameFaction::Thrace);
+    available_factions.factions.insert(GameFaction::Africa);
+    available_factions.remaining_factions.insert(GameFaction::Africa);
+    available_factions.factions.insert(GameFaction::Crete);
+    available_factions.remaining_factions.insert(GameFaction::Crete);
+}
+
+fn setup_trade_ui(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut ui_defaults: ResMut<UiBuilderDefaults>,
+    layout_state: Res<SandboxLayoutState>,
+    player_trade_cards: Query<(&PlayerTradeCards), With<IsHuman>>,
+) {
+    // Spawn camera for UI rendering
+    commands.spawn((
+        Camera2d,
+        IsDefaultUiCamera,
+        Projection::Orthographic(OrthographicProjection::default_2d()),
+        Msaa::Off,
+    ));
+
+    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    ui_defaults.base_font = font;
+    ui_defaults.bg_color = BG_COLOR;
+    ui_defaults.text_color = TEXT_COLOR;
+    ui_defaults.font_size = 16.0;
+    ui_defaults.border_color = BORDER_COLOR;
+    ui_defaults.button_def = Some(ButtonPartial {
+        border_radius: Some(BorderRadius::MAX),
+        border_color: Some(BORDER_COLOR),
+        ..default()
+    });
+    ui_defaults.node_def = Some(
+        NodePartial::new()
+            .border_all_px(2.0)
+            .border_color(BORDER_COLOR)
+            .border_radius_zero()
+            .padding_all_px(8.0)
+            .margin_all_px(6.0),
+    );
+    ui_defaults.text_justify = Some(Justify::Center);
+    ui_defaults.text_line_break = Some(LineBreak::WordBoundary);
+
+    let mut ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
+
+    ui.with_component::<SandboxUiRoot>()
+        .size_percent(50.0, 98.0)
+        .display_flex()
+        .flex_dir_row();
+
+    // Left side: Sample box display area
+    ui.add_panel(|ui| {
+        ui.size_percent(100.0, 100.0)
+            .padding_all_px(8.0)
+            .display_flex()
+            .justify_center()
+            .align_items_center()
+            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.3));
+        
+        if let Ok(trade_cards) = player_trade_cards.single() {
+            
+            let stacks = trade_cards.as_card_stacks_sorted_by_value();
+            for stack in stacks {
+                // stack.card_type, stack.count, stack.suite_value, etc. all ready to use
+                ui.add_row(|row| {
+                    row.add_text_child(stack.card_type.to_string(), None, None, None);
+                });
+            }
+        }
+    });
+
+    let (_root, _commands) = ui.build();
+}
+
+fn setup_sandbox(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut ui_defaults: ResMut<UiBuilderDefaults>,
@@ -140,8 +237,7 @@ fn setup(
                 .justify_center()
                 .align_items_center();
 
-            ui
-                .text_node("Sample Text");
+            ui.text_node("Sample Text");
         });
     });
     // Right side: Control panel
@@ -193,8 +289,7 @@ fn build_control_row(
     initial_value: f32,
 ) {
     ui.add_row(|ui| {
-        ui
-            .align_items_center()
+        ui.align_items_center()
             .justify_space_between()
             .column_gap_px(4.0)
             .margin_zero()
@@ -202,7 +297,7 @@ fn build_control_row(
 
         // Label
         ui.text_with_width(label, 50.0);
-        
+
         //Decrease button (-10)
         ui.with_child(|ui| {
             ui.add_button(
@@ -218,7 +313,7 @@ fn build_control_row(
                 },
             );
         });
-        
+
         //Decrease button (-1)
         ui.with_child(|ui| {
             ui.add_button(
@@ -234,7 +329,7 @@ fn build_control_row(
                 },
             );
         });
-        
+
         ui.with_child(|ui| {
             ui.width_px(40.0)
                 .height_px(28.0)
@@ -243,10 +338,9 @@ fn build_control_row(
                 .justify_center();
 
             ui.build_text(format!("{:.0}", initial_value), |ui| {
-                ui
-                    .width_px(40.0)
+                ui.width_px(40.0)
                     .align_items_center()
-                    .text_justify_center()  // This centers the text content
+                    .text_justify_center() // This centers the text content
                     .insert(LayoutValueDisplay { property });
             });
         });

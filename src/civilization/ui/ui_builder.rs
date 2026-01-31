@@ -36,7 +36,7 @@ pub struct TextBundle {
 pub const BG_COLOR: Color = Color::srgba(0.5, 0.5, 0.5, 0.25);
 pub const CARD_COLOR: Color = Color::srgba(0.7, 0.6, 0.2, 0.8);
 pub const TEXT_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 1.0);
-pub const BORDER_COLOR: Color = Color::srgba(0.2, 0.2, 0.2, 0.8);
+pub const BORDER_COLOR: Color = Color::srgba(0.2, 0.2, 0.2, 0.25);
 
 #[derive(Component, Default)]
 pub struct ButtonAction<T: Enum> {
