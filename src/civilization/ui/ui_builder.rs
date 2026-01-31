@@ -1,9 +1,16 @@
 use bevy::color::palettes::basic::{BLACK, WHITE};
+use bevy::ecs::system::IntoObserverSystem;
 use bevy::prelude::*;
 use bevy::reflect::Enum;
 use bevy::text::{Justify, LineBreak, TextLayout};
 use std::collections::VecDeque;
-use bevy::feathers::*;
+
+// Feathers imports - re-exported at bottom of file for external use
+use bevy::feathers::controls::{button, ButtonProps, ButtonVariant};
+use bevy::feathers::rounded_corners::RoundedCorners;
+use bevy::feathers::theme::ThemedText;
+use bevy::ui::InteractionDisabled;
+use bevy::ui_widgets::Activate;
 
 #[derive(Bundle)]
 pub struct NodeBundle {
@@ -2764,3 +2771,141 @@ impl<'a, 'w, 's> ButtonBuilder<'a, 'w, 's> {
         self
     }
 }
+
+// ============================================================================
+// Feathers-style button helpers using observe() pattern
+// ============================================================================
+
+impl<'w, 's> UIBuilder<'w, 's> {
+    /// Add a Feathers-style button with an observer for the Activate event.
+    /// 
+    /// # Example
+    /// ```ignore
+    /// ui.feathers_button("Click Me", |_: On<Activate>, mut commands: Commands| {
+    ///     info!("Button clicked!");
+    /// });
+    /// ```
+    pub fn feathers_button<M>(
+        &mut self,
+        text: impl Into<String>,
+        handler: impl IntoObserverSystem<Activate, (), M>,
+    ) -> &mut Self {
+        self.feathers_button_with_props(text, ButtonProps::default(), (), handler)
+    }
+
+    /// Add a Feathers-style button with custom props and an observer.
+    /// 
+    /// # Example
+    /// ```ignore
+    /// ui.feathers_button_with_props(
+    ///     "Primary",
+    ///     ButtonProps { variant: ButtonVariant::Primary, ..default() },
+    ///     (),
+    ///     |_: On<Activate>| { info!("Clicked!"); }
+    /// );
+    /// ```
+    pub fn feathers_button_with_props<B, M>(
+        &mut self,
+        text: impl Into<String>,
+        props: ButtonProps,
+        extra_components: B,
+        handler: impl IntoObserverSystem<Activate, (), M>,
+    ) -> &mut Self
+    where
+        B: Bundle,
+    {
+        let text_str = text.into();
+        let original_entity = self.current_entity;
+        let original_stack_len = self.parent_stack.len();
+
+        self.child();
+        let button_entity = self.current_entity;
+
+        // Spawn the Feathers button bundle with observer
+        let button_bundle = button(
+            props,
+            extra_components,
+            Spawn((Text::new(text_str), ThemedText)),
+        );
+
+        self.commands
+            .entity(button_entity)
+            .insert(button_bundle)
+            .observe(handler);
+
+        // Restore state
+        self.current_entity = original_entity;
+        while self.parent_stack.len() > original_stack_len {
+            self.parent_stack.pop_back();
+        }
+
+        self
+    }
+
+    /// Add a Feathers-style primary button with an observer.
+    pub fn feathers_button_primary<M>(
+        &mut self,
+        text: impl Into<String>,
+        handler: impl IntoObserverSystem<Activate, (), M>,
+    ) -> &mut Self {
+        self.feathers_button_with_props(
+            text,
+            ButtonProps {
+                variant: ButtonVariant::Primary,
+                ..default()
+            },
+            (),
+            handler,
+        )
+    }
+
+    /// Add a disabled Feathers-style button with an observer.
+    pub fn feathers_button_disabled<M>(
+        &mut self,
+        text: impl Into<String>,
+        handler: impl IntoObserverSystem<Activate, (), M>,
+    ) -> &mut Self {
+        self.feathers_button_with_props(text, ButtonProps::default(), InteractionDisabled, handler)
+    }
+
+    /// Add a Feathers-style button with a marker component and an observer.
+    /// 
+    /// # Example
+    /// ```ignore
+    /// ui.feathers_button_marked("Save", SaveButton, |_: On<Activate>| {
+    ///     info!("Save clicked!");
+    /// });
+    /// ```
+    pub fn feathers_button_marked<T, M>(
+        &mut self,
+        text: impl Into<String>,
+        marker: T,
+        handler: impl IntoObserverSystem<Activate, (), M>,
+    ) -> &mut Self
+    where
+        T: Component,
+    {
+        self.feathers_button_with_props(text, ButtonProps::default(), marker, handler)
+    }
+
+    /// Add a Feathers-style button with custom rounded corners.
+    pub fn feathers_button_corners<M>(
+        &mut self,
+        text: impl Into<String>,
+        corners: RoundedCorners,
+        handler: impl IntoObserverSystem<Activate, (), M>,
+    ) -> &mut Self {
+        self.feathers_button_with_props(
+            text,
+            ButtonProps {
+                corners,
+                ..default()
+            },
+            (),
+            handler,
+        )
+    }
+}
+
+// Re-export Feathers types for convenience
+pub use bevy::feathers::controls::button as feathers_button_bundle;
