@@ -89,6 +89,7 @@ fn add_commodity_card(
                             Some(defaults.base_font.clone()),
                             Some(10.0),
                             Some(TEXT_COLOR),
+                            None, None
                         );
                 });
         });

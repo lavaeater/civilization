@@ -107,6 +107,8 @@ fn setup(
             .padding_all_px(8.0)
             .margin_all_px(6.0),
     );
+    ui_defaults.text_justify = Some(Justify::Center);
+    ui_defaults.text_line_break = Some(LineBreak::WordBoundary);
 
     let mut ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
 
@@ -231,14 +233,22 @@ fn build_control_row(
             );
         });
         
+        ui.with_child(|ui| {
+            ui.width_px(40.0)
+                .height_px(28.0)
+                .display_flex()
+                .align_items_center()
+                .justify_center();
 
-        // Value display
-        ui.build_text(format!("{:.0}", initial_value), |ui| {
-            ui
-                .width_px(40.)
-                .text_justify_center()  // This centers the text content
-                .insert(LayoutValueDisplay { property });
+            ui.build_text(format!("{:.0}", initial_value), |ui| {
+                ui
+                    .width_px(40.0)
+                    .align_items_center()
+                    .text_justify_center()  // This centers the text content
+                    .insert(LayoutValueDisplay { property });
+            });
         });
+
         // Increase button (+1)
         ui.with_child(|ui| {
             ui.add_button(

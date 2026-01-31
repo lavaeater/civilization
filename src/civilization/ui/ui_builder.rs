@@ -657,6 +657,8 @@ pub struct UiBuilderDefaults {
     pub bg_color: Color,
     pub border_color: Color,
     pub text_color: Color,
+    pub text_justify: Option<bevy::text::Justify>,
+    pub text_line_break: Option<bevy::text::LineBreak>,
 }
 
 impl UiBuilderDefaults {
@@ -2355,7 +2357,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         color: Option<Color>,
     ) -> &mut Self {
         self.with_child(|b| { 
-            b.with_text(text, font, font_size, color); 
+            b.with_text(text, font, font_size, color, None, None); 
         })
     }
 
@@ -2364,7 +2366,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     pub fn default_text(&mut self, text: impl Into<String>) -> &mut Self {
-        self.with_text(text, None, None, None)
+        self.with_text(text, None, None, None, None, None)
     }
 
     /// Add a text child and apply builder function to style it
@@ -2382,6 +2384,41 @@ impl<'w, 's> UIBuilder<'w, 's> {
     pub fn text_with_width(&mut self, text: impl Into<String>, width: f32) -> &mut Self {
         self.build_text(text, |ui| {
             ui.width_px(width);
+        })
+    }
+
+    /// Add a centered text container with specified width
+    /// Creates a flex container that centers text both horizontally and vertically
+    pub fn add_centered_text(&mut self, text: impl Into<String>, width: f32, component: impl Component) -> &mut Self {
+        self.with_child(|ui| {
+            ui.width_px(width)
+                .display_flex()
+                .align_items_center()
+                .justify_center();
+
+            ui.build_text(text, |ui| {
+                ui
+                    .width_px(width)
+                    .text_justify_center()  // This centers the text content
+                    .insert(component);
+            });
+        })
+    }
+
+    /// Add a centered text container with specified width and apply builder to the container
+    pub fn build_centered_text<F>(&mut self, text: impl Into<String>, width: f32, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.with_child(|ui| {
+            ui.width_px(width)
+                .display_flex()
+                .align_items_center()
+                .justify_center();
+            f(ui);
+            ui.with_child(|ui| {
+                ui.default_text(text);
+            });
         })
     }
 
@@ -2425,8 +2462,15 @@ impl<'w, 's> UIBuilder<'w, 's> {
         font: Option<Handle<Font>>,
         font_size: Option<f32>,
         color: Option<Color>,
+        justify: Option<bevy::text::Justify>,
+        line_break: Option<bevy::text::LineBreak>,
     ) -> &mut Self {
         let text_color = color.unwrap_or(self.defaults.text_color);
+        let layout = TextLayout::new(
+            justify.unwrap_or(
+                self.defaults.text_justify
+                    .unwrap_or(Justify::default())), 
+                line_break.unwrap_or(self.defaults.text_line_break.unwrap_or(LineBreak::default())));
 
         let text_bundle = (
             Text::new(text.into()),
@@ -2434,6 +2478,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
                 .with_font(font.unwrap_or(self.defaults.base_font.clone()))
                 .with_font_size(font_size.unwrap_or(self.defaults.font_size)),
             TextColor(text_color),
+            layout,
         );
 
         // Add the text component to the entity
