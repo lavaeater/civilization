@@ -1,5 +1,21 @@
-pub mod trade;
+pub mod census;
 pub mod map;
 pub mod population_expansion;
-pub mod trade_cards;
-pub mod census;
+pub mod trade;
+pub mod acquire_trade_cards;
+pub mod movement;
+pub mod check_city_support;
+pub mod city_construction;
+pub mod conflict;
+pub mod remove_surplus_population;
+
+pub use census::*;
+pub use map::*;
+pub use population_expansion::*;
+pub use trade::*;
+pub use acquire_trade_cards::*;
+pub use movement::*;
+pub use check_city_support::*;
+pub use city_construction::*;
+pub use conflict::*;
+pub use remove_surplus_population::*;

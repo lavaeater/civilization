@@ -1,5 +1,5 @@
-// use crate::civilization::components::general_components::population::Population;
-// use crate::civilization::components::general_components::*;
+// use crate::civilization::components::population::Population;
+// use crate::civilization::components::*;
 // use bevy::core::Name;
 // use bevy::prelude::{Has, Query};
 // use bevy_console::ConsoleCommand;

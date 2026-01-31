@@ -1,22 +1,25 @@
+# This line needs to come before anything else in Cargo.toml
 cargo-features = ["codegen-backend"]
 
 [package]
-name = "adv_civ"
+name = "adv_civ" # ToDo
 version = "0.1.0"
 publish = false
-authors = ["Tommie Nygren <tommie.nygren@gmail.com>"]
+authors = ["Tommie Nygren <tommie.nygren@gmail.com>"] 
 edition = "2021"
 exclude = ["dist", "build", "assets", "credits"]
 
-# [workspace]
-# members = ["mobile"]
+[lib]
+name = "adv_civ"
+
+[workspace]
+members = ["mobile"]
 
 [profile.dev.package."*"]
 opt-level = 3
 
 [profile.dev]
 opt-level = 1
-debug = 2
 codegen-backend = "cranelift"
 
 # This is used by trunk as it doesn't support custom profiles: https://github.com/trunk-rs/trunk/issues/605
@@ -41,61 +44,26 @@ dev = [
 ]
 
 # All of Bevy's default features exept for the audio related ones (bevy_audio, vorbis), since they clash with bevy_kira_audio
-#   and android_shared_stdcxx, since that is covered in `mobile`
+#   and android_shared_stdcxx/android-game-activity, since those are covered in `mobile`
 [dependencies]
-bevy = { version = "0.15", default-features = false, features = [
-    "animation",
-    "bevy_asset",
-    "bevy_state",
-    "bevy_color",
-    "bevy_gilrs",
-    "bevy_scene",
-    "bevy_winit",
-    "bevy_core_pipeline",
-    "bevy_pbr",
-    "bevy_gltf",
-    "bevy_render",
-    "bevy_sprite",
-    "bevy_text",
-    "bevy_ui",
-    "multi_threaded",
-    "png",
-    "hdr",
-    "x11",
-    "bevy_gizmos",
-    "tonemapping_luts",
-    "smaa_luts",
-    "default_font",
-    "webgl2",
-    "sysinfo_plugin",
-] }
-bevy_kira_audio = { version = "0.22.0" }
-bevy_asset_loader = { version = "0.22.0", features = ["2d"] }
-rand = { version = "0.9.0" }
-webbrowser = { version = "1.0.1", features = ["hardened"] }
-
+bevy = { version = "0.18.0", default-features = false, features = ["2d", "ui", "experimental_bevy_feathers"] }
+bevy_kira_audio = { version = "0.25.0", features = ["android_shared_stdcxx"] }
+bevy_asset_loader = { version = "0.25.0" }
+rand = { version = "0.10.0-rc.8" }
+webbrowser = { version = "1", features = ["hardened"] }
+    
 # keep the following in sync with Bevy's dependencies
-winit = { version = "0.30.5", default-features = false }
-image = { version = "0.25.2", default-features = false }
+winit = { version = "0.30", default-features = false }
+image = { version = "0.25.9", default-features = false }
 ## This greatly improves WGPU's performance due to its heavy use of trace! calls
-log = { version = "0.4.22", features = ["max_level_debug", "release_max_level_warn"] }
-
+log = { version = "0.4.29", features = ["max_level_debug", "release_max_level_warn"] }
 itertools = "0.14.0"
-bevy_egui = "0.33"
-bevy_common_assets = { version = "0.12", features = ["ron"] }
-serde = { version = "1.0.197", features = ["derive"] }
-
-uuid = { version = "1.12.1", features = ["v4"] }
-ron = "0.9"
+serde_json = { version = "1.0.145" }
+serde = { version = "1.0.228", features = ["derive"] }
+bevy_common_assets = { version = "0.15.0", features = ["ron"] }
 
 [build-dependencies]
-embed-resource = "3.0"
+embed-resource = "1"
 
 [dev-dependencies]
-cucumber = "0.21"
-futures = "0.3"
-
-[[test]]
-name = "example" # this should be the same as the filename of your test target
-harness = false  # allows Cucumber to print output instead of libtest
-
+pretty_assertions = "1"

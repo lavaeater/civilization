@@ -1,12 +1,12 @@
-use crate::civilization::components::general_components::population::Population;
-use crate::civilization::components::general_components::*;
-use crate::civilization::enums::general_enums::GameFaction;
-use crate::civilization::systems::prelude::setup_players;
+use crate::civilization::components::population::Population;
+use crate::civilization::components::{CityFlood, CitySite, FloodPlain, GameArea, GameCamera, LandPassage, NeedsConnections, StartArea, Volcano};
+use crate::civilization::enums::GameFaction;
+use crate::civilization::general_systems::setup_players;
 use crate::loading::TextureAssets;
-use crate::GameState;
-use bevy::core::Name;
-use bevy::prelude::{debug, App, AssetServer, Assets, Camera, Commands, Handle, Image, IntoSystemConfigs, OnEnter, Plugin, Query, Res, ResMut, Resource, Sprite, Startup, Transform, Vec3};
-use bevy::utils::{HashMap, HashSet};
+use crate::{GameActivity, GameState};
+use bevy::platform::collections::{HashMap, HashSet};
+use bevy::prelude::{in_state, App, AssetServer, Assets, Camera, Commands, Handle, Image, IntoScheduleConfigs, MessageReader, Name, OnEnter, Plugin, Projection, Query, Res, ResMut, Resource, Sprite, Startup, Transform, Update, Vec2, Vec3, Window, With};
+use bevy::window::{PrimaryWindow, WindowResized};
 use bevy_common_assets::ron::RonAssetPlugin;
 use rand::seq::IteratorRandom;
 
@@ -18,9 +18,38 @@ impl Plugin for MapPlugin {
             .add_plugins(RonAssetPlugin::<Map>::new(&["map.ron"]))
             .add_systems(Startup, setup)
             .add_systems(
-                OnEnter(GameState::Playing),
+                OnEnter(GameActivity::PrepareGame),
                 (load_map, setup_players).chain(),
+            )
+            .add_systems(
+                Update,
+                fit_map_camera_on_resize.run_if(in_state(GameState::Playing)),
             );
+    }
+}
+
+#[derive(Resource, Clone, Copy)]
+struct MapViewConfig {
+    map_size: Vec2,
+    map_center: Vec3,
+}
+
+fn fit_camera_to_map(
+    map_size: Vec2,
+    window_size: Vec2,
+    projection: &mut Projection,
+) {
+    let padding = 1.02;
+    let window_w = window_size.x.max(1.0);
+    let window_h = window_size.y.max(1.0);
+
+    // With `ScalingMode::WindowSize(1.0)`, the camera shows `window_size * scale` world units.
+    let needed_scale_w = map_size.x / window_w;
+    let needed_scale_h = map_size.y / window_h;
+    let needed_scale = needed_scale_w.max(needed_scale_h) * padding;
+
+    if let Projection::Orthographic(ref mut ortho) = *projection {
+        ortho.scale = needed_scale;
     }
 }
 
@@ -81,7 +110,7 @@ pub struct AvailableFactions {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    debug!("1. Setting up map resource");
+    //debug!("1. Setting up map resource");
     let map = MapHandle(asset_server.load("maps/civilization.map.ron"));
     commands.insert_resource(map);
 }
@@ -123,9 +152,11 @@ fn load_map(
     maps: Res<Assets<Map>>,
     mut available_factions: ResMut<AvailableFactions>,
     textures: Res<TextureAssets>,
-    mut camera: Query<(&Camera, &mut Transform)>,
+    images: Res<Assets<Image>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut camera: Query<(&Camera, &mut Projection, &mut Transform), With<GameCamera>>,
 ) {
-    debug!("2. Loading map");
+    //debug!("2. Loading map");
     if let Some(level) = maps.get(map.0.id()).clone() {
         let mut ancient_places: HashSet<String> = vec![
             "Assyria",
@@ -285,8 +316,17 @@ fn load_map(
         .map(|s| s.to_string())
         .collect();
 
-        let (_, mut transform) = camera.single_mut();
-        transform.translation = Vec3::new(1250.0, 662.5, 0.0);
+        let map_center = Vec3::new(1250.0, 662.5, 0.0);
+        let (_cam, mut projection, mut transform) = camera.single_mut().unwrap();
+        transform.translation = map_center;
+
+        if let (Some(img), Ok(window)) = (images.get(&textures.map), windows.single()) {
+            let img_size = img.texture_descriptor.size;
+            let map_size = Vec2::new(img_size.width as f32, img_size.height as f32);
+            let window_size = Vec2::new(window.resolution.width(), window.resolution.height());
+            fit_camera_to_map(map_size, window_size, &mut projection);
+            commands.insert_resource(MapViewConfig { map_size, map_center });
+        }
 
         commands.spawn((
             Sprite {
@@ -413,5 +453,28 @@ fn load_map(
                 }
             }
         }
+    }
+}
+
+fn fit_map_camera_on_resize(
+    mut window_resized: MessageReader<WindowResized>,
+    map_view: Option<Res<MapViewConfig>>,
+    mut camera: Query<(&mut Projection, &mut Transform), With<GameCamera>>,
+) {
+    let Some(map_view) = map_view else {
+        return;
+    };
+
+    let mut last_size: Option<Vec2> = None;
+    for ev in window_resized.read() {
+        last_size = Some(Vec2::new(ev.width, ev.height));
+    }
+    let Some(window_size) = last_size else {
+        return;
+    };
+
+    if let Ok((mut projection, mut transform)) = camera.single_mut() {
+        transform.translation = map_view.map_center;
+        fit_camera_to_map(map_view.map_size, window_size, &mut projection);
     }
 }

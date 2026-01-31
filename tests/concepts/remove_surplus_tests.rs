@@ -1,15 +1,15 @@
-use bevy::prelude::{Entity, Update};
-use adv_civ::civilization::components::prelude::{BuiltCity, Population};
-use adv_civ::civilization::enums::prelude::GameFaction;
-use adv_civ::civilization::systems::remove_surplus_systems::remove_surplus_population;
 use crate::{create_area, setup_bevy_app, setup_player};
+use adv_civ::civilization::components::BuiltCity;
+use bevy::prelude::{Entity, Update};
+use adv_civ::civilization::components::population::Population;
+use adv_civ::civilization::concepts::remove_surplus_population::remove_surplus_systems::remove_surplus_population;
+use adv_civ::civilization::enums::GameFaction;
 
 #[test]
 fn given_one_player_events_are_sent() {
     // Arrange
     let mut app = setup_bevy_app(|mut app| {
-        app
-            .add_systems(Update, remove_surplus_population);
+        app.add_systems(Update, remove_surplus_population);
         app
     });
 
@@ -25,8 +25,7 @@ fn given_one_player_events_are_sent() {
 
     let area = create_area(&mut app, "Egypt", 1);
 
-    app.world_mut().entity_mut(area)
-        .insert(population);
+    app.world_mut().entity_mut(area).insert(population);
 
     // Act
     app.update();
@@ -41,8 +40,7 @@ fn given_one_player_events_are_sent() {
 fn given_city_area_with_tokens_all_are_removed() {
     // Arrange
     let mut app = setup_bevy_app(|mut app| {
-        app
-            .add_systems(Update, remove_surplus_population);
+        app.add_systems(Update, remove_surplus_population);
         app
     });
 
@@ -57,14 +55,12 @@ fn given_city_area_with_tokens_all_are_removed() {
         population.add_token_to_area(player, token);
     }
 
-
     let area = create_area(&mut app, "Egypt", 1);
 
-    app.world_mut().entity_mut(area)
-        .insert((
-            population,
-            BuiltCity::new(city_tokens.pop().unwrap(), player)
-        ));
+    app.world_mut().entity_mut(area).insert((
+        population,
+        BuiltCity::new(city_tokens.pop().unwrap(), player),
+    ));
 
     // Act
     app.update();
@@ -75,4 +71,3 @@ fn given_city_area_with_tokens_all_are_removed() {
 
     assert_eq!(population.total_population(), 0);
 }
-

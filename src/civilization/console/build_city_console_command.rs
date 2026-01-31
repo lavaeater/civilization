@@ -1,5 +1,5 @@
 // use bevy_console::ConsoleCommand;
-// use bevy::prelude::{Entity, EventWriter, Query, With};
+// use bevy::prelude::{Entity, MessageWriter, Query, With};
 // use bevy::core::Name;
 // use clap::Parser;
 // use crate::civilization::components::city_construction_components::CityBuildTargets;
@@ -17,12 +17,12 @@
 //     mut command: ConsoleCommand<BuildCityConsoleCommand>,
 //     player_query: Query<(Entity, &Name, &CityBuildTargets), With<Player>>,
 //     name_query: Query<&Name>,
-//     mut build_city: EventWriter<BuildCityCommand>,
+//     mut build_city: MessageWriter<BuildCityCommand>,
 // ) {
 //     if let Some(Ok(BuildCityConsoleCommand { player, area })) = command.take() {
 //         if let Some((player_entity, targets)) = player_query.iter().find(|(_, name, _)| **name == Name::from(player.clone())).map(|(entity, _, targets)| (entity, targets)) {
 //             if let Some(target_entity) = targets.targets.iter().filter(|t| *name_query.get(**t).unwrap() == Name::from(area.clone())).next() {
-//                 build_city.send(BuildCityCommand {
+//                 build_city.write(BuildCityCommand {
 //                     player: player_entity,
 //                     area: *target_entity,
 //                 });

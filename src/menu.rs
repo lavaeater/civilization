@@ -1,6 +1,6 @@
+use crate::civilization::components::GameCamera;
 use crate::loading::TextureAssets;
 use crate::GameState;
-use bevy::color::palettes::basic::BLUE;
 use bevy::prelude::*;
 
 pub struct MenuPlugin;
@@ -15,7 +15,7 @@ impl Plugin for MenuPlugin {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 struct ButtonColors {
     normal: Color,
     hovered: Color,
@@ -33,32 +33,72 @@ impl Default for ButtonColors {
 #[derive(Component)]
 struct Menu;
 
-fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>) {
+fn setup_menu(mut commands: Commands, textures: Res<TextureAssets>) {
     info!("menu");
     commands.spawn((
-        Camera2d::default(),
-        OrthographicProjection::default_2d(),
-    ));
+        Camera2d,
+        IsDefaultUiCamera,
+        Projection::Orthographic(OrthographicProjection::default_2d()),
+        GameCamera,
+        Msaa::Off,));
     commands
-        .spawn((Node::default(), Menu))
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            Menu,
+        ))
         .with_children(|children| {
             let button_colors = ButtonColors::default();
             children
                 .spawn((
-                    Button::default(),
-                    button_colors,
+                    Button,
+                    Node {
+                        width: Val::Px(140.0),
+                        height: Val::Px(50.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..Default::default()
+                    },
+                    BackgroundColor(button_colors.normal.clone()),
+                    button_colors.clone(),
                     ChangeState(GameState::Playing),
                 ))
-                .with_children(|parent| {
-                    parent.spawn((
-                        Text::new("Play"),
-                        TextFont {
-                            font_size: 60.0,
-                            ..Default::default()
-                        },
-                        TextColor(BLUE.into()),
-                    ));
-                });
+                .with_child((
+                    Text::new("Play"),
+                    TextFont {
+                        font_size: 40.0,
+                        ..default()
+                    },
+                    TextColor(Color::linear_rgb(0.9, 0.9, 0.9)),
+                ));
+            children
+                .spawn((
+                    Button,
+                    Node {
+                        width: Val::Px(140.0),
+                        height: Val::Px(50.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..Default::default()
+                    },
+                    BackgroundColor(button_colors.normal),
+                    button_colors,
+                    ChangeState(GameState::Sandbox),
+                ))
+                .with_child((
+                    Text::new("Sandbox"),
+                    TextFont {
+                        font_size: 40.0,
+                        ..default()
+                    },
+                    TextColor(Color::linear_rgb(0.9, 0.9, 0.9)),
+                ));
         });
 }
 
@@ -104,6 +144,6 @@ fn click_play_button(
 
 fn cleanup_menu(mut commands: Commands, menu: Query<Entity, With<Menu>>) {
     for entity in menu.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 }

@@ -3,14 +3,13 @@
 
 use adv_civ::GamePlugin;
 use bevy::asset::AssetMetaCheck;
-use bevy::log::LogPlugin;
+use bevy::ecs::system::NonSendMarker;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use bevy::winit::WinitWindows;
+use bevy::winit::WINIT_WINDOWS;
 use bevy::DefaultPlugins;
 use std::io::Cursor;
 use winit::window::Icon;
-
 
 fn main() {
     App::new()
@@ -19,7 +18,7 @@ fn main() {
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Advanced Civilization".to_string(),
+                        title: "Bevy game".to_string(), // ToDo
                         // Bind to canvas included in `index.html`
                         canvas: Some("#bevy".to_owned()),
                         fit_canvas_to_parent: true,
@@ -29,16 +28,16 @@ fn main() {
                     }),
                     ..default()
                 })
+                .set(bevy::log::LogPlugin {
+                    level: bevy::log::Level::INFO,
+                    filter: "wgpu=warn,bevy_ecs=info,bevy_diagnostic=warn".to_string(),
+                    ..default()
+                })
                 .set(AssetPlugin {
                     meta_check: AssetMetaCheck::Never,
                     ..default()
-                }).set(
-                LogPlugin {
-                filter: "info,wgpu_core=warn,wgpu_hal=warn,adv_civ=debug".into(),
-                level: bevy::log::Level::DEBUG,
-                    custom_layer: |_| None,
-                },
-        ))
+                }),
+        )
         .add_plugins(GamePlugin)
         .add_systems(Startup, set_window_icon)
         .run();
@@ -46,21 +45,24 @@ fn main() {
 
 // Sets the icon on windows and X11
 fn set_window_icon(
-    windows: NonSend<WinitWindows>,
-    primary_window: Query<Entity, With<PrimaryWindow>>,
-) {
-    let primary_entity = primary_window.single();
-    let Some(primary) = windows.get_window(primary_entity) else {
-        return;
-    };
-    let icon_buf = Cursor::new(include_bytes!(
-        "../build/macos/AppIcon.iconset/icon_256x256.png"
-    ));
-    if let Ok(image) = image::load(icon_buf, image::ImageFormat::Png) {
-        let image = image.into_rgba8();
-        let (width, height) = image.dimensions();
-        let rgba = image.into_raw();
-        let icon = Icon::from_rgba(rgba, width, height).unwrap();
-        primary.set_window_icon(Some(icon));
-    };
+    primary_window: Single<Entity, With<PrimaryWindow>>,
+    _non_send_marker: NonSendMarker,
+) -> Result {
+    WINIT_WINDOWS.with_borrow(|windows| {
+        let Some(primary) = windows.get_window(*primary_window) else {
+            return Err(BevyError::from("No primary window!"));
+        };
+        let icon_buf = Cursor::new(include_bytes!(
+            "../build/macos/AppIcon.iconset/icon_256x256.png"
+        ));
+        if let Ok(image) = image::load(icon_buf, image::ImageFormat::Png) {
+            let image = image.into_rgba8();
+            let (width, height) = image.dimensions();
+            let rgba = image.into_raw();
+            let icon = Icon::from_rgba(rgba, width, height).unwrap();
+            primary.set_window_icon(Some(icon));
+        };
+
+        Ok(())
+    })
 }

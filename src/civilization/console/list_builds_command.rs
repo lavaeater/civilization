@@ -16,7 +16,7 @@
 //     if let Some(Ok(ListBuildsCommand {})) = command.take() {
 //         for (player_name, targets) in player_query.iter() {
 //             let target_names = targets.targets.iter().map(|target| name_query.get(*target).unwrap().as_str()).collect::<Vec<&str>>().join(", ");
-//             command.reply(format!("{:?} can build in: {:?}", player_name, target_names));
+//             command.reply(format!("{:#?} can build in: {:#?}", player_name, target_names));
 //         }
 //     }
 // }

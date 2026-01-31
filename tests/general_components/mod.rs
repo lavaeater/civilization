@@ -1,4 +1,4 @@
-use super::*;
+use adv_civ::civilization::components::population::Population;
 use bevy::ecs::entity::Entity;
 use std::cell::RefCell;
 
@@ -9,7 +9,7 @@ fn create_entity() -> Entity {
     ENTITY_COUNTER.with(|counter| {
         let index = *counter.borrow();
         *counter.borrow_mut() += 1; // Increment the counter for the next entity
-        Entity::from_raw(index)
+        Entity::from_raw_u32(index).unwrap()
     })
 }
 
@@ -29,7 +29,13 @@ fn test_add_token_to_area() {
 
     population.add_token_to_area(player, token);
     assert!(population.player_tokens().contains_key(&player));
-    assert!(population.player_tokens().get(&player).unwrap().contains(&token));
+    assert!(
+        population
+            .player_tokens()
+            .get(&player)
+            .unwrap()
+            .contains(&token)
+    );
 }
 
 #[test]
@@ -157,7 +163,12 @@ fn test_remove_all_but_n_tokens() {
     population.add_token_to_area(player, token4);
 
     let removed_tokens = population.remove_all_but_n_tokens(&player, 2).unwrap();
-    assert!(removed_tokens.contains(&token1) || removed_tokens.contains(&token2) || removed_tokens.contains(&token3) || removed_tokens.contains(&token4));
+    assert!(
+        removed_tokens.contains(&token1)
+            || removed_tokens.contains(&token2)
+            || removed_tokens.contains(&token3)
+            || removed_tokens.contains(&token4)
+    );
     assert_eq!(population.population_for_player(player), 2);
 }
 

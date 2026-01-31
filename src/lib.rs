@@ -1,5 +1,4 @@
 #![allow(clippy::type_complexity)]
-// #![feature(impl_trait_in_assoc_type, associated_type_defaults)]
 
 pub mod actions;
 pub mod audio;
@@ -13,21 +12,21 @@ use crate::actions::ActionsPlugin;
 use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
 use crate::menu::MenuPlugin;
+use crate::player::PlayerPlugin;
 
-use civilization::plugins::general_plugin::CivilizationPlugin;
+use crate::civilization::sandbox_plugin::SandboxPlugin;
 use bevy::app::App;
-// #[cfg(debug_assertions)]
-// use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+#[cfg(debug_assertions)]
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
+use civilization::plugins::civilization_plugin::CivilizationPlugin;
 
-#[derive(States, Clone, PartialEq, Eq, Hash, Debug, Default, Reflect)]
+#[derive(States, Default, Clone, Eq, PartialEq, Debug, Hash)]
 pub enum GameState {
-    // During the loading State the LoadingPlugin will load our assets
     #[default]
     Loading,
-    // During this State the actual game logic is executed
     Playing,
-    // Here the menu is drawn and waiting for player interaction
+    Sandbox,
     Menu,
 }
 
@@ -35,6 +34,7 @@ pub enum GameState {
 #[source(GameState = GameState::Playing)]
 pub enum GameActivity {
     #[default]
+    PrepareGame,
     StartGame,
     // CollectTaxes,
     PopulationExpansion,
@@ -59,16 +59,19 @@ impl Plugin for GamePlugin {
         app
             .init_state::<GameState>()
             .add_plugins((
-                LoadingPlugin,
-                MenuPlugin,
-                ActionsPlugin,
-                InternalAudioPlugin,
-                CivilizationPlugin,
-            ));
+            LoadingPlugin,
+            MenuPlugin,
+            SandboxPlugin,
+            ActionsPlugin,
+            InternalAudioPlugin,
+            CivilizationPlugin
+        ));
 
-        // #[cfg(debug_assertions)]
-        // {
-        //     app.add_plugins((FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin::default()));
-        // }
+        #[cfg(debug_assertions)]
+        {
+            app.add_plugins((
+                LogDiagnosticsPlugin::default(),
+            ));
+        }
     }
 }

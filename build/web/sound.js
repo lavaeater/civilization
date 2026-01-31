@@ -9,7 +9,7 @@
     const audioContextList = [];
 
     // An array of various user interaction events we should listen for
-    const userInputEventNames = [
+    const userInputMessageNames = [
         "click",
         "contextmenu",
         "auxclick",
@@ -48,15 +48,15 @@
         // the event listeners from the page to prevent unnecessary resume attempts
         // Checking count > 0 ensures that the user interaction happens AFTER the game started up
         if (count > 0 && count === audioContextList.length) {
-            userInputEventNames.forEach((eventName) => {
-                document.removeEventListener(eventName, resumeAllContexts);
+            userInputMessageNames.forEach((eventName) => {
+                document.removeMessageListener(eventName, resumeAllContexts);
             });
         }
     }
 
     // We bind the resume function for each user interaction
     // event on the page
-    userInputEventNames.forEach((eventName) => {
-        document.addEventListener(eventName, resumeAllContexts);
+    userInputMessageNames.forEach((eventName) => {
+        document.addMessageListener(eventName, resumeAllContexts);
     });
 })();

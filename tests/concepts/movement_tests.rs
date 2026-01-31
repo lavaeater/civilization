@@ -1,21 +1,23 @@
-use adv_civ::civilization::components::prelude::*;
-use adv_civ::civilization::enums::prelude::GameFaction;
-use adv_civ::civilization::events::prelude::*;
-use adv_civ::civilization::systems::prelude::*;
+use crate::{create_area, create_area_w_components, setup_bevy_app, setup_player};
+use adv_civ::civilization::components::population::Population;
+use adv_civ::civilization::components::*;
+use adv_civ::civilization::concepts::movement::movement_components::TokenHasMoved;
+use adv_civ::civilization::concepts::movement::movement_events::{MoveTokenFromAreaToAreaCommand, PlayerMovementEnded};
+use adv_civ::civilization::concepts::movement::movement_systems::move_tokens_from_area_to_area;
+use adv_civ::civilization::enums::GameFaction;
+use adv_civ::civilization::game_moves::game_moves_components::{AvailableMoves, Move};
+use adv_civ::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
+use adv_civ::civilization::game_moves::game_moves_systems::recalculate_movement_moves_for_player;
 use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
-use bevy::prelude::{App, AppExtStates, Events, Name, Transform};
+use bevy::prelude::{App, AppExtStates, Messages, Name, Transform};
 use bevy::state::app::StatesPlugin;
-use crate::{setup_bevy_app, setup_player, create_area, create_area_w_components};
 
 fn setup_app() -> App {
     let mut app = App::new();
-    app
-        .add_plugins(
-            StatesPlugin
-        )
-        .add_event::<MoveTokenFromAreaToAreaCommand>()
-        .add_event::<RecalculatePlayerMoves>()
+    app.add_plugins(StatesPlugin)
+        .add_message::<MoveTokenFromAreaToAreaCommand>()
+        .add_message::<RecalculatePlayerMoves>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .add_systems(Update, move_tokens_from_area_to_area);
@@ -27,7 +29,8 @@ fn moved_tokens_get_token_has_moved_component_added() {
     // Arrange
     let mut app = setup_app();
 
-    let (player_one, mut player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
+    let (player_one, mut player_one_tokens, _) =
+        setup_player(&mut app, "player one", GameFaction::Egypt);
 
     let mut population = Population::new(6);
 
@@ -35,29 +38,34 @@ fn moved_tokens_get_token_has_moved_component_added() {
         population.add_token_to_area(player_one, token);
     }
 
-    let from_area = app.world_mut().spawn(
-        (
+    let from_area = app
+        .world_mut()
+        .spawn((
             Name::new("egypt"),
             GameArea::new(1),
             LandPassage::default(),
             population,
-            Transform::from_xyz(0.0, 0.0, 0.0)
-        )
-    ).id();
+            Transform::from_xyz(0.0, 0.0, 0.0),
+        ))
+        .id();
 
-    let to_area = app.world_mut().spawn(
-        (
+    let to_area = app
+        .world_mut()
+        .spawn((
             Name::new("crete"),
             GameArea::new(2),
             LandPassage::default(),
             Population::new(3),
-            Transform::from_xyz(0.0, 0.0, 0.0)
-        )
-    ).id();
-    let mut events = app.world_mut()
-        .resource_mut::<Events<MoveTokenFromAreaToAreaCommand>>();
+            Transform::from_xyz(0.0, 0.0, 0.0),
+        ))
+        .id();
+    let mut events = app
+        .world_mut()
+        .resource_mut::<Messages<MoveTokenFromAreaToAreaCommand>>();
 
-    events.send(MoveTokenFromAreaToAreaCommand::new(from_area, to_area, 2, player_one));
+    let _ = events.send(MoveTokenFromAreaToAreaCommand::new(
+        from_area, to_area, 2, player_one,
+    ));
 
     // Act
     app.update();
@@ -87,7 +95,8 @@ fn moving_token_to_area_adds_area_to_player_areas() {
     // Arrange
     let mut app = setup_app();
 
-    let (player_one, mut player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
+    let (player_one, mut player_one_tokens, _) =
+        setup_player(&mut app, "player one", GameFaction::Egypt);
 
     let mut population = Population::new(4);
 
@@ -98,11 +107,14 @@ fn moving_token_to_area_adds_area_to_player_areas() {
     let from_area = create_area_w_components(&mut app, "egypt", Some(population));
 
     let to_area = create_area_w_components(&mut app, "crete", None::<()>);
-    
-    let mut events = app.world_mut()
-        .resource_mut::<Events<MoveTokenFromAreaToAreaCommand>>();
 
-    events.send(MoveTokenFromAreaToAreaCommand::new(from_area, to_area, 2, player_one));
+    let mut events = app
+        .world_mut()
+        .resource_mut::<Messages<MoveTokenFromAreaToAreaCommand>>();
+
+    events.send(MoveTokenFromAreaToAreaCommand::new(
+        from_area, to_area, 2, player_one,
+    ));
 
     // Act
     app.update();
@@ -113,14 +125,13 @@ fn moving_token_to_area_adds_area_to_player_areas() {
     assert!(player_area.contains(to_area));
 }
 
-
-
 #[test]
 fn moving_all_tokens_from_area_removes_area_from_player_areas() {
     // Arrange
     let mut app = setup_app();
 
-    let (player_one, mut player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
+    let (player_one, mut player_one_tokens, _) =
+        setup_player(&mut app, "player one", GameFaction::Egypt);
 
     let mut population = Population::new(4);
 
@@ -128,27 +139,32 @@ fn moving_all_tokens_from_area_removes_area_from_player_areas() {
         population.add_token_to_area(player_one, token);
     }
 
-    let from_area = app.world_mut().spawn(
-        (
+    let from_area = app
+        .world_mut()
+        .spawn((
             Name::new("egypt"),
             GameArea::new(1),
             LandPassage::default(),
-            population
-        )
-    ).id();
+            population,
+        ))
+        .id();
 
-    let to_area = app.world_mut().spawn(
-        (
+    let to_area = app
+        .world_mut()
+        .spawn((
             Name::new("crete"),
             GameArea::new(2),
             LandPassage::default(),
-            Population::new(3)
-        )
-    ).id();
-    let mut events = app.world_mut()
-        .resource_mut::<Events<MoveTokenFromAreaToAreaCommand>>();
+            Population::new(3),
+        ))
+        .id();
+    let mut events = app
+        .world_mut()
+        .resource_mut::<Messages<MoveTokenFromAreaToAreaCommand>>();
 
-    events.send(MoveTokenFromAreaToAreaCommand::new(from_area, to_area, 3, player_one));
+    events.send(MoveTokenFromAreaToAreaCommand::new(
+        from_area, to_area, 3, player_one,
+    ));
 
     // Act
     app.update();
@@ -161,13 +177,11 @@ fn moving_all_tokens_from_area_removes_area_from_player_areas() {
 
 #[test]
 fn calculate_one_move() {
-    // Arrange                    
+    // Arrange
     let mut app = setup_bevy_app(|mut app| {
-        app
-            .add_event::<RecalculatePlayerMoves>()
-            .add_event::<PlayerMovementEnded>()
-            .add_systems(Update, recalculate_movement_moves_for_player)
-        ;
+        app.add_message::<RecalculatePlayerMoves>()
+            .add_message::<PlayerMovementEnded>()
+            .add_systems(Update, recalculate_movement_moves_for_player);
         app
     });
 
@@ -175,10 +189,7 @@ fn calculate_one_move() {
     let area_two = create_area(&mut app, "Thrace", 2);
     let mut land_passage = LandPassage::default();
     land_passage.add_passage(area_two);
-    app
-        .world_mut()
-        .entity_mut(area_one)
-        .insert(land_passage);
+    app.world_mut().entity_mut(area_one).insert(land_passage);
     let (player, mut tokens, _city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
 
     let mut player_areas = PlayerAreas::default();
@@ -189,32 +200,26 @@ fn calculate_one_move() {
     player_areas.add_token_to_area(area_one, token);
     population.add_token_to_area(player, token);
 
-    app
-        .world_mut()
-        .entity_mut(area_one)
-        .insert(population);
+    app.world_mut().entity_mut(area_one).insert(population);
 
     app.world_mut()
         .entity_mut(player)
         .insert((player_areas, stock));
 
-    app
-        .world_mut()
+    app.world_mut()
         .entity_mut(area_two)
         .insert(Population::new(3));
 
-    let mut events = app.world_mut()
-        .resource_mut::<Events<RecalculatePlayerMoves>>();
+    let mut events = app
+        .world_mut()
+        .resource_mut::<Messages<RecalculatePlayerMoves>>();
 
     events.send(RecalculatePlayerMoves::new(player));
 
     // Act
     app.update();
     // Assert
-    let player_moves = app
-        .world()
-        .entity(player)
-        .get::<AvailableMoves>();
+    let player_moves = app.world().entity(player).get::<AvailableMoves>();
 
     assert!(player_moves.is_some());
     let player_moves = player_moves.unwrap();
@@ -233,13 +238,11 @@ fn calculate_one_move() {
 
 #[test]
 fn calculate_two_moves() {
-    // Arrange                    
+    // Arrange
     let mut app = setup_bevy_app(|mut app| {
-        app
-            .add_event::<RecalculatePlayerMoves>()
-            .add_event::<PlayerMovementEnded>()
-            .add_systems(Update, recalculate_movement_moves_for_player)
-        ;
+        app.add_message::<RecalculatePlayerMoves>()
+            .add_message::<PlayerMovementEnded>()
+            .add_systems(Update, recalculate_movement_moves_for_player);
         app
     });
 
@@ -249,10 +252,7 @@ fn calculate_two_moves() {
     let mut land_passage = LandPassage::default();
     land_passage.add_passage(area_two);
     land_passage.add_passage(area_three);
-    app
-        .world_mut()
-        .entity_mut(area_one)
-        .insert(land_passage);
+    app.world_mut().entity_mut(area_one).insert(land_passage);
     let (player, mut tokens, _city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
 
     let mut player_areas = PlayerAreas::default();
@@ -263,37 +263,30 @@ fn calculate_two_moves() {
     player_areas.add_token_to_area(area_one, token);
     population.add_token_to_area(player, token);
 
-    app
-        .world_mut()
-        .entity_mut(area_one)
-        .insert(population);
+    app.world_mut().entity_mut(area_one).insert(population);
 
     app.world_mut()
         .entity_mut(player)
         .insert((player_areas, stock));
 
-    app
-        .world_mut()
+    app.world_mut()
         .entity_mut(area_two)
         .insert(Population::new(3));
 
-    app
-        .world_mut()
+    app.world_mut()
         .entity_mut(area_three)
         .insert(Population::new(2));
 
-    let mut events = app.world_mut()
-        .resource_mut::<Events<RecalculatePlayerMoves>>();
+    let mut events = app
+        .world_mut()
+        .resource_mut::<Messages<RecalculatePlayerMoves>>();
 
     events.send(RecalculatePlayerMoves::new(player));
 
     // Act
     app.update();
     // Assert
-    let player_moves = app
-        .world()
-        .entity(player)
-        .get::<AvailableMoves>();
+    let player_moves = app.world().entity(player).get::<AvailableMoves>();
 
     assert!(player_moves.is_some());
     let player_moves = player_moves.unwrap();
@@ -320,13 +313,11 @@ fn calculate_two_moves() {
 
 #[test]
 fn calculate_moves_after_having_moved() {
-    // Arrange                    
+    // Arrange
     let mut app = setup_bevy_app(|mut app| {
-        app
-            .add_event::<RecalculatePlayerMoves>()
-            .add_event::<PlayerMovementEnded>()
-            .add_systems(Update, recalculate_movement_moves_for_player)
-        ;
+        app.add_message::<RecalculatePlayerMoves>()
+            .add_message::<PlayerMovementEnded>()
+            .add_systems(Update, recalculate_movement_moves_for_player);
         app
     });
 
@@ -336,10 +327,7 @@ fn calculate_moves_after_having_moved() {
     let mut land_passage = LandPassage::default();
     land_passage.add_passage(area_two);
     land_passage.add_passage(area_three);
-    app
-        .world_mut()
-        .entity_mut(area_one)
-        .insert(land_passage);
+    app.world_mut().entity_mut(area_one).insert(land_passage);
     let (player, mut tokens, _city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
 
     let mut player_areas = PlayerAreas::default();
@@ -358,20 +346,13 @@ fn calculate_moves_after_having_moved() {
     player_areas.add_token_to_area(area_one, token);
     population.add_token_to_area(player, token);
 
+    app.world_mut().entity_mut(area_one).insert(population);
 
-
-    app
-        .world_mut()
-        .entity_mut(area_one)
-        .insert(population);
-
-    app
-        .world_mut()
+    app.world_mut()
         .entity_mut(area_two)
         .insert(Population::new(3));
 
-    app
-        .world_mut()
+    app.world_mut()
         .entity_mut(area_three)
         .insert(Population::new(2));
 
@@ -379,18 +360,16 @@ fn calculate_moves_after_having_moved() {
         .entity_mut(player)
         .insert((player_areas, stock));
 
-    let mut events = app.world_mut()
-        .resource_mut::<Events<RecalculatePlayerMoves>>();
+    let mut events = app
+        .world_mut()
+        .resource_mut::<Messages<RecalculatePlayerMoves>>();
 
     events.send(RecalculatePlayerMoves::new(player));
 
     // Act
     app.update();
     // Assert
-    let player_moves = app
-        .world()
-        .entity(player)
-        .get::<AvailableMoves>();
+    let player_moves = app.world().entity(player).get::<AvailableMoves>();
 
     assert!(player_moves.is_some());
     let player_moves = player_moves.unwrap();

@@ -1,5 +1,5 @@
-pub mod systems;
-pub mod plugins;
-pub mod events;
-pub mod components;
-pub mod triggers;
+pub mod game_moves_components;
+pub mod game_moves_events;
+pub mod game_moves_plugin;
+pub mod game_moves_systems;
+pub mod game_moves_triggers;

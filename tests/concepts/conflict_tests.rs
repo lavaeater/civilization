@@ -1,12 +1,14 @@
 use crate::setup_player;
-use adv_civ::civilization::components::prelude::*;
-use adv_civ::civilization::enums::prelude::GameFaction;
-use adv_civ::civilization::systems::prelude::*;
-use adv_civ::civilization::triggers::prelude::*;
+use adv_civ::civilization::components::*;
 use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Name};
 use bevy::state::app::StatesPlugin;
+use adv_civ::civilization::components::population::Population;
+use adv_civ::civilization::concepts::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
+use adv_civ::civilization::concepts::conflict::conflict_systems::find_conflict_zones;
+use adv_civ::civilization::concepts::conflict::conflict_triggers::{on_add_unresolved_city_conflict, on_add_unresolved_conflict};
+use adv_civ::civilization::enums::GameFaction;
 /****************************************************
 Test for the find_conflict_zones system
 Given two players that have tokens in an area,
@@ -14,38 +16,36 @@ when the system is run, that area should have a component
 added indicating that it has a conflict.
 *****************************************************/
 
-
 #[test]
 fn given_an_area_with_a_city_and_some_population() {
     // Arrange
     let mut app = App::new();
-    app
-        .add_plugins(
-            StatesPlugin,
-        )
+    app.add_plugins(StatesPlugin)
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .add_systems(Update, find_conflict_zones);
 
-    let (player_one, _, mut p_one_cities) = setup_player(&mut app, "player one", GameFaction::Egypt);
+    let (player_one, _, mut p_one_cities) =
+        setup_player(&mut app, "player one", GameFaction::Egypt);
 
-    let (player_two, mut player_two_tokens, _) = setup_player(&mut app, "player two", GameFaction::Crete);
+    let (player_two, mut player_two_tokens, _) =
+        setup_player(&mut app, "player two", GameFaction::Crete);
 
     let mut population = Population::new(4);
     for token in player_two_tokens.drain(0..5).collect::<Vec<_>>() {
         population.add_token_to_area(player_two, token);
     }
 
-    let area = app.world_mut().spawn(
-        (
+    let area = app
+        .world_mut()
+        .spawn((
             Name::new("egypt"),
             GameArea::new(1),
             LandPassage::default(),
             population,
-            BuiltCity::new(player_one, p_one_cities.pop().unwrap())
-        )
-    ).id();
-
+            BuiltCity::new(player_one, p_one_cities.pop().unwrap()),
+        ))
+        .id();
 
     // Act
     app.update();
@@ -57,19 +57,17 @@ fn given_an_area_with_a_city_and_some_population() {
 fn given_a_city_conflict_with_too_few_tokens() {
     // Arrange
     let mut app = App::new();
-    app
-        .add_plugins(
-            StatesPlugin,
-        )
+    app.add_plugins(StatesPlugin)
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .add_observer(on_add_unresolved_conflict)
-        .add_observer(on_add_unresolved_city_conflict)
-    ;
+        .add_observer(on_add_unresolved_city_conflict);
 
-    let (player_one, _, mut p_one_cities) = setup_player(&mut app, "player one", GameFaction::Egypt);
+    let (player_one, _, mut p_one_cities) =
+        setup_player(&mut app, "player one", GameFaction::Egypt);
 
-    let (player_two, mut player_two_tokens, _) = setup_player(&mut app, "player two", GameFaction::Crete);
+    let (player_two, mut player_two_tokens, _) =
+        setup_player(&mut app, "player two", GameFaction::Crete);
 
     let mut population = Population::new(4);
 
@@ -77,17 +75,17 @@ fn given_a_city_conflict_with_too_few_tokens() {
         population.add_token_to_area(player_two, token);
     }
 
-    let area = app.world_mut().spawn(
-        (
+    let area = app
+        .world_mut()
+        .spawn((
             Name::new("egypt"),
             GameArea::new(1),
             LandPassage::default(),
             population,
             BuiltCity::new(player_one, p_one_cities.pop().unwrap()),
-            UnresolvedCityConflict
-        )
-    ).id();
-
+            UnresolvedCityConflict,
+        ))
+        .id();
 
     // Act
     app.update();
@@ -100,19 +98,17 @@ fn given_a_city_conflict_with_too_few_tokens() {
 fn given_a_city_conflict_with_enough_tokens() {
     // Arrange
     let mut app = App::new();
-    app
-        .add_plugins(
-            StatesPlugin,
-        )
+    app.add_plugins(StatesPlugin)
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .add_observer(on_add_unresolved_conflict)
-        .add_observer(on_add_unresolved_city_conflict)
-    ;
+        .add_observer(on_add_unresolved_city_conflict);
 
-    let (player_one, _, mut p_one_cities) = setup_player(&mut app, "player one", GameFaction::Egypt);
+    let (player_one, _, mut p_one_cities) =
+        setup_player(&mut app, "player one", GameFaction::Egypt);
 
-    let (player_two, mut player_two_tokens, _) = setup_player(&mut app, "player two", GameFaction::Crete);
+    let (player_two, mut player_two_tokens, _) =
+        setup_player(&mut app, "player two", GameFaction::Crete);
 
     let mut population = Population::new(4);
 
@@ -123,20 +119,20 @@ fn given_a_city_conflict_with_enough_tokens() {
     let city_token = p_one_cities.pop().unwrap();
     let mut player_one_cities = PlayerCities::default();
 
-    let area = app.world_mut().spawn(
-        (
+    let area = app
+        .world_mut()
+        .spawn((
             Name::new("egypt"),
             GameArea::new(1),
             LandPassage::default(),
             population,
             BuiltCity::new(city_token, player_one),
-            UnresolvedCityConflict
-        )
-    ).id();
+            UnresolvedCityConflict,
+        ))
+        .id();
     player_one_cities.build_city_in_area(area, city_token);
 
-    app
-        .world_mut()
+    app.world_mut()
         .entity_mut(player_one)
         .insert(player_one_cities);
 
@@ -157,17 +153,16 @@ fn given_a_city_conflict_with_enough_tokens() {
 fn given_two_players_in_an_area_with_too_much_population_area_is_marked_as_conflict_zone() {
     // Arrange
     let mut app = App::new();
-    app
-        .add_plugins(
-            StatesPlugin,
-        )
+    app.add_plugins(StatesPlugin)
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .add_systems(Update, find_conflict_zones);
 
-    let (player_one, mut player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
+    let (player_one, mut player_one_tokens, _) =
+        setup_player(&mut app, "player one", GameFaction::Egypt);
 
-    let (player_two, mut player_two_tokens, _) = setup_player(&mut app, "player two", GameFaction::Crete);
+    let (player_two, mut player_two_tokens, _) =
+        setup_player(&mut app, "player two", GameFaction::Crete);
 
     let mut population = Population::new(4);
 
@@ -178,15 +173,15 @@ fn given_two_players_in_an_area_with_too_much_population_area_is_marked_as_confl
         population.add_token_to_area(player_two, token);
     }
 
-    let area = app.world_mut().spawn(
-        (
+    let area = app
+        .world_mut()
+        .spawn((
             Name::new("egypt"),
             GameArea::new(1),
             LandPassage::default(),
-            population
-        )
-    ).id();
-
+            population,
+        ))
+        .id();
 
     // Act
     app.update();
@@ -207,11 +202,13 @@ impl TwoPlayerTestStruct {
         self.player_one_expected + self.player_two_expected
     }
 
-    fn new(player_one_tokens: usize,
-           player_two_tokens: usize,
-           area_max_population: usize,
-           player_one_expected: usize,
-           player_two_expected: usize) -> Self {
+    fn new(
+        player_one_tokens: usize,
+        player_two_tokens: usize,
+        area_max_population: usize,
+        player_one_expected: usize,
+        player_two_expected: usize,
+    ) -> Self {
         TwoPlayerTestStruct {
             player_one_tokens,
             player_two_tokens,
@@ -237,13 +234,15 @@ impl ThreePlayerTestStruct {
         self.player_one_expected + self.player_two_expected + self.player_three_expected
     }
 
-    fn new(player_one_tokens: usize,
-           player_two_tokens: usize,
-           player_three_tokens: usize,
-           area_max_population: usize,
-           player_one_expected: usize,
-           player_two_expected: usize,
-           player_three_expected: usize) -> Self {
+    fn new(
+        player_one_tokens: usize,
+        player_two_tokens: usize,
+        player_three_tokens: usize,
+        area_max_population: usize,
+        player_one_expected: usize,
+        player_two_expected: usize,
+        player_three_expected: usize,
+    ) -> Self {
         ThreePlayerTestStruct {
             player_one_tokens,
             player_two_tokens,
@@ -260,15 +259,11 @@ impl ThreePlayerTestStruct {
 fn when_resolving_conflicts_the_correct_result_is_obtained() {
     // Arrange
     let mut app = App::new();
-    app
-        .add_plugins(
-            StatesPlugin,
-        )
+    app.add_plugins(StatesPlugin)
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .add_observer(on_add_unresolved_conflict)
-        .add_observer(on_add_unresolved_city_conflict)
-    ;
+        .add_observer(on_add_unresolved_city_conflict);
 
     let test_cases = vec![
         TwoPlayerTestStruct::new(1, 1, 1, 0, 0),
@@ -287,30 +282,38 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
         TwoPlayerTestStruct::new(5, 3, 4, 3, 1),
     ];
 
-    let (player_one, mut player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
+    let (player_one, mut player_one_tokens, _) =
+        setup_player(&mut app, "player one", GameFaction::Egypt);
 
-    let (player_two, mut player_two_tokens, _) = setup_player(&mut app, "player two", GameFaction::Crete);
+    let (player_two, mut player_two_tokens, _) =
+        setup_player(&mut app, "player two", GameFaction::Crete);
 
     for test_case in test_cases {
         let mut population = Population::new(test_case.area_max_population);
 
-        for token in player_one_tokens.drain(0..test_case.player_one_tokens).collect::<Vec<_>>() {
+        for token in player_one_tokens
+            .drain(0..test_case.player_one_tokens)
+            .collect::<Vec<_>>()
+        {
             population.add_token_to_area(player_one, token);
         }
-        for token in player_two_tokens.drain(0..test_case.player_two_tokens).collect::<Vec<_>>() {
+        for token in player_two_tokens
+            .drain(0..test_case.player_two_tokens)
+            .collect::<Vec<_>>()
+        {
             population.add_token_to_area(player_two, token);
         }
 
-        let area = app.world_mut().spawn(
-            (
+        let area = app
+            .world_mut()
+            .spawn((
                 Name::new("egypt"),
                 GameArea::new(1),
                 LandPassage::default(),
                 UnresolvedConflict,
-                population
-            )
-        ).id();
-
+                population,
+            ))
+            .id();
 
         // Act
         app.update();
@@ -332,16 +335,12 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
 fn given_three_conflicteers_the_correct_result_is_obtained() {
     // Arrange
     let mut app = App::new();
-    app
-        .add_plugins(
-            StatesPlugin,
-        )
+    app.add_plugins(StatesPlugin)
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         // .add_systems(Update, resolve_conflicts);
         .add_observer(on_add_unresolved_conflict)
-        .add_observer(on_add_unresolved_city_conflict)
-    ;
+        .add_observer(on_add_unresolved_city_conflict);
 
     let test_cases = vec![
         ThreePlayerTestStruct::new(1, 1, 1, 1, 0, 0, 0),
@@ -351,34 +350,46 @@ fn given_three_conflicteers_the_correct_result_is_obtained() {
         ThreePlayerTestStruct::new(2, 5, 1, 3, 0, 4, 0),
     ];
 
-    let (player_one, mut player_one_tokens, _) = setup_player(&mut app, "player one", GameFaction::Egypt);
+    let (player_one, mut player_one_tokens, _) =
+        setup_player(&mut app, "player one", GameFaction::Egypt);
 
-    let (player_two, mut player_two_tokens, _) = setup_player(&mut app, "player two", GameFaction::Crete);
-    let (player_three, mut player_three_tokens, _) = setup_player(&mut app, "player three", GameFaction::Babylon);
+    let (player_two, mut player_two_tokens, _) =
+        setup_player(&mut app, "player two", GameFaction::Crete);
+    let (player_three, mut player_three_tokens, _) =
+        setup_player(&mut app, "player three", GameFaction::Babylon);
 
     for test_case in test_cases {
         let mut population = Population::new(test_case.area_max_population);
 
-        for token in player_one_tokens.drain(0..test_case.player_one_tokens).collect::<Vec<_>>() {
+        for token in player_one_tokens
+            .drain(0..test_case.player_one_tokens)
+            .collect::<Vec<_>>()
+        {
             population.add_token_to_area(player_one, token);
         }
-        for token in player_two_tokens.drain(0..test_case.player_two_tokens).collect::<Vec<_>>() {
+        for token in player_two_tokens
+            .drain(0..test_case.player_two_tokens)
+            .collect::<Vec<_>>()
+        {
             population.add_token_to_area(player_two, token);
         }
-        for token in player_three_tokens.drain(0..test_case.player_three_tokens).collect::<Vec<_>>() {
+        for token in player_three_tokens
+            .drain(0..test_case.player_three_tokens)
+            .collect::<Vec<_>>()
+        {
             population.add_token_to_area(player_three, token);
         }
 
-        let area = app.world_mut().spawn(
-            (
+        let area = app
+            .world_mut()
+            .spawn((
                 Name::new("egypt"),
                 GameArea::new(1),
                 LandPassage::default(),
                 UnresolvedConflict,
-                population
-            )
-        ).id();
-
+                population,
+            ))
+            .id();
 
         // Act
         app.update();

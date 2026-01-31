@@ -1,6 +1,6 @@
-use bevy::prelude::{Entity, Event, Reflect};
+use bevy::prelude::{Entity, Message, Reflect};
 
-#[derive(Event, Debug, Reflect)]
+#[derive(Message, Debug, Reflect)]
 pub struct SelectStupidMove {
     pub player: Entity,
 }
@@ -11,13 +11,13 @@ impl SelectStupidMove {
     }
 }
 
-#[derive(Event, Debug, Reflect)]
-pub struct StupidAiEvent {
+#[derive(Message, Debug, Reflect)]
+pub struct StupidAiMessage {
     pub player: Entity,
 }
 
-impl StupidAiEvent {
+impl StupidAiMessage {
     pub fn new(player: Entity) -> Self {
-        StupidAiEvent { player }
+        StupidAiMessage { player }
     }
 }

@@ -1,12 +1,18 @@
-pub mod city_construction_events;
-pub mod city_support_events;
-pub mod general_events;
-pub mod movement_events;
+use bevy::prelude::{Entity, Message};
 
-pub mod prelude {
-    pub use crate::civilization::events::city_construction_events::*;
-    pub use crate::civilization::events::city_support_events::*;
-    pub use crate::civilization::game_moves::events::*;
-    pub use crate::civilization::events::general_events::*;
-    pub use crate::civilization::events::movement_events::*;
+#[derive(Message, Debug)]
+pub struct MoveTokensFromStockToAreaCommand {
+    pub area_entity: Entity,
+    pub player_entity: Entity,
+    pub number_of_tokens: usize,
+}
+
+impl MoveTokensFromStockToAreaCommand {
+    pub fn new(area_entity: Entity, player_entity: Entity, number_of_tokens: usize) -> Self {
+        MoveTokensFromStockToAreaCommand {
+            area_entity,
+            player_entity,
+            number_of_tokens,
+        }
+    }
 }
