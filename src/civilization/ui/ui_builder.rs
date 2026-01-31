@@ -1,6 +1,7 @@
 use bevy::color::palettes::basic::{BLACK, WHITE};
 use bevy::prelude::*;
 use bevy::reflect::Enum;
+use bevy::text::{Justify, LineBreak, TextLayout};
 use std::collections::VecDeque;
 
 #[derive(Bundle)]
@@ -1710,7 +1711,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         F: FnOnce(&mut Self),
     {
         self.with_child(|ui| {
-            ui.display_flex().flex_dir_row();
+            ui.as_flex_row();
             f(ui);
         })
     }
@@ -2364,6 +2365,49 @@ impl<'w, 's> UIBuilder<'w, 's> {
 
     pub fn default_text(&mut self, text: impl Into<String>) -> &mut Self {
         self.with_text(text, None, None, None)
+    }
+
+    /// Add a text child and apply builder function to style it
+    pub fn build_text<F>(&mut self, text: impl Into<String>, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.with_child(|ui| {
+            ui.default_text(text);
+            f(ui);
+        })
+    }
+
+    /// Add a text child with a fixed width in pixels
+    pub fn text_with_width(&mut self, text: impl Into<String>, width: f32) -> &mut Self {
+        self.build_text(text, |ui| {
+            ui.width_px(width);
+        })
+    }
+
+    /// Set text layout justification (for text content alignment within text node)
+    pub fn text_justify(&mut self, justify: Justify) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<TextLayout>()
+            .and_modify(move |mut tl| tl.justify = justify)
+            .or_insert(TextLayout::new(justify, LineBreak::default()));
+        self
+    }
+
+    /// Center text content within the text node
+    pub fn text_justify_center(&mut self) -> &mut Self {
+        self.text_justify(Justify::Center)
+    }
+
+    /// Left-align text content within the text node
+    pub fn text_justify_left(&mut self) -> &mut Self {
+        self.text_justify(Justify::Left)
+    }
+
+    /// Right-align text content within the text node
+    pub fn text_justify_right(&mut self) -> &mut Self {
+        self.text_justify(Justify::Right)
     }
 
     pub fn with_text(

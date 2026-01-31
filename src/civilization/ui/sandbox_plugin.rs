@@ -116,7 +116,7 @@ fn setup(
         .flex_dir_row();
 
     // Left side: Sample box display area
-    ui.with_child(|ui| {
+    ui.add_panel(|ui| {
         ui.size_percent(50.0, 100.0)
             .padding_all_px(8.0)
             .display_flex()
@@ -125,7 +125,7 @@ fn setup(
             .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.5));
 
         // The sample box we'll modify
-        ui.with_child(|ui| {
+        ui.add_panel(|ui| {
             ui.with_component::<SampleBox>()
                 .size_px(layout_state.width, layout_state.height)
                 .padding_all_px(layout_state.padding)
@@ -136,13 +136,12 @@ fn setup(
                 .justify_center()
                 .align_items_center();
 
-            ui.with_child(|ui| {
-                ui.default_text("Sample Text");
-            });
+            ui
+                .text_node("Sample Text");
         });
     });
     // Right side: Control panel
-    ui.with_child(|ui| {
+    ui.add_panel(|ui| {
         ui.width_auto()
             .height_percent(100.)
             .display_flex()
@@ -189,8 +188,8 @@ fn build_control_row(
     property: LayoutProperty,
     initial_value: f32,
 ) {
-    ui.with_child(|ui| {
-        ui.as_flex_row()
+    ui.add_row(|ui| {
+        ui
             .align_items_center()
             .justify_space_between()
             .column_gap_px(4.0)
@@ -198,9 +197,7 @@ fn build_control_row(
             .padding_zero();
 
         // Label
-        ui.with_child(|ui| {
-            ui.default_text(label).width_px(50.0);
-        });
+        ui.text_with_width(label, 50.0);
         
         //Decrease button (-10)
         ui.with_child(|ui| {
@@ -236,13 +233,20 @@ fn build_control_row(
         
 
         // Value display
-        ui.with_child(|ui| {
-            ui.default_text(format!("{:.0}", initial_value))
-                .width_px(40.)
+        ui.build_text(format!("{:.0}", initial_value), |ui| {
+            ui.width_px(40.)
                 .align_items_center()
                 .justify_center()
                 .insert(LayoutValueDisplay { property });
         });
+        
+        // ui.with_child(|ui| {
+        //     ui.default_text(format!("{:.0}", initial_value))
+        //         .width_px(40.)
+        //         .align_items_center()
+        //         .justify_center()
+        //         .insert(LayoutValueDisplay { property });
+        // });
 
         // Increase button (+1)
         ui.with_child(|ui| {
