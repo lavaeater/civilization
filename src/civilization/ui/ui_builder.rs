@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use bevy::reflect::Enum;
 use bevy::text::{Justify, LineBreak, TextLayout};
 use std::collections::VecDeque;
+use bevy::feathers::*;
 
 #[derive(Bundle)]
 pub struct NodeBundle {
