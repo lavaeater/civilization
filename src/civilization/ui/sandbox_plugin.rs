@@ -3,7 +3,8 @@ use crate::civilization::ui::ui_builder::{
 };
 
 use crate::civilization::civilization_plugin::DebugOptions;
-use crate::civilization::{setup_players, AvailableFactions, GameFaction, PlayerTradeCards};
+use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCardTrait;
+use crate::civilization::{setup_players, AvailableFactions, GameFaction, PlayerCardStack, PlayerTradeCards};
 use crate::player::Player;
 use crate::GameState;
 use bevy::prelude::*;
@@ -165,17 +166,92 @@ fn setup_trade_ui(
         if let Ok(trade_cards) = player_trade_cards.single() {
             let stacks = trade_cards.as_card_stacks_sorted_by_value();
             for stack in stacks {
-                ui.add_card(|card| {
-                    // card.width_percent(25.0).height_percent(25.0);
-                    card.aspect_ratio(0.8);
-                    card.add_text_child(stack.card_type.to_string(), None, None, None);
-                    card.add_text_child(format!("{}", stack.count), None, None, None);
-                });
+                build_trade_card(ui, &stack);
             }
         }
     });
 
     let (_root, _commands) = ui.build();
+}
+
+fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
+    let base_font_size = ui.get_defaults().font_size;
+    let large_font_size = base_font_size * 2.0;
+    
+    ui.add_card(|card| {
+        card.width_percent(100.0)
+            .aspect_ratio(0.7)
+            .justify_space_between()
+            .align_items_center();
+        
+        if stack.is_commodity {
+            // Top row (25%): count and current stack value
+            card.add_row(|row| {
+                row.height_percent(25.0)
+                    .width_percent(100.0)
+                    .justify_space_between()
+                    .align_items_center();
+                row.add_text_child(format!("x{}", stack.count), None, None, None);
+                row.add_text_child(format!("={}", stack.suite_value), None, None, None);
+            });
+            
+            // Middle section (50%): name and value (larger text)
+            card.add_column(|middle| {
+                middle.height_percent(50.0)
+                    .width_percent(100.0)
+                    .justify_center()
+                    .align_items_center();
+                middle.add_text_child(
+                    stack.card_type.to_string(),
+                    None,
+                    Some(large_font_size),
+                    None,
+                );
+                middle.add_text_child(
+                    format!("{}", stack.card_type.value()),
+                    None,
+                    Some(large_font_size),
+                    None,
+                );
+            });
+            
+            // Bottom row (25%): max cards and max stack value
+            card.add_row(|row| {
+                row.height_percent(25.0)
+                    .width_percent(100.0)
+                    .justify_space_between()
+                    .align_items_center();
+                row.add_text_child(format!("max:{}", stack.max_number_of_cards), None, None, None);
+                row.add_text_child(format!("={}", stack.max_stack_value), None, None, None);
+            });
+        } else {
+            // Calamity card: Name, Value, Tradeable
+            card.add_column(|col| {
+                col.height_percent(100.0)
+                    .width_percent(100.0)
+                    .justify_center()
+                    .align_items_center();
+                col.add_text_child(
+                    stack.card_type.to_string(),
+                    None,
+                    Some(large_font_size),
+                    None,
+                );
+                col.add_text_child(
+                    format!("Value: {}", stack.card_type.value()),
+                    None,
+                    None,
+                    None,
+                );
+                col.add_text_child(
+                    if stack.is_tradeable { "Tradeable" } else { "Non-Tradeable" },
+                    None,
+                    None,
+                    None,
+                );
+            });
+        }
+    });
 }
 
 fn setup_sandbox(

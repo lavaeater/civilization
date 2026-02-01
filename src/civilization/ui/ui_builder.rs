@@ -1031,6 +1031,11 @@ impl UiBuilderDefaults {
 }
 
 impl<'w, 's> UIBuilder<'w, 's> {
+    /// Get a reference to the UI builder defaults
+    pub fn get_defaults(&self) -> &UiBuilderDefaults {
+        &self.defaults
+    }
+
     /// Create a new root UI container
     pub fn new(mut commands: Commands<'w, 's>, defaults: Option<UiBuilderDefaults>) -> Self {
         // Create a basic node entity with default settings

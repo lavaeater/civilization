@@ -41,6 +41,8 @@ pub struct PlayerCardStack {
     pub is_tradeable: bool,
     pub is_commodity: bool,
     pub is_calamity: bool,
+    pub max_number_of_cards: usize,
+    pub max_stack_value: usize,
 }
 
 #[derive(Component, Debug, Reflect, Default, Clone)]
@@ -236,17 +238,26 @@ impl PlayerTradeCards {
     pub fn as_card_stacks(&self) -> Vec<PlayerCardStack> {
         self.cards
             .iter()
-            .map(|(card, &count)| PlayerCardStack {
-                card_type: *card,
-                count,
-                suite_value: if card.is_commodity() {
-                    count * count * card.value()
-                } else {
-                    0
-                },
-                is_tradeable: card.is_tradeable(),
-                is_commodity: card.is_commodity(),
-                is_calamity: card.is_calamity(),
+            .map(|(card, &count)| {
+                let max_cards = card.number_of_cards();
+                PlayerCardStack {
+                    card_type: *card,
+                    count,
+                    suite_value: if card.is_commodity() {
+                        count * count * card.value()
+                    } else {
+                        0
+                    },
+                    is_tradeable: card.is_tradeable(),
+                    is_commodity: card.is_commodity(),
+                    is_calamity: card.is_calamity(),
+                    max_number_of_cards: max_cards,
+                    max_stack_value: if card.is_commodity() {
+                        max_cards * max_cards * card.value()
+                    } else {
+                        0
+                    },
+                }
             })
             .collect()
     }
