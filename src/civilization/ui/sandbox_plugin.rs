@@ -169,9 +169,15 @@ fn setup_trade_ui(
         if let Ok(trade_cards) = player_trade_cards.single() {
             
             let stacks = trade_cards.as_card_stacks_sorted_by_value();
+            let number_of_cols = 4;
+            let col_width = 100.0 / number_of_cols as f32;
+            let mut col_index = 0;
             for stack in stacks {
                 // stack.card_type, stack.count, stack.suite_value, etc. all ready to use
                 ui.add_row(|row| {
+                    row
+                        .height_percent(col_width)
+                        .width_percent(col_width);
                     row.add_text_child(stack.card_type.to_string(), None, None, None);
                     row.add_text_child(format!("{}", stack.count), None, None, None);
                 });
