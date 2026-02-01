@@ -157,18 +157,20 @@ fn setup_trade_ui(
         .flex_dir_row();
 
     // Left side: Sample box display area
-    ui.add_grid(6, |ui| {
-        ui.grid_cols_auto_fill_percent(20.0);
+    ui.with_child(|ui| {
         ui.size_percent(100.0, 100.0)
-            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.3));
-            // .grid_cols_auto_fill_percent(25.0);
+            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.3))
+            .display_flex()
+            .flex_dir_row()
+            .flex_wrap()
+            .align_content(AlignContent::FlexStart);
         
         if let Ok(trade_cards) = player_trade_cards.single() {
             let stacks = trade_cards.as_card_stacks_sorted_by_value();
-            let commodity_count = stacks.iter().filter(|s| s.is_commodity).count();
-            let calamity_count = stacks.iter().filter(|s| s.is_calamity).count();
-            
-            ui.add_text_child(format!("Stacks: {} (commodities: {}, calamities: {})", stacks.len(), commodity_count, calamity_count), None, None, None);
+            // let commodity_count = stacks.iter().filter(|s| s.is_commodity).count();
+            // let calamity_count = stacks.iter().filter(|s| s.is_calamity).count();
+            // 
+            // ui.add_text_child(format!("Stacks: {} (commodities: {}, calamities: {})", stacks.len(), commodity_count, calamity_count), None, None, None);
             for stack in stacks {
                 build_trade_card(ui, &stack);
             }
@@ -183,7 +185,7 @@ fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
     let large_font_size = base_font_size * 2.0;
     
     ui.add_card(|card| {
-        card.width_percent(100.0)
+        card.width_percent(20.0)
             .aspect_ratio(0.7)
             .justify_space_between()
             .align_items_center();
