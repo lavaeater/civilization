@@ -2,6 +2,7 @@ use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::{Trade
 use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{Color, Component, Reflect, Resource};
 use itertools::Itertools;
+use rand::seq::SliceRandom;
 use std::usize;
 
 pub const MIN_CARDS_REQUIRED_TO_TRADE: usize = 5;
@@ -19,6 +20,11 @@ impl CivilizationTradeCards {
                 .entry(trade_card.value())
                 .or_insert_with(Vec::new)
                 .extend(vec![trade_card; trade_card.number_of_cards()]);
+        }
+        // Shuffle each pile so calamities and commodities are mixed
+        let mut rng = rand::rng();
+        for pile in cards.values_mut() {
+            pile.shuffle(&mut rng);
         }
         Self {
             card_piles: cards,

@@ -165,6 +165,10 @@ fn setup_trade_ui(
         
         if let Ok(trade_cards) = player_trade_cards.single() {
             let stacks = trade_cards.as_card_stacks_sorted_by_value();
+            let commodity_count = stacks.iter().filter(|s| s.is_commodity).count();
+            let calamity_count = stacks.iter().filter(|s| s.is_calamity).count();
+            
+            ui.add_text_child(format!("Stacks: {} (commodities: {}, calamities: {})", stacks.len(), commodity_count, calamity_count), None, None, None);
             for stack in stacks {
                 build_trade_card(ui, &stack);
             }
@@ -185,44 +189,30 @@ fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
             .align_items_center();
         
         if stack.is_commodity {
-            // Top row (25%): count and current stack value
-            card.add_row(|row| {
-                row.height_percent(25.0)
-                    .width_percent(100.0)
-                    .justify_space_between()
-                    .align_items_center();
-                row.add_text_child(format!("x{}", stack.count), None, None, None);
-                row.add_text_child(format!("={}", stack.suite_value), None, None, None);
-            });
-            
-            // Middle section (50%): name and value (larger text)
-            card.add_column(|middle| {
-                middle.height_percent(50.0)
+            // Commodity card: Name, Value, Count
+            card.add_column(|col| {
+                col.height_percent(100.0)
                     .width_percent(100.0)
                     .justify_center()
                     .align_items_center();
-                middle.add_text_child(
+                col.add_text_child(
                     stack.card_type.to_string(),
                     None,
                     Some(large_font_size),
                     None,
                 );
-                middle.add_text_child(
-                    format!("{}", stack.card_type.value()),
+                col.add_text_child(
+                    format!("Value: {}", stack.card_type.value()),
                     None,
-                    Some(large_font_size),
+                    None,
                     None,
                 );
-            });
-            
-            // Bottom row (25%): max cards and max stack value
-            card.add_row(|row| {
-                row.height_percent(25.0)
-                    .width_percent(100.0)
-                    .justify_space_between()
-                    .align_items_center();
-                row.add_text_child(format!("max:{}", stack.max_number_of_cards), None, None, None);
-                row.add_text_child(format!("={}", stack.max_stack_value), None, None, None);
+                col.add_text_child(
+                    format!("x{} = {}", stack.count, stack.suite_value),
+                    None,
+                    None,
+                    None,
+                );
             });
         } else {
             // Calamity card: Name, Value, Tradeable
