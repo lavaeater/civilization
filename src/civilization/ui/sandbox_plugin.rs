@@ -160,9 +160,11 @@ fn setup_trade_ui(
         ui.size_percent(100.0, 100.0)
             .padding_all_px(8.0)
             .display_flex()
-            .justify_center()
-            .align_items_center()
+            .justify_start()
+            .align_items_start()
             .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.3));
+        
+        
         
         if let Ok(trade_cards) = player_trade_cards.single() {
             
@@ -171,6 +173,7 @@ fn setup_trade_ui(
                 // stack.card_type, stack.count, stack.suite_value, etc. all ready to use
                 ui.add_row(|row| {
                     row.add_text_child(stack.card_type.to_string(), None, None, None);
+                    row.add_text_child(format!("{}", stack.count), None, None, None);
                 });
             }
         }

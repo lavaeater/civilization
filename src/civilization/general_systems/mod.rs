@@ -78,7 +78,7 @@ pub fn setup_players(
                 commands.entity(player).insert(IsHuman);
                 if debug_options.human_starts_with_trade_cards {
                     let mut player_trade_cards = PlayerTradeCards::default();
-                    (1..=1).for_each(|pile| {
+                    (1..=9).for_each(|pile| {
                         if let Some(pulled_card) = trade_card_resource.pull_card_from(pile) {
                             player_trade_cards.add_trade_card(pulled_card);
                         }
