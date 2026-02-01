@@ -156,14 +156,17 @@ fn setup_trade_ui(
         .flex_dir_row();
 
     // Left side: Sample box display area
-    ui.add_grid(4, |ui| {
+    ui.add_grid(6, |ui| {
+        ui.grid_cols_auto_fill_percent(20.0);
         ui.size_percent(100.0, 100.0)
             .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.3));
+            // .grid_cols_auto_fill_percent(25.0);
         
         if let Ok(trade_cards) = player_trade_cards.single() {
             let stacks = trade_cards.as_card_stacks_sorted_by_value();
             for stack in stacks {
                 ui.add_card(|card| {
+                    // card.width_percent(25.0).height_percent(25.0);
                     card.add_text_child(stack.card_type.to_string(), None, None, None);
                     card.add_text_child(format!("{}", stack.count), None, None, None);
                 });

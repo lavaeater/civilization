@@ -1264,7 +1264,22 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Set grid template columns to auto-fill with minimum width
-    pub fn grid_cols_auto_fill(&mut self, min_width: f32) -> &mut Self {
+    pub fn grid_cols_auto_fill_percent(&mut self, min_width: f32) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.grid_template_columns = vec![RepeatedGridTrack::minmax(
+                    GridTrackRepetition::AutoFill,
+                    MinTrackSizingFunction::Percent(min_width),
+                    MaxTrackSizingFunction::Fraction(1.0),
+                )];
+            });
+        self
+    }
+
+    /// Set grid template columns to auto-fill with minimum width
+    pub fn grid_cols_auto_fill_px(&mut self, min_width: f32) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -1286,6 +1301,17 @@ impl<'w, 's> UIBuilder<'w, 's> {
             .and_modify(move |mut n| {
                 n.row_gap = Val::Px(gap);
                 n.column_gap = Val::Px(gap);
+            });
+        self
+    }
+
+    pub fn grid_gap_percent(&mut self, gap: f32) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.row_gap = Val::Percent(gap);
+                n.column_gap = Val::Percent(gap);
             });
         self
     }
@@ -1814,7 +1840,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         F: FnOnce(&mut Self),
     {
         self.with_child(|ui| {
-            ui.display_grid().grid_cols(cols).grid_gap_px(8.0);
+            ui.display_grid().grid_cols(cols).grid_gap_percent(2.0);
             f(ui);
         })
     }
