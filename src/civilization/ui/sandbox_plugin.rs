@@ -167,6 +167,7 @@ fn setup_trade_ui(
             for stack in stacks {
                 ui.add_card(|card| {
                     // card.width_percent(25.0).height_percent(25.0);
+                    card.aspect_ratio(0.8);
                     card.add_text_child(stack.card_type.to_string(), None, None, None);
                     card.add_text_child(format!("{}", stack.count), None, None, None);
                 });

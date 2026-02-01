@@ -1360,7 +1360,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Set the aspect ratio property of the current entity's node
-    pub fn with_aspect_ratio(&mut self, ratio: f32) -> &mut Self {
+    pub fn aspect_ratio(&mut self, ratio: f32) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
