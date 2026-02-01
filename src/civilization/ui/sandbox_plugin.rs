@@ -7,7 +7,10 @@ use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeC
 use crate::civilization::{setup_players, AvailableFactions, GameFaction, PlayerCardStack, PlayerTradeCards};
 use crate::player::Player;
 use crate::GameState;
+use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
+use bevy::picking::hover::HoverMap;
 use bevy::prelude::*;
+use bevy::ui::ScrollPosition;
 use crate::stupid_ai::prelude::IsHuman;
 
 pub struct SandboxPlugin;
@@ -33,7 +36,7 @@ impl Plugin for SandboxPlugin {
             )
             .add_systems(
                 Update,
-                (handle_layout_controls, update_sample_box).run_if(in_state(GameState::Sandbox)),
+                (handle_layout_controls, update_sample_box, handle_scroll_input).run_if(in_state(GameState::Sandbox)),
             );
     }
 }
@@ -156,12 +159,14 @@ fn setup_trade_ui(
         .display_flex()
         .flex_dir_row();
 
-    // Left side: Trade cards grouped by pile value
+    // Left side: Trade cards grouped by pile value (scrollable)
     ui.with_child(|ui| {
         ui.size_percent(100.0, 100.0)
             .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.3))
             .display_flex()
-            .flex_dir_column();
+            .flex_dir_column()
+            .with_overflow(Overflow::scroll_y())
+            .insert(ScrollPosition::default());
         
         if let Ok(trade_cards) = player_trade_cards.single() {
             let stacks = trade_cards.as_card_stacks_sorted_by_value();
@@ -229,6 +234,30 @@ fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
             );
         }
     });
+}
+
+/// Handle mouse wheel scroll input for scrollable containers
+fn handle_scroll_input(
+    mut mouse_wheel_events: MessageReader<MouseWheel>,
+    hover_map: Res<HoverMap>,
+    mut scroll_query: Query<&mut ScrollPosition>,
+) {
+    for mouse_wheel in mouse_wheel_events.read() {
+        let dy = match mouse_wheel.unit {
+            MouseScrollUnit::Line => mouse_wheel.y * 20.0,
+            MouseScrollUnit::Pixel => mouse_wheel.y,
+        };
+
+        // Apply scroll to hovered scrollable elements
+        for pointer_map in hover_map.values() {
+            for entity in pointer_map.keys() {
+                if let Ok(mut scroll_position) = scroll_query.get_mut(*entity) {
+                    scroll_position.y -= dy;
+                    scroll_position.y = scroll_position.y.max(0.0);
+                }
+            }
+        }
+    }
 }
 
 fn setup_sandbox(
