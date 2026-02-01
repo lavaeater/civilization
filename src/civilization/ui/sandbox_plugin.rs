@@ -202,68 +202,31 @@ fn setup_trade_ui(
 }
 
 fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
-    // Use smaller font sizes to fit within cards
-    let small_font_size = 10.0;
-    let medium_font_size = 14.0;
+    let small_font_size = 9.0;
+    let medium_font_size = 11.0;
     
-    ui.add_card(|card| {
-        card.width_px(120.0)
-            .height_px(80.0)
+    ui.with_child(|card| {
+        card.width_px(100.0)
+            .display_flex()
+            .flex_dir_column()
             .justify_center()
-            .align_items_center();
+            .align_items_center()
+            .padding_all_px(2.0)
+            .margin_all_px(2.0)
+            .bg_color(Color::srgba(0.2, 0.2, 0.3, 0.8))
+            .border_radius_all_px(4.0);
         
         if stack.is_commodity {
-            // Commodity card: Name, Value, Count
-            card.add_column(|col| {
-                col.height_percent(100.0)
-                    .width_percent(100.0)
-                    .justify_center()
-                    .align_items_center();
-                col.add_text_child(
-                    stack.card_type.to_string(),
-                    None,
-                    Some(medium_font_size),
-                    None,
-                );
-                col.add_text_child(
-                    format!("Value: {}", stack.card_type.value()),
-                    None,
-                    Some(small_font_size),
-                    None,
-                );
-                col.add_text_child(
-                    format!("x{} = {}", stack.count, stack.suite_value),
-                    None,
-                    Some(small_font_size),
-                    None,
-                );
-            });
+            card.add_text_child(stack.card_type.to_string(), None, Some(medium_font_size), None);
+            card.add_text_child(format!("x{} = {}", stack.count, stack.suite_value), None, Some(small_font_size), None);
         } else {
-            // Calamity card: Name, Value, Tradeable
-            card.add_column(|col| {
-                col.height_percent(100.0)
-                    .width_percent(100.0)
-                    .justify_center()
-                    .align_items_center();
-                col.add_text_child(
-                    stack.card_type.to_string(),
-                    None,
-                    Some(medium_font_size),
-                    None,
-                );
-                col.add_text_child(
-                    format!("Value: {}", stack.card_type.value()),
-                    None,
-                    Some(small_font_size),
-                    None,
-                );
-                col.add_text_child(
-                    if stack.is_tradeable { "Tradeable" } else { "Non-Tradeable" },
-                    None,
-                    Some(small_font_size),
-                    None,
-                );
-            });
+            card.add_text_child(stack.card_type.to_string(), None, Some(medium_font_size), None);
+            card.add_text_child(
+                if stack.is_tradeable { "Tradeable" } else { "Non-Tradeable" },
+                None,
+                Some(small_font_size),
+                None,
+            );
         }
     });
 }
