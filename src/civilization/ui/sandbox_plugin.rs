@@ -156,23 +156,44 @@ fn setup_trade_ui(
         .display_flex()
         .flex_dir_row();
 
-    // Left side: Sample box display area
+    // Left side: Trade cards grouped by pile value
     ui.with_child(|ui| {
         ui.size_percent(100.0, 100.0)
             .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.3))
             .display_flex()
-            .flex_dir_row()
-            .flex_wrap()
-            .align_content(AlignContent::FlexStart);
+            .flex_dir_column();
         
         if let Ok(trade_cards) = player_trade_cards.single() {
             let stacks = trade_cards.as_card_stacks_sorted_by_value();
-            // let commodity_count = stacks.iter().filter(|s| s.is_commodity).count();
-            // let calamity_count = stacks.iter().filter(|s| s.is_calamity).count();
-            // 
-            // ui.add_text_child(format!("Stacks: {} (commodities: {}, calamities: {})", stacks.len(), commodity_count, calamity_count), None, None, None);
-            for stack in stacks {
-                build_trade_card(ui, &stack);
+            
+            // Group stacks by pile value (1-9)
+            for pile_value in 1..=9 {
+                let pile_stacks: Vec<_> = stacks
+                    .iter()
+                    .filter(|s| s.card_type.value() == pile_value)
+                    .collect();
+                
+                if !pile_stacks.is_empty() {
+                    // Sort: commodities first, then calamities
+                    let mut sorted_stacks = pile_stacks.clone();
+                    sorted_stacks.sort_by_key(|s| if s.is_commodity { 0 } else { 1 });
+                    
+                    // Create a row for this pile
+                    ui.add_row(|row| {
+                        row.width_percent(100.0)
+                            .justify_start()
+                            .align_items_center()
+                            .with_flex_shrink(0.0);
+                        
+                        // Pile label
+                        row.add_text_child(format!("{}:", pile_value), None, Some(12.0), None);
+                        
+                        // Cards in this pile
+                        for stack in sorted_stacks {
+                            build_trade_card(row, stack);
+                        }
+                    });
+                }
             }
         }
     });
@@ -186,9 +207,9 @@ fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
     let medium_font_size = 14.0;
     
     ui.add_card(|card| {
-        card.width_percent(20.0)
-            .aspect_ratio(0.7)
-            .justify_space_between()
+        card.width_px(120.0)
+            .height_px(80.0)
+            .justify_center()
             .align_items_center();
         
         if stack.is_commodity {
