@@ -156,30 +156,16 @@ fn setup_trade_ui(
         .flex_dir_row();
 
     // Left side: Sample box display area
-    ui.add_panel(|ui| {
+    ui.add_grid(4, |ui| {
         ui.size_percent(100.0, 100.0)
-            .padding_all_px(8.0)
-            .display_flex()
-            .justify_start()
-            .align_items_start()
             .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.3));
         
-        
-        
         if let Ok(trade_cards) = player_trade_cards.single() {
-            
             let stacks = trade_cards.as_card_stacks_sorted_by_value();
-            let number_of_cols = 4;
-            let col_width = 100.0 / number_of_cols as f32;
-            let mut col_index = 0;
             for stack in stacks {
-                // stack.card_type, stack.count, stack.suite_value, etc. all ready to use
-                ui.add_row(|row| {
-                    row
-                        .height_percent(col_width)
-                        .width_percent(col_width);
-                    row.add_text_child(stack.card_type.to_string(), None, None, None);
-                    row.add_text_child(format!("{}", stack.count), None, None, None);
+                ui.add_card(|card| {
+                    card.add_text_child(stack.card_type.to_string(), None, None, None);
+                    card.add_text_child(format!("{}", stack.count), None, None, None);
                 });
             }
         }

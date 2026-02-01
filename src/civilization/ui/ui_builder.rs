@@ -1230,6 +1230,66 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self.display(Display::Grid)
     }
 
+    /// Set grid template columns with N equal-width columns using fr units
+    pub fn grid_cols(&mut self, count: u16) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.grid_template_columns = vec![RepeatedGridTrack::fr(count, 1.0)];
+            });
+        self
+    }
+
+    /// Set grid template rows with N equal-height rows using fr units
+    pub fn grid_rows(&mut self, count: u16) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.grid_template_rows = vec![RepeatedGridTrack::fr(count, 1.0)];
+            });
+        self
+    }
+
+    /// Set grid template columns with N columns of fixed pixel width
+    pub fn grid_cols_px(&mut self, count: u16, width: f32) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.grid_template_columns = vec![RepeatedGridTrack::px(count, width)];
+            });
+        self
+    }
+
+    /// Set grid template columns to auto-fill with minimum width
+    pub fn grid_cols_auto_fill(&mut self, min_width: f32) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.grid_template_columns = vec![RepeatedGridTrack::minmax(
+                    GridTrackRepetition::AutoFill,
+                    MinTrackSizingFunction::Px(min_width),
+                    MaxTrackSizingFunction::Fraction(1.0),
+                )];
+            });
+        self
+    }
+
+    /// Set the gap between grid cells
+    pub fn grid_gap_px(&mut self, gap: f32) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.row_gap = Val::Px(gap);
+                n.column_gap = Val::Px(gap);
+            });
+        self
+    }
+
     /// Set display to Block
     pub fn display_block(&mut self) -> &mut Self {
         self.display(Display::Block)
@@ -1744,6 +1804,17 @@ impl<'w, 's> UIBuilder<'w, 's> {
     {
         self.with_child(|ui| {
             ui.display_flex().flex_dir_column().padding_all_px(16.0);
+            f(ui);
+        })
+    }
+
+    /// Add a grid container child with specified number of columns
+    pub fn add_grid<F>(&mut self, cols: u16, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.with_child(|ui| {
+            ui.display_grid().grid_cols(cols).grid_gap_px(8.0);
             f(ui);
         })
     }
