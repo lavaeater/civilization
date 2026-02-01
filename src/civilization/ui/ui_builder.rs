@@ -214,7 +214,7 @@ impl Default for NodeDef {
         Self {
             display: Display::DEFAULT,
             position_type: PositionType::DEFAULT,
-            overflow: Overflow::DEFAULT,
+            overflow: Overflow::clip(),
             overflow_clip_margin: OverflowClipMargin::DEFAULT,
             left: Val::DEFAULT,
             right: Val::DEFAULT,
@@ -1858,8 +1858,8 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self.with_child(|ui| {
             ui.display_flex()
                 .flex_dir_column()
-                .padding_all_px(16.0)
-                .border_radius_all_px(8.0);
+                .padding_all_px(4.0)
+                .border_radius_all_px(4.0);
             f(ui);
         })
     }

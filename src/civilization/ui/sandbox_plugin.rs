@@ -181,8 +181,9 @@ fn setup_trade_ui(
 }
 
 fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
-    let base_font_size = ui.get_defaults().font_size;
-    let large_font_size = base_font_size * 2.0;
+    // Use smaller font sizes to fit within cards
+    let small_font_size = 10.0;
+    let medium_font_size = 14.0;
     
     ui.add_card(|card| {
         card.width_percent(20.0)
@@ -200,19 +201,19 @@ fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
                 col.add_text_child(
                     stack.card_type.to_string(),
                     None,
-                    Some(large_font_size),
+                    Some(medium_font_size),
                     None,
                 );
                 col.add_text_child(
                     format!("Value: {}", stack.card_type.value()),
                     None,
-                    None,
+                    Some(small_font_size),
                     None,
                 );
                 col.add_text_child(
                     format!("x{} = {}", stack.count, stack.suite_value),
                     None,
-                    None,
+                    Some(small_font_size),
                     None,
                 );
             });
@@ -226,19 +227,19 @@ fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
                 col.add_text_child(
                     stack.card_type.to_string(),
                     None,
-                    Some(large_font_size),
+                    Some(medium_font_size),
                     None,
                 );
                 col.add_text_child(
                     format!("Value: {}", stack.card_type.value()),
                     None,
-                    None,
+                    Some(small_font_size),
                     None,
                 );
                 col.add_text_child(
                     if stack.is_tradeable { "Tradeable" } else { "Non-Tradeable" },
                     None,
-                    None,
+                    Some(small_font_size),
                     None,
                 );
             });
