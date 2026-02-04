@@ -3,7 +3,7 @@ use crate::civilization::ui::ui_builder::{
 };
 
 use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCardTrait;
-use crate::civilization::{setup_players, AvailableFactions, GameFaction, PlayerCardStack, PlayerTradeCards};
+use crate::civilization::{setup_players, AvailableFactions, GameFaction, PlayerCardStack, PlayerTradeCards, TradeCardList, TradeCardUiRoot};
 use crate::GameState;
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy::picking::hover::HoverMap;
@@ -141,7 +141,7 @@ pub fn setup_trade_ui(
 
     let mut ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
 
-    ui.with_component::<SandboxUiRoot>()
+    ui.with_component::<TradeCardUiRoot>()
         .size_percent(50.0, 98.0)
         .display_flex()
         .flex_dir_row();
@@ -154,42 +154,11 @@ pub fn setup_trade_ui(
             .display_flex()
             .flex_dir_column()
             .with_overflow(Overflow::scroll_y())
-            .insert(ScrollPosition::default());
+            .insert(ScrollPosition::default())
+            .with_component::<TradeCardList>();
         
         if let Ok(trade_cards) = player_trade_cards.single() {
-            let stacks = trade_cards.as_card_stacks_sorted_by_value();
-            let row_count = stacks.len() as f32;
-            
-            // Group stacks by pile value (1-9)
-            for pile_value in 1..=9 {
-                let pile_stacks: Vec<_> = stacks
-                    .iter()
-                    .filter(|s| s.card_type.value() == pile_value)
-                    .collect();
-                
-                if !pile_stacks.is_empty() {
-                    // Sort: commodities first, then calamities
-                    let mut sorted_stacks = pile_stacks.clone();
-                    sorted_stacks.sort_by_key(|s| if s.is_commodity { 0 } else { 1 });
-                    
-                    // Create a row for this pile
-                    ui.add_row(|row| {
-                        row.width_percent(100.0)
-                            .height_percent(90.0 / row_count)
-                            .justify_start()
-                            .align_items_center()
-                            .with_flex_shrink(0.0);
-                        
-                        // Pile label
-                        row.add_text_child(format!("{}:", pile_value), None, Some(12.0), None);
-                        
-                        // Cards in this pile
-                        for stack in sorted_stacks {
-                            build_trade_card(row, stack);
-                        }
-                    });
-                }
-            }
+            build_trade_card_list(ui, trade_cards);
         }
     });
     ui.with_child(|ui| {
@@ -233,6 +202,42 @@ pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
             );
         }
     });
+}
+
+pub fn build_trade_card_list(ui: &mut UIBuilder, trade_cards: &PlayerTradeCards) {
+    let stacks = trade_cards.as_card_stacks_sorted_by_value();
+    let row_count = stacks.len() as f32;
+    
+    // Group stacks by pile value (1-9)
+    for pile_value in 1..=9 {
+        let pile_stacks: Vec<_> = stacks
+            .iter()
+            .filter(|s| s.card_type.value() == pile_value)
+            .collect();
+        
+        if !pile_stacks.is_empty() {
+            // Sort: commodities first, then calamities
+            let mut sorted_stacks = pile_stacks.clone();
+            sorted_stacks.sort_by_key(|s| if s.is_commodity { 0 } else { 1 });
+            
+            // Create a row for this pile
+            ui.add_row(|row| {
+                row.width_percent(100.0)
+                    .height_percent(90.0 / row_count)
+                    .justify_start()
+                    .align_items_center()
+                    .with_flex_shrink(0.0);
+                
+                // Pile label
+                row.add_text_child(format!("{}:", pile_value), None, Some(12.0), None);
+                
+                // Cards in this pile
+                for stack in sorted_stacks {
+                    build_trade_card(row, stack);
+                }
+            });
+        }
+    }
 }
 
 /// Handle mouse wheel scroll input for scrollable containers

@@ -12,12 +12,8 @@ use crate::civilization::ui::ui_builder::{
 };
 use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
-use bevy::{
-    input::mouse::{MouseScrollUnit, MouseWheel},
-    prelude::*,
-};
-use itertools::Itertools;
-use crate::civilization::sandbox_plugin::{handle_trade_scroll_input, setup_trade_ui};
+use bevy::prelude::*;
+use crate::civilization::sandbox_plugin::{build_trade_card_list, handle_trade_scroll_input, setup_trade_ui};
 
 pub struct TradeUiPlugin;
 
@@ -215,7 +211,6 @@ fn setup(
     }
 }
 
-#[allow(unused_mut)]
 fn handle_player_draws_cards(
     mut reader: MessageReader<HumanPlayerTradeCardsUpdated>,
     commands: Commands,
@@ -226,33 +221,16 @@ fn handle_player_draws_cards(
     let mut new_commands = commands;
     for event in reader.read() {
         info!("Player {} has updated cards", event.player_entity);
-        if let Ok(trade_card_list) = trade_card_list.single() {
+        if let Ok(trade_card_list_entity) = trade_card_list.single() {
             info!("Trade card list exists");
             if let Ok(player_trade_cards) = player_trade_cards.get(event.player_entity) {
-                let grouped_cards = player_trade_cards.trade_cards_grouped_by_value();
                 let mut ui_builder = UIBuilder::start_from_entity(
                     new_commands,
-                    trade_card_list,
+                    trade_card_list_entity,
                     true,
                     Some(ui_builder_defaults.clone()),
                 );
-                ui_builder.foreach_child(
-                    grouped_cards.iter().sorted_by_key(|(value, _)| *value),
-                    |b, (value, group)| {
-                        // `value` and `group` are references here (because `.iter()`).
-                        let value = *value;
-                        b.display(Display::Flex)
-                        .flex_direction(FlexDirection::Row);
-                        
-                        b.text_node(format!("Cards with value: {}", value));
-
-                        // If you want one child per card type inside this group:
-                        b.foreach_child(group.iter(), |b, (card_type, count)| {
-                            add_commodity_card(b, *card_type, *count, &ui_builder_defaults);
-                            // (or wrap add_commodity_card to not require the manual child() if you prefer)
-                        });
-                    },
-                );
+                build_trade_card_list(&mut ui_builder, player_trade_cards);
                 new_commands = ui_builder.build().1;
             }
         }
