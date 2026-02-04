@@ -2,10 +2,8 @@ use crate::civilization::ui::ui_builder::{
     ButtonPartial, NodePartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR, TEXT_COLOR,
 };
 
-use crate::civilization::civilization_plugin::DebugOptions;
 use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCardTrait;
 use crate::civilization::{setup_players, AvailableFactions, GameFaction, PlayerCardStack, PlayerTradeCards};
-use crate::player::Player;
 use crate::GameState;
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy::picking::hover::HoverMap;
@@ -83,8 +81,8 @@ impl Default for SandboxLayoutState {
         Self {
             width: 150.0,
             height: 100.0,
-            padding: 16.0,
-            margin: 8.0,
+            padding: 4.0,
+            margin: 2.0,
             border_width: 2.0,
             border_radius: 0.0,
         }
@@ -146,8 +144,8 @@ fn setup_trade_ui(
             .border_all_px(2.0)
             .border_color(BORDER_COLOR)
             .border_radius_zero()
-            .padding_all_px(8.0)
-            .margin_all_px(6.0),
+            .padding_all_px(4.0)
+            .margin_all_px(2.0),
     );
     ui_defaults.text_justify = Some(Justify::Center);
     ui_defaults.text_line_break = Some(LineBreak::WordBoundary);
@@ -170,6 +168,7 @@ fn setup_trade_ui(
         
         if let Ok(trade_cards) = player_trade_cards.single() {
             let stacks = trade_cards.as_card_stacks_sorted_by_value();
+            let row_count = stacks.len() as f32;
             
             // Group stacks by pile value (1-9)
             for pile_value in 1..=9 {
@@ -186,6 +185,7 @@ fn setup_trade_ui(
                     // Create a row for this pile
                     ui.add_row(|row| {
                         row.width_percent(100.0)
+                            .height_percent(100.0 / row_count)
                             .justify_start()
                             .align_items_center()
                             .with_flex_shrink(0.0);
@@ -211,7 +211,8 @@ fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
     let medium_font_size = 11.0;
     
     ui.with_child(|card| {
-        card.width_px(100.0)
+        card.width_percent(25.0)
+            .height_percent(100.)
             .display_flex()
             .flex_dir_column()
             .justify_center()
@@ -290,8 +291,8 @@ fn setup_sandbox(
             .border_all_px(2.0)
             .border_color(BORDER_COLOR)
             .border_radius_zero()
-            .padding_all_px(8.0)
-            .margin_all_px(6.0),
+            .padding_all_px(4.0)
+            .margin_all_px(2.0),
     );
     ui_defaults.text_justify = Some(Justify::Center);
     ui_defaults.text_line_break = Some(LineBreak::WordBoundary);
@@ -306,7 +307,7 @@ fn setup_sandbox(
     // Left side: Sample box display area
     ui.add_panel(|ui| {
         ui.size_percent(50.0, 100.0)
-            .padding_all_px(8.0)
+            .padding_all_px(4.0)
             .display_flex()
             .justify_center()
             .align_items_center()
@@ -334,12 +335,12 @@ fn setup_sandbox(
             .display_flex()
             .flex_dir_column()
             .bg_color(CONTROL_PANEL_COLOR)
-            .padding_all_px(16.0)
-            .row_gap_px(8.0);
+            .padding_all_px(4.0)
+            .row_gap_px(2.0);
 
         // Title
         ui.with_child(|ui| {
-            ui.default_text("Layout Inspector").margin_btm_px(16.0);
+            ui.default_text("Layout Inspector").margin_btm_px(4.0);
         });
 
         // Control rows
