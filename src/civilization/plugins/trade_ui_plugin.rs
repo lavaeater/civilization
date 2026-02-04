@@ -59,7 +59,7 @@ fn add_commodity_card(
         .flex_direction(FlexDirection::Column)
         .border_all_px(2.0, BORDER_COLOR)
         .padding_all_px(4.0)
-        .with_child(|mut b| {
+        .with_child(|b| {
             // Top set-value boxes (first half)
             b.display(Display::Flex)
                 .flex_direction_row()
@@ -70,7 +70,7 @@ fn add_commodity_card(
                 .column_gap_px(2.0)
                 .width_percent(100.)
                 .height_px(40.0)
-                .foreach_child(1..=max_set_size.min(4), |mut b, n| {
+                .foreach_child(1..=max_set_size.min(4), |b, n| {
                     let is_active = n == active_index;
                     let bg = if is_active { highlight_bg } else { normal_bg };
                     let bc = if is_active {

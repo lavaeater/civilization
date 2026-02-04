@@ -1783,7 +1783,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self
     }
 
-    pub fn with_child<F>(&mut self, mut f: F) -> &mut Self
+    pub fn with_child<F>(&mut self, f: F) -> &mut Self
     where
         F: FnOnce(&mut Self),
     {

@@ -117,8 +117,8 @@ fn setup_trade_ui(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut ui_defaults: ResMut<UiBuilderDefaults>,
-    layout_state: Res<SandboxLayoutState>,
-    player_trade_cards: Query<(&PlayerTradeCards), With<IsHuman>>,
+    _layout_state: Res<SandboxLayoutState>,
+    player_trade_cards: Query<&PlayerTradeCards , With<IsHuman>>,
 ) {
     // Spawn camera for UI rendering
     commands.spawn((
