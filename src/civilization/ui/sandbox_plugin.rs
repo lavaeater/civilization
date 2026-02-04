@@ -156,10 +156,11 @@ fn setup_trade_ui(
         .size_percent(50.0, 98.0)
         .display_flex()
         .flex_dir_row();
+    
 
     // Left side: Trade cards grouped by pile value (scrollable)
     ui.with_child(|ui| {
-        ui.size_percent(100.0, 100.0)
+        ui.size_percent(50.0, 100.0)
             .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.3))
             .display_flex()
             .flex_dir_column()
@@ -201,6 +202,14 @@ fn setup_trade_ui(
                 }
             }
         }
+    });
+    ui.with_child(|ui| {
+        ui.size_percent(50.0, 100.0)
+            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.3))
+            .display_flex()
+            .flex_dir_column();
+        
+        ui.default_text("Right side: Trade cards grouped by pile value (scrollable)");
     });
 
     let (_root, _commands) = ui.build();
