@@ -17,16 +17,6 @@ impl Plugin for SandboxPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(UiBuilderDefaults::new())
             .init_resource::<AvailableFactions>()
-            // .insert_resource(DebugOptions {
-            //     number_of_players: 3,
-            //     human_faction: GameFaction::Egypt,
-            //     human_always_pulls_trade_cards: true,
-            //     ai_always_pulls_trade_cards: false,
-            //     human_starts_with_trade_cards: true,
-            //     auto_trading: false,
-            //     add_human_player: true,
-            //     print_selected_moves: false,
-            // })
             .init_resource::<SandboxLayoutState>()
             .add_systems(
                 OnEnter(GameState::Sandbox),
@@ -34,7 +24,7 @@ impl Plugin for SandboxPlugin {
             )
             .add_systems(
                 Update,
-                (handle_layout_controls, update_sample_box, handle_scroll_input).run_if(in_state(GameState::Sandbox)),
+                (handle_layout_controls, update_sample_box, handle_trade_scroll_input).run_if(in_state(GameState::Sandbox)),
             );
     }
 }
@@ -113,20 +103,19 @@ fn setup_factions(
     }
 }
 
-fn setup_trade_ui(
+pub fn setup_trade_ui(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut ui_defaults: ResMut<UiBuilderDefaults>,
-    _layout_state: Res<SandboxLayoutState>,
     player_trade_cards: Query<&PlayerTradeCards , With<IsHuman>>,
 ) {
-    // Spawn camera for UI rendering
-    commands.spawn((
-        Camera2d,
-        IsDefaultUiCamera,
-        Projection::Orthographic(OrthographicProjection::default_2d()),
-        Msaa::Off,
-    ));
+    // // Spawn camera for UI rendering
+    // commands.spawn((
+    //     Camera2d,
+    //     IsDefaultUiCamera,
+    //     Projection::Orthographic(OrthographicProjection::default_2d()),
+    //     Msaa::Off,
+    // ));
 
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
     ui_defaults.base_font = font;
@@ -215,7 +204,7 @@ fn setup_trade_ui(
     let (_root, _commands) = ui.build();
 }
 
-fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
+pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
     let small_font_size = 9.0;
     let medium_font_size = 11.0;
     
@@ -247,7 +236,7 @@ fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
 }
 
 /// Handle mouse wheel scroll input for scrollable containers
-fn handle_scroll_input(
+pub fn handle_trade_scroll_input(
     mut mouse_wheel_events: MessageReader<MouseWheel>,
     hover_map: Res<HoverMap>,
     mut scroll_query: Query<&mut ScrollPosition>,
@@ -476,7 +465,7 @@ fn build_control_row(
     });
 }
 
-fn handle_layout_controls(
+pub fn handle_layout_controls(
     mut interaction_query: Query<
         (&Interaction, &LayoutControlButton, &mut BackgroundColor),
         Changed<Interaction>,
