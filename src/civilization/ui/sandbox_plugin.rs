@@ -186,7 +186,7 @@ fn setup_trade_ui(
                     // Create a row for this pile
                     ui.add_row(|row| {
                         row.width_percent(100.0)
-                            .height_percent(100.0 / row_count)
+                            .height_percent(90.0 / row_count)
                             .justify_start()
                             .align_items_center()
                             .with_flex_shrink(0.0);
@@ -220,7 +220,7 @@ fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
     let medium_font_size = 11.0;
     
     ui.with_child(|card| {
-        card.width_percent(25.0)
+        card.width_percent(20.0)
             .height_percent(100.)
             .display_flex()
             .flex_dir_column()
