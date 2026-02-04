@@ -167,7 +167,7 @@ pub fn setup_trade_ui(
             .display_flex()
             .flex_dir_column();
         
-        ui.default_text("Right side: Trade cards grouped by pile value (scrollable)");
+        ui.default_text("Left side: Trade cards grouped by pile value (scrollable)");
     });
 
     let (_root, _commands) = ui.build();
@@ -206,7 +206,7 @@ pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
 
 pub fn build_trade_card_list(ui: &mut UIBuilder, trade_cards: &PlayerTradeCards) {
     let stacks = trade_cards.as_card_stacks_sorted_by_value();
-    let row_count = stacks.len() as f32;
+    let row_count = 9f32;
     
     // Group stacks by pile value (1-9)
     for pile_value in 1..=9 {
