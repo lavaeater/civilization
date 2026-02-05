@@ -69,19 +69,33 @@ Implementing a comprehensive trade system with open/directed offers, settlement 
 - `settlement_modal_open: bool` - controls settlement modal visibility
 - `settling_offer_entity: Option<Entity>` - tracks which offer is being settled
 
+### 8. Full Offer Creation Logic (`trade_systems.rs:820-1525`)
+- **`CreateOfferState`** resource (`trade_resources.rs:49-93`) tracks offer being created:
+  - `offering_guaranteed` / `offering_hidden_count` - what player offers
+  - `wanting_guaranteed` / `wanting_hidden_count` - what player wants
+  - `is_valid()` method validates trade rules
+- **New UI Components**:
+  - `OfferCardButton` - clickable cards from player's hand (commodity + calamity)
+  - `WantCardTypeButton` - all commodity types to request
+  - `HiddenCountButton` - +/- buttons for hidden card counts
+  - `OfferHiddenCountDisplay` - shows current hidden count
+  - `OfferSummaryDisplay` - live summary of offer
+  - `OfferValidationDisplay` - shows validity status with specific issues
+  - `PublishOfferButton` - creates the offer entity when valid
+- **Handler Systems**:
+  - `handle_offer_card_selection` - toggles cards as guaranteed (max 2)
+  - `handle_want_card_selection` - toggles wanted card types (max 2)
+  - `handle_hidden_count_buttons` - adjusts hidden counts
+  - `update_hidden_count_displays` - updates count text
+  - `update_offer_summary_display` - updates summary, validation, and button state
+  - `handle_publish_offer` - creates `OpenTradeOffer` entity and closes modal
+
 ## Pending Steps
 
 ### 7. Wire Up AI Trade Behavior
 - AI creates `OpenTradeOffer` entities
 - AI accepts/rejects offers based on card needs
 - AI settles trades by selecting cards
-
-### 8. Full Offer Creation Logic
-- Card selection UI (click cards to add to offer)
-- Guaranteed vs hidden card selection
-- "What you want" section with card type buttons
-- Validation display (show if offer is valid)
-- Publish offer button
 
 ## Key Files
 - `src/civilization/concepts/trade/trade_systems.rs` - Main UI and systems

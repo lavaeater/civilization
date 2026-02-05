@@ -1,5 +1,5 @@
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
-use crate::civilization::concepts::trade::trade_resources::{TradeCountdown, TradePhaseState, TradeUiState};
+use crate::civilization::concepts::trade::trade_resources::{CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState};
 use crate::civilization::concepts::trade::trade_triggers::{can_trade_removed, offer_published};
 use crate::GameActivity;
 use bevy::app::App;
@@ -13,6 +13,7 @@ impl Plugin for TradePlugin {
         app.insert_resource(TradeUiState::default())
             .init_resource::<TradeCountdown>()
             .init_resource::<TradePhaseState>()
+            .init_resource::<CreateOfferState>()
             .add_message::<SendTradingCardsCommand>()
             .add_systems(OnEnter(GameActivity::Trade), (setup_trade, setup_trade_phase_ui))
             .add_systems(OnExit(GameActivity::Trade), cleanup_trade_phase_ui)
@@ -40,6 +41,18 @@ impl Plugin for TradePlugin {
                     spawn_create_offer_modal,
                     handle_close_create_offer_modal,
                     despawn_create_offer_modal,
+                    handle_offer_card_selection,
+                    handle_want_card_selection,
+                    handle_hidden_count_buttons,
+                    update_hidden_count_displays,
+                    update_offer_summary_display,
+                    handle_publish_offer,
+                )
+                    .run_if(in_state(GameActivity::Trade)),
+            )
+            .add_systems(
+                Update,
+                (
                     check_for_settlement_needed,
                     spawn_settlement_modal,
                     handle_settlement_card_selection,

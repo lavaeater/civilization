@@ -6,7 +6,8 @@ use crate::civilization::concepts::trade::trade_components::{
     PlayerTradeInterests, PublishedOffer, SettlementModal, TradeButtonAction, TradeOffer, TradePhaseUiRoot,
 };
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
-use crate::civilization::concepts::trade::trade_resources::{TradeCountdown, TradePhaseState, TradeUiState};
+use crate::civilization::concepts::trade::trade_resources::{CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState};
+use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCardTrait;
 use crate::civilization::game_moves::game_moves_components::{AvailableMoves, Move, TradeMove};
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::ui::ui_builder::UiBuilderDefaults;
@@ -820,6 +821,38 @@ pub fn handle_create_offer_button(
 #[derive(Component, Default)]
 pub struct CloseCreateOfferModalButton;
 
+/// Marker for a card button in the "Your Cards" section (offering)
+#[derive(Component)]
+pub struct OfferCardButton {
+    pub card: TradeCard,
+    pub selected: bool,
+}
+
+/// Marker for a commodity type button in the "What You Want" section
+#[derive(Component)]
+pub struct WantCardTypeButton {
+    pub card_type: TradeCard,
+}
+
+/// Marker for hidden card count adjustment buttons
+#[derive(Component)]
+pub struct HiddenCountButton {
+    pub is_offering: bool,  // true = offering side, false = wanting side
+    pub delta: i32,         // +1 or -1
+}
+
+/// Marker for the offer summary display
+#[derive(Component, Default)]
+pub struct OfferSummaryDisplay;
+
+/// Marker for the validation status display
+#[derive(Component, Default)]
+pub struct OfferValidationDisplay;
+
+/// Marker for the publish offer button
+#[derive(Component, Default)]
+pub struct PublishOfferButton;
+
 /// Spawn the create offer modal when the flag is set
 pub fn spawn_create_offer_modal(
     mut commands: Commands,
@@ -827,14 +860,18 @@ pub fn spawn_create_offer_modal(
     modal_query: Query<Entity, With<CreateOfferModal>>,
     trade_ui_state: Res<TradeUiState>,
     human_player_query: Query<(&Name, &PlayerTradeCards), With<IsHuman>>,
+    mut create_offer_state: ResMut<CreateOfferState>,
 ) {
     // Only spawn if modal should be open and doesn't exist yet
     if !trade_phase_state.create_offer_modal_open || !modal_query.is_empty() {
         return;
     }
     
+    // Reset offer state when opening modal
+    create_offer_state.reset();
+    
     // Get human player's cards
-    let (_player_name, player_cards) = if let Some(human) = trade_ui_state.human_player {
+    let (player_name, player_cards) = if let Some(human) = trade_ui_state.human_player {
         human_player_query.get(human).ok()
     } else {
         human_player_query.iter().next()
@@ -842,20 +879,26 @@ pub fn spawn_create_offer_modal(
         panic!("No human player found for create offer modal");
     });
     
+    // Get list of commodity types for "what you want" section
+    let commodity_types: Vec<TradeCard> = TradeCard::iter()
+        .filter(|c| c.is_commodity())
+        .collect();
+    
     commands
         .spawn((
             CreateOfferModal,
             Node {
                 position_type: PositionType::Absolute,
-                left: Val::Percent(25.0),
-                top: Val::Percent(15.0),
-                width: Val::Percent(50.0),
-                height: Val::Percent(70.0),
+                left: Val::Percent(10.0),
+                top: Val::Percent(5.0),
+                width: Val::Percent(80.0),
+                height: Val::Percent(90.0),
                 flex_direction: FlexDirection::Column,
-                padding: UiRect::all(Val::Px(20.0)),
+                padding: UiRect::all(Val::Px(16.0)),
+                overflow: Overflow::scroll_y(),
                 ..Default::default()
             },
-            BackgroundColor(Color::srgba(0.15, 0.15, 0.2, 0.98)),
+            BackgroundColor(Color::srgba(0.12, 0.12, 0.18, 0.98)),
             GlobalZIndex(100),
         ))
         .with_children(|modal| {
@@ -867,7 +910,7 @@ pub fn spawn_create_offer_modal(
                     flex_direction: FlexDirection::Row,
                     justify_content: JustifyContent::SpaceBetween,
                     align_items: AlignItems::Center,
-                    margin: UiRect::bottom(Val::Px(16.0)),
+                    margin: UiRect::bottom(Val::Px(12.0)),
                     ..Default::default()
                 })
                 .with_children(|header| {
@@ -877,7 +920,6 @@ pub fn spawn_create_offer_modal(
                         TextColor(Color::srgb(0.9, 0.8, 0.3)),
                     ));
                     
-                    // Close button
                     header
                         .spawn((
                             Button,
@@ -897,36 +939,43 @@ pub fn spawn_create_offer_modal(
             
             // Instructions
             modal.spawn((
-                Text::new("Select 2 guaranteed cards to offer and 2 you want. Add hidden cards to reach minimum 3 each side."),
+                Text::new("Rules: Exactly 2 guaranteed cards each side. Minimum 3 total cards each side."),
                 TextFont { font_size: 12.0, ..Default::default() },
                 TextColor(Color::srgb(0.6, 0.6, 0.6)),
             ));
             
-            // Your cards section
+            // === WHAT YOU OFFER SECTION ===
             modal
                 .spawn(Node {
                     width: Val::Percent(100.0),
                     flex_direction: FlexDirection::Column,
-                    margin: UiRect::top(Val::Px(16.0)),
+                    margin: UiRect::top(Val::Px(12.0)),
+                    padding: UiRect::all(Val::Px(10.0)),
                     ..Default::default()
                 })
+                .insert(BackgroundColor(Color::srgba(0.15, 0.2, 0.15, 0.6)))
                 .with_children(|section| {
                     section.spawn((
-                        Text::new("Your Cards (click to add to offer):"),
-                        TextFont { font_size: 14.0, ..Default::default() },
-                        TextColor(Color::srgb(0.7, 0.7, 0.7)),
+                        Text::new(format!("📤 WHAT YOU OFFER (Your Cards - {})", player_name)),
+                        TextFont { font_size: 15.0, ..Default::default() },
+                        TextColor(Color::srgb(0.5, 0.9, 0.5)),
                     ));
                     
+                    section.spawn((
+                        Text::new("Click cards to add as guaranteed (max 2):"),
+                        TextFont { font_size: 11.0, ..Default::default() },
+                        TextColor(Color::srgb(0.6, 0.6, 0.6)),
+                    ));
+                    
+                    // Your cards (clickable)
                     section
                         .spawn(Node {
                             width: Val::Percent(100.0),
                             flex_direction: FlexDirection::Row,
                             flex_wrap: FlexWrap::Wrap,
-                            margin: UiRect::top(Val::Px(8.0)),
-                            padding: UiRect::all(Val::Px(8.0)),
+                            margin: UiRect::top(Val::Px(6.0)),
                             ..Default::default()
                         })
-                        .insert(BackgroundColor(Color::srgba(0.1, 0.1, 0.12, 0.5)))
                         .with_children(|cards_row| {
                             for (card, count) in player_cards.commodity_cards() {
                                 for _ in 0..count {
@@ -934,42 +983,278 @@ pub fn spawn_create_offer_modal(
                                     cards_row
                                         .spawn((
                                             Button,
+                                            OfferCardButton { card: card.clone(), selected: false },
                                             Node {
                                                 padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
                                                 margin: UiRect::all(Val::Px(2.0)),
+                                                border: UiRect::all(Val::Px(2.0)),
                                                 ..Default::default()
                                             },
                                             BackgroundColor(color),
+                                            BorderColor::all(Color::NONE),
                                         ))
                                         .with_child((
                                             Text::new(format!("{}", card)),
-                                            TextFont { font_size: 11.0, ..Default::default() },
+                                            TextFont { font_size: 10.0, ..Default::default() },
                                             TextColor(Color::WHITE),
                                         ));
                                 }
                             }
+                            // Calamity cards (can be hidden in trades!)
+                            for card in player_cards.calamity_cards() {
+                                cards_row
+                                    .spawn((
+                                        Button,
+                                        OfferCardButton { card: card.clone(), selected: false },
+                                        Node {
+                                            padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                                            margin: UiRect::all(Val::Px(2.0)),
+                                            border: UiRect::all(Val::Px(2.0)),
+                                            ..Default::default()
+                                        },
+                                        BackgroundColor(Color::srgb(0.6, 0.15, 0.15)),
+                                        BorderColor::all(Color::NONE),
+                                    ))
+                                    .with_child((
+                                        Text::new(format!("{}", card)),
+                                        TextFont { font_size: 10.0, ..Default::default() },
+                                        TextColor(Color::WHITE),
+                                    ));
+                            }
+                        });
+                    
+                    // Hidden cards count for offering
+                    section
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Row,
+                            align_items: AlignItems::Center,
+                            margin: UiRect::top(Val::Px(8.0)),
+                            ..Default::default()
+                        })
+                        .with_children(|row| {
+                            row.spawn((
+                                Text::new("Hidden cards to offer: "),
+                                TextFont { font_size: 12.0, ..Default::default() },
+                                TextColor(Color::srgb(0.7, 0.7, 0.7)),
+                            ));
+                            
+                            row.spawn((
+                                Button,
+                                HiddenCountButton { is_offering: true, delta: -1 },
+                                Node {
+                                    padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
+                                    margin: UiRect::horizontal(Val::Px(4.0)),
+                                    ..Default::default()
+                                },
+                                BackgroundColor(Color::srgb(0.4, 0.3, 0.3)),
+                            )).with_child((
+                                Text::new("-"),
+                                TextFont { font_size: 14.0, ..Default::default() },
+                                TextColor(Color::WHITE),
+                            ));
+                            
+                            row.spawn((
+                                OfferHiddenCountDisplay { is_offering: true },
+                                Text::new("0"),
+                                TextFont { font_size: 14.0, ..Default::default() },
+                                TextColor(Color::WHITE),
+                            ));
+                            
+                            row.spawn((
+                                Button,
+                                HiddenCountButton { is_offering: true, delta: 1 },
+                                Node {
+                                    padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
+                                    margin: UiRect::horizontal(Val::Px(4.0)),
+                                    ..Default::default()
+                                },
+                                BackgroundColor(Color::srgb(0.3, 0.4, 0.3)),
+                            )).with_child((
+                                Text::new("+"),
+                                TextFont { font_size: 14.0, ..Default::default() },
+                                TextColor(Color::WHITE),
+                            ));
                         });
                 });
             
-            // Placeholder for offer summary
+            // === WHAT YOU WANT SECTION ===
             modal
                 .spawn(Node {
                     width: Val::Percent(100.0),
-                    flex_grow: 1.0,
                     flex_direction: FlexDirection::Column,
-                    margin: UiRect::top(Val::Px(16.0)),
-                    padding: UiRect::all(Val::Px(12.0)),
+                    margin: UiRect::top(Val::Px(12.0)),
+                    padding: UiRect::all(Val::Px(10.0)),
                     ..Default::default()
                 })
-                .insert(BackgroundColor(Color::srgba(0.1, 0.15, 0.1, 0.5)))
-                .with_children(|summary| {
-                    summary.spawn((
-                        Text::new("Offer Summary: (not yet implemented - close modal to continue)"),
+                .insert(BackgroundColor(Color::srgba(0.2, 0.15, 0.15, 0.6)))
+                .with_children(|section| {
+                    section.spawn((
+                        Text::new("📥 WHAT YOU WANT (Guaranteed cards you request)"),
+                        TextFont { font_size: 15.0, ..Default::default() },
+                        TextColor(Color::srgb(0.9, 0.6, 0.5)),
+                    ));
+                    
+                    section.spawn((
+                        Text::new("Click commodity types to add as guaranteed (max 2):"),
+                        TextFont { font_size: 11.0, ..Default::default() },
+                        TextColor(Color::srgb(0.6, 0.6, 0.6)),
+                    ));
+                    
+                    // Commodity type buttons
+                    section
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Row,
+                            flex_wrap: FlexWrap::Wrap,
+                            margin: UiRect::top(Val::Px(6.0)),
+                            ..Default::default()
+                        })
+                        .with_children(|cards_row| {
+                            for card_type in &commodity_types {
+                                let color = commodity_color(card_type);
+                                cards_row
+                                    .spawn((
+                                        Button,
+                                        WantCardTypeButton { card_type: card_type.clone() },
+                                        Node {
+                                            padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                                            margin: UiRect::all(Val::Px(2.0)),
+                                            border: UiRect::all(Val::Px(2.0)),
+                                            ..Default::default()
+                                        },
+                                        BackgroundColor(color),
+                                        BorderColor::all(Color::NONE),
+                                    ))
+                                    .with_child((
+                                        Text::new(format!("{}", card_type)),
+                                        TextFont { font_size: 10.0, ..Default::default() },
+                                        TextColor(Color::WHITE),
+                                    ));
+                            }
+                        });
+                    
+                    // Hidden cards count for wanting
+                    section
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Row,
+                            align_items: AlignItems::Center,
+                            margin: UiRect::top(Val::Px(8.0)),
+                            ..Default::default()
+                        })
+                        .with_children(|row| {
+                            row.spawn((
+                                Text::new("Hidden cards wanted: "),
+                                TextFont { font_size: 12.0, ..Default::default() },
+                                TextColor(Color::srgb(0.7, 0.7, 0.7)),
+                            ));
+                            
+                            row.spawn((
+                                Button,
+                                HiddenCountButton { is_offering: false, delta: -1 },
+                                Node {
+                                    padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
+                                    margin: UiRect::horizontal(Val::Px(4.0)),
+                                    ..Default::default()
+                                },
+                                BackgroundColor(Color::srgb(0.4, 0.3, 0.3)),
+                            )).with_child((
+                                Text::new("-"),
+                                TextFont { font_size: 14.0, ..Default::default() },
+                                TextColor(Color::WHITE),
+                            ));
+                            
+                            row.spawn((
+                                OfferHiddenCountDisplay { is_offering: false },
+                                Text::new("0"),
+                                TextFont { font_size: 14.0, ..Default::default() },
+                                TextColor(Color::WHITE),
+                            ));
+                            
+                            row.spawn((
+                                Button,
+                                HiddenCountButton { is_offering: false, delta: 1 },
+                                Node {
+                                    padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
+                                    margin: UiRect::horizontal(Val::Px(4.0)),
+                                    ..Default::default()
+                                },
+                                BackgroundColor(Color::srgb(0.3, 0.4, 0.3)),
+                            )).with_child((
+                                Text::new("+"),
+                                TextFont { font_size: 14.0, ..Default::default() },
+                                TextColor(Color::WHITE),
+                            ));
+                        });
+                });
+            
+            // === OFFER SUMMARY ===
+            modal
+                .spawn(Node {
+                    width: Val::Percent(100.0),
+                    flex_direction: FlexDirection::Column,
+                    margin: UiRect::top(Val::Px(12.0)),
+                    padding: UiRect::all(Val::Px(10.0)),
+                    ..Default::default()
+                })
+                .insert(BackgroundColor(Color::srgba(0.1, 0.1, 0.15, 0.8)))
+                .with_children(|section| {
+                    section.spawn((
+                        Text::new("📋 OFFER SUMMARY"),
                         TextFont { font_size: 14.0, ..Default::default() },
-                        TextColor(Color::srgb(0.5, 0.5, 0.5)),
+                        TextColor(Color::srgb(0.8, 0.8, 0.8)),
+                    ));
+                    
+                    section.spawn((
+                        OfferSummaryDisplay,
+                        Text::new("Offering: nothing | Wanting: nothing"),
+                        TextFont { font_size: 12.0, ..Default::default() },
+                        TextColor(Color::srgb(0.6, 0.6, 0.6)),
+                    ));
+                    
+                    section.spawn((
+                        OfferValidationDisplay,
+                        Text::new("❌ Invalid: Need 2 guaranteed cards each side, 3+ total each side"),
+                        TextFont { font_size: 12.0, ..Default::default() },
+                        TextColor(Color::srgb(0.8, 0.4, 0.4)),
                     ));
                 });
+            
+            // === PUBLISH BUTTON ===
+            modal
+                .spawn(Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(50.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    margin: UiRect::top(Val::Px(12.0)),
+                    ..Default::default()
+                })
+                .with_children(|btn_row| {
+                    btn_row
+                        .spawn((
+                            Button,
+                            PublishOfferButton,
+                            Node {
+                                padding: UiRect::axes(Val::Px(30.0), Val::Px(12.0)),
+                                ..Default::default()
+                            },
+                            BackgroundColor(Color::srgb(0.3, 0.3, 0.3)),
+                        ))
+                        .with_child((
+                            Text::new("📢 Publish Offer"),
+                            TextFont { font_size: 16.0, ..Default::default() },
+                            TextColor(Color::srgb(0.5, 0.5, 0.5)),
+                        ));
+                });
         });
+}
+
+/// Marker for hidden count display text
+#[derive(Component)]
+pub struct OfferHiddenCountDisplay {
+    pub is_offering: bool,
 }
 
 /// Handle close button on create offer modal
@@ -1000,6 +1285,242 @@ pub fn despawn_create_offer_modal(
     
     for entity in modal_query.iter() {
         commands.entity(entity).despawn();
+    }
+}
+
+/// Handle clicking on offer card buttons (your cards to offer as guaranteed)
+pub fn handle_offer_card_selection(
+    mut interaction_query: Query<
+        (&Interaction, &mut OfferCardButton, &mut BorderColor),
+        Changed<Interaction>,
+    >,
+    mut create_offer_state: ResMut<CreateOfferState>,
+) {
+    for (interaction, mut card_btn, mut border) in &mut interaction_query {
+        if *interaction == Interaction::Pressed {
+            let current_guaranteed = create_offer_state.guaranteed_offering_count();
+            
+            if card_btn.selected {
+                // Deselect
+                card_btn.selected = false;
+                *border = BorderColor::all(Color::NONE);
+                if let Some(count) = create_offer_state.offering_guaranteed.get_mut(&card_btn.card) {
+                    if *count > 1 {
+                        *count -= 1;
+                    } else {
+                        create_offer_state.offering_guaranteed.remove(&card_btn.card);
+                    }
+                }
+            } else if current_guaranteed < 2 {
+                // Select (only if under limit)
+                card_btn.selected = true;
+                *border = BorderColor::all(Color::srgb(0.3, 0.9, 0.4));
+                *create_offer_state.offering_guaranteed.entry(card_btn.card.clone()).or_insert(0) += 1;
+            }
+        }
+    }
+}
+
+/// Handle clicking on want card type buttons (what you want as guaranteed)
+pub fn handle_want_card_selection(
+    mut interaction_query: Query<
+        (&Interaction, &WantCardTypeButton, &mut BorderColor),
+        Changed<Interaction>,
+    >,
+    mut create_offer_state: ResMut<CreateOfferState>,
+) {
+    for (interaction, want_btn, mut border) in &mut interaction_query {
+        if *interaction == Interaction::Pressed {
+            let current_count = create_offer_state.wanting_guaranteed
+                .get(&want_btn.card_type)
+                .copied()
+                .unwrap_or(0);
+            let total_guaranteed = create_offer_state.guaranteed_wanting_count();
+            
+            if current_count > 0 {
+                // Remove one
+                if current_count > 1 {
+                    *create_offer_state.wanting_guaranteed.get_mut(&want_btn.card_type).unwrap() -= 1;
+                } else {
+                    create_offer_state.wanting_guaranteed.remove(&want_btn.card_type);
+                    *border = BorderColor::all(Color::NONE);
+                }
+            } else if total_guaranteed < 2 {
+                // Add one (only if under limit)
+                *create_offer_state.wanting_guaranteed.entry(want_btn.card_type.clone()).or_insert(0) += 1;
+                *border = BorderColor::all(Color::srgb(0.9, 0.6, 0.3));
+            }
+        }
+    }
+}
+
+/// Handle hidden count +/- buttons
+pub fn handle_hidden_count_buttons(
+    mut interaction_query: Query<
+        (&Interaction, &HiddenCountButton),
+        Changed<Interaction>,
+    >,
+    mut create_offer_state: ResMut<CreateOfferState>,
+) {
+    for (interaction, btn) in &mut interaction_query {
+        if *interaction == Interaction::Pressed {
+            if btn.is_offering {
+                let new_val = create_offer_state.offering_hidden_count as i32 + btn.delta;
+                if new_val >= 0 {
+                    create_offer_state.offering_hidden_count = new_val as usize;
+                }
+            } else {
+                let new_val = create_offer_state.wanting_hidden_count as i32 + btn.delta;
+                if new_val >= 0 {
+                    create_offer_state.wanting_hidden_count = new_val as usize;
+                }
+            }
+        }
+    }
+}
+
+/// Update hidden count displays
+pub fn update_hidden_count_displays(
+    create_offer_state: Res<CreateOfferState>,
+    mut displays: Query<(&OfferHiddenCountDisplay, &mut Text)>,
+) {
+    for (display, mut text) in displays.iter_mut() {
+        let count = if display.is_offering {
+            create_offer_state.offering_hidden_count
+        } else {
+            create_offer_state.wanting_hidden_count
+        };
+        **text = count.to_string();
+    }
+}
+
+/// Update offer summary and validation displays
+pub fn update_offer_summary_display(
+    create_offer_state: Res<CreateOfferState>,
+    mut summary_query: Query<&mut Text, (With<OfferSummaryDisplay>, Without<OfferValidationDisplay>)>,
+    mut validation_query: Query<(&mut Text, &mut TextColor), (With<OfferValidationDisplay>, Without<OfferSummaryDisplay>)>,
+    mut publish_btn: Query<(&mut BackgroundColor, &Children), With<PublishOfferButton>>,
+    mut text_color_query: Query<&mut TextColor, (Without<OfferValidationDisplay>, Without<OfferSummaryDisplay>)>,
+) {
+    // Build offering text
+    let offering_text = if create_offer_state.offering_guaranteed.is_empty() && create_offer_state.offering_hidden_count == 0 {
+        "nothing".to_string()
+    } else {
+        let mut parts = Vec::new();
+        for (card, count) in create_offer_state.offering_guaranteed.iter() {
+            parts.push(format!("{}x {}", count, card));
+        }
+        if create_offer_state.offering_hidden_count > 0 {
+            parts.push(format!("+{} hidden", create_offer_state.offering_hidden_count));
+        }
+        parts.join(", ")
+    };
+    
+    // Build wanting text
+    let wanting_text = if create_offer_state.wanting_guaranteed.is_empty() && create_offer_state.wanting_hidden_count == 0 {
+        "nothing".to_string()
+    } else {
+        let mut parts = Vec::new();
+        for (card, count) in create_offer_state.wanting_guaranteed.iter() {
+            parts.push(format!("{}x {}", count, card));
+        }
+        if create_offer_state.wanting_hidden_count > 0 {
+            parts.push(format!("+{} hidden", create_offer_state.wanting_hidden_count));
+        }
+        parts.join(", ")
+    };
+    
+    // Update summary
+    for mut text in summary_query.iter_mut() {
+        **text = format!("Offering: {} | Wanting: {}", offering_text, wanting_text);
+    }
+    
+    // Update validation
+    let is_valid = create_offer_state.is_valid();
+    for (mut text, mut color) in validation_query.iter_mut() {
+        if is_valid {
+            **text = "✅ Valid offer - ready to publish!".to_string();
+            *color = TextColor(Color::srgb(0.4, 0.8, 0.4));
+        } else {
+            let mut issues = Vec::new();
+            if create_offer_state.guaranteed_offering_count() != 2 {
+                issues.push(format!("need 2 guaranteed offering (have {})", create_offer_state.guaranteed_offering_count()));
+            }
+            if create_offer_state.guaranteed_wanting_count() != 2 {
+                issues.push(format!("need 2 guaranteed wanting (have {})", create_offer_state.guaranteed_wanting_count()));
+            }
+            if create_offer_state.total_offering() < 3 {
+                issues.push(format!("need 3+ total offering (have {})", create_offer_state.total_offering()));
+            }
+            if create_offer_state.total_wanting() < 3 {
+                issues.push(format!("need 3+ total wanting (have {})", create_offer_state.total_wanting()));
+            }
+            **text = format!("❌ Invalid: {}", issues.join(", "));
+            *color = TextColor(Color::srgb(0.8, 0.4, 0.4));
+        }
+    }
+    
+    // Update publish button appearance
+    for (mut bg, children) in publish_btn.iter_mut() {
+        if is_valid {
+            *bg = BackgroundColor(Color::srgb(0.2, 0.6, 0.3));
+            for child in children.iter() {
+                if let Ok(mut text_color) = text_color_query.get_mut(child) {
+                    *text_color = TextColor(Color::WHITE);
+                }
+            }
+        } else {
+            *bg = BackgroundColor(Color::srgb(0.3, 0.3, 0.3));
+            for child in children.iter() {
+                if let Ok(mut text_color) = text_color_query.get_mut(child) {
+                    *text_color = TextColor(Color::srgb(0.5, 0.5, 0.5));
+                }
+            }
+        }
+    }
+}
+
+/// Handle publish offer button - creates the OpenTradeOffer entity
+pub fn handle_publish_offer(
+    mut commands: Commands,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<PublishOfferButton>)>,
+    create_offer_state: Res<CreateOfferState>,
+    mut trade_phase_state: ResMut<TradePhaseState>,
+    trade_ui_state: Res<TradeUiState>,
+    human_query: Query<&Name, With<IsHuman>>,
+) {
+    for interaction in &mut interaction_query {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        
+        if !create_offer_state.is_valid() {
+            debug!("Cannot publish invalid offer");
+            continue;
+        }
+        
+        let Some(human_entity) = trade_ui_state.human_player else {
+            debug!("No human player to create offer");
+            continue;
+        };
+        
+        let human_name = human_query.get(human_entity)
+            .map(|n| n.to_string())
+            .unwrap_or_else(|_| "Player".to_string());
+        
+        // Create the offer entity
+        let mut offer = OpenTradeOffer::new(human_entity, human_name, None, None);
+        offer.offering_guaranteed = create_offer_state.offering_guaranteed.clone();
+        offer.offering_hidden_count = create_offer_state.offering_hidden_count;
+        offer.wanting_guaranteed = create_offer_state.wanting_guaranteed.clone();
+        offer.wanting_hidden_count = create_offer_state.wanting_hidden_count;
+        
+        commands.spawn(offer);
+        
+        debug!("Published trade offer");
+        
+        // Close the modal
+        trade_phase_state.create_offer_modal_open = false;
     }
 }
 
