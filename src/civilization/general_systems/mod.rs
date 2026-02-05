@@ -12,7 +12,7 @@ use crate::stupid_ai::prelude::*;
 use crate::GameActivity;
 use bevy::math::{vec3, Vec3};
 use bevy::prelude::{debug, default, info, Commands, Entity, MessageReader, MessageWriter, Name, NextState, Query, Res, ResMut, Sprite, StateTransitionEvent, Transform, With, Without};
-use rand::seq::IteratorRandom;
+use rand::seq::{IteratorRandom, SliceRandom};
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
@@ -44,6 +44,29 @@ pub fn start_game_after_player_setup(
     next_state.set(GameActivity::StartGame);
 }
 
+const ANCIENT_RULERS: &[&str] = &[
+    "Ramesses",
+    "Cleopatra",
+    "Nebuchadnezzar",
+    "Hammurabi",
+    "Cyrus",
+    "Darius",
+    "Xerxes",
+    "Alexander",
+    "Ptolemy",
+    "Sargon",
+    "Ashurbanipal",
+    "Hatshepsut",
+    "Tutankhamun",
+    "Nefertiti",
+    "Minos",
+    "Agamemnon",
+    "Priam",
+    "Leonidas",
+    "Pericles",
+    "Hannibal",
+];
+
 pub fn setup_players(
     debug_options: Res<DebugOptions>,
     mut trade_card_resource: ResMut<CivilizationTradeCards>,
@@ -51,6 +74,9 @@ pub fn setup_players(
     mut available_factions: ResMut<AvailableFactions>,
 ) {
     debug!("3. Setting up players!");
+    let mut available_names: Vec<&str> = ANCIENT_RULERS.to_vec();
+    available_names.shuffle(&mut rand::rng());
+    
     (1..=debug_options.number_of_players).for_each(|n| {
         if let Some(faction) = available_factions
             .remaining_factions
@@ -59,11 +85,12 @@ pub fn setup_players(
             .choose(&mut rand::rng())
         {
             available_factions.remaining_factions.remove(faction);
+            let ruler_name = available_names.pop().unwrap_or("Unknown");
             // Create Player
             let player = commands
                 .spawn((
                     Player,
-                    Name::new(format!("p_{:#?}_{n}", faction)),
+                    Name::new(format!("{} of {:?}", ruler_name, faction)),
                     Census { population: 0 },
                     Treasury::default(),
                     Faction::new(*faction),

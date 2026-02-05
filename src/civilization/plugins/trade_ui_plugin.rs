@@ -1,11 +1,17 @@
 //! This example illustrates the various features of Bevy UI.
 
+use crate::civilization::components::Faction;
 use crate::civilization::concepts::acquire_trade_cards::trade_card_components::PlayerTradeCards;
 use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::{
     TradeCard, TradeCardTrait,
 };
 use crate::civilization::concepts::acquire_trade_cards::trade_card_events::HumanPlayerTradeCardsUpdated;
+use crate::civilization::concepts::city_construction::city_construction_events::BuildCityCommand;
+use crate::civilization::concepts::movement::movement_events::MoveTokenFromAreaToAreaCommand;
+use crate::civilization::concepts::population_expansion::population_expansion_events::ExpandPopulationManuallyCommand;
 use crate::civilization::concepts::trade::trade_components::{TradeCardList, TradeCardUiRoot};
+use crate::player::Player;
+use bevy::platform::collections::HashMap;
 use crate::civilization::ui::ui_builder::{
     ButtonPartial, NodePartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR, CARD_COLOR,
     TEXT_COLOR,
@@ -21,6 +27,29 @@ use bevy::prelude::*;
 #[derive(Component, Default)]
 pub struct GameStateDisplay;
 
+#[derive(Component, Default)]
+pub struct PlayerActivityListContainer;
+
+#[derive(Component)]
+pub struct PlayerActivityRow {
+    pub player: Entity,
+}
+
+#[derive(Resource, Default)]
+pub struct PlayerActivityLog {
+    pub activities: HashMap<Entity, String>,
+}
+
+impl PlayerActivityLog {
+    pub fn log(&mut self, player: Entity, activity: String) {
+        self.activities.insert(player, activity);
+    }
+    
+    pub fn get(&self, player: Entity) -> &str {
+        self.activities.get(&player).map(|s| s.as_str()).unwrap_or("Waiting...")
+    }
+}
+
 pub struct TradeUiPlugin;
 
 impl Plugin for TradeUiPlugin {
@@ -28,11 +57,14 @@ impl Plugin for TradeUiPlugin {
         app
             // .insert_resource(WinitSettings::desktop_app())
             .insert_resource(UiBuilderDefaults::new())
+            .init_resource::<PlayerActivityLog>()
             .add_systems(OnEnter(GameActivity::StartGame), setup_trade_ui)
             .add_systems(Update, (
                 handle_player_draws_cards,
                 handle_trade_scroll_input,
                 update_game_state_display,
+                track_player_activities,
+                update_player_activity_display,
             ));
     }
 }
@@ -314,14 +346,26 @@ pub fn setup_trade_ui(
         ui.add_text_child("Game State Info", None, Some(14.0), None);
         ui.with_child(|info| {
             info.width_percent(100.0)
-                .height_px(60.0)
+                .height_px(40.0)
                 .display_flex()
                 .flex_dir_column()
-                .padding_all_px(8.0)
+                .padding_all_px(4.0)
                 .with_component::<GameStateDisplay>();
             
-            info.add_text_child("State: Playing", None, Some(12.0), None);
-            info.add_text_child("Activity: StartGame", None, Some(12.0), None);
+            info.add_text_child("State: Playing", None, Some(10.0), None);
+            info.add_text_child("Activity: StartGame", None, Some(10.0), None);
+        });
+        
+        ui.add_text_child("Player Activity", None, Some(14.0), None);
+        ui.with_child(|list| {
+            list.width_percent(100.0)
+                .height_percent(80.0)
+                .display_flex()
+                .flex_dir_column()
+                .padding_all_px(4.0)
+                .with_overflow(Overflow::scroll_y())
+                .insert(ScrollPosition::default())
+                .with_component::<PlayerActivityListContainer>();
         });
     });
 
@@ -452,8 +496,110 @@ fn update_game_state_display(
         Some(ui_defaults.clone()),
     );
     
-    ui.add_text_child(&state_text, None, Some(12.0), None);
-    ui.add_text_child(&activity_text, None, Some(12.0), None);
+    ui.add_text_child(&state_text, None, Some(10.0), None);
+    ui.add_text_child(&activity_text, None, Some(10.0), None);
     
     ui.build();
+}
+
+fn track_player_activities(
+    mut activity_log: ResMut<PlayerActivityLog>,
+    mut pop_exp_events: MessageReader<ExpandPopulationManuallyCommand>,
+    mut movement_events: MessageReader<MoveTokenFromAreaToAreaCommand>,
+    mut city_build_events: MessageReader<BuildCityCommand>,
+    _player_names: Query<&Name>,
+    area_names: Query<&Name>,
+) {
+    for event in pop_exp_events.read() {
+        let area_name = area_names.get(event.area).map(|n| n.as_str()).unwrap_or("?");
+        activity_log.log(
+            event.player,
+            format!("🌱 Expanding {} tokens to {}", event.number_of_tokens, area_name),
+        );
+    }
+    
+    for event in movement_events.read() {
+        let from = area_names.get(event.source_area).map(|n| n.as_str()).unwrap_or("?");
+        let to = area_names.get(event.target_area).map(|n| n.as_str()).unwrap_or("?");
+        activity_log.log(
+            event.player,
+            format!("🚶 Moving {} from {} to {}", event.number_of_tokens, from, to),
+        );
+    }
+    
+    for event in city_build_events.read() {
+        let area_name = area_names.get(event.area).map(|n| n.as_str()).unwrap_or("?");
+        activity_log.log(
+            event.player,
+            format!("🏛️ Building city in {}", area_name),
+        );
+    }
+}
+
+fn update_player_activity_display(
+    commands: Commands,
+    activity_log: Res<PlayerActivityLog>,
+    ui_defaults: Res<UiBuilderDefaults>,
+    container_query: Query<Entity, With<PlayerActivityListContainer>>,
+    players: Query<(Entity, &Name, &Faction), With<Player>>,
+) {
+    if !activity_log.is_changed() {
+        return;
+    }
+    
+    let Ok(container) = container_query.single() else {
+        return;
+    };
+    
+    let mut ui = UIBuilder::start_from_entity(
+        commands,
+        container,
+        true,
+        Some(ui_defaults.clone()),
+    );
+    
+    for (player_entity, name, faction) in players.iter() {
+        let activity = activity_log.get(player_entity);
+        let faction_color = faction_to_color(faction);
+        
+        ui.with_child(|row| {
+            row.width_percent(100.0)
+                .height_px(36.0)
+                .display_flex()
+                .flex_dir_row()
+                .align_items_center()
+                .padding_all_px(4.0)
+                .margin_all_px(2.0)
+                .bg_color(Color::srgba(0.15, 0.15, 0.2, 0.8))
+                .border_radius_all_px(4.0);
+            
+            row.with_child(|badge| {
+                badge.width_px(12.0)
+                    .height_px(12.0)
+                    .bg_color(faction_color)
+                    .border_radius_all_px(6.0)
+                    .margin_all_px(6.0);
+            });
+            
+            row.add_text_child(format!("{}: ", name), None, Some(13.0), Some(faction_color));
+            row.add_text_child(activity, None, Some(12.0), None);
+        });
+    }
+    
+    ui.build();
+}
+
+fn faction_to_color(faction: &Faction) -> Color {
+    use crate::civilization::enums::GameFaction;
+    match faction.faction {
+        GameFaction::Egypt => Color::srgb(0.9, 0.8, 0.3),
+        GameFaction::Crete => Color::srgb(0.3, 0.6, 0.9),
+        GameFaction::Africa => Color::srgb(0.6, 0.4, 0.2),
+        GameFaction::Asia => Color::srgb(0.9, 0.5, 0.2),
+        GameFaction::Assyria => Color::srgb(0.7, 0.2, 0.2),
+        GameFaction::Babylon => Color::srgb(0.5, 0.3, 0.7),
+        GameFaction::Illyria => Color::srgb(0.3, 0.7, 0.4),
+        GameFaction::Iberia => Color::srgb(0.8, 0.6, 0.1),
+        GameFaction::Thrace => Color::srgb(0.4, 0.5, 0.6),
+    }
 }
