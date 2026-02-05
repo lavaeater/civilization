@@ -313,3 +313,156 @@ pub struct TradeCardUiRoot;
 
 #[derive(Component, Default)]
 pub struct TradeCardList;
+
+/// A simplified trade offer for the new trade UI system.
+/// Offers can be open (target = None) or directed at a specific player.
+#[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]
+pub struct OpenTradeOffer {
+    pub creator: Entity,
+    pub creator_name: String,
+    
+    /// Optional target - None means open offer (anyone can accept)
+    pub target: Option<Entity>,
+    pub target_name: Option<String>,
+    
+    /// What creator offers - guaranteed cards (exactly 2 total, must be truthful)
+    pub offering_guaranteed: HashMap<TradeCard, usize>,
+    /// How many additional hidden cards the creator offers
+    pub offering_hidden_count: usize,
+    
+    /// What creator wants - guaranteed cards (exactly 2 total, must be truthful)
+    pub wanting_guaranteed: HashMap<TradeCard, usize>,
+    /// How many additional hidden cards the creator wants
+    pub wanting_hidden_count: usize,
+    
+    /// Who accepted this offer (if any)
+    pub accepted_by: Option<Entity>,
+    pub accepted_by_name: Option<String>,
+    
+    /// Whether the offer was rejected/withdrawn
+    pub withdrawn: bool,
+    
+    /// Settlement: actual cards chosen by creator
+    pub creator_actual_cards: Option<HashMap<TradeCard, usize>>,
+    /// Settlement: actual cards chosen by acceptor
+    pub acceptor_actual_cards: Option<HashMap<TradeCard, usize>>,
+}
+
+impl OpenTradeOffer {
+    pub fn new(
+        creator: Entity,
+        creator_name: impl Into<String>,
+        target: Option<Entity>,
+        target_name: Option<String>,
+    ) -> Self {
+        Self {
+            creator,
+            creator_name: creator_name.into(),
+            target,
+            target_name,
+            offering_guaranteed: HashMap::default(),
+            offering_hidden_count: 0,
+            wanting_guaranteed: HashMap::default(),
+            wanting_hidden_count: 0,
+            accepted_by: None,
+            accepted_by_name: None,
+            withdrawn: false,
+            creator_actual_cards: None,
+            acceptor_actual_cards: None,
+        }
+    }
+    
+    /// Total cards being offered
+    pub fn total_offering(&self) -> usize {
+        self.offering_guaranteed.values().sum::<usize>() + self.offering_hidden_count
+    }
+    
+    /// Total cards being requested
+    pub fn total_wanting(&self) -> usize {
+        self.wanting_guaranteed.values().sum::<usize>() + self.wanting_hidden_count
+    }
+    
+    /// Check if offer is valid (min 3 cards each side, exactly 2 guaranteed each side)
+    pub fn is_valid(&self) -> bool {
+        let guaranteed_offering: usize = self.offering_guaranteed.values().sum();
+        let guaranteed_wanting: usize = self.wanting_guaranteed.values().sum();
+        
+        guaranteed_offering == 2
+            && guaranteed_wanting == 2
+            && self.total_offering() >= 3
+            && self.total_wanting() >= 3
+    }
+    
+    /// Can this player accept the offer?
+    pub fn can_accept(&self, player: Entity) -> bool {
+        // Can't accept your own offer
+        if player == self.creator {
+            return false;
+        }
+        // Already accepted or withdrawn
+        if self.accepted_by.is_some() || self.withdrawn {
+            return false;
+        }
+        // If directed, only target can accept
+        if let Some(target) = self.target {
+            return player == target;
+        }
+        // Open offer - anyone can accept
+        true
+    }
+    
+    /// Accept the offer
+    pub fn accept(&mut self, player: Entity, player_name: impl Into<String>) -> bool {
+        if self.can_accept(player) {
+            self.accepted_by = Some(player);
+            self.accepted_by_name = Some(player_name.into());
+            true
+        } else {
+            false
+        }
+    }
+    
+    /// Is this offer in settlement phase?
+    pub fn is_settling(&self) -> bool {
+        self.accepted_by.is_some() && !self.is_settled()
+    }
+    
+    /// Is this offer fully settled (both parties assigned cards)?
+    pub fn is_settled(&self) -> bool {
+        self.creator_actual_cards.is_some() && self.acceptor_actual_cards.is_some()
+    }
+    
+    /// Settle creator's side
+    pub fn settle_creator(&mut self, cards: HashMap<TradeCard, usize>) {
+        self.creator_actual_cards = Some(cards);
+    }
+    
+    /// Settle acceptor's side
+    pub fn settle_acceptor(&mut self, cards: HashMap<TradeCard, usize>) {
+        self.acceptor_actual_cards = Some(cards);
+    }
+}
+
+/// Marker for the trade offers list UI container
+#[derive(Component, Default)]
+pub struct OpenOffersListContainer;
+
+/// Marker for the "Create Offer" modal
+#[derive(Component, Default)]
+pub struct CreateOfferModal;
+
+/// Marker for the settlement modal
+#[derive(Component, Default)]
+pub struct SettlementModal;
+
+/// Marker for the trade phase root UI
+#[derive(Component, Default)]
+pub struct TradePhaseUiRoot;
+
+/// Marker for the "Create Offer" button
+#[derive(Component, Default)]
+pub struct CreateOfferButton;
+
+/// Marker for the "Done Trading" button
+#[derive(Component, Default)]
+pub struct DoneTradingButton;

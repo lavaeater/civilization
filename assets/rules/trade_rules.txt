@@ -1,0 +1,53 @@
+28. TRADE
+28.1 Players trade to build up sets of the same commodities, as sets are
+more valuable than individual commodity cards. Trade is open to all
+players. Offers may be suspended, altered or withdrawn in open
+negotiation between players, but once trade cards have changed hands,
+a deal is complete and cannot be revoked.
+28.2 Trade is carried on by a system of barter involving only trade
+cards. Trade deals may not include treasury or civilization cards. Any
+one trade deal may involve only two players.
+28.3 Each trade must involve at least three trade cards on each side. A
+player with fewer than three trade cards may not trade. When negotiating
+a trade, each player must honestly inform the other of the number of
+trade cards he wishes to trade and at least two of the trade cards involved
+in the trade. This information must be correct· the remaining card or
+cards need not be specified and may consist of any commodity or tradable
+caJamity card(s), regardless of what was said to the other player. A
+
+playcr may not show his trade cards to another player during negotia-
+tions, nor maya player inform other players of the details of a trade after
+
+it is completed.
+
+EXAMPLE: A player, wishing to acquire grain, annOUDCea "I want gmin · I'U trade
+for grain. " He agrees with a pr05pective trading partner that be will trade three canh
+including two salt, for. grain. an iron and two Wlknown canh. Thil guarantees that the:
+other player will receive two salt carda. An assurance that the third card is alao • lid:
+doea not guarantee that the third card traded will Dot be a different commodil}', or
+possibly a tnldable calamiI}' card. Similarly. our player can only be sure that he 'NJ.U
+receive one grain. one iron and two other cards. He has no way of knowing what tb:
+other cards will be Wltil he receives them, although mcaningleaa ll85urancC8 can be givea
+by his trading partner.
+28.4 Limiting Ibe trading phase
+28.41 Trading is permitted to continue until all players have completed
+all the deals they wish to make. It is strongly recommended, though, the!
+a time limit of not more than five minutes be imposed upon the tradinf
+phase.
+28.S Commodity Card Sets
+28.51 When a player holds more than one commodity card of the same
+type, the value of the combination is increased according to the following
+formula: square the number of cards held, then multiply the result by the
+value of the commodity. For example, three grain cards (each worth
+four) have a vaJue of 3 x 3 x 4 = 36, rather than 4 + 4 + 4 = 12.
+28.52 The values of the cards when collected in sets is printed on each
+commodity card. Different commodities, even of the same valuc, rna)
+not be combined in sets.
+28.53 Mining increases the value of Iron, Bronze, Silver, Gems or Gold
+by one card. This effect only applies once each lum. For example, if a
+player holding Mining uses Ihree Bronze cards 10 purchase a civilizarion
+card, he could use Mining 10 increase the value oj Ihe ser from 54 to 96
+(lhe value of jour Bronze cards), bUl could nOl also use Mining 10
+increase the value oj a set oj Gems cards in the same tum. Mining may
+not be used 10 increase the value oj a set of commodity cards beyond Ihe
+limit prinled on lhe commodiry card itself.
