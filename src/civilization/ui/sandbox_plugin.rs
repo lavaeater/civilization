@@ -2,15 +2,9 @@ use crate::civilization::ui::ui_builder::{
     ButtonPartial, NodePartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR, TEXT_COLOR,
 };
 
-use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCardTrait;
-use crate::civilization::{setup_players, AvailableFactions, GameFaction, PlayerCardStack, PlayerTradeCards, TradeCardList, TradeCardUiRoot};
+use crate::civilization::{setup_players, AvailableFactions, GameFaction};
 use crate::GameState;
-use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
-use bevy::picking::hover::HoverMap;
 use bevy::prelude::*;
-use bevy::ui::ScrollPosition;
-use crate::stupid_ai::prelude::IsHuman;
-
 pub struct SandboxPlugin;
 
 impl Plugin for SandboxPlugin {
@@ -20,11 +14,11 @@ impl Plugin for SandboxPlugin {
             .init_resource::<SandboxLayoutState>()
             .add_systems(
                 OnEnter(GameState::Sandbox),
-                (setup_factions, setup_players, setup_trade_ui).chain(),
+                (setup_factions, setup_players, setup_sandbox).chain(),
             )
             .add_systems(
                 Update,
-                (handle_layout_controls, update_sample_box, handle_trade_scroll_input).run_if(in_state(GameState::Sandbox)),
+                (handle_layout_controls, update_sample_box).run_if(in_state(GameState::Sandbox)),
             );
     }
 }
@@ -100,167 +94,6 @@ fn setup_factions(
     ] {
         available_factions.factions.insert(faction);
         available_factions.remaining_factions.insert(faction);
-    }
-}
-
-pub fn setup_trade_ui(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut ui_defaults: ResMut<UiBuilderDefaults>,
-    player_trade_cards: Query<&PlayerTradeCards , With<IsHuman>>,
-) {
-    // // Spawn camera for UI rendering
-    // commands.spawn((
-    //     Camera2d,
-    //     IsDefaultUiCamera,
-    //     Projection::Orthographic(OrthographicProjection::default_2d()),
-    //     Msaa::Off,
-    // ));
-
-    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-    ui_defaults.base_font = font;
-    ui_defaults.bg_color = BG_COLOR;
-    ui_defaults.text_color = TEXT_COLOR;
-    ui_defaults.font_size = 16.0;
-    ui_defaults.border_color = BORDER_COLOR;
-    ui_defaults.button_def = Some(ButtonPartial {
-        border_radius: Some(BorderRadius::MAX),
-        border_color: Some(BORDER_COLOR),
-        ..default()
-    });
-    ui_defaults.node_def = Some(
-        NodePartial::new()
-            .border_all_px(2.0)
-            .border_color(BORDER_COLOR)
-            .border_radius_zero()
-            .padding_all_px(4.0)
-            .margin_all_px(2.0),
-    );
-    ui_defaults.text_justify = Some(Justify::Center);
-    ui_defaults.text_line_break = Some(LineBreak::WordBoundary);
-
-    let mut ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
-
-    ui.with_component::<TradeCardUiRoot>()
-        .size_percent(50.0, 98.0)
-        .display_flex()
-        .flex_dir_row();
-    
-
-    // Left side: Trade cards grouped by pile value (scrollable)
-    ui.with_child(|ui| {
-        ui.size_percent(50.0, 100.0)
-            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.3))
-            .display_flex()
-            .flex_dir_column()
-            .with_overflow(Overflow::scroll_y())
-            .insert(ScrollPosition::default())
-            .with_component::<TradeCardList>();
-        
-        if let Ok(trade_cards) = player_trade_cards.single() {
-            build_trade_card_list(ui, trade_cards);
-        }
-    });
-    ui.with_child(|ui| {
-        ui.size_percent(50.0, 100.0)
-            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.3))
-            .display_flex()
-            .flex_dir_column();
-        
-        ui.default_text("Left side: Trade cards grouped by pile value (scrollable)");
-    });
-
-    let (_root, _commands) = ui.build();
-}
-
-pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
-    let small_font_size = 9.0;
-    let medium_font_size = 11.0;
-    
-    ui.with_child(|card| {
-        card.width_percent(20.0)
-            .height_percent(100.)
-            .display_flex()
-            .flex_dir_column()
-            .justify_center()
-            .align_items_center()
-            .padding_all_px(2.0)
-            .margin_all_px(2.0)
-            .bg_color(Color::srgba(0.2, 0.2, 0.3, 0.8))
-            .border_radius_all_px(4.0);
-        
-        if stack.is_commodity {
-            card.add_text_child(stack.card_type.to_string(), None, Some(medium_font_size), None);
-            card.add_text_child(format!("x{} = {}", stack.count, stack.suite_value), None, Some(small_font_size), None);
-        } else {
-            card.add_text_child(stack.card_type.to_string(), None, Some(medium_font_size), None);
-            card.add_text_child(
-                if stack.is_tradeable { "Tradeable" } else { "Non-Tradeable" },
-                None,
-                Some(small_font_size),
-                None,
-            );
-        }
-    });
-}
-
-pub fn build_trade_card_list(ui: &mut UIBuilder, trade_cards: &PlayerTradeCards) {
-    let stacks = trade_cards.as_card_stacks_sorted_by_value();
-    let row_count = 9f32;
-    
-    // Group stacks by pile value (1-9)
-    for pile_value in 1..=9 {
-        let pile_stacks: Vec<_> = stacks
-            .iter()
-            .filter(|s| s.card_type.value() == pile_value)
-            .collect();
-        
-        if !pile_stacks.is_empty() {
-            // Sort: commodities first, then calamities
-            let mut sorted_stacks = pile_stacks.clone();
-            sorted_stacks.sort_by_key(|s| if s.is_commodity { 0 } else { 1 });
-            
-            // Create a row for this pile
-            ui.add_row(|row| {
-                row.width_percent(100.0)
-                    .height_percent(90.0 / row_count)
-                    .justify_start()
-                    .align_items_center()
-                    .with_flex_shrink(0.0);
-                
-                // Pile label
-                row.add_text_child(format!("{}:", pile_value), None, Some(12.0), None);
-                
-                // Cards in this pile
-                for stack in sorted_stacks {
-                    build_trade_card(row, stack);
-                }
-            });
-        }
-    }
-}
-
-/// Handle mouse wheel scroll input for scrollable containers
-pub fn handle_trade_scroll_input(
-    mut mouse_wheel_events: MessageReader<MouseWheel>,
-    hover_map: Res<HoverMap>,
-    mut scroll_query: Query<&mut ScrollPosition>,
-) {
-    for mouse_wheel in mouse_wheel_events.read() {
-        let dy = match mouse_wheel.unit {
-            MouseScrollUnit::Line => mouse_wheel.y * 20.0,
-            MouseScrollUnit::Pixel => mouse_wheel.y,
-        };
-
-        // Apply scroll to hovered scrollable elements
-        for pointer_map in hover_map.values() {
-            for entity in pointer_map.keys() {
-                if let Ok(mut scroll_position) = scroll_query.get_mut(*entity) {
-                    scroll_position.y -= dy;
-                    scroll_position.y = scroll_position.y.max(0.0);
-                }
-            }
-        }
     }
 }
 
@@ -470,7 +303,7 @@ fn build_control_row(
     });
 }
 
-pub fn handle_layout_controls(
+fn handle_layout_controls(
     mut interaction_query: Query<
         (&Interaction, &LayoutControlButton, &mut BackgroundColor),
         Changed<Interaction>,
