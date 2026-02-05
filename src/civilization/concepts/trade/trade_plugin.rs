@@ -31,9 +31,22 @@ impl Plugin for TradePlugin {
                     update_open_offers_display,
                     handle_done_trading_button,
                     handle_create_offer_button,
+                )
+                    .run_if(in_state(GameActivity::Trade)),
+            )
+            .add_systems(
+                Update,
+                (
                     spawn_create_offer_modal,
                     handle_close_create_offer_modal,
                     despawn_create_offer_modal,
+                    check_for_settlement_needed,
+                    spawn_settlement_modal,
+                    handle_settlement_card_selection,
+                    update_settlement_display,
+                    handle_confirm_settlement,
+                    handle_close_settlement_modal,
+                    despawn_settlement_modal,
                 )
                     .run_if(in_state(GameActivity::Trade)),
             )

@@ -46,13 +46,30 @@ Implementing a comprehensive trade system with open/directed offers, settlement 
 - All new systems registered in Update schedule with `run_if(in_state(GameActivity::Trade))`
 - Setup/cleanup systems on OnEnter/OnExit
 
-## Pending Steps
+## Completed Steps (continued)
 
-### 6. Settlement Modal UI
-- Modal that appears when a trade is accepted
-- Both players select actual cards to fulfill the trade
-- Validation that selected cards match the offer requirements
-- Confirm button to finalize the trade
+### 6. Settlement Modal UI (`trade_systems.rs:1006-1576`)
+- **`SettlementModal`** spawns when an accepted offer needs human settlement
+- **`check_for_settlement_needed`** - detects when human is involved in a settling trade
+- **`spawn_settlement_modal`** - creates modal with:
+  - Trade summary showing required cards (guaranteed + hidden count)
+  - Clickable card buttons with selection border highlighting
+  - Selected cards display with count validation
+  - Confirm button (enabled only when selection is valid)
+  - Cancel button (withdraws the offer)
+- **`SettlementCardButton`** component tracks card type and selection state
+- **`SettlementSelection`** resource tracks selected cards during settlement
+- **`handle_settlement_card_selection`** - toggles card selection, updates border color
+- **`update_settlement_display`** - updates selected cards text and confirm button state
+- **`handle_confirm_settlement`** - validates and applies settlement to offer
+- **`handle_close_settlement_modal`** - cancels trade by withdrawing offer
+- **`despawn_settlement_modal`** - cleans up modal and selection resource
+
+### New Resources Added (`trade_resources.rs:42-43`)
+- `settlement_modal_open: bool` - controls settlement modal visibility
+- `settling_offer_entity: Option<Entity>` - tracks which offer is being settled
+
+## Pending Steps
 
 ### 7. Wire Up AI Trade Behavior
 - AI creates `OpenTradeOffer` entities

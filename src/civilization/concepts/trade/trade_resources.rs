@@ -39,4 +39,6 @@ pub struct TradePhaseState {
     pub settling_trade: Option<Entity>,
     pub human_done: bool,
     pub create_offer_modal_open: bool,
+    pub settlement_modal_open: bool,
+    pub settling_offer_entity: Option<Entity>,
 }

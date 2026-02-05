@@ -3,7 +3,7 @@ use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeC
 use crate::civilization::concepts::trade::trade_components::{
     AvailableTradeOfferActions, CanTrade, CreateOfferButton, CreateOfferModal, DoneTradingButton,
     InSettlement, NeedsTradeMove, OpenOffersListContainer, OpenTradeOffer, PlayerSettlements,
-    PlayerTradeInterests, PublishedOffer, TradeButtonAction, TradeOffer, TradePhaseUiRoot,
+    PlayerTradeInterests, PublishedOffer, SettlementModal, TradeButtonAction, TradeOffer, TradePhaseUiRoot,
 };
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::trade_resources::{TradeCountdown, TradePhaseState, TradeUiState};
@@ -1001,4 +1001,575 @@ pub fn despawn_create_offer_modal(
     for entity in modal_query.iter() {
         commands.entity(entity).despawn();
     }
+}
+
+// ============================================================================
+// SETTLEMENT MODAL
+// ============================================================================
+
+/// Marker for the close button on the settlement modal
+#[derive(Component, Default)]
+pub struct CloseSettlementModalButton;
+
+/// Marker for the confirm settlement button
+#[derive(Component, Default)]
+pub struct ConfirmSettlementButton;
+
+/// Marker for a card button in the settlement modal that can be selected
+#[derive(Component)]
+pub struct SettlementCardButton {
+    pub card: TradeCard,
+    pub selected: bool,
+}
+
+/// Container for selected cards display in settlement modal
+#[derive(Component, Default)]
+pub struct SettlementSelectedCardsDisplay;
+
+/// Resource to track selected cards during settlement
+#[derive(Resource, Default)]
+pub struct SettlementSelection {
+    pub selected_cards: HashMap<TradeCard, usize>,
+}
+
+/// Check if any accepted offer needs settlement and open the modal
+pub fn check_for_settlement_needed(
+    offers_query: Query<(Entity, &OpenTradeOffer)>,
+    trade_ui_state: Res<TradeUiState>,
+    mut trade_phase_state: ResMut<TradePhaseState>,
+) {
+    // Don't open if already open or no human player
+    if trade_phase_state.settlement_modal_open {
+        return;
+    }
+    
+    let Some(human) = trade_ui_state.human_player else {
+        return;
+    };
+    
+    // Find an accepted offer where human is involved and hasn't settled yet
+    for (offer_entity, offer) in offers_query.iter() {
+        if !offer.is_settling() {
+            continue;
+        }
+        
+        // Check if human is creator and hasn't settled
+        if offer.creator == human && offer.creator_actual_cards.is_none() {
+            trade_phase_state.settlement_modal_open = true;
+            trade_phase_state.settling_offer_entity = Some(offer_entity);
+            debug!("Opening settlement modal for human as creator");
+            return;
+        }
+        
+        // Check if human is acceptor and hasn't settled
+        if offer.accepted_by == Some(human) && offer.acceptor_actual_cards.is_none() {
+            trade_phase_state.settlement_modal_open = true;
+            trade_phase_state.settling_offer_entity = Some(offer_entity);
+            debug!("Opening settlement modal for human as acceptor");
+            return;
+        }
+    }
+}
+
+/// Spawn the settlement modal when the flag is set
+pub fn spawn_settlement_modal(
+    mut commands: Commands,
+    trade_phase_state: Res<TradePhaseState>,
+    modal_query: Query<Entity, With<SettlementModal>>,
+    trade_ui_state: Res<TradeUiState>,
+    human_player_query: Query<(&Name, &PlayerTradeCards), With<IsHuman>>,
+    offers_query: Query<&OpenTradeOffer>,
+) {
+    // Only spawn if modal should be open and doesn't exist yet
+    if !trade_phase_state.settlement_modal_open || !modal_query.is_empty() {
+        return;
+    }
+    
+    let Some(offer_entity) = trade_phase_state.settling_offer_entity else {
+        return;
+    };
+    
+    let Ok(offer) = offers_query.get(offer_entity) else {
+        return;
+    };
+    
+    // Get human player's cards
+    let (player_name, player_cards) = if let Some(human) = trade_ui_state.human_player {
+        human_player_query.get(human).ok()
+    } else {
+        human_player_query.iter().next()
+    }.unwrap_or_else(|| {
+        panic!("No human player found for settlement modal");
+    });
+    
+    // Determine if human is creator or acceptor
+    let is_creator = trade_ui_state.human_player == Some(offer.creator);
+    let (required_guaranteed, required_hidden) = if is_creator {
+        (&offer.offering_guaranteed, offer.offering_hidden_count)
+    } else {
+        (&offer.wanting_guaranteed, offer.wanting_hidden_count)
+    };
+    
+    let total_required = required_guaranteed.values().sum::<usize>() + required_hidden;
+    let role_text = if is_creator { "You offered" } else { "You must provide" };
+    
+    // Initialize settlement selection resource
+    commands.insert_resource(SettlementSelection::default());
+    
+    commands
+        .spawn((
+            SettlementModal,
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Percent(20.0),
+                top: Val::Percent(10.0),
+                width: Val::Percent(60.0),
+                height: Val::Percent(80.0),
+                flex_direction: FlexDirection::Column,
+                padding: UiRect::all(Val::Px(20.0)),
+                ..Default::default()
+            },
+            BackgroundColor(Color::srgba(0.12, 0.15, 0.2, 0.98)),
+            GlobalZIndex(150),
+        ))
+        .with_children(|modal| {
+            // Header with title and close button
+            modal
+                .spawn(Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(50.0),
+                    flex_direction: FlexDirection::Row,
+                    justify_content: JustifyContent::SpaceBetween,
+                    align_items: AlignItems::Center,
+                    margin: UiRect::bottom(Val::Px(16.0)),
+                    ..Default::default()
+                })
+                .with_children(|header| {
+                    header.spawn((
+                        Text::new("🤝 Settle Trade"),
+                        TextFont { font_size: 26.0, ..Default::default() },
+                        TextColor(Color::srgb(0.3, 0.8, 0.5)),
+                    ));
+                    
+                    // Close button (cancels settlement)
+                    header
+                        .spawn((
+                            Button,
+                            CloseSettlementModalButton,
+                            Node {
+                                padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
+                                ..Default::default()
+                            },
+                            BackgroundColor(Color::srgb(0.5, 0.2, 0.2)),
+                        ))
+                        .with_child((
+                            Text::new("✕ Cancel"),
+                            TextFont { font_size: 14.0, ..Default::default() },
+                            TextColor(Color::WHITE),
+                        ));
+                });
+            
+            // Trade summary
+            modal
+                .spawn(Node {
+                    width: Val::Percent(100.0),
+                    flex_direction: FlexDirection::Column,
+                    padding: UiRect::all(Val::Px(12.0)),
+                    margin: UiRect::bottom(Val::Px(16.0)),
+                    ..Default::default()
+                })
+                .insert(BackgroundColor(Color::srgba(0.1, 0.12, 0.15, 0.8)))
+                .with_children(|summary| {
+                    // Role description
+                    summary.spawn((
+                        Text::new(format!("{}: {} cards total", role_text, total_required)),
+                        TextFont { font_size: 16.0, ..Default::default() },
+                        TextColor(Color::srgb(0.8, 0.8, 0.8)),
+                    ));
+                    
+                    // Guaranteed cards requirement
+                    let guaranteed_text: Vec<String> = required_guaranteed
+                        .iter()
+                        .map(|(card, count)| format!("{}x {}", count, card))
+                        .collect();
+                    
+                    summary.spawn((
+                        Text::new(format!("Guaranteed (must include): {}", guaranteed_text.join(", "))),
+                        TextFont { font_size: 14.0, ..Default::default() },
+                        TextColor(Color::srgb(0.9, 0.7, 0.3)),
+                    ));
+                    
+                    if required_hidden > 0 {
+                        summary.spawn((
+                            Text::new(format!("+ {} hidden cards (your choice)", required_hidden)),
+                            TextFont { font_size: 14.0, ..Default::default() },
+                            TextColor(Color::srgb(0.6, 0.6, 0.6)),
+                        ));
+                    }
+                });
+            
+            // Instructions
+            modal.spawn((
+                Text::new("Click cards below to select them for this trade:"),
+                TextFont { font_size: 14.0, ..Default::default() },
+                TextColor(Color::srgb(0.7, 0.7, 0.7)),
+            ));
+            
+            // Your cards section (clickable)
+            modal
+                .spawn(Node {
+                    width: Val::Percent(100.0),
+                    flex_direction: FlexDirection::Column,
+                    margin: UiRect::top(Val::Px(8.0)),
+                    ..Default::default()
+                })
+                .with_children(|section| {
+                    section.spawn((
+                        Text::new(format!("Your Cards ({}):", player_name)),
+                        TextFont { font_size: 14.0, ..Default::default() },
+                        TextColor(Color::srgb(0.6, 0.6, 0.6)),
+                    ));
+                    
+                    section
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Row,
+                            flex_wrap: FlexWrap::Wrap,
+                            margin: UiRect::top(Val::Px(8.0)),
+                            padding: UiRect::all(Val::Px(8.0)),
+                            ..Default::default()
+                        })
+                        .insert(BackgroundColor(Color::srgba(0.08, 0.08, 0.1, 0.6)))
+                        .with_children(|cards_row| {
+                            // Commodity cards
+                            for (card, count) in player_cards.commodity_cards() {
+                                for _ in 0..count {
+                                    let color = commodity_color(&card);
+                                    cards_row
+                                        .spawn((
+                                            Button,
+                                            SettlementCardButton { card: card.clone(), selected: false },
+                                            Node {
+                                                padding: UiRect::axes(Val::Px(10.0), Val::Px(6.0)),
+                                                margin: UiRect::all(Val::Px(3.0)),
+                                                border: UiRect::all(Val::Px(2.0)),
+                                                ..Default::default()
+                                            },
+                                            BackgroundColor(color),
+                                            BorderColor::all(Color::NONE),
+                                        ))
+                                        .with_child((
+                                            Text::new(format!("{}", card)),
+                                            TextFont { font_size: 12.0, ..Default::default() },
+                                            TextColor(Color::WHITE),
+                                        ));
+                                }
+                            }
+                            // Calamity cards
+                            for card in player_cards.calamity_cards() {
+                                cards_row
+                                    .spawn((
+                                        Button,
+                                        SettlementCardButton { card: card.clone(), selected: false },
+                                        Node {
+                                            padding: UiRect::axes(Val::Px(10.0), Val::Px(6.0)),
+                                            margin: UiRect::all(Val::Px(3.0)),
+                                            border: UiRect::all(Val::Px(2.0)),
+                                            ..Default::default()
+                                        },
+                                        BackgroundColor(Color::srgb(0.7, 0.15, 0.15)),
+                                        BorderColor::all(Color::NONE),
+                                    ))
+                                    .with_child((
+                                        Text::new(format!("{}", card)),
+                                        TextFont { font_size: 12.0, ..Default::default() },
+                                        TextColor(Color::WHITE),
+                                    ));
+                            }
+                        });
+                });
+            
+            // Selected cards display
+            modal
+                .spawn(Node {
+                    width: Val::Percent(100.0),
+                    flex_direction: FlexDirection::Column,
+                    margin: UiRect::top(Val::Px(16.0)),
+                    padding: UiRect::all(Val::Px(12.0)),
+                    flex_grow: 1.0,
+                    ..Default::default()
+                })
+                .insert(BackgroundColor(Color::srgba(0.1, 0.15, 0.1, 0.6)))
+                .with_children(|selected_section| {
+                    selected_section.spawn((
+                        Text::new("Selected Cards (0):"),
+                        TextFont { font_size: 14.0, ..Default::default() },
+                        TextColor(Color::srgb(0.5, 0.8, 0.5)),
+                    ));
+                    
+                    selected_section.spawn((
+                        SettlementSelectedCardsDisplay,
+                        Text::new("None selected yet"),
+                        TextFont { font_size: 13.0, ..Default::default() },
+                        TextColor(Color::srgb(0.5, 0.5, 0.5)),
+                    ));
+                });
+            
+            // Confirm button
+            modal
+                .spawn(Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(50.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    margin: UiRect::top(Val::Px(16.0)),
+                    ..Default::default()
+                })
+                .with_children(|btn_row| {
+                    btn_row
+                        .spawn((
+                            Button,
+                            ConfirmSettlementButton,
+                            Node {
+                                padding: UiRect::axes(Val::Px(30.0), Val::Px(14.0)),
+                                ..Default::default()
+                            },
+                            BackgroundColor(Color::srgb(0.3, 0.3, 0.3)),
+                        ))
+                        .with_child((
+                            Text::new("✓ Confirm Settlement"),
+                            TextFont { font_size: 16.0, ..Default::default() },
+                            TextColor(Color::srgb(0.6, 0.6, 0.6)),
+                        ));
+                });
+        });
+}
+
+/// Handle card selection in settlement modal
+pub fn handle_settlement_card_selection(
+    mut interaction_query: Query<
+        (&Interaction, &mut SettlementCardButton, &mut BorderColor),
+        Changed<Interaction>,
+    >,
+    mut settlement_selection: Option<ResMut<SettlementSelection>>,
+) {
+    let Some(ref mut selection) = settlement_selection else {
+        return;
+    };
+    
+    for (interaction, mut card_btn, mut border) in &mut interaction_query {
+        if *interaction == Interaction::Pressed {
+            card_btn.selected = !card_btn.selected;
+            
+            if card_btn.selected {
+                *border = BorderColor::all(Color::srgb(0.3, 0.9, 0.4));
+                *selection.selected_cards.entry(card_btn.card.clone()).or_insert(0) += 1;
+            } else {
+                *border = BorderColor::all(Color::NONE);
+                if let Some(count) = selection.selected_cards.get_mut(&card_btn.card) {
+                    if *count > 1 {
+                        *count -= 1;
+                    } else {
+                        selection.selected_cards.remove(&card_btn.card);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Update the selected cards display and confirm button state
+pub fn update_settlement_display(
+    settlement_selection: Option<Res<SettlementSelection>>,
+    trade_phase_state: Res<TradePhaseState>,
+    offers_query: Query<&OpenTradeOffer>,
+    trade_ui_state: Res<TradeUiState>,
+    mut selected_display: Query<&mut Text, With<SettlementSelectedCardsDisplay>>,
+    mut confirm_btn: Query<(&mut BackgroundColor, &Children), With<ConfirmSettlementButton>>,
+    mut text_query: Query<&mut TextColor, Without<SettlementSelectedCardsDisplay>>,
+) {
+    let Some(ref selection) = settlement_selection else {
+        return;
+    };
+    
+    let Some(offer_entity) = trade_phase_state.settling_offer_entity else {
+        return;
+    };
+    
+    let Ok(offer) = offers_query.get(offer_entity) else {
+        return;
+    };
+    
+    // Determine requirements
+    let is_creator = trade_ui_state.human_player == Some(offer.creator);
+    let (required_guaranteed, required_hidden) = if is_creator {
+        (&offer.offering_guaranteed, offer.offering_hidden_count)
+    } else {
+        (&offer.wanting_guaranteed, offer.wanting_hidden_count)
+    };
+    
+    let total_required = required_guaranteed.values().sum::<usize>() + required_hidden;
+    let total_selected: usize = selection.selected_cards.values().sum();
+    
+    // Check if selection is valid
+    let mut is_valid = total_selected == total_required;
+    
+    // Check guaranteed cards are included
+    for (card, required_count) in required_guaranteed.iter() {
+        let selected_count = selection.selected_cards.get(card).copied().unwrap_or(0);
+        if selected_count < *required_count {
+            is_valid = false;
+            break;
+        }
+    }
+    
+    // Update display text
+    for mut text in selected_display.iter_mut() {
+        if selection.selected_cards.is_empty() {
+            **text = "None selected yet".to_string();
+        } else {
+            let cards_text: Vec<String> = selection.selected_cards
+                .iter()
+                .map(|(card, count)| format!("{}x {}", count, card))
+                .collect();
+            **text = format!("Selected ({}/{}): {}", total_selected, total_required, cards_text.join(", "));
+        }
+    }
+    
+    // Update confirm button appearance based on validity
+    for (mut bg, children) in confirm_btn.iter_mut() {
+        if is_valid {
+            *bg = BackgroundColor(Color::srgb(0.2, 0.6, 0.3));
+            for child in children.iter() {
+                if let Ok(mut text_color) = text_query.get_mut(child) {
+                    *text_color = TextColor(Color::WHITE);
+                }
+            }
+        } else {
+            *bg = BackgroundColor(Color::srgb(0.3, 0.3, 0.3));
+            for child in children.iter() {
+                if let Ok(mut text_color) = text_query.get_mut(child) {
+                    *text_color = TextColor(Color::srgb(0.6, 0.6, 0.6));
+                }
+            }
+        }
+    }
+}
+
+/// Handle confirm settlement button
+pub fn handle_confirm_settlement(
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<ConfirmSettlementButton>),
+    >,
+    settlement_selection: Option<Res<SettlementSelection>>,
+    mut trade_phase_state: ResMut<TradePhaseState>,
+    trade_ui_state: Res<TradeUiState>,
+    mut offers_query: Query<&mut OpenTradeOffer>,
+) {
+    let Some(ref selection) = settlement_selection else {
+        return;
+    };
+    
+    for interaction in &mut interaction_query {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        
+        let Some(offer_entity) = trade_phase_state.settling_offer_entity else {
+            continue;
+        };
+        
+        let Ok(mut offer) = offers_query.get_mut(offer_entity) else {
+            continue;
+        };
+        
+        // Validate selection
+        let is_creator = trade_ui_state.human_player == Some(offer.creator);
+        let (required_guaranteed, required_hidden) = if is_creator {
+            (&offer.offering_guaranteed, offer.offering_hidden_count)
+        } else {
+            (&offer.wanting_guaranteed, offer.wanting_hidden_count)
+        };
+        
+        let total_required = required_guaranteed.values().sum::<usize>() + required_hidden;
+        let total_selected: usize = selection.selected_cards.values().sum();
+        
+        if total_selected != total_required {
+            debug!("Settlement invalid: wrong card count");
+            continue;
+        }
+        
+        // Check guaranteed cards
+        let mut valid = true;
+        for (card, required_count) in required_guaranteed.iter() {
+            let selected_count = selection.selected_cards.get(card).copied().unwrap_or(0);
+            if selected_count < *required_count {
+                valid = false;
+                break;
+            }
+        }
+        
+        if !valid {
+            debug!("Settlement invalid: missing guaranteed cards");
+            continue;
+        }
+        
+        // Apply settlement
+        if is_creator {
+            offer.settle_creator(selection.selected_cards.clone());
+            debug!("Creator settled trade");
+        } else {
+            offer.settle_acceptor(selection.selected_cards.clone());
+            debug!("Acceptor settled trade");
+        }
+        
+        // Close modal
+        trade_phase_state.settlement_modal_open = false;
+        trade_phase_state.settling_offer_entity = None;
+    }
+}
+
+/// Handle close button on settlement modal
+pub fn handle_close_settlement_modal(
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<CloseSettlementModalButton>),
+    >,
+    mut trade_phase_state: ResMut<TradePhaseState>,
+    mut offers_query: Query<&mut OpenTradeOffer>,
+) {
+    for interaction in &mut interaction_query {
+        if *interaction == Interaction::Pressed {
+            // Cancel the trade by withdrawing the offer
+            if let Some(offer_entity) = trade_phase_state.settling_offer_entity {
+                if let Ok(mut offer) = offers_query.get_mut(offer_entity) {
+                    offer.withdrawn = true;
+                    debug!("Trade cancelled during settlement");
+                }
+            }
+            
+            trade_phase_state.settlement_modal_open = false;
+            trade_phase_state.settling_offer_entity = None;
+            debug!("Closing Settlement modal");
+        }
+    }
+}
+
+/// Despawn the settlement modal when the flag is cleared
+pub fn despawn_settlement_modal(
+    mut commands: Commands,
+    trade_phase_state: Res<TradePhaseState>,
+    modal_query: Query<Entity, With<SettlementModal>>,
+) {
+    if trade_phase_state.settlement_modal_open {
+        return;
+    }
+    
+    for entity in modal_query.iter() {
+        commands.entity(entity).despawn();
+    }
+    
+    // Clean up selection resource
+    commands.remove_resource::<SettlementSelection>();
 }
