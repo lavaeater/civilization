@@ -2094,3 +2094,269 @@ pub fn despawn_settlement_modal(
     // Clean up selection resource
     commands.remove_resource::<SettlementSelection>();
 }
+
+// ============================================================================
+// AI TRADE BEHAVIOR
+// ============================================================================
+
+/// AI creates trade offers based on their cards and needs
+pub fn ai_create_trade_offers(
+    mut commands: Commands,
+    ai_players: Query<(Entity, &Name, &PlayerTradeCards, &CanTrade), Without<IsHuman>>,
+    existing_offers: Query<&OpenTradeOffer>,
+    time: Res<Time>,
+    mut ai_offer_timer: Local<f32>,
+) {
+    // Only create offers periodically (every 3-5 seconds)
+    *ai_offer_timer += time.delta_secs();
+    if *ai_offer_timer < 3.0 {
+        return;
+    }
+    *ai_offer_timer = 0.0;
+    
+    for (ai_entity, ai_name, ai_cards, _) in ai_players.iter() {
+        // Check if AI already has an active offer
+        let has_active_offer = existing_offers.iter().any(|o| {
+            o.creator == ai_entity && !o.withdrawn && o.accepted_by.is_none()
+        });
+        
+        if has_active_offer {
+            continue;
+        }
+        
+        // Get AI's commodity cards
+        let commodities: Vec<(TradeCard, usize)> = ai_cards.commodity_cards().into_iter().collect();
+        if commodities.len() < 2 {
+            continue; // Not enough cards to trade
+        }
+        
+        // Pick 2 random commodities to offer as guaranteed
+        let mut offering_guaranteed: HashMap<TradeCard, usize> = HashMap::default();
+        let mut cards_offered = 0;
+        
+        // Prefer offering lower-value cards
+        let mut sorted_commodities: Vec<_> = commodities.iter()
+            .filter(|(_, count)| *count > 0)
+            .collect();
+        sorted_commodities.sort_by_key(|(card, _)| card.value());
+        
+        for (card, count) in sorted_commodities.iter().take(3) {
+            if cards_offered >= 2 {
+                break;
+            }
+            let to_offer = (*count).min(2 - cards_offered);
+            if to_offer > 0 {
+                offering_guaranteed.insert(*card, to_offer);
+                cards_offered += to_offer;
+            }
+        }
+        
+        if cards_offered < 2 {
+            continue;
+        }
+        
+        // Pick what AI wants - prefer higher value commodities they don't have much of
+        let mut wanting_guaranteed: HashMap<TradeCard, usize> = HashMap::default();
+        let mut cards_wanted = 0;
+        
+        // Get commodities AI has few of (wants more)
+        let ai_card_counts: HashMap<TradeCard, usize> = commodities.iter().cloned().collect();
+        let mut desired: Vec<TradeCard> = TradeCard::iter()
+            .filter(|c| c.is_commodity())
+            .filter(|c| ai_card_counts.get(c).copied().unwrap_or(0) < 2)
+            .collect();
+        desired.sort_by_key(|c| std::cmp::Reverse(c.value()));
+        
+        for card in desired.iter().take(3) {
+            if cards_wanted >= 2 {
+                break;
+            }
+            let to_want = 1.min(2 - cards_wanted);
+            wanting_guaranteed.insert(*card, to_want);
+            cards_wanted += to_want;
+        }
+        
+        if cards_wanted < 2 {
+            // Fallback: just want any 2 different commodities
+            for card in TradeCard::iter().filter(|c| c.is_commodity()).take(2) {
+                if cards_wanted >= 2 {
+                    break;
+                }
+                if !wanting_guaranteed.contains_key(&card) {
+                    wanting_guaranteed.insert(card, 1);
+                    cards_wanted += 1;
+                }
+            }
+        }
+        
+        // Add hidden cards to reach minimum 3 each side
+        let offering_hidden = if cards_offered < 3 { 3 - cards_offered } else { 0 };
+        let wanting_hidden = if cards_wanted < 3 { 3 - cards_wanted } else { 0 };
+        
+        // Create the offer
+        let mut offer = OpenTradeOffer::new(ai_entity, ai_name.to_string(), None, None);
+        offer.offering_guaranteed = offering_guaranteed;
+        offer.offering_hidden_count = offering_hidden;
+        offer.wanting_guaranteed = wanting_guaranteed;
+        offer.wanting_hidden_count = wanting_hidden;
+        
+        if offer.is_valid() {
+            commands.spawn(offer);
+            debug!("{} created a trade offer", ai_name);
+        }
+    }
+}
+
+/// AI accepts trade offers that benefit them
+pub fn ai_accept_trade_offers(
+    ai_players: Query<(Entity, &Name, &PlayerTradeCards, &CanTrade), Without<IsHuman>>,
+    mut offers: Query<(Entity, &mut OpenTradeOffer)>,
+) {
+    let mut rng = rand::rng();
+    
+    for (ai_entity, ai_name, ai_cards, _) in ai_players.iter() {
+        for (_offer_entity, mut offer) in offers.iter_mut() {
+            // Skip if can't accept
+            if !offer.can_accept(ai_entity) {
+                continue;
+            }
+            
+            // Check if AI has the cards to fulfill the trade
+            let ai_commodities: HashMap<TradeCard, usize> = ai_cards.commodity_cards().into_iter().collect();
+            
+            // Check if AI can provide the wanted guaranteed cards
+            let mut can_fulfill = true;
+            for (card, count) in offer.wanting_guaranteed.iter() {
+                let ai_has = ai_commodities.get(card).copied().unwrap_or(0);
+                if ai_has < *count {
+                    can_fulfill = false;
+                    break;
+                }
+            }
+            
+            if !can_fulfill {
+                continue;
+            }
+            
+            // Check if AI has enough total cards
+            let total_ai_cards: usize = ai_commodities.values().sum();
+            if total_ai_cards < offer.total_wanting() {
+                continue;
+            }
+            
+            // Simple heuristic: accept if what we get is higher value than what we give
+            let offering_value: usize = offer.offering_guaranteed.iter()
+                .map(|(c, n)| c.value() * n)
+                .sum();
+            let wanting_value: usize = offer.wanting_guaranteed.iter()
+                .map(|(c, n)| c.value() * n)
+                .sum();
+            
+            // Accept if offering value >= wanting value (good deal for acceptor)
+            // or randomly accept with 30% chance even if slightly worse
+            use rand::RngExt;
+            if offering_value >= wanting_value || rng.random_bool(0.3) {
+                offer.accept(ai_entity, ai_name.to_string());
+                debug!("{} accepted trade offer from {}", ai_name, offer.creator_name);
+                break; // Only accept one offer per frame
+            }
+        }
+    }
+}
+
+/// AI settles trades by selecting cards
+pub fn ai_settle_trades(
+    ai_players: Query<(Entity, &Name, &PlayerTradeCards), Without<IsHuman>>,
+    mut offers: Query<&mut OpenTradeOffer>,
+) {
+    for (ai_entity, ai_name, ai_cards) in ai_players.iter() {
+        for mut offer in offers.iter_mut() {
+            if !offer.is_settling() {
+                continue;
+            }
+            
+            // Check if AI is creator and needs to settle
+            if offer.creator == ai_entity && offer.creator_actual_cards.is_none() {
+                let cards = ai_select_settlement_cards(
+                    ai_cards,
+                    &offer.offering_guaranteed,
+                    offer.offering_hidden_count,
+                );
+                if let Some(cards) = cards {
+                    offer.settle_creator(cards);
+                    debug!("{} settled trade as creator", ai_name);
+                }
+            }
+            
+            // Check if AI is acceptor and needs to settle
+            if offer.accepted_by == Some(ai_entity) && offer.acceptor_actual_cards.is_none() {
+                let cards = ai_select_settlement_cards(
+                    ai_cards,
+                    &offer.wanting_guaranteed,
+                    offer.wanting_hidden_count,
+                );
+                if let Some(cards) = cards {
+                    offer.settle_acceptor(cards);
+                    debug!("{} settled trade as acceptor", ai_name);
+                }
+            }
+        }
+    }
+}
+
+/// Helper: AI selects cards for settlement
+fn ai_select_settlement_cards(
+    player_cards: &PlayerTradeCards,
+    required_guaranteed: &HashMap<TradeCard, usize>,
+    hidden_count: usize,
+) -> Option<HashMap<TradeCard, usize>> {
+    let mut selected: HashMap<TradeCard, usize> = HashMap::default();
+    let mut available: HashMap<TradeCard, usize> = player_cards.commodity_cards().into_iter().collect();
+    
+    // First, add all required guaranteed cards
+    for (card, count) in required_guaranteed.iter() {
+        let have = available.get(card).copied().unwrap_or(0);
+        if have < *count {
+            return None; // Can't fulfill
+        }
+        selected.insert(*card, *count);
+        if have > *count {
+            available.insert(*card, have - count);
+        } else {
+            available.remove(card);
+        }
+    }
+    
+    // Add hidden cards - prefer calamities first, then lowest value commodities
+    let mut hidden_left = hidden_count;
+    
+    // Try to add tradeable calamities
+    for calamity in player_cards.calamity_cards() {
+        if hidden_left == 0 {
+            break;
+        }
+        if calamity.is_tradeable() {
+            *selected.entry(calamity).or_insert(0) += 1;
+            hidden_left -= 1;
+        }
+    }
+    
+    // Add lowest value commodities for remaining hidden
+    let mut sorted_available: Vec<_> = available.iter().collect();
+    sorted_available.sort_by_key(|(card, _)| card.value());
+    
+    for (card, count) in sorted_available {
+        if hidden_left == 0 {
+            break;
+        }
+        let to_add = (*count).min(hidden_left);
+        *selected.entry(*card).or_insert(0) += to_add;
+        hidden_left -= to_add;
+    }
+    
+    if hidden_left > 0 {
+        return None; // Couldn't fulfill hidden requirement
+    }
+    
+    Some(selected)
+}

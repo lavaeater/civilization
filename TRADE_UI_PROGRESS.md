@@ -90,12 +90,24 @@ Implementing a comprehensive trade system with open/directed offers, settlement 
   - `update_offer_summary_display` - updates summary, validation, and button state
   - `handle_publish_offer` - creates `OpenTradeOffer` entity and closes modal
 
-## Pending Steps
+### 7. AI Trade Behavior (`trade_systems.rs:2098-2363`)
+- **`ai_create_trade_offers`** - AI creates offers every 3 seconds:
+  - Skips if AI already has an active offer
+  - Offers 2 lowest-value commodities as guaranteed
+  - Wants higher-value commodities AI has few of
+  - Adds hidden cards to reach minimum 3 each side
+- **`ai_accept_trade_offers`** - AI evaluates and accepts offers:
+  - Checks if AI can fulfill the wanted guaranteed cards
+  - Checks if AI has enough total cards
+  - Accepts if offering value >= wanting value (good deal)
+  - 30% random chance to accept slightly worse deals
+- **`ai_settle_trades`** - AI settles accepted trades:
+  - Calls `ai_select_settlement_cards` helper
+  - Includes required guaranteed cards first
+  - Fills hidden slots with tradeable calamities, then lowest-value commodities
+- All 3 systems registered in `trade_plugin.rs:66-73`
 
-### 7. Wire Up AI Trade Behavior
-- AI creates `OpenTradeOffer` entities
-- AI accepts/rejects offers based on card needs
-- AI settles trades by selecting cards
+## All Steps Complete!
 
 ## Key Files
 - `src/civilization/concepts/trade/trade_systems.rs` - Main UI and systems
