@@ -12,10 +12,15 @@ use crate::civilization::ui::ui_builder::{
 };
 use crate::civilization::PlayerCardStack;
 use crate::stupid_ai::prelude::IsHuman;
-use crate::GameActivity;
+use crate::{GameActivity, GameState};
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
+use bevy::state::state::StateTransitionEvent;
 use bevy::picking::hover::HoverMap;
 use bevy::prelude::*;
+
+#[derive(Component, Default)]
+pub struct GameStateDisplay;
+
 pub struct TradeUiPlugin;
 
 impl Plugin for TradeUiPlugin {
@@ -24,7 +29,11 @@ impl Plugin for TradeUiPlugin {
             // .insert_resource(WinitSettings::desktop_app())
             .insert_resource(UiBuilderDefaults::new())
             .add_systems(OnEnter(GameActivity::StartGame), setup_trade_ui)
-            .add_systems(Update, (handle_player_draws_cards, handle_trade_scroll_input));
+            .add_systems(Update, (
+                handle_player_draws_cards,
+                handle_trade_scroll_input,
+                update_game_state_display,
+            ));
     }
 }
 
@@ -302,7 +311,18 @@ pub fn setup_trade_ui(
             .display_flex()
             .flex_dir_column();
         
-        ui.default_text("Left side: Trade cards grouped by pile value (scrollable)");
+        ui.add_text_child("Game State Info", None, Some(14.0), None);
+        ui.with_child(|info| {
+            info.width_percent(100.0)
+                .height_px(60.0)
+                .display_flex()
+                .flex_dir_column()
+                .padding_all_px(8.0)
+                .with_component::<GameStateDisplay>();
+            
+            info.add_text_child("State: Playing", None, Some(12.0), None);
+            info.add_text_child("Activity: StartGame", None, Some(12.0), None);
+        });
     });
 
     let (_root, _commands) = ui.build();
@@ -397,4 +417,43 @@ pub fn handle_trade_scroll_input(
             }
         }
     }
+}
+
+fn update_game_state_display(
+    commands: Commands,
+    mut game_state_events: MessageReader<StateTransitionEvent<GameState>>,
+    mut game_activity_events: MessageReader<StateTransitionEvent<GameActivity>>,
+    display_query: Query<Entity, With<GameStateDisplay>>,
+    ui_defaults: Res<UiBuilderDefaults>,
+    current_state: Res<State<GameState>>,
+    current_activity: Option<Res<State<GameActivity>>>,
+) {
+    let state_changed = game_state_events.read().count() > 0;
+    let activity_changed = game_activity_events.read().count() > 0;
+    
+    if !state_changed && !activity_changed {
+        return;
+    }
+    
+    let Ok(display_entity) = display_query.single() else {
+        return;
+    };
+    
+    let state_text = format!("State: {:?}", current_state.get());
+    let activity_text = match &current_activity {
+        Some(activity) => format!("Activity: {:?}", activity.get()),
+        None => "Activity: None".to_string(),
+    };
+    
+    let mut ui = UIBuilder::start_from_entity(
+        commands,
+        display_entity,
+        true,
+        Some(ui_defaults.clone()),
+    );
+    
+    ui.add_text_child(&state_text, None, Some(12.0), None);
+    ui.add_text_child(&activity_text, None, Some(12.0), None);
+    
+    ui.build();
 }
