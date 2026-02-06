@@ -387,8 +387,8 @@ pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
     let medium_font_size = 11.0;
     
     ui.with_child(|card| {
-        card.width_percent(20.0)
-            .height_percent(100.)
+        card.width_px(55.0)
+            .height_px(38.0)
             .display_flex()
             .flex_dir_column()
             .justify_center()
@@ -415,7 +415,6 @@ pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
 
 pub fn build_trade_card_list(ui: &mut UIBuilder, trade_cards: &PlayerTradeCards) {
     let stacks = trade_cards.as_card_stacks_sorted_by_value();
-    let row_count = 9f32;
     
     // Group stacks by pile value (1-9)
     for pile_value in 1..=9 {
@@ -432,7 +431,7 @@ pub fn build_trade_card_list(ui: &mut UIBuilder, trade_cards: &PlayerTradeCards)
             // Create a row for this pile
             ui.add_row(|row| {
                 row.width_percent(100.0)
-                    .height_percent(90.0 / row_count)
+                    .height_px(44.0)
                     .justify_start()
                     .align_items_center()
                     .with_flex_shrink(0.0);

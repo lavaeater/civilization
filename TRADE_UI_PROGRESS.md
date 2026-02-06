@@ -107,24 +107,26 @@ Implementing a comprehensive trade system with open/directed offers, settlement 
   - Fills hidden slots with tradeable calamities, then lowest-value commodities
 - All 3 systems registered in `trade_plugin.rs:66-73`
 
-### 9. Collapsible UI Feature (`trade_ui_plugin.rs:611-739`)
-- **`Collapsible`** component (`trade_components.rs:317-338`) - marks a UI section as collapsible:
-  - `collapsed: bool` - current state
-  - `label: String` - displayed in toggle button
-  - `new()` / `collapsed()` constructors
-- **`CollapseToggleButton`** component - the button that toggles collapse state:
-  - `target: Entity` - the `Collapsible` entity to toggle
-- **`CollapsibleContent`** component - the content container that gets hidden/shown:
-  - `parent: Entity` - the parent `Collapsible` entity
-- **Systems**:
+### 9. Collapsible UI Feature
+- **Components** (`trade_components.rs:317-351`):
+  - `Collapsible` - marks a UI section as collapsible (`collapsed: bool`, `label: String`)
+  - `CollapseToggleButton` - the button that toggles collapse state (`target: Entity`)
+  - `CollapsibleContent` - the content container that gets hidden/shown (`parent: Entity`)
+- **Systems** (`trade_ui_plugin.rs:616-675`):
   - `handle_collapse_toggle_button` - handles button clicks, toggles `collapsed` state
   - `update_collapsible_visibility` - updates content `Display::None/Flex` and button text (▶/▼)
-- **Updated `setup_trade_ui`** (`trade_ui_plugin.rs:322-485`):
-  - `TradeCardUiRoot` now auto-sizes based on visible children
-  - "Trade Cards" section is collapsible (contains `TradeCardList`)
-  - "Game Info" section is collapsible (contains `GameStateDisplay` and `PlayerActivityListContainer`)
-  - Both sections start expanded, can be collapsed by clicking the toggle button
-  - When collapsed, only the toggle button (e.g., "▶ Trade Cards") is visible
+- **UIBuilder Integration** (`ui_builder.rs:1882-1956`):
+  - `with_collapsible(label, initially_collapsed, f)` - creates collapsible wrapper with toggle button and content
+  - `add_collapsible(label, f)` - shorthand for expanded collapsible
+  - `add_collapsible_collapsed(label, f)` - shorthand for collapsed collapsible
+- **Usage in `setup_trade_ui`** (`trade_ui_plugin.rs:322-381`):
+  ```rust
+  ui.add_collapsible("Trade Cards", |cards_section| {
+      cards_section.with_component::<TradeCardList>()
+          .width_px(300.0).height_px(400.0)
+          // ... build content
+  });
+  ```
 
 ## All Steps Complete!
 
