@@ -5,10 +5,12 @@ use crate::civilization::general_systems::setup_players;
 use crate::loading::TextureAssets;
 use crate::{GameActivity, GameState};
 use bevy::platform::collections::{HashMap, HashSet};
-use bevy::prelude::{in_state, App, AssetServer, Assets, Camera, Commands, Handle, Image, IntoScheduleConfigs, MessageReader, Name, OnEnter, Plugin, Projection, Query, Res, ResMut, Resource, Sprite, Startup, Transform, Update, Vec2, Vec3, Window, With};
+use bevy::prelude::{in_state, App, AssetServer, Assets, ButtonInput, Camera, Commands, Handle, Image, IntoScheduleConfigs, KeyCode, MessageReader, Name, OnEnter, Plugin, Projection, Query, Res, ResMut, Resource, Sprite, Startup, Transform, Update, Vec2, Vec3, Window, With};
+use bevy::time::Time;
 use bevy::window::{PrimaryWindow, WindowResized};
 use bevy_common_assets::ron::RonAssetPlugin;
 use rand::seq::IteratorRandom;
+use crate::civilization::start_game_after_player_setup;
 
 pub struct MapPlugin;
 
@@ -19,11 +21,14 @@ impl Plugin for MapPlugin {
             .add_systems(Startup, setup)
             .add_systems(
                 OnEnter(GameActivity::PrepareGame),
-                (load_map, setup_players).chain(),
+                (load_map, setup_players, start_game_after_player_setup).chain(),
             )
             .add_systems(
                 Update,
-                fit_map_camera_on_resize.run_if(in_state(GameState::Playing)),
+                (
+                    fit_map_camera_on_resize,
+                    handle_map_camera_controls,
+                ).run_if(in_state(GameState::Playing)),
             );
     }
 }
@@ -103,7 +108,7 @@ struct MapHandle(Handle<Map>);
 
 #[derive(Resource, Default)]
 pub struct AvailableFactions {
-    factions: HashSet<GameFaction>,
+    pub factions: HashSet<GameFaction>,
     pub remaining_factions: HashSet<GameFaction>,
     pub faction_icons: HashMap<GameFaction, Handle<Image>>,
     pub faction_city_icons: HashMap<GameFaction, Handle<Image>>,
@@ -476,5 +481,49 @@ fn fit_map_camera_on_resize(
     if let Ok((mut projection, mut transform)) = camera.single_mut() {
         transform.translation = map_view.map_center;
         fit_camera_to_map(map_view.map_size, window_size, &mut projection);
+    }
+}
+
+fn handle_map_camera_controls(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
+    mut camera: Query<(&mut Projection, &mut Transform), With<GameCamera>>,
+) {
+    let Ok((mut projection, mut transform)) = camera.single_mut() else {
+        return;
+    };
+    
+    let Projection::Orthographic(ref mut ortho) = *projection else {
+        return;
+    };
+    
+    let dt = time.delta_secs();
+    
+    // Zoom controls: Z to zoom in, X to zoom out
+    let zoom_speed = 1.5;
+    let min_scale = 0.2;
+    let max_scale = 3.0;
+    
+    if keyboard.pressed(KeyCode::KeyZ) {
+        ortho.scale = (ortho.scale / (1.0 + zoom_speed * dt)).max(min_scale);
+    }
+    if keyboard.pressed(KeyCode::KeyX) {
+        ortho.scale = (ortho.scale * (1.0 + zoom_speed * dt)).min(max_scale);
+    }
+    
+    // Pan controls: Arrow keys
+    let pan_speed = 500.0 * ortho.scale; // Scale pan speed with zoom level
+    
+    if keyboard.pressed(KeyCode::ArrowUp) {
+        transform.translation.y += pan_speed * dt;
+    }
+    if keyboard.pressed(KeyCode::ArrowDown) {
+        transform.translation.y -= pan_speed * dt;
+    }
+    if keyboard.pressed(KeyCode::ArrowLeft) {
+        transform.translation.x -= pan_speed * dt;
+    }
+    if keyboard.pressed(KeyCode::ArrowRight) {
+        transform.translation.x += pan_speed * dt;
     }
 }

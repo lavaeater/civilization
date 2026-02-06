@@ -1,5 +1,5 @@
 # This line needs to come before anything else in Cargo.toml
-cargo-features = ["codegen-backend"]
+#cargo-features = ["codegen-backend"]
 
 [package]
 name = "adv_civ" # ToDo
@@ -13,14 +13,14 @@ exclude = ["dist", "build", "assets", "credits"]
 name = "adv_civ"
 
 [workspace]
-members = ["mobile"]
+members = ["bevy_ui_builder","mobile"]
 
 [profile.dev.package."*"]
 opt-level = 3
 
 [profile.dev]
 opt-level = 1
-codegen-backend = "cranelift"
+#codegen-backend = "cranelift"
 
 # This is used by trunk as it doesn't support custom profiles: https://github.com/trunk-rs/trunk/issues/605
 # xbuild also uses this profile for building android AABs because I couldn't find a configuration for it

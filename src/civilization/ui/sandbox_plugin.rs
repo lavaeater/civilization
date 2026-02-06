@@ -1,17 +1,21 @@
 use crate::civilization::ui::ui_builder::{
     ButtonPartial, NodePartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR, TEXT_COLOR,
 };
+
+use crate::civilization::{setup_players, AvailableFactions, GameFaction};
 use crate::GameState;
 use bevy::prelude::*;
-
 pub struct SandboxPlugin;
 
 impl Plugin for SandboxPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .insert_resource(UiBuilderDefaults::new())
+        app.insert_resource(UiBuilderDefaults::new())
+            .init_resource::<AvailableFactions>()
             .init_resource::<SandboxLayoutState>()
-            .add_systems(OnEnter(GameState::Sandbox), setup)
+            .add_systems(
+                OnEnter(GameState::Sandbox),
+                (setup_factions, setup_players, setup_sandbox).chain(),
+            )
             .add_systems(
                 Update,
                 (handle_layout_controls, update_sample_box).run_if(in_state(GameState::Sandbox)),
@@ -61,8 +65,8 @@ impl Default for SandboxLayoutState {
         Self {
             width: 150.0,
             height: 100.0,
-            padding: 16.0,
-            margin: 8.0,
+            padding: 4.0,
+            margin: 2.0,
             border_width: 2.0,
             border_radius: 0.0,
         }
@@ -74,7 +78,26 @@ const CONTROL_PANEL_COLOR: Color = Color::srgba(0.2, 0.2, 0.2, 0.95);
 const CONTROL_BTN_COLOR: Color = Color::srgba(0.4, 0.4, 0.4, 1.0);
 const CONTROL_BTN_HOVER: Color = Color::srgba(0.5, 0.5, 0.5, 1.0);
 
-fn setup(
+fn setup_factions(
+    mut available_factions: ResMut<AvailableFactions>
+) {
+    for faction in [
+        GameFaction::Egypt,
+        GameFaction::Crete,
+        GameFaction::Africa,
+        GameFaction::Asia,
+        GameFaction::Assyria,
+        GameFaction::Babylon,
+        GameFaction::Illyria,
+        GameFaction::Iberia,
+        GameFaction::Thrace,
+    ] {
+        available_factions.factions.insert(faction);
+        available_factions.remaining_factions.insert(faction);
+    }
+}
+
+fn setup_sandbox(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut ui_defaults: ResMut<UiBuilderDefaults>,
@@ -104,9 +127,11 @@ fn setup(
             .border_all_px(2.0)
             .border_color(BORDER_COLOR)
             .border_radius_zero()
-            .padding_all_px(8.0)
-            .margin_all_px(6.0),
+            .padding_all_px(4.0)
+            .margin_all_px(2.0),
     );
+    ui_defaults.text_justify = Some(Justify::Center);
+    ui_defaults.text_line_break = Some(LineBreak::WordBoundary);
 
     let mut ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
 
@@ -116,16 +141,16 @@ fn setup(
         .flex_dir_row();
 
     // Left side: Sample box display area
-    ui.with_child(|ui| {
+    ui.add_panel(|ui| {
         ui.size_percent(50.0, 100.0)
-            .padding_all_px(8.0)
+            .padding_all_px(4.0)
             .display_flex()
             .justify_center()
             .align_items_center()
             .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.5));
 
         // The sample box we'll modify
-        ui.with_child(|ui| {
+        ui.add_panel(|ui| {
             ui.with_component::<SampleBox>()
                 .size_px(layout_state.width, layout_state.height)
                 .padding_all_px(layout_state.padding)
@@ -136,24 +161,22 @@ fn setup(
                 .justify_center()
                 .align_items_center();
 
-            ui.with_child(|ui| {
-                ui.default_text("Sample Text");
-            });
+            ui.text_node("Sample Text");
         });
     });
     // Right side: Control panel
-    ui.with_child(|ui| {
+    ui.add_panel(|ui| {
         ui.width_auto()
             .height_percent(100.)
             .display_flex()
             .flex_dir_column()
             .bg_color(CONTROL_PANEL_COLOR)
-            .padding_all_px(16.0)
-            .row_gap_px(8.0);
+            .padding_all_px(4.0)
+            .row_gap_px(2.0);
 
         // Title
         ui.with_child(|ui| {
-            ui.default_text("Layout Inspector").margin_btm_px(16.0);
+            ui.default_text("Layout Inspector").margin_btm_px(4.0);
         });
 
         // Control rows
@@ -189,19 +212,16 @@ fn build_control_row(
     property: LayoutProperty,
     initial_value: f32,
 ) {
-    ui.with_child(|ui| {
-        ui.as_flex_row()
-            .align_items_center()
+    ui.add_row(|ui| {
+        ui.align_items_center()
             .justify_space_between()
             .column_gap_px(4.0)
             .margin_zero()
             .padding_zero();
 
         // Label
-        ui.with_child(|ui| {
-            ui.default_text(label).width_px(50.0);
-        });
-        
+        ui.text_with_width(label, 50.0);
+
         //Decrease button (-10)
         ui.with_child(|ui| {
             ui.add_button(
@@ -217,7 +237,7 @@ fn build_control_row(
                 },
             );
         });
-        
+
         //Decrease button (-1)
         ui.with_child(|ui| {
             ui.add_button(
@@ -233,15 +253,20 @@ fn build_control_row(
                 },
             );
         });
-        
 
-        // Value display
         ui.with_child(|ui| {
-            ui.default_text(format!("{:.0}", initial_value))
-                .width_px(40.)
+            ui.width_px(40.0)
+                .height_px(28.0)
+                .display_flex()
                 .align_items_center()
-                .justify_center()
-                .insert(LayoutValueDisplay { property });
+                .justify_center();
+
+            ui.build_text(format!("{:.0}", initial_value), |ui| {
+                ui.width_px(40.0)
+                    .align_items_center()
+                    .text_justify_center() // This centers the text content
+                    .insert(LayoutValueDisplay { property });
+            });
         });
 
         // Increase button (+1)

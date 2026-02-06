@@ -2,6 +2,7 @@ use crate::civilization::concepts::trade::trade_components::{
     CanTrade, PlayerTradeInterests, PublishedOffer, PublishedOffersList, TradeButtonAction,
     TradeOffer,
 };
+use crate::civilization::game_moves::game_moves_components::TradeMove;
 use crate::civilization::ui::ui_builder::{
     ButtonPartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR,
 };
@@ -9,10 +10,9 @@ use crate::GameActivity;
 use bevy::color::palettes::basic::{GREEN, YELLOW};
 use bevy::log::debug;
 use bevy::prelude::{
-    default, Color, Commands, Entity, JustifyContent, NextState, Add, Remove, Query, Res,
-    ResMut, On, UiRect, Val, With,
+    default, Add, Color, Commands, Entity, JustifyContent, NextState, On, Query, Remove,
+    Res, ResMut, UiRect, Val, With,
 };
-use crate::civilization::game_moves::game_moves_components::TradeMove;
 
 #[allow(unused_assignments)]
 pub fn offer_published(
@@ -63,6 +63,7 @@ pub fn offer_published(
                     } else {
                         Color::from(YELLOW)
                     }),
+                    None, None
                 )
                 .parent()
                 .parent()

@@ -1,7 +1,20 @@
 use bevy::color::palettes::basic::{BLACK, WHITE};
+use bevy::ecs::system::IntoObserverSystem;
 use bevy::prelude::*;
 use bevy::reflect::Enum;
+use bevy::text::{Justify, LineBreak, TextLayout};
 use std::collections::VecDeque;
+
+use crate::civilization::concepts::trade::trade_components::{
+    Collapsible, CollapseToggleButton, CollapsibleContent,
+};
+
+// Feathers imports - re-exported at bottom of file for external use
+use bevy::feathers::controls::{button, ButtonProps, ButtonVariant};
+use bevy::feathers::rounded_corners::RoundedCorners;
+use bevy::feathers::theme::ThemedText;
+use bevy::ui::InteractionDisabled;
+use bevy::ui_widgets::Activate;
 
 #[derive(Bundle)]
 pub struct NodeBundle {
@@ -27,7 +40,7 @@ pub struct TextBundle {
 pub const BG_COLOR: Color = Color::srgba(0.5, 0.5, 0.5, 0.25);
 pub const CARD_COLOR: Color = Color::srgba(0.7, 0.6, 0.2, 0.8);
 pub const TEXT_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 1.0);
-pub const BORDER_COLOR: Color = Color::srgba(0.2, 0.2, 0.2, 0.8);
+pub const BORDER_COLOR: Color = Color::srgba(0.2, 0.2, 0.2, 0.25);
 
 #[derive(Component, Default)]
 pub struct ButtonAction<T: Enum> {
@@ -205,7 +218,7 @@ impl Default for NodeDef {
         Self {
             display: Display::DEFAULT,
             position_type: PositionType::DEFAULT,
-            overflow: Overflow::DEFAULT,
+            overflow: Overflow::clip(),
             overflow_clip_margin: OverflowClipMargin::DEFAULT,
             left: Val::DEFAULT,
             right: Val::DEFAULT,
@@ -656,6 +669,8 @@ pub struct UiBuilderDefaults {
     pub bg_color: Color,
     pub border_color: Color,
     pub text_color: Color,
+    pub text_justify: Option<bevy::text::Justify>,
+    pub text_line_break: Option<bevy::text::LineBreak>,
 }
 
 impl UiBuilderDefaults {
@@ -1020,6 +1035,11 @@ impl UiBuilderDefaults {
 }
 
 impl<'w, 's> UIBuilder<'w, 's> {
+    /// Get a reference to the UI builder defaults
+    pub fn get_defaults(&self) -> &UiBuilderDefaults {
+        &self.defaults
+    }
+
     /// Create a new root UI container
     pub fn new(mut commands: Commands<'w, 's>, defaults: Option<UiBuilderDefaults>) -> Self {
         // Create a basic node entity with default settings
@@ -1219,6 +1239,92 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self.display(Display::Grid)
     }
 
+    /// Set grid template columns with N equal-width columns using fr units
+    pub fn grid_cols(&mut self, count: u16) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.grid_template_columns = vec![RepeatedGridTrack::fr(count, 1.0)];
+            });
+        self
+    }
+
+    /// Set grid template rows with N equal-height rows using fr units
+    pub fn grid_rows(&mut self, count: u16) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.grid_template_rows = vec![RepeatedGridTrack::fr(count, 1.0)];
+            });
+        self
+    }
+
+    /// Set grid template columns with N columns of fixed pixel width
+    pub fn grid_cols_px(&mut self, count: u16, width: f32) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.grid_template_columns = vec![RepeatedGridTrack::px(count, width)];
+            });
+        self
+    }
+
+    /// Set grid template columns to auto-fill with minimum width
+    pub fn grid_cols_auto_fill_percent(&mut self, min_width: f32) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.grid_template_columns = vec![RepeatedGridTrack::minmax(
+                    GridTrackRepetition::AutoFill,
+                    MinTrackSizingFunction::Percent(min_width),
+                    MaxTrackSizingFunction::Fraction(1.0),
+                )];
+            });
+        self
+    }
+
+    /// Set grid template columns to auto-fill with minimum width
+    pub fn grid_cols_auto_fill_px(&mut self, min_width: f32) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.grid_template_columns = vec![RepeatedGridTrack::minmax(
+                    GridTrackRepetition::AutoFill,
+                    MinTrackSizingFunction::Px(min_width),
+                    MaxTrackSizingFunction::Fraction(1.0),
+                )];
+            });
+        self
+    }
+
+    /// Set the gap between grid cells
+    pub fn grid_gap_px(&mut self, gap: f32) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.row_gap = Val::Px(gap);
+                n.column_gap = Val::Px(gap);
+            });
+        self
+    }
+
+    pub fn grid_gap_percent(&mut self, gap: f32) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                n.row_gap = Val::Percent(gap);
+                n.column_gap = Val::Percent(gap);
+            });
+        self
+    }
+
     /// Set display to Block
     pub fn display_block(&mut self) -> &mut Self {
         self.display(Display::Block)
@@ -1263,7 +1369,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     /// Set the aspect ratio property of the current entity's node
-    pub fn with_aspect_ratio(&mut self, ratio: f32) -> &mut Self {
+    pub fn aspect_ratio(&mut self, ratio: f32) -> &mut Self {
         self.commands
             .entity(self.current_entity)
             .entry::<Node>()
@@ -1681,7 +1787,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self
     }
 
-    pub fn with_child<F>(&mut self, mut f: F) -> &mut Self
+    pub fn with_child<F>(&mut self, f: F) -> &mut Self
     where
         F: FnOnce(&mut Self),
     {
@@ -1710,7 +1816,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         F: FnOnce(&mut Self),
     {
         self.with_child(|ui| {
-            ui.display_flex().flex_dir_row();
+            ui.as_flex_row();
             f(ui);
         })
     }
@@ -1737,6 +1843,17 @@ impl<'w, 's> UIBuilder<'w, 's> {
         })
     }
 
+    /// Add a grid container child with specified number of columns
+    pub fn add_grid<F>(&mut self, cols: u16, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.with_child(|ui| {
+            ui.display_grid().grid_cols(cols).grid_gap_percent(2.0);
+            f(ui);
+        })
+    }
+
     /// Add a card container child with padding and background
     pub fn add_card<F>(&mut self, f: F) -> &mut Self
     where
@@ -1745,8 +1862,8 @@ impl<'w, 's> UIBuilder<'w, 's> {
         self.with_child(|ui| {
             ui.display_flex()
                 .flex_dir_column()
-                .padding_all_px(16.0)
-                .border_radius_all_px(8.0);
+                .padding_all_px(4.0)
+                .border_radius_all_px(4.0);
             f(ui);
         })
     }
@@ -1760,6 +1877,82 @@ impl<'w, 's> UIBuilder<'w, 's> {
             ui.display_flex().justify_center().align_items_center();
             f(ui);
         })
+    }
+
+    /// Add a collapsible section with a toggle button and content area.
+    /// 
+    /// Creates a container with:
+    /// - A `Collapsible` component on the wrapper
+    /// - A toggle button with `CollapseToggleButton` that shows ▼/▶ and the label
+    /// - A content container with `CollapsibleContent` where children are added
+    /// 
+    /// The closure `f` receives the UIBuilder positioned at the content container,
+    /// so any children added will be inside the collapsible content area.
+    /// 
+    /// # Arguments
+    /// * `label` - The label shown on the toggle button
+    /// * `initially_collapsed` - Whether the section starts collapsed
+    /// * `f` - Closure to build the content inside the collapsible section
+    pub fn with_collapsible<F>(&mut self, label: &str, initially_collapsed: bool, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        let label_owned = label.to_string();
+        let collapsed = initially_collapsed;
+        
+        self.with_child(|ui| {
+            // The wrapper gets the Collapsible component
+            let collapsible_entity = ui.current_entity;
+            ui.insert(if collapsed {
+                Collapsible::collapsed(&label_owned)
+            } else {
+                Collapsible::new(&label_owned)
+            });
+            ui.display_flex().flex_dir_column();
+            
+            // Add the toggle button
+            ui.with_child(|btn| {
+                btn.insert(Button);
+                btn.insert(CollapseToggleButton { target: collapsible_entity });
+                btn.padding_all_px(8.0)
+                    .margin(UiRect::bottom(Val::Px(4.0)))
+                    .bg_color(Color::srgb(0.25, 0.25, 0.3));
+                
+                // Button text
+                let arrow = if collapsed { "▶" } else { "▼" };
+                btn.add_text_child(format!("{} {}", arrow, label_owned), None, Some(12.0), None);
+            });
+            
+            // Add the content container
+            ui.with_child(|content| {
+                content.insert(CollapsibleContent { parent: collapsible_entity });
+                content.display_flex().flex_dir_column().width_percent(100.0);
+                
+                // Set initial visibility
+                if collapsed {
+                    content.display(Display::None);
+                }
+                
+                // Build the actual content
+                f(content);
+            });
+        })
+    }
+
+    /// Add a collapsible section that starts expanded
+    pub fn add_collapsible<F>(&mut self, label: &str, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.with_collapsible(label, false, f)
+    }
+
+    /// Add a collapsible section that starts collapsed
+    pub fn add_collapsible_collapsed<F>(&mut self, label: &str, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.with_collapsible(label, true, f)
     }
 
     pub fn foreach_child<I, F>(&mut self, iter: I, mut f: F) -> &mut Self
@@ -2354,7 +2547,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
         color: Option<Color>,
     ) -> &mut Self {
         self.with_child(|b| { 
-            b.with_text(text, font, font_size, color); 
+            b.with_text(text, font, font_size, color, None, None); 
         })
     }
 
@@ -2363,7 +2556,94 @@ impl<'w, 's> UIBuilder<'w, 's> {
     }
 
     pub fn default_text(&mut self, text: impl Into<String>) -> &mut Self {
-        self.with_text(text, None, None, None)
+        self.with_text(text, None, None, None, None, None)
+    }
+
+    /// Add a text child and apply builder function to style it
+    pub fn build_text<F>(&mut self, text: impl Into<String>, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.with_child(|ui| {
+            ui.default_text(text);
+            f(ui);
+        })
+    }
+
+    /// Add a text child with a fixed width in pixels
+    pub fn text_with_width(&mut self, text: impl Into<String>, width: f32) -> &mut Self {
+        self.build_text(text, |ui| {
+            ui.width_px(width);
+        })
+    }
+
+    /// Add a centered text container with specified width
+    /// Creates a flex container that centers text both horizontally and vertically
+    pub fn add_centered_text(&mut self, text: impl Into<String>, width: f32, component: impl Component) -> &mut Self {
+        self.with_child(|ui| {
+            ui.width_px(width)
+                .display_flex()
+                .align_items_center()
+                .justify_center();
+
+            ui.build_text(text, |ui| {
+                ui
+                    .width_px(width)
+                    .text_justify_center()  // This centers the text content
+                    .insert(component);
+            });
+        })
+    }
+
+    /// Add a centered text container with specified width and apply builder to the container
+    pub fn build_centered_text<F>(&mut self, text: impl Into<String>, width: f32, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.with_child(|ui| {
+            ui.width_px(width)
+                .display_flex()
+                .align_items_center()
+                .justify_center();
+            f(ui);
+            ui.with_child(|ui| {
+                ui.default_text(text);
+            });
+        })
+    }
+
+    /// Set text layout justification (for text content alignment within text node)
+    pub fn text_justify(&mut self, justify: Justify) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<TextLayout>()
+            .and_modify(move |mut tl| tl.justify = justify)
+            .or_insert(TextLayout::new(justify, LineBreak::default()));
+        self
+    }
+
+    pub fn text_align(&mut self, justify: Justify) -> &mut Self {
+        self.commands
+            .entity(self.current_entity)
+            .entry::<TextLayout>()
+            .and_modify(move |mut tl| tl.justify = justify)
+            .or_insert(TextLayout::new(justify, LineBreak::default()));
+        self
+    }
+
+    /// Center text content within the text node
+    pub fn text_justify_center(&mut self) -> &mut Self {
+        self.text_justify(Justify::Center)
+    }
+
+    /// Left-align text content within the text node
+    pub fn text_justify_left(&mut self) -> &mut Self {
+        self.text_justify(Justify::Left)
+    }
+
+    /// Right-align text content within the text node
+    pub fn text_justify_right(&mut self) -> &mut Self {
+        self.text_justify(Justify::Right)
     }
 
     pub fn with_text(
@@ -2372,8 +2652,15 @@ impl<'w, 's> UIBuilder<'w, 's> {
         font: Option<Handle<Font>>,
         font_size: Option<f32>,
         color: Option<Color>,
+        justify: Option<bevy::text::Justify>,
+        line_break: Option<bevy::text::LineBreak>,
     ) -> &mut Self {
         let text_color = color.unwrap_or(self.defaults.text_color);
+        let layout = TextLayout::new(
+            justify.unwrap_or(
+                self.defaults.text_justify
+                    .unwrap_or(Justify::default())), 
+                line_break.unwrap_or(self.defaults.text_line_break.unwrap_or(LineBreak::default())));
 
         let text_bundle = (
             Text::new(text.into()),
@@ -2381,6 +2668,7 @@ impl<'w, 's> UIBuilder<'w, 's> {
                 .with_font(font.unwrap_or(self.defaults.base_font.clone()))
                 .with_font_size(font_size.unwrap_or(self.defaults.font_size)),
             TextColor(text_color),
+            layout,
         );
 
         // Add the text component to the entity
@@ -2665,3 +2953,141 @@ impl<'a, 'w, 's> ButtonBuilder<'a, 'w, 's> {
         self
     }
 }
+
+// ============================================================================
+// Feathers-style button helpers using observe() pattern
+// ============================================================================
+
+impl<'w, 's> UIBuilder<'w, 's> {
+    /// Add a Feathers-style button with an observer for the Activate event.
+    /// 
+    /// # Example
+    /// ```ignore
+    /// ui.feathers_button("Click Me", |_: On<Activate>, mut commands: Commands| {
+    ///     info!("Button clicked!");
+    /// });
+    /// ```
+    pub fn feathers_button<M>(
+        &mut self,
+        text: impl Into<String>,
+        handler: impl IntoObserverSystem<Activate, (), M>,
+    ) -> &mut Self {
+        self.feathers_button_with_props(text, ButtonProps::default(), (), handler)
+    }
+
+    /// Add a Feathers-style button with custom props and an observer.
+    /// 
+    /// # Example
+    /// ```ignore
+    /// ui.feathers_button_with_props(
+    ///     "Primary",
+    ///     ButtonProps { variant: ButtonVariant::Primary, ..default() },
+    ///     (),
+    ///     |_: On<Activate>| { info!("Clicked!"); }
+    /// );
+    /// ```
+    pub fn feathers_button_with_props<B, M>(
+        &mut self,
+        text: impl Into<String>,
+        props: ButtonProps,
+        extra_components: B,
+        handler: impl IntoObserverSystem<Activate, (), M>,
+    ) -> &mut Self
+    where
+        B: Bundle,
+    {
+        let text_str = text.into();
+        let original_entity = self.current_entity;
+        let original_stack_len = self.parent_stack.len();
+
+        self.child();
+        let button_entity = self.current_entity;
+
+        // Spawn the Feathers button bundle with observer
+        let button_bundle = button(
+            props,
+            extra_components,
+            Spawn((Text::new(text_str), ThemedText)),
+        );
+
+        self.commands
+            .entity(button_entity)
+            .insert(button_bundle)
+            .observe(handler);
+
+        // Restore state
+        self.current_entity = original_entity;
+        while self.parent_stack.len() > original_stack_len {
+            self.parent_stack.pop_back();
+        }
+
+        self
+    }
+
+    /// Add a Feathers-style primary button with an observer.
+    pub fn feathers_button_primary<M>(
+        &mut self,
+        text: impl Into<String>,
+        handler: impl IntoObserverSystem<Activate, (), M>,
+    ) -> &mut Self {
+        self.feathers_button_with_props(
+            text,
+            ButtonProps {
+                variant: ButtonVariant::Primary,
+                ..default()
+            },
+            (),
+            handler,
+        )
+    }
+
+    /// Add a disabled Feathers-style button with an observer.
+    pub fn feathers_button_disabled<M>(
+        &mut self,
+        text: impl Into<String>,
+        handler: impl IntoObserverSystem<Activate, (), M>,
+    ) -> &mut Self {
+        self.feathers_button_with_props(text, ButtonProps::default(), InteractionDisabled, handler)
+    }
+
+    /// Add a Feathers-style button with a marker component and an observer.
+    /// 
+    /// # Example
+    /// ```ignore
+    /// ui.feathers_button_marked("Save", SaveButton, |_: On<Activate>| {
+    ///     info!("Save clicked!");
+    /// });
+    /// ```
+    pub fn feathers_button_marked<T, M>(
+        &mut self,
+        text: impl Into<String>,
+        marker: T,
+        handler: impl IntoObserverSystem<Activate, (), M>,
+    ) -> &mut Self
+    where
+        T: Component,
+    {
+        self.feathers_button_with_props(text, ButtonProps::default(), marker, handler)
+    }
+
+    /// Add a Feathers-style button with custom rounded corners.
+    pub fn feathers_button_corners<M>(
+        &mut self,
+        text: impl Into<String>,
+        corners: RoundedCorners,
+        handler: impl IntoObserverSystem<Activate, (), M>,
+    ) -> &mut Self {
+        self.feathers_button_with_props(
+            text,
+            ButtonProps {
+                corners,
+                ..default()
+            },
+            (),
+            handler,
+        )
+    }
+}
+
+// Re-export Feathers types for convenience
+pub use bevy::feathers::controls::button as feathers_button_bundle;

@@ -2,6 +2,7 @@ use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::{Trade
 use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{Color, Component, Reflect, Resource};
 use itertools::Itertools;
+use rand::seq::SliceRandom;
 use std::usize;
 
 pub const MIN_CARDS_REQUIRED_TO_TRADE: usize = 5;
@@ -20,6 +21,11 @@ impl CivilizationTradeCards {
                 .or_insert_with(Vec::new)
                 .extend(vec![trade_card; trade_card.number_of_cards()]);
         }
+        // Shuffle each pile so calamities and commodities are mixed
+        let mut rng = rand::rng();
+        for pile in cards.values_mut() {
+            pile.shuffle(&mut rng);
+        }
         Self {
             card_piles: cards,
         }
@@ -31,6 +37,18 @@ impl CivilizationTradeCards {
             None
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct PlayerCardStack {
+    pub card_type: TradeCard,
+    pub count: usize,
+    pub suite_value: usize,
+    pub is_tradeable: bool,
+    pub is_commodity: bool,
+    pub is_calamity: bool,
+    pub max_number_of_cards: usize,
+    pub max_stack_value: usize,
 }
 
 #[derive(Component, Debug, Reflect, Default, Clone)]
@@ -221,6 +239,39 @@ impl PlayerTradeCards {
             *entry.entry(*card).or_insert(0) = *count;
         }
         grouped
+    }
+
+    pub fn as_card_stacks(&self) -> Vec<PlayerCardStack> {
+        self.cards
+            .iter()
+            .map(|(card, &count)| {
+                let max_cards = card.number_of_cards();
+                PlayerCardStack {
+                    card_type: *card,
+                    count,
+                    suite_value: if card.is_commodity() {
+                        count * count * card.value()
+                    } else {
+                        0
+                    },
+                    is_tradeable: card.is_tradeable(),
+                    is_commodity: card.is_commodity(),
+                    is_calamity: card.is_calamity(),
+                    max_number_of_cards: max_cards,
+                    max_stack_value: if card.is_commodity() {
+                        max_cards * max_cards * card.value()
+                    } else {
+                        0
+                    },
+                }
+            })
+            .collect()
+    }
+
+    pub fn as_card_stacks_sorted_by_value(&self) -> Vec<PlayerCardStack> {
+        let mut stacks = self.as_card_stacks();
+        stacks.sort_by(|a, b| b.card_type.value().cmp(&a.card_type.value()));
+        stacks
     }
 
     pub fn remove_n_trade_cards(&mut self, n: usize, trade_card: TradeCard) -> Option<usize> {
