@@ -314,6 +314,42 @@ pub struct TradeCardUiRoot;
 #[derive(Component, Default)]
 pub struct TradeCardList;
 
+/// Marker component for a collapsible UI section.
+/// When collapsed, the content is hidden and only the toggle button is shown.
+#[derive(Component)]
+pub struct Collapsible {
+    pub collapsed: bool,
+    pub label: String,
+}
+
+impl Collapsible {
+    pub fn new(label: impl Into<String>) -> Self {
+        Self {
+            collapsed: false,
+            label: label.into(),
+        }
+    }
+    
+    pub fn collapsed(label: impl Into<String>) -> Self {
+        Self {
+            collapsed: true,
+            label: label.into(),
+        }
+    }
+}
+
+/// Marker for the toggle button that collapses/expands a Collapsible section
+#[derive(Component)]
+pub struct CollapseToggleButton {
+    pub target: Entity,
+}
+
+/// Marker for the content container inside a Collapsible section
+#[derive(Component)]
+pub struct CollapsibleContent {
+    pub parent: Entity,
+}
+
 /// A simplified trade offer for the new trade UI system.
 /// Offers can be open (target = None) or directed at a specific player.
 #[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]

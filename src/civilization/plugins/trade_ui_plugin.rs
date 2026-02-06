@@ -9,7 +9,9 @@ use crate::civilization::concepts::acquire_trade_cards::trade_card_events::Human
 use crate::civilization::concepts::city_construction::city_construction_events::BuildCityCommand;
 use crate::civilization::concepts::movement::movement_events::MoveTokenFromAreaToAreaCommand;
 use crate::civilization::concepts::population_expansion::population_expansion_events::ExpandPopulationManuallyCommand;
-use crate::civilization::concepts::trade::trade_components::{TradeCardList, TradeCardUiRoot};
+use crate::civilization::concepts::trade::trade_components::{
+    Collapsible, CollapseToggleButton, CollapsibleContent, TradeCardList, TradeCardUiRoot,
+};
 use crate::player::Player;
 use bevy::platform::collections::HashMap;
 use crate::civilization::ui::ui_builder::{
@@ -65,6 +67,8 @@ impl Plugin for TradeUiPlugin {
                 update_game_state_display,
                 track_player_activities,
                 update_player_activity_display,
+                handle_collapse_toggle_button,
+                update_collapsible_visibility,
             ));
     }
 }
@@ -315,61 +319,170 @@ pub fn setup_trade_ui(
     ui_defaults.text_justify = Some(Justify::Center);
     ui_defaults.text_line_break = Some(LineBreak::WordBoundary);
 
-    let mut ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
-
-    ui.with_component::<TradeCardUiRoot>()
-        .size_percent(50.0, 98.0)
-        .display_flex()
-        .flex_dir_row();
+    let mut commands = commands;
     
-
-    // Left side: Trade cards grouped by pile value (scrollable)
-    ui.with_child(|ui| {
-        ui.size_percent(50.0, 100.0)
-            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.3))
-            .display_flex()
-            .flex_dir_column()
-            .with_overflow(Overflow::scroll_y())
-            .insert(ScrollPosition::default())
-            .with_component::<TradeCardList>();
-        
-        if let Ok(trade_cards) = player_trade_cards.single() {
-            build_trade_card_list(ui, trade_cards);
-        }
-    });
-    ui.with_child(|ui| {
-        ui.size_percent(50.0, 100.0)
-            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.3))
-            .display_flex()
-            .flex_dir_column();
-        
-        ui.add_text_child("Game State Info", None, Some(14.0), None);
-        ui.with_child(|info| {
-            info.width_percent(100.0)
-                .height_px(40.0)
-                .display_flex()
-                .flex_dir_column()
-                .padding_all_px(4.0)
-                .with_component::<GameStateDisplay>();
+    // Root container that will auto-size based on visible children
+    commands
+        .spawn((
+            TradeCardUiRoot,
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Px(0.0),
+                top: Val::Px(0.0),
+                flex_direction: FlexDirection::Row,
+                padding: UiRect::all(Val::Px(4.0)),
+                ..Default::default()
+            },
+            BackgroundColor(Color::NONE),
+        ))
+        .with_children(|root| {
+            // Left side: Collapsible Trade Cards section
+            let trade_cards_label = "Trade Cards";
+            root.spawn((
+                Collapsible::new(trade_cards_label),
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    margin: UiRect::right(Val::Px(4.0)),
+                    ..Default::default()
+                },
+            )).with_children(|collapsible_parent| {
+                let collapsible_entity = collapsible_parent.target_entity();
+                
+                // Toggle button
+                collapsible_parent
+                    .spawn((
+                        Button,
+                        CollapseToggleButton { target: collapsible_entity },
+                        Node {
+                            padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                            margin: UiRect::bottom(Val::Px(4.0)),
+                            ..Default::default()
+                        },
+                        BackgroundColor(Color::srgb(0.25, 0.25, 0.3)),
+                    ))
+                    .with_child((
+                        Text::new(format!("▼ {}", trade_cards_label)),
+                        TextFont { font_size: 12.0, ..Default::default() },
+                        TextColor(Color::WHITE),
+                    ));
+                
+                // Content container
+                collapsible_parent
+                    .spawn((
+                        CollapsibleContent { parent: collapsible_entity },
+                        TradeCardList,
+                        Node {
+                            width: Val::Px(300.0),
+                            height: Val::Px(400.0),
+                            flex_direction: FlexDirection::Column,
+                            overflow: Overflow::scroll_y(),
+                            padding: UiRect::all(Val::Px(4.0)),
+                            ..Default::default()
+                        },
+                        BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.7)),
+                        ScrollPosition::default(),
+                    ));
+            });
             
-            info.add_text_child("State: Playing", None, Some(10.0), None);
-            info.add_text_child("Activity: StartGame", None, Some(10.0), None);
+            // Right side: Collapsible Game Info section
+            let game_info_label = "Game Info";
+            root.spawn((
+                Collapsible::new(game_info_label),
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    ..Default::default()
+                },
+            )).with_children(|collapsible_parent| {
+                let collapsible_entity = collapsible_parent.target_entity();
+                
+                // Toggle button
+                collapsible_parent
+                    .spawn((
+                        Button,
+                        CollapseToggleButton { target: collapsible_entity },
+                        Node {
+                            padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                            margin: UiRect::bottom(Val::Px(4.0)),
+                            ..Default::default()
+                        },
+                        BackgroundColor(Color::srgb(0.25, 0.25, 0.3)),
+                    ))
+                    .with_child((
+                        Text::new(format!("▼ {}", game_info_label)),
+                        TextFont { font_size: 12.0, ..Default::default() },
+                        TextColor(Color::WHITE),
+                    ));
+                
+                // Content container
+                collapsible_parent
+                    .spawn((
+                        CollapsibleContent { parent: collapsible_entity },
+                        Node {
+                            width: Val::Px(250.0),
+                            flex_direction: FlexDirection::Column,
+                            padding: UiRect::all(Val::Px(4.0)),
+                            ..Default::default()
+                        },
+                        BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.7)),
+                    ))
+                    .with_children(|content| {
+                        // Game State section
+                        content.spawn((
+                            Text::new("Game State"),
+                            TextFont { font_size: 14.0, ..Default::default() },
+                            TextColor(Color::srgb(0.8, 0.8, 0.8)),
+                        ));
+                        
+                        content
+                            .spawn((
+                                GameStateDisplay,
+                                Node {
+                                    width: Val::Percent(100.0),
+                                    flex_direction: FlexDirection::Column,
+                                    padding: UiRect::all(Val::Px(4.0)),
+                                    margin: UiRect::bottom(Val::Px(8.0)),
+                                    ..Default::default()
+                                },
+                            ))
+                            .with_children(|state_display| {
+                                state_display.spawn((
+                                    Text::new("State: Playing"),
+                                    TextFont { font_size: 10.0, ..Default::default() },
+                                    TextColor(Color::srgb(0.7, 0.7, 0.7)),
+                                ));
+                                state_display.spawn((
+                                    Text::new("Activity: StartGame"),
+                                    TextFont { font_size: 10.0, ..Default::default() },
+                                    TextColor(Color::srgb(0.7, 0.7, 0.7)),
+                                ));
+                            });
+                        
+                        // Player Activity section
+                        content.spawn((
+                            Text::new("Player Activity"),
+                            TextFont { font_size: 14.0, ..Default::default() },
+                            TextColor(Color::srgb(0.8, 0.8, 0.8)),
+                        ));
+                        
+                        content.spawn((
+                            PlayerActivityListContainer,
+                            Node {
+                                width: Val::Percent(100.0),
+                                height: Val::Px(300.0),
+                                flex_direction: FlexDirection::Column,
+                                padding: UiRect::all(Val::Px(4.0)),
+                                overflow: Overflow::scroll_y(),
+                                ..Default::default()
+                            },
+                            ScrollPosition::default(),
+                        ));
+                    });
+            });
         });
-        
-        ui.add_text_child("Player Activity", None, Some(14.0), None);
-        ui.with_child(|list| {
-            list.width_percent(100.0)
-                .height_percent(80.0)
-                .display_flex()
-                .flex_dir_column()
-                .padding_all_px(4.0)
-                .with_overflow(Overflow::scroll_y())
-                .insert(ScrollPosition::default())
-                .with_component::<PlayerActivityListContainer>();
-        });
-    });
-
-    let (_root, _commands) = ui.build();
+    
+    // Build trade card list content if player has cards
+    // This needs to happen after the UI is spawned, so we trigger an event
+    // The handle_player_draws_cards system will populate the TradeCardList
 }
 
 pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
@@ -602,4 +715,134 @@ fn faction_to_color(faction: &Faction) -> Color {
         GameFaction::Iberia => Color::srgb(0.8, 0.6, 0.1),
         GameFaction::Thrace => Color::srgb(0.4, 0.5, 0.6),
     }
+}
+
+// ============================================================================
+// COLLAPSIBLE UI SYSTEMS
+// ============================================================================
+
+/// Handle clicking the collapse/expand toggle button
+pub fn handle_collapse_toggle_button(
+    mut interaction_query: Query<
+        (&Interaction, &CollapseToggleButton, &mut BackgroundColor),
+        Changed<Interaction>,
+    >,
+    mut collapsible_query: Query<&mut Collapsible>,
+) {
+    for (interaction, toggle_btn, mut bg_color) in &mut interaction_query {
+        match *interaction {
+            Interaction::Pressed => {
+                *bg_color = BackgroundColor(Color::srgb(0.4, 0.6, 0.4));
+                if let Ok(mut collapsible) = collapsible_query.get_mut(toggle_btn.target) {
+                    collapsible.collapsed = !collapsible.collapsed;
+                }
+            }
+            Interaction::Hovered => {
+                *bg_color = BackgroundColor(Color::srgb(0.35, 0.35, 0.4));
+            }
+            Interaction::None => {
+                *bg_color = BackgroundColor(Color::srgb(0.25, 0.25, 0.3));
+            }
+        }
+    }
+}
+
+/// Update visibility of collapsible content based on collapsed state
+pub fn update_collapsible_visibility(
+    collapsible_query: Query<(Entity, &Collapsible), Changed<Collapsible>>,
+    mut content_query: Query<(&CollapsibleContent, &mut Node)>,
+    mut button_text_query: Query<(&CollapseToggleButton, &Children)>,
+    mut text_query: Query<&mut Text>,
+) {
+    for (collapsible_entity, collapsible) in collapsible_query.iter() {
+        // Update content visibility
+        for (content, mut node) in content_query.iter_mut() {
+            if content.parent == collapsible_entity {
+                node.display = if collapsible.collapsed {
+                    Display::None
+                } else {
+                    Display::Flex
+                };
+            }
+        }
+        
+        // Update button text
+        for (toggle_btn, children) in button_text_query.iter_mut() {
+            if toggle_btn.target == collapsible_entity {
+                for child in children.iter() {
+                    if let Ok(mut text) = text_query.get_mut(child) {
+                        **text = if collapsible.collapsed {
+                            format!("▶ {}", collapsible.label)
+                        } else {
+                            format!("▼ {}", collapsible.label)
+                        };
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Helper function to spawn a collapsible section with content
+/// Returns the content entity where children should be added
+pub fn spawn_collapsible_section(
+    commands: &mut Commands,
+    label: &str,
+    initially_collapsed: bool,
+) -> (Entity, Entity) {
+    let collapsible_entity = commands
+        .spawn((
+            if initially_collapsed {
+                Collapsible::collapsed(label)
+            } else {
+                Collapsible::new(label)
+            },
+            Node {
+                flex_direction: FlexDirection::Column,
+                width: Val::Auto,
+                ..Default::default()
+            },
+        ))
+        .id();
+    
+    // Spawn toggle button
+    commands.entity(collapsible_entity).with_children(|parent| {
+        parent
+            .spawn((
+                Button,
+                CollapseToggleButton { target: collapsible_entity },
+                Node {
+                    padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                    margin: UiRect::bottom(Val::Px(4.0)),
+                    ..Default::default()
+                },
+                BackgroundColor(Color::srgb(0.25, 0.25, 0.3)),
+            ))
+            .with_child((
+                Text::new(if initially_collapsed {
+                    format!("▶ {}", label)
+                } else {
+                    format!("▼ {}", label)
+                }),
+                TextFont { font_size: 12.0, ..Default::default() },
+                TextColor(Color::WHITE),
+            ));
+    });
+    
+    // Spawn content container
+    let content_entity = commands
+        .spawn((
+            CollapsibleContent { parent: collapsible_entity },
+            Node {
+                flex_direction: FlexDirection::Column,
+                width: Val::Percent(100.0),
+                display: if initially_collapsed { Display::None } else { Display::Flex },
+                ..Default::default()
+            },
+        ))
+        .id();
+    
+    commands.entity(collapsible_entity).add_child(content_entity);
+    
+    (collapsible_entity, content_entity)
 }

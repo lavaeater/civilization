@@ -13,7 +13,7 @@ exclude = ["dist", "build", "assets", "credits"]
 name = "adv_civ"
 
 [workspace]
-members = ["mobile"]
+members = ["bevy_ui_builder","mobile"]
 
 [profile.dev.package."*"]
 opt-level = 3
