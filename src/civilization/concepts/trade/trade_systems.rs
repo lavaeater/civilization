@@ -1,5 +1,6 @@
 use crate::civilization::concepts::acquire_trade_cards::trade_card_components::PlayerTradeCards;
 use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCard;
+use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCardTrait;
 use crate::civilization::concepts::trade::trade_components::{
     AvailableTradeOfferActions, CanTrade, CreateOfferButton, CreateOfferModal, DoneTradingButton,
     InSettlement, NeedsTradeMove, OpenOffersListContainer, OpenTradeOffer, PlayerSettlements,
@@ -7,7 +8,6 @@ use crate::civilization::concepts::trade::trade_components::{
 };
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::trade_resources::{CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState};
-use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCardTrait;
 use crate::civilization::game_moves::game_moves_components::{AvailableMoves, Move, TradeMove};
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::ui::ui_builder::UiBuilderDefaults;
@@ -1664,6 +1664,7 @@ pub fn handle_accept_offer_button(
     mut offers_query: Query<&mut OpenTradeOffer>,
     trade_ui_state: Res<TradeUiState>,
     player_names: Query<&Name>,
+    player_cards_query: Query<&PlayerTradeCards>,
 ) {
     for (interaction, accept_btn, mut bg_color) in &mut interaction_query {
         match *interaction {
@@ -1673,12 +1674,41 @@ pub fn handle_accept_offer_button(
                 if let Some(human) = trade_ui_state.human_player {
                     if let Ok(mut offer) = offers_query.get_mut(accept_btn.offer) {
                         if offer.can_accept(human) {
-                            let human_name = player_names
-                                .get(human)
-                                .map(|n| n.to_string())
-                                .unwrap_or_else(|_| "Human".to_string());
-                            offer.accept(human, human_name);
-                            debug!("Human accepted offer from {}", offer.creator_name);
+                            // Validate that human can fulfill the trade requirements
+                            if let Ok(player_cards) = player_cards_query.get(human) {
+                                let player_commodities: bevy::platform::collections::HashMap<TradeCard, usize> = 
+                                    player_cards.commodity_cards().into_iter().collect();
+                                
+                                // Check if player has the required guaranteed cards
+                                let mut can_fulfill = true;
+                                for (card, count) in offer.wanting_guaranteed.iter() {
+                                    let player_has = player_commodities.get(card).copied().unwrap_or(0);
+                                    if player_has < *count {
+                                        can_fulfill = false;
+                                        debug!("Cannot accept: need {} {:?} but only have {}", count, card, player_has);
+                                        break;
+                                    }
+                                }
+                                
+                                // Check total card count
+                                let total_needed = offer.wanting_guaranteed.values().sum::<usize>() + offer.wanting_hidden_count;
+                                let total_have = player_cards.number_of_trade_cards();
+                                if total_have < total_needed {
+                                    can_fulfill = false;
+                                    debug!("Cannot accept: need {} total cards but only have {}", total_needed, total_have);
+                                }
+                                
+                                if can_fulfill {
+                                    let human_name = player_names
+                                        .get(human)
+                                        .map(|n| n.to_string())
+                                        .unwrap_or_else(|_| "Human".to_string());
+                                    offer.accept(human, human_name);
+                                    debug!("Human accepted offer from {}", offer.creator_name);
+                                } else {
+                                    debug!("Human cannot fulfill trade requirements");
+                                }
+                            }
                         }
                     }
                 }
@@ -2135,17 +2165,36 @@ pub fn spawn_settlement_modal(
                     ));
                 });
             
-            // Confirm button
+            // Bottom buttons row
             modal
                 .spawn(Node {
                     width: Val::Percent(100.0),
                     height: Val::Px(50.0),
-                    justify_content: JustifyContent::Center,
+                    flex_direction: FlexDirection::Row,
+                    justify_content: JustifyContent::SpaceBetween,
                     align_items: AlignItems::Center,
                     margin: UiRect::top(Val::Px(16.0)),
                     ..Default::default()
                 })
                 .with_children(|btn_row| {
+                    // Cancel button (prominent, on the left)
+                    btn_row
+                        .spawn((
+                            Button,
+                            CloseSettlementModalButton,
+                            Node {
+                                padding: UiRect::axes(Val::Px(30.0), Val::Px(14.0)),
+                                ..Default::default()
+                            },
+                            BackgroundColor(Color::srgb(0.6, 0.2, 0.2)),
+                        ))
+                        .with_child((
+                            Text::new("✕ Cancel Trade"),
+                            TextFont { font_size: 16.0, ..Default::default() },
+                            TextColor(Color::WHITE),
+                        ));
+                    
+                    // Confirm button (on the right)
                     btn_row
                         .spawn((
                             Button,
