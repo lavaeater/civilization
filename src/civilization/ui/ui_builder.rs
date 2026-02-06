@@ -5,6 +5,10 @@ use bevy::reflect::Enum;
 use bevy::text::{Justify, LineBreak, TextLayout};
 use std::collections::VecDeque;
 
+use crate::civilization::concepts::trade::trade_components::{
+    Collapsible, CollapseToggleButton, CollapsibleContent,
+};
+
 // Feathers imports - re-exported at bottom of file for external use
 use bevy::feathers::controls::{button, ButtonProps, ButtonVariant};
 use bevy::feathers::rounded_corners::RoundedCorners;
@@ -1873,6 +1877,82 @@ impl<'w, 's> UIBuilder<'w, 's> {
             ui.display_flex().justify_center().align_items_center();
             f(ui);
         })
+    }
+
+    /// Add a collapsible section with a toggle button and content area.
+    /// 
+    /// Creates a container with:
+    /// - A `Collapsible` component on the wrapper
+    /// - A toggle button with `CollapseToggleButton` that shows ▼/▶ and the label
+    /// - A content container with `CollapsibleContent` where children are added
+    /// 
+    /// The closure `f` receives the UIBuilder positioned at the content container,
+    /// so any children added will be inside the collapsible content area.
+    /// 
+    /// # Arguments
+    /// * `label` - The label shown on the toggle button
+    /// * `initially_collapsed` - Whether the section starts collapsed
+    /// * `f` - Closure to build the content inside the collapsible section
+    pub fn with_collapsible<F>(&mut self, label: &str, initially_collapsed: bool, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        let label_owned = label.to_string();
+        let collapsed = initially_collapsed;
+        
+        self.with_child(|ui| {
+            // The wrapper gets the Collapsible component
+            let collapsible_entity = ui.current_entity;
+            ui.insert(if collapsed {
+                Collapsible::collapsed(&label_owned)
+            } else {
+                Collapsible::new(&label_owned)
+            });
+            ui.display_flex().flex_dir_column();
+            
+            // Add the toggle button
+            ui.with_child(|btn| {
+                btn.insert(Button);
+                btn.insert(CollapseToggleButton { target: collapsible_entity });
+                btn.padding_all_px(8.0)
+                    .margin(UiRect::bottom(Val::Px(4.0)))
+                    .bg_color(Color::srgb(0.25, 0.25, 0.3));
+                
+                // Button text
+                let arrow = if collapsed { "▶" } else { "▼" };
+                btn.add_text_child(format!("{} {}", arrow, label_owned), None, Some(12.0), None);
+            });
+            
+            // Add the content container
+            ui.with_child(|content| {
+                content.insert(CollapsibleContent { parent: collapsible_entity });
+                content.display_flex().flex_dir_column().width_percent(100.0);
+                
+                // Set initial visibility
+                if collapsed {
+                    content.display(Display::None);
+                }
+                
+                // Build the actual content
+                f(content);
+            });
+        })
+    }
+
+    /// Add a collapsible section that starts expanded
+    pub fn add_collapsible<F>(&mut self, label: &str, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.with_collapsible(label, false, f)
+    }
+
+    /// Add a collapsible section that starts collapsed
+    pub fn add_collapsible_collapsed<F>(&mut self, label: &str, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.with_collapsible(label, true, f)
     }
 
     pub fn foreach_child<I, F>(&mut self, iter: I, mut f: F) -> &mut Self

@@ -12,6 +12,7 @@ use crate::civilization::concepts::population_expansion::population_expansion_ev
 use crate::civilization::concepts::trade::trade_components::{
     Collapsible, CollapseToggleButton, CollapsibleContent, TradeCardList, TradeCardUiRoot,
 };
+// Note: Collapsible, CollapseToggleButton, CollapsibleContent are used by the systems below
 use crate::player::Player;
 use bevy::platform::collections::HashMap;
 use crate::civilization::ui::ui_builder::{
@@ -287,7 +288,7 @@ pub fn setup_trade_ui(
     commands: Commands,
     asset_server: Res<AssetServer>,
     mut ui_defaults: ResMut<UiBuilderDefaults>,
-    player_trade_cards: Query<&PlayerTradeCards , With<IsHuman>>,
+    _player_trade_cards: Query<&PlayerTradeCards, With<IsHuman>>,
 ) {
     // // Spawn camera for UI rendering
     // commands.spawn((
@@ -319,170 +320,66 @@ pub fn setup_trade_ui(
     ui_defaults.text_justify = Some(Justify::Center);
     ui_defaults.text_line_break = Some(LineBreak::WordBoundary);
 
-    let mut commands = commands;
-    
-    // Root container that will auto-size based on visible children
-    commands
-        .spawn((
-            TradeCardUiRoot,
-            Node {
-                position_type: PositionType::Absolute,
-                left: Val::Px(0.0),
-                top: Val::Px(0.0),
-                flex_direction: FlexDirection::Row,
-                padding: UiRect::all(Val::Px(4.0)),
-                ..Default::default()
-            },
-            BackgroundColor(Color::NONE),
-        ))
-        .with_children(|root| {
-            // Left side: Collapsible Trade Cards section
-            let trade_cards_label = "Trade Cards";
-            root.spawn((
-                Collapsible::new(trade_cards_label),
-                Node {
-                    flex_direction: FlexDirection::Column,
-                    margin: UiRect::right(Val::Px(4.0)),
-                    ..Default::default()
-                },
-            )).with_children(|collapsible_parent| {
-                let collapsible_entity = collapsible_parent.target_entity();
-                
-                // Toggle button
-                collapsible_parent
-                    .spawn((
-                        Button,
-                        CollapseToggleButton { target: collapsible_entity },
-                        Node {
-                            padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
-                            margin: UiRect::bottom(Val::Px(4.0)),
-                            ..Default::default()
-                        },
-                        BackgroundColor(Color::srgb(0.25, 0.25, 0.3)),
-                    ))
-                    .with_child((
-                        Text::new(format!("▼ {}", trade_cards_label)),
-                        TextFont { font_size: 12.0, ..Default::default() },
-                        TextColor(Color::WHITE),
-                    ));
-                
-                // Content container
-                collapsible_parent
-                    .spawn((
-                        CollapsibleContent { parent: collapsible_entity },
-                        TradeCardList,
-                        Node {
-                            width: Val::Px(300.0),
-                            height: Val::Px(400.0),
-                            flex_direction: FlexDirection::Column,
-                            overflow: Overflow::scroll_y(),
-                            padding: UiRect::all(Val::Px(4.0)),
-                            ..Default::default()
-                        },
-                        BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.7)),
-                        ScrollPosition::default(),
-                    ));
-            });
+    let mut ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
+
+    ui.with_component::<TradeCardUiRoot>()
+        .display_flex()
+        .flex_dir_row()
+        .padding_all_px(4.0);
+
+    // Left side: Collapsible Trade Cards section
+    ui.add_collapsible("Trade Cards", |cards_section| {
+        cards_section
+            .with_component::<TradeCardList>()
+            .width_px(300.0)
+            .height_px(400.0)
+            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.7))
+            .with_overflow(Overflow::scroll_y())
+            .insert(ScrollPosition::default())
+            .padding_all_px(4.0);
+        
+        if let Ok(trade_cards) = _player_trade_cards.single() {
+            build_trade_card_list(cards_section, trade_cards);
+        }
+    });
+
+    // Right side: Collapsible Game Info section
+    ui.add_collapsible("Game Info", |info_section| {
+        info_section
+            .width_px(250.0)
+            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.7))
+            .padding_all_px(4.0);
+        
+        // Game State section
+        info_section.add_text_child("Game State", None, Some(14.0), None);
+        info_section.with_child(|state| {
+            state
+                .with_component::<GameStateDisplay>()
+                .width_percent(100.0)
+                .display_flex()
+                .flex_dir_column()
+                .padding_all_px(4.0)
+                .margin(UiRect::bottom(Val::Px(8.0)));
             
-            // Right side: Collapsible Game Info section
-            let game_info_label = "Game Info";
-            root.spawn((
-                Collapsible::new(game_info_label),
-                Node {
-                    flex_direction: FlexDirection::Column,
-                    ..Default::default()
-                },
-            )).with_children(|collapsible_parent| {
-                let collapsible_entity = collapsible_parent.target_entity();
-                
-                // Toggle button
-                collapsible_parent
-                    .spawn((
-                        Button,
-                        CollapseToggleButton { target: collapsible_entity },
-                        Node {
-                            padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
-                            margin: UiRect::bottom(Val::Px(4.0)),
-                            ..Default::default()
-                        },
-                        BackgroundColor(Color::srgb(0.25, 0.25, 0.3)),
-                    ))
-                    .with_child((
-                        Text::new(format!("▼ {}", game_info_label)),
-                        TextFont { font_size: 12.0, ..Default::default() },
-                        TextColor(Color::WHITE),
-                    ));
-                
-                // Content container
-                collapsible_parent
-                    .spawn((
-                        CollapsibleContent { parent: collapsible_entity },
-                        Node {
-                            width: Val::Px(250.0),
-                            flex_direction: FlexDirection::Column,
-                            padding: UiRect::all(Val::Px(4.0)),
-                            ..Default::default()
-                        },
-                        BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.7)),
-                    ))
-                    .with_children(|content| {
-                        // Game State section
-                        content.spawn((
-                            Text::new("Game State"),
-                            TextFont { font_size: 14.0, ..Default::default() },
-                            TextColor(Color::srgb(0.8, 0.8, 0.8)),
-                        ));
-                        
-                        content
-                            .spawn((
-                                GameStateDisplay,
-                                Node {
-                                    width: Val::Percent(100.0),
-                                    flex_direction: FlexDirection::Column,
-                                    padding: UiRect::all(Val::Px(4.0)),
-                                    margin: UiRect::bottom(Val::Px(8.0)),
-                                    ..Default::default()
-                                },
-                            ))
-                            .with_children(|state_display| {
-                                state_display.spawn((
-                                    Text::new("State: Playing"),
-                                    TextFont { font_size: 10.0, ..Default::default() },
-                                    TextColor(Color::srgb(0.7, 0.7, 0.7)),
-                                ));
-                                state_display.spawn((
-                                    Text::new("Activity: StartGame"),
-                                    TextFont { font_size: 10.0, ..Default::default() },
-                                    TextColor(Color::srgb(0.7, 0.7, 0.7)),
-                                ));
-                            });
-                        
-                        // Player Activity section
-                        content.spawn((
-                            Text::new("Player Activity"),
-                            TextFont { font_size: 14.0, ..Default::default() },
-                            TextColor(Color::srgb(0.8, 0.8, 0.8)),
-                        ));
-                        
-                        content.spawn((
-                            PlayerActivityListContainer,
-                            Node {
-                                width: Val::Percent(100.0),
-                                height: Val::Px(300.0),
-                                flex_direction: FlexDirection::Column,
-                                padding: UiRect::all(Val::Px(4.0)),
-                                overflow: Overflow::scroll_y(),
-                                ..Default::default()
-                            },
-                            ScrollPosition::default(),
-                        ));
-                    });
-            });
+            state.add_text_child("State: Playing", None, Some(10.0), None);
+            state.add_text_child("Activity: StartGame", None, Some(10.0), None);
         });
-    
-    // Build trade card list content if player has cards
-    // This needs to happen after the UI is spawned, so we trigger an event
-    // The handle_player_draws_cards system will populate the TradeCardList
+        
+        // Player Activity section
+        info_section.add_text_child("Player Activity", None, Some(14.0), None);
+        info_section.with_child(|list| {
+            list.with_component::<PlayerActivityListContainer>()
+                .width_percent(100.0)
+                .height_px(300.0)
+                .display_flex()
+                .flex_dir_column()
+                .padding_all_px(4.0)
+                .with_overflow(Overflow::scroll_y())
+                .insert(ScrollPosition::default());
+        });
+    });
+
+    let (_root, _commands) = ui.build();
 }
 
 pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {

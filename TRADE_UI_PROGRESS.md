@@ -107,6 +107,25 @@ Implementing a comprehensive trade system with open/directed offers, settlement 
   - Fills hidden slots with tradeable calamities, then lowest-value commodities
 - All 3 systems registered in `trade_plugin.rs:66-73`
 
+### 9. Collapsible UI Feature (`trade_ui_plugin.rs:611-739`)
+- **`Collapsible`** component (`trade_components.rs:317-338`) - marks a UI section as collapsible:
+  - `collapsed: bool` - current state
+  - `label: String` - displayed in toggle button
+  - `new()` / `collapsed()` constructors
+- **`CollapseToggleButton`** component - the button that toggles collapse state:
+  - `target: Entity` - the `Collapsible` entity to toggle
+- **`CollapsibleContent`** component - the content container that gets hidden/shown:
+  - `parent: Entity` - the parent `Collapsible` entity
+- **Systems**:
+  - `handle_collapse_toggle_button` - handles button clicks, toggles `collapsed` state
+  - `update_collapsible_visibility` - updates content `Display::None/Flex` and button text (▶/▼)
+- **Updated `setup_trade_ui`** (`trade_ui_plugin.rs:322-485`):
+  - `TradeCardUiRoot` now auto-sizes based on visible children
+  - "Trade Cards" section is collapsible (contains `TradeCardList`)
+  - "Game Info" section is collapsible (contains `GameStateDisplay` and `PlayerActivityListContainer`)
+  - Both sections start expanded, can be collapsed by clicking the toggle button
+  - When collapsed, only the toggle button (e.g., "▶ Trade Cards") is visible
+
 ## All Steps Complete!
 
 ## Key Files
