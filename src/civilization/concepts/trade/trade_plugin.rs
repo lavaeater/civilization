@@ -29,9 +29,11 @@ impl Plugin for TradePlugin {
                     settle_trades,
                     check_trade_gate,
                     update_trade_countdown_display,
+                    update_player_trading_status,
                     update_open_offers_display,
                     handle_done_trading_button,
                     handle_create_offer_button,
+                    handle_accept_offer_button,
                 )
                     .run_if(in_state(GameActivity::Trade)),
             )
