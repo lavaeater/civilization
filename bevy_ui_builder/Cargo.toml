@@ -1,6 +1,13 @@
 [package]
 name = "bevy_ui_builder"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+description = "A fluent UI builder for Bevy"
+license = "MIT OR Apache-2.0"
+
+[features]
+default = []
+feathers = []
 
 [dependencies]
+bevy = { version = "0.18.0", default-features = false, features = ["ui", "experimental_bevy_feathers"] }
