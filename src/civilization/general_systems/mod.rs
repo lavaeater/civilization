@@ -12,26 +12,54 @@ use crate::civilization::{CivilizationTradeCards, PlayerTradeCards};
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
+    human_query: Query<Entity, With<IsHuman>>,
     start_area_query: Query<(Entity, &Name, &StartArea)>,
+    all_areas_query: Query<Entity, With<GameArea>>,
     mut writer: MessageWriter<MoveTokensFromStockToAreaCommand>,
     mut next_state: ResMut<NextState<GameActivity>>,
+    debug_options: Res<DebugOptions>,
 ) {
     debug!("4. Starting the game!");
+    let human_entity = human_query.iter().next();
+    
     for (player_entity, name, player_faction) in player_query.iter() {
         debug!("Starting the game for player: {:#?}", name);
-        if let Some((area_entity, area_name, _)) = start_area_query
-            .iter()
-            .find(|(_, _, start_area)| start_area.faction == player_faction.faction)
-        {
-            debug!("Putting a token in: {:#?}", area_name);
-            writer.write(MoveTokensFromStockToAreaCommand {
-                area_entity,
-                player_entity,
-                number_of_tokens: 1,
-            });
+        
+        // Check if this is the human player and we have debug starting areas set
+        let is_human = human_entity == Some(player_entity);
+        
+        if is_human && debug_options.human_starting_areas.is_some() {
+            // Debug mode: place tokens in multiple random areas for testing
+            let num_areas = debug_options.human_starting_areas.unwrap();
+            let areas: Vec<Entity> = all_areas_query.iter().take(num_areas).collect();
+            
+            for area_entity in areas {
+                debug!("Debug: Putting a token in area {:?} for human player", area_entity);
+                writer.write(MoveTokensFromStockToAreaCommand {
+                    area_entity,
+                    player_entity,
+                    number_of_tokens: 1,
+                });
+            }
+        } else {
+            // Normal mode: place token in start area
+            if let Some((area_entity, area_name, _)) = start_area_query
+                .iter()
+                .find(|(_, _, start_area)| start_area.faction == player_faction.faction)
+            {
+                debug!("Putting a token in: {:#?}", area_name);
+                writer.write(MoveTokensFromStockToAreaCommand {
+                    area_entity,
+                    player_entity,
+                    number_of_tokens: 1,
+                });
+            }
         }
     }
-    next_state.set(GameActivity::PopulationExpansion);
+    
+    // Use debug start activity if set, otherwise normal flow
+    let start_activity = debug_options.start_at_activity.clone().unwrap_or(GameActivity::PopulationExpansion);
+    next_state.set(start_activity);
 }
 
 pub fn start_game_after_player_setup(
@@ -111,7 +139,15 @@ pub fn setup_players(
                 }
             }
 
-            let tokens = (0..47)
+            // Determine token count - use debug override for human player if set
+            let is_human = debug_options.add_human_player && *faction == debug_options.human_faction;
+            let token_count = if is_human {
+                debug_options.human_token_count.unwrap_or(47)
+            } else {
+                47
+            };
+
+            let tokens = (0..token_count)
                 .map(|_| {
                     commands
                         .spawn((Name::new(format!("Token {n}")), Token::new(player)))
@@ -127,7 +163,7 @@ pub fn setup_players(
                 })
                 .collect::<Vec<Entity>>();
             commands.entity(player).insert((
-                TokenStock::new(47, tokens),
+                TokenStock::new(token_count, tokens),
                 CityTokenStock::new(9, city_tokens),
             ));
         }
