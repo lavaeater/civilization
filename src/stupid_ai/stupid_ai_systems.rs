@@ -1,27 +1,8 @@
-use crate::civilization::components::population::Population;
 use crate::civilization::components::*;
-use crate::civilization::concepts::acquire_trade_cards::trade_card_components::PlayerTradeCards;
-use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCard;
-use crate::civilization::concepts::check_city_support::check_city_support_events::EliminateCity;
-use crate::civilization::concepts::city_construction::city_construction_events::{
-    BuildCityCommand, EndPlayerCityConstruction,
-};
-use crate::civilization::concepts::movement::movement_events::{
-    MoveTokenFromAreaToAreaCommand, PlayerMovementEnded,
-};
-use crate::civilization::concepts::population_expansion::population_expansion_events::ExpandPopulationManuallyCommand;
-use crate::civilization::concepts::trade::trade_components::{
-    PlayerTradeInterests, TradeOffer,
-};
-use crate::civilization::concepts::trade::trade_functions::{
-    initiator_can_pay_for_offer, receiver_can_pay_for_offer,
-};
-use crate::civilization::game_moves::game_moves_components::{
-    AvailableMoves, Move, MovementMove, TradeMove,
-};
+use crate::civilization::concepts::*;
+use crate::civilization::game_moves::*;
 use crate::civilization::plugins::civilization_plugin::DebugOptions;
-use crate::stupid_ai::stupid_ai_components::StupidAi;
-use crate::stupid_ai::stupid_ai_events::{SelectStupidMove, StupidAiMessage};
+use crate::stupid_ai::*;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{
     debug, Commands, Entity, MessageReader, MessageWriter, Has, Name, Query, Res,
