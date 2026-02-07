@@ -1,6 +1,8 @@
-use crate::civilization::components::population::Population;
-use crate::civilization::components::ReturnTokenToStock;
-use crate::civilization::functions::{remove_n_tokens_from_each_player, return_all_but_n_tokens_to_stock_for_player, return_all_tokens_from_area_for_player, return_all_tokens_to_stock};
+use crate::civilization::components::{Population, ReturnTokenToStock};
+use crate::civilization::functions::{
+    remove_n_tokens_from_each_player, return_all_but_n_tokens_to_stock_for_player,
+    return_all_tokens_from_area_for_player, return_all_tokens_to_stock,
+};
 use bevy::prelude::{Commands, Entity};
 
 pub fn handle_all_lengths_equal(
