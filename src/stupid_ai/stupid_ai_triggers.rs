@@ -9,9 +9,6 @@ pub fn on_add_available_moves(
     mut event_writer: MessageWriter<SelectStupidMove>,
 ) {
     if is_stupid_ai.contains(trigger.event().entity) {
-        // //debug!("Stupid AI detected");
         event_writer.write(SelectStupidMove::new(trigger.event().entity));
-    } else {
-        //debug!("Not a stupid AI");
     }
 }
