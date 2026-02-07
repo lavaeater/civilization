@@ -5,10 +5,6 @@ use bevy::reflect::Enum;
 use bevy::text::{Justify, LineBreak, TextLayout};
 use std::collections::VecDeque;
 
-use crate::civilization::concepts::trade::trade_components::{
-    Collapsible, CollapseToggleButton, CollapsibleContent,
-};
-
 // Feathers imports - re-exported at bottom of file for external use
 use bevy::feathers::controls::{button, ButtonProps, ButtonVariant};
 use bevy::feathers::rounded_corners::RoundedCorners;
@@ -3091,3 +3087,39 @@ impl<'w, 's> UIBuilder<'w, 's> {
 
 // Re-export Feathers types for convenience
 pub use bevy::feathers::controls::button as feathers_button_bundle;
+
+/// Marker component for a collapsible UI section.
+/// When collapsed, the content is hidden and only the toggle button is shown.
+#[derive(Component)]
+pub struct Collapsible {
+    pub collapsed: bool,
+    pub label: String,
+}
+
+impl Collapsible {
+    pub fn new(label: impl Into<String>) -> Self {
+        Self {
+            collapsed: false,
+            label: label.into(),
+        }
+    }
+    
+    pub fn collapsed(label: impl Into<String>) -> Self {
+        Self {
+            collapsed: true,
+            label: label.into(),
+        }
+    }
+}
+
+/// Marker for the toggle button that collapses/expands a Collapsible section
+#[derive(Component)]
+pub struct CollapseToggleButton {
+    pub target: Entity,
+}
+
+/// Marker for the content container inside a Collapsible section
+#[derive(Component)]
+pub struct CollapsibleContent {
+    pub parent: Entity,
+}

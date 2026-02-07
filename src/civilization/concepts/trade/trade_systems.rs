@@ -4,7 +4,7 @@ use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeC
 use crate::civilization::concepts::trade::trade_components::{
     AvailableTradeOfferActions, CanTrade, CreateOfferButton, CreateOfferModal, DoneTradingButton,
     InSettlement, NeedsTradeMove, OpenOffersListContainer, OpenTradeOffer, PlayerSettlements,
-    PlayerTradeInterests, PublishedOffer, SettlementModal, TradeButtonAction, TradeOffer, TradePhaseUiRoot,
+    PlayerTradeInterests, PublishedOffer, SettlementModal, TradeButtonAction, TradeOffer,
 };
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::trade_resources::{CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState};
@@ -15,6 +15,7 @@ use crate::stupid_ai::prelude::IsHuman;
 use crate::GameActivity;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
+use crate::civilization::TradePhaseUiRoot;
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
