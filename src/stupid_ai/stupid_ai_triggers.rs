@@ -1,6 +1,6 @@
-use crate::civilization::game_moves::game_moves_components::AvailableMoves;
-use crate::stupid_ai::stupid_ai_components::StupidAi;
-use crate::stupid_ai::stupid_ai_events::SelectStupidMove;
+use crate::civilization::game_moves::AvailableMoves;
+use crate::stupid_ai::StupidAi;
+use crate::stupid_ai::SelectStupidMove;
 use bevy::prelude::{MessageWriter, Add, Query, On};
 
 pub fn on_add_available_moves(

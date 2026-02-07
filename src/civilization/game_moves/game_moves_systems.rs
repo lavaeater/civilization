@@ -1,18 +1,6 @@
-use crate::civilization::components::population::Population;
-use crate::civilization::components::*;
-use crate::civilization::concepts::check_city_support::check_city_support_components::HasTooManyCities;
-use crate::civilization::concepts::city_construction::city_construction_components::IsBuilding;
-use crate::civilization::concepts::movement::movement_components::TokenHasMoved;
-use crate::civilization::concepts::movement::movement_events::PlayerMovementEnded;
-use crate::civilization::concepts::population_expansion::population_expansion_components::{
-    ExpandAutomatically, ExpandManually, NeedsExpansion,
-};
-use crate::civilization::game_moves::game_moves_components::{
-    AvailableMoves, BuildCityMove, EliminateCityMove, Move, MovementMove, PopExpMove,
-};
-use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
+use crate::civilization::{AvailableMoves, BuildCityMove, BuiltCity, CitySite, CityTokenStock, EliminateCityMove, ExpandAutomatically, ExpandManually, HasTooManyCities, IsBuilding, LandPassage, Move, MovementMove, NeedsExpansion, PlayerAreas, PlayerCities, PlayerMovementEnded, PopExpMove, Population, RecalculatePlayerMoves, TokenHasMoved, TokenStock};
 use bevy::platform::collections::HashMap;
-use bevy::prelude::{Commands, MessageReader, MessageWriter, Has, Query};
+use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Query};
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: MessageReader<RecalculatePlayerMoves>,
@@ -23,7 +11,6 @@ pub fn recalculate_pop_exp_moves_for_player(
     for event in recalc_player_reader.read() {
         commands.entity(event.player).remove::<AvailableMoves>();
         let mut moves = HashMap::default();
-        //Finally, we arrive at what we WANT to do!
         /*
         OK, we know which areas we have tokens in. Those are areas
         that

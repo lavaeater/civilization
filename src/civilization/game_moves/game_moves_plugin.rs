@@ -4,7 +4,7 @@ use crate::civilization::game_moves::game_moves_systems::*;
 use crate::civilization::game_moves::game_moves_triggers::*;
 use crate::GameActivity;
 use bevy::prelude::{in_state, App, IntoScheduleConfigs, Plugin, Update};
-use crate::civilization::concepts::trade::trade_systems::recalculate_trade_moves_for_player;
+use crate::civilization::concepts::recalculate_trade_moves_for_player;
 
 pub struct GameMovesPlugin;
 

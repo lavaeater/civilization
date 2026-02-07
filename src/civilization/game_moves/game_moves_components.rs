@@ -1,4 +1,4 @@
-use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCard;
+use crate::civilization::concepts::TradeCard;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{Component, Entity, Reflect};
 use std::fmt::Display;

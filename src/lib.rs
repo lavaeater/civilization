@@ -18,7 +18,7 @@ use bevy::app::App;
 #[cfg(debug_assertions)]
 use bevy::diagnostic::LogDiagnosticsPlugin;
 use bevy::prelude::*;
-use civilization::plugins::civilization_plugin::CivilizationPlugin;
+use civilization::plugins::CivilizationPlugin;
 
 #[derive(States, Default, Clone, Eq, PartialEq, Debug, Hash)]
 pub enum GameState {

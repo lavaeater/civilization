@@ -1,18 +1,14 @@
-use crate::civilization::components::population::Population;
 use crate::civilization::components::*;
-use crate::civilization::concepts::acquire_trade_cards::trade_card_components::{
-    CivilizationTradeCards, PlayerTradeCards,
-};
-use crate::civilization::concepts::census::census_components::Census;
-use crate::civilization::concepts::map::map_plugin::AvailableFactions;
+use crate::civilization::concepts::{Census,AvailableFactions};
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
-use crate::civilization::plugins::civilization_plugin::DebugOptions;
+use crate::civilization::plugins::DebugOptions;
 use crate::player::Player;
 use crate::stupid_ai::*;
 use crate::GameActivity;
 use bevy::math::{vec3, Vec3};
 use bevy::prelude::{debug, default, info, Commands, Entity, MessageReader, MessageWriter, Name, NextState, Query, Res, ResMut, Sprite, StateTransitionEvent, Transform, With, Without};
 use rand::seq::{IteratorRandom, SliceRandom};
+use crate::civilization::{CivilizationTradeCards, PlayerTradeCards};
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,

@@ -4,16 +4,14 @@ use crate::civilization::concepts::conflict::conflict_functions::*;
 use crate::civilization::functions::{replace_city_with_tokens_for_conflict, return_all_tokens_from_area_to_player};
 use bevy::prelude::{Commands, Entity, Name, Add, Query, On};
 use std::cmp::Ordering;
-use crate::civilization::components::population::Population;
+use crate::civilization::components::Population;
 
 pub fn on_add_unresolved_conflict(
     trigger: On<Add, UnresolvedConflict>,
     mut areas: Query<(Entity, &Name, &mut Population)>,
     mut commands: Commands,
 ) {
-    //debug!("On Add Oned");
     if let Ok((area_entity, _name, mut population)) = areas.get_mut(trigger.event().entity) {
-        //debug!("Lets resolve a regular conflict");
         let temp_map = population.player_tokens().clone();
         let mut players = temp_map.keys().copied().collect::<Vec<Entity>>();
         players.sort_by(|a, b| temp_map[b].len().cmp(&temp_map[a].len()));

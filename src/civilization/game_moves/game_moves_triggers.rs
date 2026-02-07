@@ -1,10 +1,12 @@
-use crate::civilization::concepts::population_expansion::population_expansion_components::ExpandManually;
-use crate::civilization::concepts::trade::trade_components::NeedsTradeMove;
-use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use bevy::prelude::{Commands, MessageWriter, Add, On};
-use crate::civilization::concepts::check_city_support::check_city_support_components::HasTooManyCities;
-use crate::civilization::concepts::city_construction::city_construction_components::IsBuilding;
-use crate::civilization::concepts::movement::movement_components::{HasJustMoved, PerformingMovement};
+use crate::civilization::{
+    HasJustMoved, PerformingMovement,
+};
+use crate::civilization::ExpandManually;
+use crate::civilization::HasTooManyCities;
+use crate::civilization::IsBuilding;
+use crate::civilization::NeedsTradeMove;
+use crate::civilization::RecalculatePlayerMoves;
+use bevy::prelude::{Add, Commands, MessageWriter, On};
 
 pub fn on_add_manual_expansion(
     trigger: On<Add, ExpandManually>,
@@ -28,7 +30,9 @@ pub fn on_add_has_just_moved(
     mut commands: Commands,
 ) {
     // //debug!("on_add_has_just_moved");
-    commands.entity(trigger.event().entity).remove::<HasJustMoved>();
+    commands
+        .entity(trigger.event().entity)
+        .remove::<HasJustMoved>();
     event_writer.write(RecalculatePlayerMoves::new(trigger.event().entity));
 }
 

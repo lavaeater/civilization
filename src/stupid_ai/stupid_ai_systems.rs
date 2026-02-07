@@ -1,7 +1,7 @@
 use crate::civilization::components::*;
 use crate::civilization::concepts::*;
 use crate::civilization::game_moves::*;
-use crate::civilization::plugins::civilization_plugin::DebugOptions;
+use crate::civilization::plugins::DebugOptions;
 use crate::stupid_ai::*;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{
@@ -280,7 +280,7 @@ pub fn select_stupid_trade_move(
     }
 }
 
-fn debug_trade_move_info(trade_move: &TradeMove, trade_offer: &TradeOffer) {
+fn _debug_trade_move_info(trade_move: &TradeMove, trade_offer: &TradeOffer) {
     debug!(
         "Move: {:#?} on offer from {:#?} to {:#?}, gets: {:#?}, pays {:#?}",
         trade_move,

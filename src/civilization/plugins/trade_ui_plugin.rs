@@ -57,7 +57,7 @@ impl Plugin for TradeUiPlugin {
     }
 }
 
-fn commodity_card_max_set_size(card: TradeCard) -> usize {
+fn _commodity_card_max_set_size(card: TradeCard) -> usize {
     match card.value() {
         1..=4 => 8,
         5 => 7,
@@ -68,14 +68,14 @@ fn commodity_card_max_set_size(card: TradeCard) -> usize {
     }
 }
 
-fn add_commodity_card(
+fn _add_commodity_card(
     b: &mut UIBuilder,
     card_type: TradeCard,
     count: usize,
     defaults: &UiBuilderDefaults,
 ) {
-    let active_index = count.clamp(1, commodity_card_max_set_size(card_type));
-    let max_set_size = commodity_card_max_set_size(card_type);
+    let active_index = count.clamp(1, _commodity_card_max_set_size(card_type));
+    let max_set_size = _commodity_card_max_set_size(card_type);
     let highlight_bg = Color::srgba(1.0, 1.0, 1.0, 0.25);
     let normal_bg = Color::srgba(0.0, 0.0, 0.0, 0.0);
     let highlight_border = Color::srgba(1.0, 1.0, 1.0, 0.85);
@@ -192,7 +192,7 @@ fn add_commodity_card(
     // .parent();
 }
 
-fn setup(
+fn _setup(
     commands: Commands,
     asset_server: Res<AssetServer>,
     mut ui_defaults: ResMut<UiBuilderDefaults>,
