@@ -98,6 +98,7 @@ pub fn setup_players(
                 .id();
 
             if debug_options.add_human_player && *faction == debug_options.human_faction {
+                commands.entity(player).remove::<StupidAi>();
                 commands.entity(player).insert(IsHuman);
                 if debug_options.human_starts_with_trade_cards {
                     let mut player_trade_cards = PlayerTradeCards::default();

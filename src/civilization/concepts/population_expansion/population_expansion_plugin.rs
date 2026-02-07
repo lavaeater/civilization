@@ -1,10 +1,13 @@
-use crate::civilization::concepts::population_expansion::population_expansion_components::ExpandAutomatically;
+use crate::civilization::concepts::population_expansion::population_expansion_components::{
+    ExpandAutomatically, PopExpAreaHighlight, PopExpHighlightMarker,
+};
 use crate::civilization::concepts::population_expansion::population_expansion_events::{
     CheckGate, CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand,
 };
 use crate::civilization::concepts::population_expansion::population_expansion_systems::{
     auto_expand_population, check_area_population_expansion_eligibility,
-    enter_population_expansion, expand_population_manually, population_expansion_gate,
+    cleanup_pop_exp_highlights, enter_population_expansion, expand_population_manually,
+    handle_pop_exp_area_click, highlight_pop_exp_areas_for_human, population_expansion_gate,
 };
 use crate::civilization::concepts::population_expansion::population_expansion_triggers::on_remove_needs_expansion;
 use crate::GameActivity;
@@ -16,6 +19,8 @@ pub struct PopulationExpansionPlugin;
 impl Plugin for PopulationExpansionPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<ExpandAutomatically>()
+            .register_type::<PopExpAreaHighlight>()
+            .register_type::<PopExpHighlightMarker>()
             .add_message::<CheckPlayerExpansionEligibility>()
             .add_message::<ExpandPopulationManuallyCommand>()
             .add_message::<CheckGate>()
@@ -30,6 +35,12 @@ impl Plugin for PopulationExpansionPlugin {
                     expand_population_manually.run_if(in_state(GameActivity::PopulationExpansion)),
                     population_expansion_gate.run_if(in_state(GameActivity::PopulationExpansion)),
                     check_area_population_expansion_eligibility
+                        .run_if(in_state(GameActivity::PopulationExpansion)),
+                    highlight_pop_exp_areas_for_human
+                        .run_if(in_state(GameActivity::PopulationExpansion)),
+                    handle_pop_exp_area_click
+                        .run_if(in_state(GameActivity::PopulationExpansion)),
+                    cleanup_pop_exp_highlights
                         .run_if(in_state(GameActivity::PopulationExpansion)),
                 ),
             )

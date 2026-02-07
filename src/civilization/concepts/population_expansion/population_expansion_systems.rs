@@ -3,13 +3,22 @@ use crate::civilization::components::*;
 use crate::civilization::concepts::census::GameInfoAndStuff;
 use crate::civilization::concepts::population_expansion::population_expansion_components::{
     AreaIsExpanding, ExpandAutomatically, ExpandManually, NeedsExpansion,
+    PopExpAreaHighlight, PopExpHighlightMarker,
 };
 use crate::civilization::concepts::population_expansion::population_expansion_events::{
     CheckGate, CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand,
 };
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
+use crate::civilization::game_moves::{AvailableMoves, Move};
+use crate::loading::TextureAssets;
+use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
-use bevy::prelude::{Commands, Entity, MessageReader, MessageWriter, NextState, Query, ResMut, With};
+use bevy::prelude::{
+    debug, default, ButtonInput, Camera, Commands, Entity, GlobalTransform,
+    MessageReader, MessageWriter, MouseButton, NextState, Query, Res, ResMut, Sprite, Transform,
+    Vec3, Window, With, Without,
+};
+use bevy::window::PrimaryWindow;
 
 pub fn check_area_population_expansion_eligibility(
     mut expansion_check_event: MessageReader<CheckPlayerExpansionEligibility>,
@@ -138,5 +147,110 @@ pub fn expand_population_manually(
             needs_expansion.remove(event.area);
         }
         checker.write(CheckPlayerExpansionEligibility::new(event.player));
+    }
+}
+
+/// When a human player gets AvailableMoves with PopExp moves, mark those areas with highlights.
+pub fn highlight_pop_exp_areas_for_human(
+    human_players: Query<(Entity, &AvailableMoves), With<IsHuman>>,
+    area_query: Query<(Entity, &Transform), (With<GameArea>, Without<PopExpAreaHighlight>)>,
+    mut commands: Commands,
+    textures: Res<TextureAssets>,
+) {
+    for (player_entity, available_moves) in human_players.iter() {
+        for (_index, game_move) in available_moves.moves.iter() {
+            if let Move::PopulationExpansion(pop_exp_move) = game_move {
+                // Mark the area with highlight component if not already marked
+                if let Ok((area_entity, area_transform)) = area_query.get(pop_exp_move.area) {
+                    debug!("Highlighting area {:?} for PopExp", area_entity);
+                    
+                    // Add highlight component to the area
+                    commands.entity(area_entity).insert(
+                        PopExpAreaHighlight::new(player_entity, pop_exp_move.max_tokens),
+                    );
+                    
+                    // Spawn a visual marker sprite at the area's position
+                    commands.spawn((
+                        PopExpHighlightMarker { area: area_entity },
+                        Sprite {
+                            image: textures.dot.clone(),
+                            color: bevy::prelude::Color::srgba(0.0, 1.0, 0.0, 0.7),
+                            ..default()
+                        },
+                        Transform::from_translation(
+                            area_transform.translation + Vec3::new(0.0, 0.0, 0.5),
+                        )
+                        .with_scale(Vec3::splat(0.5)),
+                    ));
+                }
+            }
+        }
+    }
+}
+
+/// Remove highlight markers when the human player no longer has AvailableMoves.
+pub fn cleanup_pop_exp_highlights(
+    human_players: Query<Entity, (With<IsHuman>, Without<AvailableMoves>)>,
+    highlighted_areas: Query<(Entity, &PopExpAreaHighlight)>,
+    highlight_markers: Query<(Entity, &PopExpHighlightMarker)>,
+    mut commands: Commands,
+) {
+    for player_entity in human_players.iter() {
+        // Remove highlight components from areas belonging to this player
+        for (area_entity, highlight) in highlighted_areas.iter() {
+            if highlight.player == player_entity {
+                commands.entity(area_entity).remove::<PopExpAreaHighlight>();
+            }
+        }
+    }
+    
+    // Despawn orphaned markers (areas no longer highlighted)
+    for (marker_entity, marker) in highlight_markers.iter() {
+        if highlighted_areas.get(marker.area).is_err() {
+            commands.entity(marker_entity).despawn();
+        }
+    }
+}
+
+/// Handle mouse clicks on highlighted PopExp areas to execute the expansion.
+pub fn handle_pop_exp_area_click(
+    mouse_button: Res<ButtonInput<MouseButton>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
+    highlighted_areas: Query<(Entity, &Transform, &PopExpAreaHighlight), With<GameArea>>,
+    mut expand_writer: MessageWriter<ExpandPopulationManuallyCommand>,
+) {
+    if !mouse_button.just_pressed(MouseButton::Left) {
+        return;
+    }
+    
+    let Ok(window) = windows.single() else { return };
+    let Some(cursor_pos) = window.cursor_position() else { return };
+    let Ok((camera, camera_transform)) = camera_query.single() else { return };
+    
+    let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) else {
+        return;
+    };
+    
+    // Check if click is near any highlighted area (within a radius)
+    const CLICK_RADIUS: f32 = 30.0;
+    
+    for (area_entity, area_transform, highlight) in highlighted_areas.iter() {
+        let area_pos = area_transform.translation.truncate();
+        let distance = world_pos.distance(area_pos);
+        
+        if distance <= CLICK_RADIUS {
+            debug!(
+                "Clicked on highlighted area {:?}, expanding with {} tokens",
+                area_entity, highlight.max_tokens
+            );
+            
+            expand_writer.write(ExpandPopulationManuallyCommand::new(
+                highlight.player,
+                area_entity,
+                highlight.max_tokens,
+            ));
+            return;
+        }
     }
 }
