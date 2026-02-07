@@ -2,7 +2,6 @@ use crate::civilization::concepts::trade::trade_components::{
     CanTrade, PlayerTradeInterests, PublishedOffer, PublishedOffersList, TradeButtonAction,
     TradeOffer,
 };
-use crate::civilization::game_moves::game_moves_components::TradeMove;
 use crate::civilization::ui::ui_builder::{
     ButtonPartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR,
 };
@@ -13,6 +12,7 @@ use bevy::prelude::{
     default, Add, Color, Commands, Entity, JustifyContent, NextState, On, Query, Remove,
     Res, ResMut, UiRect, Val, With,
 };
+use crate::civilization::TradeMove;
 
 #[allow(unused_assignments)]
 pub fn offer_published(

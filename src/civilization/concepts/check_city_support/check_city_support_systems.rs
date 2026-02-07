@@ -4,7 +4,7 @@ use crate::civilization::concepts::check_city_support::check_city_support_events
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
 use crate::GameActivity;
 use bevy::prelude::{Commands, Entity, MessageReader, MessageWriter, NextState, Query, ResMut, With};
-use crate::civilization::components::population::Population;
+use crate::civilization::components::Population;
 
 pub fn eliminate_city(
     mut eliminate_city: MessageReader<EliminateCity>,

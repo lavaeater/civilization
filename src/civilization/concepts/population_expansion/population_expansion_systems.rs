@@ -1,4 +1,4 @@
-use crate::civilization::components::population::Population;
+use crate::civilization::components::Population;
 use crate::civilization::components::*;
 use crate::civilization::concepts::census::GameInfoAndStuff;
 use crate::civilization::concepts::population_expansion::population_expansion_components::{

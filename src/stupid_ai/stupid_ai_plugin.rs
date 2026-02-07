@@ -1,4 +1,4 @@
-use crate::stupid_ai::prelude::*;
+use crate::stupid_ai::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{Plugin, Update};
 use bevy::prelude::{App, IntoScheduleConfigs, in_state};

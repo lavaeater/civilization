@@ -16,7 +16,7 @@ use crate::civilization::game_moves::game_moves_plugin::GameMovesPlugin;
 use crate::civilization::general_systems::{connect_areas, fix_token_positions, move_tokens_from_stock_to_area, print_names_of_phases, start_game};
 use crate::civilization::plugins::trade_ui_plugin::TradeUiPlugin;
 use crate::civilization::triggers::on_add_return_token_to_stock;
-use crate::stupid_ai::prelude::*;
+use crate::stupid_ai::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{in_state, AppExtStates, IntoScheduleConfigs, OnEnter, Resource};

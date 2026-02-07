@@ -1,4 +1,4 @@
-use crate::civilization::concepts::acquire_trade_cards::trade_card_components::PlayerTradeCards;
+use crate::civilization::concepts::acquire_trade_cards::PlayerTradeCards;
 use crate::civilization::concepts::trade::trade_components::TradeOffer;
 use itertools::Itertools;
 

@@ -1,14 +1,9 @@
-//! This example illustrates the various features of Bevy UI.
-
 use crate::civilization::components::Faction;
-use crate::civilization::concepts::acquire_trade_cards::*;
 use crate::civilization::concepts::*;
-// Note: Collapsible, CollapseToggleButton, CollapsibleContent are used by the systems below
 use crate::player::Player;
 use bevy::platform::collections::HashMap;
 use crate::civilization::ui::ui_builder::{ButtonPartial, CollapseToggleButton, Collapsible, CollapsibleContent, NodePartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR, CARD_COLOR, TEXT_COLOR};
-use crate::civilization::PlayerCardStack;
-use crate::stupid_ai::prelude::IsHuman;
+use crate::stupid_ai::IsHuman;
 use crate::{GameActivity, GameState};
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy::state::state::StateTransitionEvent;

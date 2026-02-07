@@ -1,10 +1,8 @@
-use crate::civilization::components::population::Population;
-use crate::civilization::components::{FixTokenPositions, PlayerAreas, Token};
+use crate::civilization::components::{Population, FixTokenPositions, PlayerAreas, Token};
 use crate::civilization::concepts::census::GameInfoAndStuff;
 use crate::civilization::concepts::movement::movement_components::*;
 use crate::civilization::concepts::movement::movement_events::*;
-use crate::civilization::game_moves::game_moves_components::AvailableMoves;
-use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
+use crate::civilization::game_moves::{AvailableMoves, RecalculatePlayerMoves};
 use crate::player::Player;
 use crate::GameActivity;
 use bevy::prelude::{

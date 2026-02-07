@@ -8,7 +8,7 @@ use crate::civilization::concepts::map::map_plugin::AvailableFactions;
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::plugins::civilization_plugin::DebugOptions;
 use crate::player::Player;
-use crate::stupid_ai::prelude::*;
+use crate::stupid_ai::*;
 use crate::GameActivity;
 use bevy::math::{vec3, Vec3};
 use bevy::prelude::{debug, default, info, Commands, Entity, MessageReader, MessageWriter, Name, NextState, Query, Res, ResMut, Sprite, StateTransitionEvent, Transform, With, Without};

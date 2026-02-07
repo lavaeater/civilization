@@ -1,4 +1,4 @@
-use crate::civilization::components::population::Population;
+use crate::civilization::components::Population;
 use crate::civilization::components::{CityFlood, CitySite, FloodPlain, GameArea, GameCamera, LandPassage, NeedsConnections, StartArea, Volcano};
 use crate::civilization::enums::GameFaction;
 use crate::civilization::general_systems::setup_players;
