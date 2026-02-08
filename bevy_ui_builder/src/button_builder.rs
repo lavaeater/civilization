@@ -273,8 +273,4 @@ impl<'w, 's> UIBuilder<'w, 's> {
         )
     }
 
-    pub fn with_rounded_corners(&mut self, radius: f32) -> &mut Self {
-        self.commands.entity(self.current_entity).insert(RoundedCorners::all(radius));
-        self
-    }
 }

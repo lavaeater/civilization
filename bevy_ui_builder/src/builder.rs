@@ -1,16 +1,9 @@
-use bevy::ecs::system::IntoObserverSystem;
 use bevy::prelude::*;
 use bevy::text::{Justify, LineBreak, TextLayout};
 use std::collections::VecDeque;
 
-use bevy::feathers::controls::{button, ButtonProps, ButtonVariant};
-use bevy::feathers::rounded_corners::RoundedCorners;
-use bevy::feathers::theme::ThemedText;
-use bevy::ui::InteractionDisabled;
-use bevy::ui_widgets::Activate;
-
 use crate::{
-    ButtonBundle, ButtonBuilder, ButtonDef, ButtonPartial, Collapsible, CollapseToggleButton,
+    ButtonBuilder, ButtonPartial, Collapsible, CollapseToggleButton,
     CollapsibleContent, NodePartial, TextBundle, UiBuilderDefaults, UIBuilder,
 };
 
