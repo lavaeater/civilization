@@ -83,7 +83,9 @@ pub struct DebugOptions {
     /// Number of areas to populate for the human player at start (for testing expansion).
     /// If None, uses normal start (1 token in start area).
     pub human_starting_areas: Option<usize>,
-    pub specific_state_name: Option<String>
+    pub specific_state_name: Option<String>,
+    /// Delay in seconds before AI processes each move (0.0 = instant)
+    pub ai_move_delay_secs: f32,
 }
 
 impl Default for DebugOptions {
@@ -102,6 +104,7 @@ impl Default for DebugOptions {
             human_token_count: None,
             human_starting_areas: None,
             specific_state_name: None,
+            ai_move_delay_secs: 0.1,
         }
     }
 }
@@ -126,6 +129,7 @@ impl DebugOptions {
             // Populate 3 areas so manual choice is required
             human_starting_areas: Some(3),
             specific_state_name: None,
+            ai_move_delay_secs: 0.1,
         }
     }
 }

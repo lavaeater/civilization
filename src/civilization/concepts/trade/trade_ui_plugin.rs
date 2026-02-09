@@ -1,4 +1,4 @@
-use crate::civilization::components::Faction;
+use crate::civilization::components::{Faction, PlayerAreas};
 use crate::civilization::concepts::*;
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
@@ -460,6 +460,8 @@ fn update_game_state_display(
     ui_defaults: Res<UiBuilderDefaults>,
     current_state: Res<State<GameState>>,
     current_activity: Option<Res<State<GameActivity>>>,
+    game_info: Res<GameInfoAndStuff>,
+    player_query: Query<(&Name, &PlayerAreas, &Faction, Has<IsHuman>), With<Player>>,
 ) {
     let state_changed = game_state_events.read().count() > 0;
     let activity_changed = game_activity_events.read().count() > 0;
@@ -477,6 +479,7 @@ fn update_game_state_display(
         Some(activity) => format!("Activity: {:?}", activity.get()),
         None => "Activity: None".to_string(),
     };
+    let round_text = format!("Round: {}", game_info.round);
     
     let mut ui = UIBuilder::start_from_entity(
         commands,
@@ -487,6 +490,19 @@ fn update_game_state_display(
     
     ui.add_text_child(&state_text, None, Some(18.0), None);
     ui.add_text_child(&activity_text, None, Some(18.0), None);
+    ui.add_text_child(&round_text, None, Some(18.0), None);
+
+    // Census order display
+    ui.add_text_child("Census Order:", None, Some(16.0), Some(Color::srgb(1.0, 0.8, 0.0)));
+    for (i, player_entity) in game_info.census_order.iter().enumerate() {
+        if let Ok((name, player_areas, faction, is_human)) = player_query.get(*player_entity) {
+            let pop = player_areas.total_population();
+            let faction_color = faction_to_color(faction);
+            let human_marker = if is_human { " (YOU)" } else { "" };
+            let census_line = format!("{}. {}{} - Pop: {}", i + 1, name, human_marker, pop);
+            ui.add_text_child(&census_line, None, Some(14.0), Some(faction_color));
+        }
+    }
     
     ui.build();
 }
