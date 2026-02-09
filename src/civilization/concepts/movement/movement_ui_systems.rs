@@ -269,6 +269,9 @@ pub fn handle_movement_button_clicks(
             MovementButtonAction::NextSource => {
                 selection_state.next_source();
             }
+            MovementButtonAction::SkipSource => {
+                selection_state.skip_current_source();
+            }
             MovementButtonAction::EndMovement => {
                 if let Some(player) = selection_state.player {
                     end_movement_writer.write(PlayerMovementEnded::new(player));
@@ -403,6 +406,30 @@ pub fn spawn_movement_controls_ui(
                             TextFont {
                                 font: font.clone(),
                                 font_size: 24.0,
+                                ..default()
+                            },
+                            TextColor(Color::WHITE),
+                        ));
+
+                        // Skip source button
+                        row.spawn((
+                            Button,
+                            MovementButtonAction::SkipSource,
+                            Node {
+                                width: Val::Px(60.0),
+                                height: Val::Px(36.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                margin: UiRect::left(Val::Px(8.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.5, 0.3, 0.2)),
+                        ))
+                        .with_child((
+                            Text::new("Skip"),
+                            TextFont {
+                                font: font.clone(),
+                                font_size: 18.0,
                                 ..default()
                             },
                             TextColor(Color::WHITE),
@@ -598,13 +625,21 @@ pub fn update_source_area_display(
         return;
     }
 
+    let unskipped_count = selection_state.source_areas.iter()
+        .filter(|s| !selection_state.skipped_sources.contains(*s))
+        .count();
+
     for mut text in text_query.iter_mut() {
-        if let Some(source) = selection_state.current_source() {
+        if selection_state.all_skipped() {
+            **text = "All sources skipped".to_string();
+        } else if let Some(source) = selection_state.current_source() {
             let area_name = area_names.get(source).map(|n| n.as_str()).unwrap_or("?");
+            let skipped = if selection_state.is_current_skipped() { " [SKIPPED]" } else { "" };
             **text = format!(
-                "{} ({}/{})",
+                "{}{} ({}/{} active)",
                 area_name,
-                selection_state.current_source_index + 1,
+                skipped,
+                unskipped_count,
                 selection_state.source_areas.len()
             );
         } else {

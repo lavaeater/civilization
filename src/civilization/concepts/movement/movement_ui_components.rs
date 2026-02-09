@@ -1,3 +1,4 @@
+use bevy::platform::collections::HashSet;
 use bevy::prelude::*;
 
 /// Resource tracking the current movement selection state for human player
@@ -21,6 +22,8 @@ pub struct MovementSelectionState {
     pub is_attack: bool,
     /// Whether attacking a city
     pub is_city_attack: bool,
+    /// Source areas the player has chosen to skip
+    pub skipped_sources: HashSet<Entity>,
 }
 
 impl MovementSelectionState {
@@ -34,6 +37,7 @@ impl MovementSelectionState {
         self.max_tokens = 0;
         self.is_attack = false;
         self.is_city_attack = false;
+        self.skipped_sources.clear();
     }
     
     pub fn clear_target(&mut self) {
@@ -48,20 +52,69 @@ impl MovementSelectionState {
         self.source_areas.get(self.current_source_index).copied()
     }
     
+    pub fn is_current_skipped(&self) -> bool {
+        self.current_source().map_or(false, |s| self.skipped_sources.contains(&s))
+    }
+    
+    pub fn skip_current_source(&mut self) {
+        if let Some(source) = self.current_source() {
+            self.skipped_sources.insert(source);
+            self.clear_target();
+            // Auto-advance to next unskipped source if possible
+            self.advance_to_unskipped();
+        }
+    }
+    
+    pub fn unskip_current_source(&mut self) {
+        if let Some(source) = self.current_source() {
+            self.skipped_sources.remove(&source);
+        }
+    }
+    
+    pub fn all_skipped(&self) -> bool {
+        !self.source_areas.is_empty()
+            && self.source_areas.iter().all(|s| self.skipped_sources.contains(s))
+    }
+    
+    fn advance_to_unskipped(&mut self) {
+        if self.source_areas.is_empty() {
+            return;
+        }
+        let start = self.current_source_index;
+        loop {
+            self.current_source_index = (self.current_source_index + 1) % self.source_areas.len();
+            if !self.is_current_skipped() || self.current_source_index == start {
+                break;
+            }
+        }
+    }
+    
     pub fn next_source(&mut self) {
         if !self.source_areas.is_empty() {
             self.clear_target();
-            self.current_source_index = (self.current_source_index + 1) % self.source_areas.len();
+            let start = self.current_source_index;
+            loop {
+                self.current_source_index = (self.current_source_index + 1) % self.source_areas.len();
+                if !self.is_current_skipped() || self.current_source_index == start {
+                    break;
+                }
+            }
         }
     }
     
     pub fn prev_source(&mut self) {
         if !self.source_areas.is_empty() {
             self.clear_target();
-            if self.current_source_index == 0 {
-                self.current_source_index = self.source_areas.len() - 1;
-            } else {
-                self.current_source_index -= 1;
+            let start = self.current_source_index;
+            loop {
+                if self.current_source_index == 0 {
+                    self.current_source_index = self.source_areas.len() - 1;
+                } else {
+                    self.current_source_index -= 1;
+                }
+                if !self.is_current_skipped() || self.current_source_index == start {
+                    break;
+                }
             }
         }
     }
@@ -142,6 +195,7 @@ pub enum MovementButtonAction {
     EndMovement,
     PrevSource,
     NextSource,
+    SkipSource,
     SelectTarget { source: Entity, target: Entity, max_tokens: usize, is_attack: bool, is_city_attack: bool },
 }
 
