@@ -282,7 +282,7 @@ pub fn spawn_movement_controls_ui(
         return;
     }
 
-    for _player in human_players.iter() {
+    if let Some(_player) = human_players.iter().next() {
         let font = asset_server.load("fonts/FiraSans-Bold.ttf");
 
         // Spawn the movement controls panel
@@ -471,8 +471,6 @@ pub fn spawn_movement_controls_ui(
                         ));
                     });
             });
-
-        break; // Only spawn once
     }
 }
 
