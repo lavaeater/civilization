@@ -1,20 +1,14 @@
 mod concepts;
 mod general_components;
-mod stupid_ai;
 
 use adv_civ::civilization::components::*;
+use adv_civ::civilization::concepts::Census;
 use adv_civ::civilization::enums::GameFaction;
-use adv_civ::civilization::concepts::census::census_components::Census;
 use adv_civ::player::Player;
 use adv_civ::{GameActivity, GameState};
 use bevy::app::App;
 use bevy::prelude::{AppExtStates, Bundle, Entity, Name, Transform};
 use bevy::state::app::StatesPlugin;
-
-#[test]
-fn it_works() {
-    assert!(true);
-}
 
 #[cfg(test)]
 #[allow(dead_code)]

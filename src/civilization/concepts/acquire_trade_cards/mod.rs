@@ -1,8 +1,8 @@
-pub mod trade_card_components;
-pub mod trade_card_enums;
-pub mod trade_card_events;
-pub mod trade_card_plugin;
-pub mod trade_card_systems;
+mod trade_card_components;
+mod trade_card_enums;
+mod trade_card_events;
+mod trade_card_plugin;
+mod trade_card_systems;
 
 pub use trade_card_components::*;
 pub use trade_card_enums::*;

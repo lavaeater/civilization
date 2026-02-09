@@ -1,9 +1,8 @@
 use crate::civilization::components::*;
+use crate::civilization::concepts::BuildCityCommand;
 use bevy::asset::Handle;
 use bevy::math::Vec3;
 use bevy::prelude::{default, Commands, Entity, Image, Mut, Sprite, Transform};
-use crate::civilization::components::population::Population;
-use crate::civilization::concepts::city_construction::city_construction_events::BuildCityCommand;
 
 pub fn move_from_stock_to_area(
     player: Entity,
@@ -34,10 +33,10 @@ pub fn return_all_tokens_from_area_to_player(
 
 pub fn return_all_tokens_from_area_to_players(
     population: &mut Population,
-    mut commands: &mut Commands,
+    commands: &mut Commands,
 ) {
     for player in population.players() {
-        return_all_tokens_from_area_for_player(population, &player, &mut commands);
+        return_all_tokens_from_area_for_player(population, &player, commands);
     }
 }
 
@@ -145,20 +144,7 @@ pub fn replace_city_with_tokens_for_conflict(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::ecs::entity::Entity;
-    use std::cell::RefCell;
-
-    thread_local! {
-        static ENTITY_COUNTER: RefCell<u32> = RefCell::new(0);
-    }
-
-    fn create_entity() -> Entity {
-        ENTITY_COUNTER.with(|counter| {
-            let index = *counter.borrow();
-            *counter.borrow_mut() += 1; // Increment the counter for the next entity
-            Entity::from_raw_u32(index).unwrap()
-        })
-    }
+    use crate::test_utils::create_test_entity as create_entity;
 
     #[test]
     fn test_move_from_stock_to_area() {

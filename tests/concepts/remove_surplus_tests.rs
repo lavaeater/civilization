@@ -1,9 +1,9 @@
 use crate::{create_area, setup_bevy_app, setup_player};
 use adv_civ::civilization::components::BuiltCity;
-use bevy::prelude::{Entity, Update};
-use adv_civ::civilization::components::population::Population;
-use adv_civ::civilization::concepts::remove_surplus_population::remove_surplus_systems::remove_surplus_population;
+use adv_civ::civilization::components::Population;
+use adv_civ::civilization::concepts::remove_surplus_population;
 use adv_civ::civilization::enums::GameFaction;
+use bevy::prelude::{Entity, Update};
 
 #[test]
 fn given_one_player_events_are_sent() {

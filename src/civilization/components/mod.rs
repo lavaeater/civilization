@@ -2,7 +2,7 @@ use crate::civilization::enums::GameFaction;
 use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{Component, Entity, Reflect};
 
-pub mod population;
+mod population;
 pub use population::*;
 
 #[derive(Component)]

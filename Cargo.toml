@@ -13,7 +13,7 @@ exclude = ["dist", "build", "assets", "credits"]
 name = "adv_civ"
 
 [workspace]
-members = ["bevy_ui_builder","mobile"]
+members = ["lava_ui_builder","mobile"]
 
 [profile.dev.package."*"]
 opt-level = 3
@@ -42,6 +42,7 @@ strip = true
 dev = [
     "bevy/dynamic_linking",
 ]
+test-utils = []
 
 # All of Bevy's default features exept for the audio related ones (bevy_audio, vorbis), since they clash with bevy_kira_audio
 #   and android_shared_stdcxx/android-game-activity, since those are covered in `mobile`
@@ -61,9 +62,14 @@ itertools = "0.14.0"
 serde_json = { version = "1.0.145" }
 serde = { version = "1.0.228", features = ["derive"] }
 bevy_common_assets = { version = "0.15.0", features = ["ron"] }
+lava_ui_builder = {path = "lava_ui_builder" }
 
 [build-dependencies]
 embed-resource = "1"
 
 [dev-dependencies]
 pretty_assertions = "1"
+adv_civ = { path = ".", features = ["test-utils"] }
+
+[lints.clippy]
+too_many_arguments = "allow"

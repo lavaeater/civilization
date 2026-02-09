@@ -1,6 +1,6 @@
 use bevy::prelude::{Entity, Resource, Timer, TimerMode, Reflect};
 use bevy::platform::collections::HashMap;
-use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCard;
+use crate::civilization::concepts::acquire_trade_cards::TradeCard;
 
 #[derive(Default, Resource)]
 pub struct TradeUiState {

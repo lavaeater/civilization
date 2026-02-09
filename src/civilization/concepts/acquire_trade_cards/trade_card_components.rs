@@ -3,7 +3,6 @@ use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{Color, Component, Reflect, Resource};
 use itertools::Itertools;
 use rand::seq::SliceRandom;
-use std::usize;
 
 pub const MIN_CARDS_REQUIRED_TO_TRADE: usize = 5;
 
@@ -18,7 +17,7 @@ impl CivilizationTradeCards {
         for trade_card in TradeCard::iter() {
             cards
                 .entry(trade_card.value())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .extend(vec![trade_card; trade_card.number_of_cards()]);
         }
         // Shuffle each pile so calamities and commodities are mixed
@@ -104,14 +103,8 @@ impl PlayerTradeCards {
     }
 
     pub fn remove_worst_tradeable_calamity(&mut self) -> Option<TradeCard> {
-        if let Some(calamity) = self.worst_tradeable_calamity() {
-            match self.remove_n_trade_cards(1, calamity) {
-                None => None,
-                Some(_) => Some(calamity),
-            }
-        } else {
-            None
-        }
+        let calamity = self.worst_tradeable_calamity()?;
+        self.remove_n_trade_cards(1, calamity).and(Some(calamity))
     }
 
     pub fn has_n_of_card(&self, n: usize, commodity: TradeCard) -> bool {
@@ -181,14 +174,8 @@ impl PlayerTradeCards {
     }
 
     pub fn remove_worst_commodity(&mut self) -> Option<TradeCard> {
-        if let Some(commodity) = self.worst_commodity() {
-            match self.remove_n_trade_cards(1, commodity) {
-                None => None,
-                Some(_) => Some(commodity),
-            }
-        } else {
-            None
-        }
+        let commodity = self.worst_commodity()?;
+        self.remove_n_trade_cards(1, commodity).and(Some(commodity))
     }
 
     pub fn worst_tradeable_calamity(&self) -> Option<TradeCard> {
@@ -235,7 +222,7 @@ impl PlayerTradeCards {
         let mut grouped: HashMap<usize, HashMap<TradeCard, usize>> = HashMap::default();
         for (card, count) in &self.cards {
             let value = card.value();
-            let entry = grouped.entry(value).or_insert_with(HashMap::new);
+            let entry = grouped.entry(value).or_default();
             *entry.entry(*card).or_insert(0) = *count;
         }
         grouped
@@ -270,7 +257,7 @@ impl PlayerTradeCards {
 
     pub fn as_card_stacks_sorted_by_value(&self) -> Vec<PlayerCardStack> {
         let mut stacks = self.as_card_stacks();
-        stacks.sort_by(|a, b| b.card_type.value().cmp(&a.card_type.value()));
+        stacks.sort_by_key(|b| std::cmp::Reverse(b.card_type.value()));
         stacks
     }
 
@@ -278,7 +265,7 @@ impl PlayerTradeCards {
         match self.cards.get_mut(&trade_card) {
             Some(count) => {
                 if *count >= n {
-                    *count = *count - n;
+                    *count -= n;
                     if *count == 0 {
                         self.cards.remove(&trade_card);
                     }

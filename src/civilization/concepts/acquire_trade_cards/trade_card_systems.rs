@@ -6,8 +6,8 @@ use crate::civilization::concepts::acquire_trade_cards::trade_card_components::{
 use crate::civilization::concepts::acquire_trade_cards::trade_card_events::{
     CheckIfWeCanTrade, HumanPlayerTradeCardsUpdated,
 };
-use crate::civilization::plugins::civilization_plugin::DebugOptions;
-use crate::stupid_ai::prelude::IsHuman;
+use crate::civilization::plugins::DebugOptions;
+use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
 use bevy::prelude::{debug, Entity, MessageReader, MessageWriter, Has, NextState, Query, Res, ResMut};
 

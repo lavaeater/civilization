@@ -8,6 +8,9 @@ pub mod player;
 pub mod civilization;
 pub mod stupid_ai;
 
+#[cfg(any(test, feature = "test-utils"))]
+pub mod test_utils;
+
 use crate::actions::ActionsPlugin;
 use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
@@ -18,7 +21,7 @@ use bevy::app::App;
 #[cfg(debug_assertions)]
 use bevy::diagnostic::LogDiagnosticsPlugin;
 use bevy::prelude::*;
-use civilization::plugins::civilization_plugin::CivilizationPlugin;
+use civilization::plugins::CivilizationPlugin;
 
 #[derive(States, Default, Clone, Eq, PartialEq, Debug, Hash)]
 pub enum GameState {

@@ -1,7 +1,6 @@
 use crate::GameActivity;
 use bevy::prelude::{Commands, Entity, Has, Name, NextState, Query, ResMut};
-use crate::civilization::components::BuiltCity;
-use crate::civilization::components::population::Population;
+use crate::civilization::components::{BuiltCity, Population};
 use crate::civilization::concepts::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
 
 pub fn conflict_gate(

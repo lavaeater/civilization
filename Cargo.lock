@@ -85,6 +85,7 @@ checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
 name = "adv_civ"
 version = "0.1.0"
 dependencies = [
+ "adv_civ",
  "bevy 0.18.0",
  "bevy_asset_loader",
  "bevy_common_assets",
@@ -92,6 +93,7 @@ dependencies = [
  "embed-resource",
  "image",
  "itertools 0.14.0",
+ "lava_ui_builder",
  "log",
  "pretty_assertions",
  "rand 0.10.0-rc.8",
@@ -2084,10 +2086,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_ui_builder"
-version = "0.1.0"
-
-[[package]]
 name = "bevy_ui_render"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3836,6 +3834,13 @@ dependencies = [
  "send_wrapper",
  "symphonia",
  "triple_buffer",
+]
+
+[[package]]
+name = "lava_ui_builder"
+version = "0.1.0"
+dependencies = [
+ "bevy 0.18.0",
 ]
 
 [[package]]

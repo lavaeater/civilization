@@ -1,6 +1,6 @@
-use crate::civilization::concepts::acquire_trade_cards::trade_card_components::PlayerTradeCards;
-use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCard;
-use crate::civilization::game_moves::game_moves_components::TradeMove;
+use crate::civilization::concepts::acquire_trade_cards::PlayerTradeCards;
+use crate::civilization::concepts::acquire_trade_cards::TradeCard;
+use crate::civilization::game_moves::TradeMove;
 use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{Component, Entity, Reflect};
 use rand::prelude::{IndexedRandom, ThreadRng};
@@ -308,48 +308,6 @@ impl TradeOffer {
     }
 }
 
-#[derive(Component, Default)]
-pub struct TradeCardUiRoot;
-
-#[derive(Component, Default)]
-pub struct TradeCardList;
-
-/// Marker component for a collapsible UI section.
-/// When collapsed, the content is hidden and only the toggle button is shown.
-#[derive(Component)]
-pub struct Collapsible {
-    pub collapsed: bool,
-    pub label: String,
-}
-
-impl Collapsible {
-    pub fn new(label: impl Into<String>) -> Self {
-        Self {
-            collapsed: false,
-            label: label.into(),
-        }
-    }
-    
-    pub fn collapsed(label: impl Into<String>) -> Self {
-        Self {
-            collapsed: true,
-            label: label.into(),
-        }
-    }
-}
-
-/// Marker for the toggle button that collapses/expands a Collapsible section
-#[derive(Component)]
-pub struct CollapseToggleButton {
-    pub target: Entity,
-}
-
-/// Marker for the content container inside a Collapsible section
-#[derive(Component)]
-pub struct CollapsibleContent {
-    pub parent: Entity,
-}
-
 /// A simplified trade offer for the new trade UI system.
 /// Offers can be open (target = None) or directed at a specific player.
 #[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]
@@ -490,10 +448,6 @@ pub struct CreateOfferModal;
 /// Marker for the settlement modal
 #[derive(Component, Default)]
 pub struct SettlementModal;
-
-/// Marker for the trade phase root UI
-#[derive(Component, Default)]
-pub struct TradePhaseUiRoot;
 
 /// Marker for the "Create Offer" button
 #[derive(Component, Default)]

@@ -1,7 +1,7 @@
-use crate::civilization::components::population::Population;
-use crate::civilization::components::{CityFlood, CitySite, FloodPlain, GameArea, GameCamera, LandPassage, NeedsConnections, StartArea, Volcano};
+use crate::civilization::components::{CityFlood, CitySite, FloodPlain, GameArea, GameCamera, LandPassage, NeedsConnections, Population, StartArea, Volcano};
 use crate::civilization::enums::GameFaction;
 use crate::civilization::general_systems::setup_players;
+use crate::civilization::start_game_after_player_setup;
 use crate::loading::TextureAssets;
 use crate::{GameActivity, GameState};
 use bevy::platform::collections::{HashMap, HashSet};
@@ -10,7 +10,6 @@ use bevy::time::Time;
 use bevy::window::{PrimaryWindow, WindowResized};
 use bevy_common_assets::ron::RonAssetPlugin;
 use rand::seq::IteratorRandom;
-use crate::civilization::start_game_after_player_setup;
 
 pub struct MapPlugin;
 
@@ -161,8 +160,7 @@ fn load_map(
     windows: Query<&Window, With<PrimaryWindow>>,
     mut camera: Query<(&Camera, &mut Projection, &mut Transform), With<GameCamera>>,
 ) {
-    //debug!("2. Loading map");
-    if let Some(level) = maps.get(map.0.id()).clone() {
+    if let Some(level) = maps.get(map.0.id()) {
         let mut ancient_places: HashSet<String> = vec![
             "Assyria",
             "Numidia",

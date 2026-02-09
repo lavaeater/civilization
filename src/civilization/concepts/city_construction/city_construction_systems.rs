@@ -3,14 +3,12 @@ use crate::civilization::concepts::city_construction::city_construction_componen
 use crate::civilization::concepts::city_construction::city_construction_events::*;
 use crate::civilization::concepts::map::map_plugin::AvailableFactions;
 use crate::civilization::functions::{build_city_in_area, return_all_tokens_from_area_to_players};
-use crate::civilization::game_moves::game_moves_components::AvailableMoves;
-use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
+use crate::civilization::game_moves::{AvailableMoves, RecalculatePlayerMoves};
 use crate::player::Player;
 use crate::GameActivity;
 use bevy::prelude::{
     Commands, Entity, MessageReader, MessageWriter, NextState, Query, Res, ResMut, Transform, With,
 };
-use crate::civilization::components::population::Population;
 
 pub fn city_building_gate(
     query: Query<&IsBuilding>,

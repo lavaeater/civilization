@@ -1,13 +1,12 @@
 use crate::{create_area, create_area_w_components, setup_bevy_app, setup_player};
-use adv_civ::civilization::components::population::Population;
 use adv_civ::civilization::components::*;
-use adv_civ::civilization::concepts::movement::movement_components::TokenHasMoved;
-use adv_civ::civilization::concepts::movement::movement_events::{MoveTokenFromAreaToAreaCommand, PlayerMovementEnded};
-use adv_civ::civilization::concepts::movement::movement_systems::move_tokens_from_area_to_area;
+use adv_civ::civilization::concepts::move_tokens_from_area_to_area;
+use adv_civ::civilization::concepts::TokenHasMoved;
+use adv_civ::civilization::concepts::{MoveTokenFromAreaToAreaCommand, PlayerMovementEnded};
 use adv_civ::civilization::enums::GameFaction;
-use adv_civ::civilization::game_moves::game_moves_components::{AvailableMoves, Move};
-use adv_civ::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use adv_civ::civilization::game_moves::game_moves_systems::recalculate_movement_moves_for_player;
+use adv_civ::civilization::game_moves::recalculate_movement_moves_for_player;
+use adv_civ::civilization::game_moves::RecalculatePlayerMoves;
+use adv_civ::civilization::game_moves::{AvailableMoves, GameMove};
 use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Messages, Name, Transform};
@@ -63,7 +62,7 @@ fn moved_tokens_get_token_has_moved_component_added() {
         .world_mut()
         .resource_mut::<Messages<MoveTokenFromAreaToAreaCommand>>();
 
-    let _ = events.send(MoveTokenFromAreaToAreaCommand::new(
+    let _ = events.write(MoveTokenFromAreaToAreaCommand::new(
         from_area, to_area, 2, player_one,
     ));
 
@@ -112,7 +111,7 @@ fn moving_token_to_area_adds_area_to_player_areas() {
         .world_mut()
         .resource_mut::<Messages<MoveTokenFromAreaToAreaCommand>>();
 
-    events.send(MoveTokenFromAreaToAreaCommand::new(
+    events.write(MoveTokenFromAreaToAreaCommand::new(
         from_area, to_area, 2, player_one,
     ));
 
@@ -162,7 +161,7 @@ fn moving_all_tokens_from_area_removes_area_from_player_areas() {
         .world_mut()
         .resource_mut::<Messages<MoveTokenFromAreaToAreaCommand>>();
 
-    events.send(MoveTokenFromAreaToAreaCommand::new(
+    events.write(MoveTokenFromAreaToAreaCommand::new(
         from_area, to_area, 3, player_one,
     ));
 
@@ -214,7 +213,7 @@ fn calculate_one_move() {
         .world_mut()
         .resource_mut::<Messages<RecalculatePlayerMoves>>();
 
-    events.send(RecalculatePlayerMoves::new(player));
+    events.write(RecalculatePlayerMoves::new(player));
 
     // Act
     app.update();
@@ -225,15 +224,15 @@ fn calculate_one_move() {
     let player_moves = player_moves.unwrap();
     assert_eq!(player_moves.moves.len(), 2);
     let first_move = player_moves.moves.get(&1).unwrap();
-    assert!(matches!(first_move, Move::Movement(..)));
-    if let Move::Movement(m) = first_move {
+    assert!(matches!(first_move, GameMove::Movement(..)));
+    if let GameMove::Movement(m) = first_move {
         assert_eq!(m.max_tokens, 1);
         assert_eq!(m.target, area_two);
         assert_eq!(m.source, area_one);
     };
 
     let last_move = player_moves.moves.get(&2).unwrap();
-    assert!(matches!(last_move, Move::EndMovement));
+    assert!(matches!(last_move, GameMove::EndMovement));
 }
 
 #[test]
@@ -281,7 +280,7 @@ fn calculate_two_moves() {
         .world_mut()
         .resource_mut::<Messages<RecalculatePlayerMoves>>();
 
-    events.send(RecalculatePlayerMoves::new(player));
+    events.write(RecalculatePlayerMoves::new(player));
 
     // Act
     app.update();
@@ -292,23 +291,23 @@ fn calculate_two_moves() {
     let player_moves = player_moves.unwrap();
     assert_eq!(player_moves.moves.len(), 3);
     let first_move = player_moves.moves.get(&1).unwrap();
-    assert!(matches!(first_move, Move::Movement(..)));
-    if let Move::Movement(m) = first_move {
+    assert!(matches!(first_move, GameMove::Movement(..)));
+    if let GameMove::Movement(m) = first_move {
         assert_eq!(m.max_tokens, 1);
         assert_eq!(m.target, area_two);
         assert_eq!(m.source, area_one);
     };
 
     let second_move = player_moves.moves.get(&2).unwrap();
-    assert!(matches!(second_move, Move::Movement(..)));
-    if let Move::Movement(m) = second_move {
+    assert!(matches!(second_move, GameMove::Movement(..)));
+    if let GameMove::Movement(m) = second_move {
         assert_eq!(m.max_tokens, 1);
         assert_eq!(m.target, area_three);
         assert_eq!(m.source, area_one);
     };
 
     let last_move = player_moves.moves.get(&3).unwrap();
-    assert!(matches!(last_move, Move::EndMovement));
+    assert!(matches!(last_move, GameMove::EndMovement));
 }
 
 #[test]
@@ -364,7 +363,7 @@ fn calculate_moves_after_having_moved() {
         .world_mut()
         .resource_mut::<Messages<RecalculatePlayerMoves>>();
 
-    events.send(RecalculatePlayerMoves::new(player));
+    events.write(RecalculatePlayerMoves::new(player));
 
     // Act
     app.update();
@@ -375,21 +374,21 @@ fn calculate_moves_after_having_moved() {
     let player_moves = player_moves.unwrap();
     assert_eq!(player_moves.moves.len(), 3);
     let first_move = player_moves.moves.get(&1).unwrap();
-    assert!(matches!(first_move, Move::Movement(..)));
-    if let Move::Movement(m) = first_move {
+    assert!(matches!(first_move, GameMove::Movement(..)));
+    if let GameMove::Movement(m) = first_move {
         assert_eq!(m.max_tokens, 3);
         assert_eq!(m.target, area_two);
         assert_eq!(m.source, area_one);
     };
 
     let second_move = player_moves.moves.get(&2).unwrap();
-    assert!(matches!(second_move, Move::Movement(..)));
-    if let Move::Movement(m) = second_move {
+    assert!(matches!(second_move, GameMove::Movement(..)));
+    if let GameMove::Movement(m) = second_move {
         assert_eq!(m.max_tokens, 3);
         assert_eq!(m.target, area_three);
         assert_eq!(m.source, area_one);
     };
 
     let last_move = player_moves.moves.get(&3).unwrap();
-    assert!(matches!(last_move, Move::EndMovement));
+    assert!(matches!(last_move, GameMove::EndMovement));
 }

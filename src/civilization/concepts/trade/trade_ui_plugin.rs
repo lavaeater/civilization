@@ -1,31 +1,14 @@
-//! This example illustrates the various features of Bevy UI.
-
 use crate::civilization::components::Faction;
-use crate::civilization::concepts::acquire_trade_cards::trade_card_components::PlayerTradeCards;
-use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::{
-    TradeCard, TradeCardTrait,
-};
-use crate::civilization::concepts::acquire_trade_cards::trade_card_events::HumanPlayerTradeCardsUpdated;
-use crate::civilization::concepts::city_construction::city_construction_events::BuildCityCommand;
-use crate::civilization::concepts::movement::movement_events::MoveTokenFromAreaToAreaCommand;
-use crate::civilization::concepts::population_expansion::population_expansion_events::ExpandPopulationManuallyCommand;
-use crate::civilization::concepts::trade::trade_components::{
-    Collapsible, CollapseToggleButton, CollapsibleContent, TradeCardList, TradeCardUiRoot,
-};
-// Note: Collapsible, CollapseToggleButton, CollapsibleContent are used by the systems below
+use crate::civilization::concepts::*;
 use crate::player::Player;
-use bevy::platform::collections::HashMap;
-use crate::civilization::ui::ui_builder::{
-    ButtonPartial, NodePartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR, CARD_COLOR,
-    TEXT_COLOR,
-};
-use crate::civilization::PlayerCardStack;
-use crate::stupid_ai::prelude::IsHuman;
+use crate::stupid_ai::IsHuman;
 use crate::{GameActivity, GameState};
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
-use bevy::state::state::StateTransitionEvent;
 use bevy::picking::hover::HoverMap;
+use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
+use bevy::state::state::StateTransitionEvent;
+use lava_ui_builder::{ButtonPartial, CollapseToggleButton, Collapsible, CollapsibleContent, NodePartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR, CARD_COLOR, TEXT_COLOR};
 
 #[derive(Component, Default)]
 pub struct GameStateDisplay;
@@ -74,7 +57,7 @@ impl Plugin for TradeUiPlugin {
     }
 }
 
-fn commodity_card_max_set_size(card: TradeCard) -> usize {
+fn _commodity_card_max_set_size(card: TradeCard) -> usize {
     match card.value() {
         1..=4 => 8,
         5 => 7,
@@ -85,14 +68,14 @@ fn commodity_card_max_set_size(card: TradeCard) -> usize {
     }
 }
 
-fn add_commodity_card(
+fn _add_commodity_card(
     b: &mut UIBuilder,
     card_type: TradeCard,
     count: usize,
     defaults: &UiBuilderDefaults,
 ) {
-    let active_index = count.clamp(1, commodity_card_max_set_size(card_type));
-    let max_set_size = commodity_card_max_set_size(card_type);
+    let active_index = count.clamp(1, _commodity_card_max_set_size(card_type));
+    let max_set_size = _commodity_card_max_set_size(card_type);
     let highlight_bg = Color::srgba(1.0, 1.0, 1.0, 0.25);
     let normal_bg = Color::srgba(0.0, 0.0, 0.0, 0.0);
     let highlight_border = Color::srgba(1.0, 1.0, 1.0, 0.85);
@@ -209,7 +192,7 @@ fn add_commodity_card(
     // .parent();
 }
 
-fn setup(
+fn _setup(
     commands: Commands,
     asset_server: Res<AssetServer>,
     mut ui_defaults: ResMut<UiBuilderDefaults>,
@@ -742,3 +725,13 @@ pub fn spawn_collapsible_section(
     
     (collapsible_entity, content_entity)
 }
+
+#[derive(Component, Default)]
+pub struct TradeCardUiRoot;
+
+#[derive(Component, Default)]
+pub struct TradeCardList;
+
+/// Marker for the trade phase root UI
+#[derive(Component, Default)]
+pub struct TradePhaseUiRoot;

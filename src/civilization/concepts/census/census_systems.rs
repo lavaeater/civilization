@@ -1,4 +1,3 @@
-use crate::civilization::components::population::Population;
 use crate::civilization::components::*;
 use crate::civilization::concepts::census::census_components::*;
 use crate::civilization::concepts::census::census_resources::GameInfoAndStuff;
@@ -34,7 +33,7 @@ pub fn perform_census(
         hash_to_sort.insert(player, census.population);
     }
     let mut ordered: Vec<(Entity, usize)> = hash_to_sort.into_iter().collect();
-    ordered.sort_by(|a, b| b.1.cmp(&a.1));
+    ordered.sort_by_key(|b| std::cmp::Reverse(b.1));
 
     census_order.census_order = ordered.into_iter().map(|(entity, _)| entity).collect();
     next_state.set(GameActivity::Movement);

@@ -1,20 +1,20 @@
-use crate::civilization::concepts::acquire_trade_cards::trade_card_components::PlayerTradeCards;
-use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCard;
-use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCardTrait;
+use crate::civilization::concepts::acquire_trade_cards::PlayerTradeCards;
+use crate::civilization::concepts::acquire_trade_cards::TradeCard;
 use crate::civilization::concepts::trade::trade_components::{
     AvailableTradeOfferActions, CanTrade, CreateOfferButton, CreateOfferModal, DoneTradingButton,
     InSettlement, NeedsTradeMove, OpenOffersListContainer, OpenTradeOffer, PlayerSettlements,
-    PlayerTradeInterests, PublishedOffer, SettlementModal, TradeButtonAction, TradeOffer, TradePhaseUiRoot,
+    PlayerTradeInterests, PublishedOffer, SettlementModal, TradeButtonAction, TradeOffer,
 };
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::trade_resources::{CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState};
-use crate::civilization::game_moves::game_moves_components::{AvailableMoves, Move, TradeMove};
-use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use crate::civilization::ui::ui_builder::UiBuilderDefaults;
-use crate::stupid_ai::prelude::IsHuman;
+use crate::civilization::game_moves::RecalculatePlayerMoves;
+use crate::civilization::game_moves::{AvailableMoves, GameMove, TradeMove};
+use crate::civilization::{TradeCardTrait, TradePhaseUiRoot};
+use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
+use lava_ui_builder::UiBuilderDefaults;
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -136,9 +136,9 @@ pub fn remove_rejected_trades(
 }
 
 /// Reset the trade countdown timer for every published trade offer that has been accepted.
-/// This queue is needed because a player can only accept one trade at a time, and we need to
-/// prevent them from accepting multiple trades, and prevent other players from accepting trades
-/// while another player is in the middle of a trade.
+/// This queue is needed because a player can only accept one trade at a time. We need to
+/// prevent them from accepting multiple trades, and prevent other players from accepting trades.
+/// While another player is in the middle of a trade.
 /// Good description, but does it make any sense whatsoever?
 /// Yes, it kinda does, actually. This makes everyone on hold until the trade is DONE. Huh.
 ///
@@ -169,7 +169,7 @@ pub fn begin_trade_settlement(
             up with a previously accepted trade that no longer is viable for either party.
 
             So a trade, when ending up here, needs to be... prioritized?
-            Needs a queue number? Needs to be put in a resource? AAAAH!!
+            Needs a queue number? Needs to be put in a resource? 
 
             No, we use components, as per usual. Use the ECS.
 
@@ -264,7 +264,7 @@ pub fn recalculate_trade_moves_for_player(
     mut commands: Commands,
 ) {
     /*
-    So, what is a trade move? How do we define it so it can be chosen by an ai player?
+    So, what is a trade move? How do we define it so it can be chosen by an AI player?
      */
 
     for event in recalc_player_reader.read() {
@@ -284,7 +284,7 @@ pub fn recalculate_trade_moves_for_player(
                 command_index += 1;
                 moves.insert(
                     command_index,
-                    Move::Trade(TradeMove::SettleTrade(current_trade)),
+                    GameMove::Trade(TradeMove::SettleTrade(current_trade)),
                 );
             } else {
                 commands.entity(event.player).remove::<PlayerSettlements>();
@@ -307,8 +307,8 @@ pub fn recalculate_trade_moves_for_player(
                     command_index += 1;
                     moves.insert(
                         command_index,
-                        Move::Trade(TradeMove::ProposeTrade(
-                            receiver.clone(),
+                        GameMove::Trade(TradeMove::ProposeTrade(
+                            receiver,
                             matching_cards.clone(),
                         )),
                     );
@@ -333,7 +333,7 @@ pub fn recalculate_trade_moves_for_player(
                     //                         moves.insert(
                     //                             command_index,
                     //                             Move::Trade(TradeMove::propose_trade(
-                    //                                 current_player_wants.get_trade_thingie(&mut rng),
+                    //                                 current_player_wants.get_trade_thing(&mut rng),
                     //                                 HashMap::from([(*card, 2),(lowest_commodity, 1)]),
                     //                                 receiver,
                     //                             )),
@@ -345,7 +345,7 @@ pub fn recalculate_trade_moves_for_player(
                     //                         moves.insert(
                     //                             command_index,
                     //                             Move::Trade(TradeMove::propose_trade(
-                    //                                 current_player_wants.get_trade_thingie(&mut rng),
+                    //                                 current_player_wants.get_trade_thing(&mut rng),
                     //                                 HashMap::from([(*card, 3)]),
                     //                                 receiver,
                     //                             )),
@@ -359,7 +359,7 @@ pub fn recalculate_trade_moves_for_player(
                     //                         moves.insert(
                     //                             command_index,
                     //                             Move::Trade(TradeMove::propose_trade(
-                    //                                 current_player_wants.get_trade_thingie(&mut rng),
+                    //                                 current_player_wants.get_trade_thing(&mut rng),
                     //                                 HashMap::from([(*card, 1),(lowest_commodity, 2)]), // we can always offer two of the lowest commodity - even if we only have one
                     //                                 receiver,
                     //                             )),
@@ -376,7 +376,7 @@ pub fn recalculate_trade_moves_for_player(
                     //                 moves.insert(
                     //                     command_index,
                     //                     Move::Trade(TradeMove::propose_trade(
-                    //                         current_player_wants.get_trade_thingie(&mut rng),
+                    //                         current_player_wants.get_trade_thing(&mut rng),
                     //                         HashMap::from([(cards[0], 1),(cards[1], 2)]),
                     //                         receiver,
                     //                     )),
@@ -395,7 +395,7 @@ pub fn recalculate_trade_moves_for_player(
                     //                 moves.insert(
                     //                     command_index,
                     //                     Move::Trade(TradeMove::propose_trade(
-                    //                         current_player_wants.get_trade_thingie(&mut rng),
+                    //                         current_player_wants.get_trade_thing(&mut rng),
                     //                         HashMap::from([(cards[0], 1),(cards[1], 1), (lowest_commodity, 1)]),
                     //                         receiver,
                     //                     )),
@@ -417,7 +417,7 @@ pub fn recalculate_trade_moves_for_player(
                                         command_index += 1;
                                         moves.insert(
                                             command_index,
-                                            Move::Trade(TradeMove::AcceptOrDeclineTrade(
+                                            GameMove::Trade(TradeMove::AcceptOrDeclineTrade(
                                                 trade_offer_entity,
                                             )),
                                         );
@@ -426,7 +426,7 @@ pub fn recalculate_trade_moves_for_player(
                                         command_index += 1;
                                         moves.insert(
                                             command_index,
-                                            Move::Trade(TradeMove::AutoDeclineTrade(
+                                            GameMove::Trade(TradeMove::AutoDeclineTrade(
                                                 trade_offer_entity,
                                             )),
                                         );
@@ -436,7 +436,7 @@ pub fn recalculate_trade_moves_for_player(
                         }
                     }
                     command_index += 1;
-                    moves.insert(command_index, Move::Trade(TradeMove::StopTrading));
+                    moves.insert(command_index, GameMove::Trade(TradeMove::StopTrading));
                 }
             }
             commands.entity(event.player).remove::<NeedsTradeMove>();
@@ -493,7 +493,7 @@ pub fn setup_trade_phase_ui(
                 width: Val::Percent(60.0),
                 height: Val::Percent(80.0),
                 flex_direction: FlexDirection::Column,
-                padding: bevy::ui::UiRect::all(Val::Px(16.0)),
+                padding: UiRect::all(Val::Px(16.0)),
                 ..Default::default()
             },
             BackgroundColor(Color::srgba(0.1, 0.1, 0.15, 0.95)),
@@ -506,29 +506,29 @@ pub fn setup_trade_phase_ui(
                     height: Val::Px(50.0),
                     flex_direction: FlexDirection::Row,
                     justify_content: JustifyContent::SpaceBetween,
-                    margin: bevy::ui::UiRect::bottom(Val::Px(16.0)),
+                    margin: UiRect::bottom(Val::Px(16.0)),
                     ..Default::default()
                 })
                 .with_children(|header| {
                     // Title
                     header.spawn((
                         Text::new("⚖️ TRADE PHASE"),
-                        bevy::text::TextFont {
+                        TextFont {
                             font_size: 28.0,
                             ..Default::default()
                         },
-                        bevy::text::TextColor(Color::srgb(0.9, 0.8, 0.3)),
+                        TextColor(Color::srgb(0.9, 0.8, 0.3)),
                     ));
                     
                     // Countdown timer
                     header.spawn((
                         TradeCountdownText,
                         Text::new("5:00"),
-                        bevy::text::TextFont {
+                        TextFont {
                             font_size: 24.0,
                             ..Default::default()
                         },
-                        bevy::text::TextColor(Color::srgb(0.8, 0.8, 0.8)),
+                        TextColor(Color::srgb(0.8, 0.8, 0.8)),
                     ));
                 });
             
@@ -538,7 +538,7 @@ pub fn setup_trade_phase_ui(
                     width: Val::Percent(100.0),
                     flex_direction: FlexDirection::Row,
                     flex_wrap: FlexWrap::Wrap,
-                    margin: bevy::ui::UiRect::bottom(Val::Px(8.0)),
+                    margin: UiRect::bottom(Val::Px(8.0)),
                     ..Default::default()
                 })
                 .with_children(|status_row| {
@@ -561,8 +561,8 @@ pub fn setup_trade_phase_ui(
                     width: Val::Percent(100.0),
                     height: Val::Auto,
                     flex_direction: FlexDirection::Column,
-                    margin: bevy::ui::UiRect::bottom(Val::Px(16.0)),
-                    padding: bevy::ui::UiRect::all(Val::Px(12.0)),
+                    margin: UiRect::bottom(Val::Px(16.0)),
+                    padding: UiRect::all(Val::Px(12.0)),
                     ..Default::default()
                 })
                 .insert(BackgroundColor(Color::srgba(0.15, 0.15, 0.2, 0.8)))
@@ -570,11 +570,11 @@ pub fn setup_trade_phase_ui(
                     // Section header
                     cards_section.spawn((
                         Text::new(format!("Your Cards ({})", player_name)),
-                        bevy::text::TextFont {
+                        TextFont {
                             font_size: 16.0,
                             ..Default::default()
                         },
-                        bevy::text::TextColor(Color::srgb(0.7, 0.7, 0.7)),
+                        TextColor(Color::srgb(0.7, 0.7, 0.7)),
                     ));
                     
                     // Cards display
@@ -585,8 +585,8 @@ pub fn setup_trade_phase_ui(
                                 width: Val::Percent(100.0),
                                 height: Val::Auto,
                                 flex_direction: FlexDirection::Row,
-                                flex_wrap: bevy::ui::FlexWrap::Wrap,
-                                margin: bevy::ui::UiRect::top(Val::Px(8.0)),
+                                flex_wrap: FlexWrap::Wrap,
+                                margin: UiRect::top(Val::Px(8.0)),
                                 ..Default::default()
                             },
                         ))
@@ -637,18 +637,18 @@ pub fn setup_trade_phase_ui(
                     width: Val::Percent(100.0),
                     flex_grow: 1.0,
                     flex_direction: FlexDirection::Column,
-                    margin: bevy::ui::UiRect::bottom(Val::Px(16.0)),
+                    margin: UiRect::bottom(Val::Px(16.0)),
                     ..Default::default()
                 })
                 .with_children(|offers_section| {
                     // Section header
                     offers_section.spawn((
                         Text::new("📜 Open Offers"),
-                        bevy::text::TextFont {
+                        TextFont {
                             font_size: 18.0,
                             ..Default::default()
                         },
-                        bevy::text::TextColor(Color::srgb(0.7, 0.7, 0.7)),
+                        TextColor(Color::srgb(0.7, 0.7, 0.7)),
                     ));
                     
                     // Offers list container (will be populated dynamically)
@@ -1244,7 +1244,7 @@ pub fn spawn_create_offer_modal(
                                     cards_row
                                         .spawn((
                                             Button,
-                                            OfferCardButton { card: card.clone(), selected: false },
+                                            OfferCardButton { card, selected: false },
                                             Node {
                                                 padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
                                                 margin: UiRect::all(Val::Px(2.0)),
@@ -1266,7 +1266,7 @@ pub fn spawn_create_offer_modal(
                                 cards_row
                                     .spawn((
                                         Button,
-                                        OfferCardButton { card: card.clone(), selected: false },
+                                        OfferCardButton { card, selected: false },
                                         Node {
                                             padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
                                             margin: UiRect::all(Val::Px(2.0)),
@@ -1377,7 +1377,7 @@ pub fn spawn_create_offer_modal(
                                 cards_row
                                     .spawn((
                                         Button,
-                                        WantCardTypeButton { card_type: card_type.clone() },
+                                        WantCardTypeButton { card_type: *card_type },
                                         Node {
                                             padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
                                             margin: UiRect::all(Val::Px(2.0)),
@@ -1576,7 +1576,7 @@ pub fn handle_offer_card_selection(
                 // Select (only if under limit)
                 card_btn.selected = true;
                 *border = BorderColor::all(Color::srgb(0.3, 0.9, 0.4));
-                *create_offer_state.offering_guaranteed.entry(card_btn.card.clone()).or_insert(0) += 1;
+                *create_offer_state.offering_guaranteed.entry(card_btn.card).or_insert(0) += 1;
             }
         }
     }
@@ -1608,7 +1608,7 @@ pub fn handle_want_card_selection(
                 }
             } else if total_guaranteed < 2 {
                 // Add one (only if under limit)
-                *create_offer_state.wanting_guaranteed.entry(want_btn.card_type.clone()).or_insert(0) += 1;
+                *create_offer_state.wanting_guaranteed.entry(want_btn.card_type).or_insert(0) += 1;
                 *border = BorderColor::all(Color::srgb(0.9, 0.6, 0.3));
             }
         }
@@ -1676,7 +1676,7 @@ pub fn handle_accept_offer_button(
                         if offer.can_accept(human) {
                             // Validate that human can fulfill the trade requirements
                             if let Ok(player_cards) = player_cards_query.get(human) {
-                                let player_commodities: bevy::platform::collections::HashMap<TradeCard, usize> = 
+                                let player_commodities: HashMap<TradeCard, usize> = 
                                     player_cards.commodity_cards().into_iter().collect();
                                 
                                 // Check if player has the required guaranteed cards
@@ -2098,7 +2098,7 @@ pub fn spawn_settlement_modal(
                                     cards_row
                                         .spawn((
                                             Button,
-                                            SettlementCardButton { card: card.clone(), selected: false },
+                                            SettlementCardButton { card, selected: false },
                                             Node {
                                                 padding: UiRect::axes(Val::Px(10.0), Val::Px(6.0)),
                                                 margin: UiRect::all(Val::Px(3.0)),
@@ -2120,7 +2120,7 @@ pub fn spawn_settlement_modal(
                                 cards_row
                                     .spawn((
                                         Button,
-                                        SettlementCardButton { card: card.clone(), selected: false },
+                                        SettlementCardButton { card, selected: false },
                                         Node {
                                             padding: UiRect::axes(Val::Px(10.0), Val::Px(6.0)),
                                             margin: UiRect::all(Val::Px(3.0)),
@@ -2232,7 +2232,7 @@ pub fn handle_settlement_card_selection(
             
             if card_btn.selected {
                 *border = BorderColor::all(Color::srgb(0.3, 0.9, 0.4));
-                *selection.selected_cards.entry(card_btn.card.clone()).or_insert(0) += 1;
+                *selection.selected_cards.entry(card_btn.card).or_insert(0) += 1;
             } else {
                 *border = BorderColor::all(Color::NONE);
                 if let Some(count) = selection.selected_cards.get_mut(&card_btn.card) {
@@ -2538,8 +2538,8 @@ pub fn ai_create_trade_offers(
         }
         
         // Add hidden cards to reach minimum 3 each side
-        let offering_hidden = if cards_offered < 3 { 3 - cards_offered } else { 0 };
-        let wanting_hidden = if cards_wanted < 3 { 3 - cards_wanted } else { 0 };
+        let offering_hidden = 3_usize.saturating_sub(cards_offered);
+        let wanting_hidden = 3_usize.saturating_sub(cards_wanted);
         
         // Create the offer
         let mut offer = OpenTradeOffer::new(ai_entity, ai_name.to_string(), None, None);
@@ -2564,7 +2564,7 @@ pub fn ai_accept_trade_offers(
     
     for (ai_entity, ai_name, ai_cards, _) in ai_players.iter() {
         for (_offer_entity, mut offer) in offers.iter_mut() {
-            // Skip if can't accept
+            // Skip if we can't accept
             if !offer.can_accept(ai_entity) {
                 continue;
             }
@@ -2689,7 +2689,7 @@ fn ai_select_settlement_cards(
         }
     }
     
-    // Add lowest value commodities for remaining hidden
+    // Add the lowest value commodities for remaining hidden
     let mut sorted_available: Vec<_> = available.iter().collect();
     sorted_available.sort_by_key(|(card, _)| card.value());
     

@@ -1,7 +1,6 @@
-use adv_civ::civilization::concepts::acquire_trade_cards::trade_card_components::{
-    PlayerTradeCards, MIN_CARDS_REQUIRED_TO_TRADE,
+use adv_civ::civilization::concepts::{
+    PlayerTradeCards, TradeCard, MIN_CARDS_REQUIRED_TO_TRADE
 };
-use adv_civ::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCard;
 use pretty_assertions::assert_eq;
 
 #[test]

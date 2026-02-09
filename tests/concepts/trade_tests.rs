@@ -1,11 +1,11 @@
 use crate::setup_player;
-use adv_civ::civilization::concepts::acquire_trade_cards::trade_card_components::PlayerTradeCards;
-use adv_civ::civilization::concepts::acquire_trade_cards::trade_card_enums::TradeCard;
-use adv_civ::civilization::concepts::trade::trade_components::{CanTrade, InSettlement, PlayerSettlements, PlayerTradeInterests, PublishedOffer, TradeOffer};
-use adv_civ::civilization::concepts::trade::trade_systems::{begin_trade_settlement, recalculate_trade_moves_for_player};
+use adv_civ::civilization::concepts::PlayerTradeCards;
+use adv_civ::civilization::concepts::TradeCard;
+use adv_civ::civilization::concepts::{begin_trade_settlement, recalculate_trade_moves_for_player};
+use adv_civ::civilization::concepts::{CanTrade, InSettlement, PlayerSettlements, PlayerTradeInterests, PublishedOffer, TradeOffer};
 use adv_civ::civilization::enums::GameFaction;
-use adv_civ::civilization::game_moves::game_moves_components::{AvailableMoves, Move as GameMove, TradeMove};
-use adv_civ::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
+use adv_civ::civilization::game_moves::RecalculatePlayerMoves;
+use adv_civ::civilization::game_moves::{AvailableMoves, GameMove, TradeMove};
 use adv_civ::{GameActivity, GameState};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
@@ -67,7 +67,7 @@ fn a_simple_trade_move_is_created() {
 
     // On move recalculation for player one
     let mut events = app.world_mut().resource_mut::<Messages<RecalculatePlayerMoves>>();
-    events.send(RecalculatePlayerMoves::new(player_one));
+    events.write(RecalculatePlayerMoves::new(player_one));
 
     // Get and verify trade moves
     let moves = get_trade_moves(&mut app, player_one);
@@ -99,7 +99,7 @@ fn trade_accept_moves_are_created() {
 
     // On move recalculation for player_two (the receiver)
     let mut events = app.world_mut().resource_mut::<Messages<RecalculatePlayerMoves>>();
-    events.send(RecalculatePlayerMoves::new(player_two));
+    events.write(RecalculatePlayerMoves::new(player_two));
 
     // Get and verify trade moves
     let moves = get_trade_moves(&mut app, player_two);
@@ -137,7 +137,7 @@ fn trade_settlement_moves_are_created() {
 
     // On move recalculation for player_two (the receiver)
     let mut events = app.world_mut().resource_mut::<Messages<RecalculatePlayerMoves>>();
-    events.send(RecalculatePlayerMoves::new(player_two));
+    events.write(RecalculatePlayerMoves::new(player_two));
 
     // Get and verify trade moves
     let moves = get_trade_moves(&mut app, player_two);
@@ -177,7 +177,7 @@ fn no_trade_moves_when_cannot_trade() {
 
     // On move recalculation
     let mut events = app.world_mut().resource_mut::<Messages<RecalculatePlayerMoves>>();
-    events.send(RecalculatePlayerMoves::new(player_one));
+    events.write(RecalculatePlayerMoves::new(player_one));
 
     // Verify no moves were created
     app.update();
@@ -302,7 +302,7 @@ fn stop_trading_move_is_available() {
 
     // On move recalculation
     let mut events = app.world_mut().resource_mut::<Messages<RecalculatePlayerMoves>>();
-    events.send(RecalculatePlayerMoves::new(player_one));
+    events.write(RecalculatePlayerMoves::new(player_one));
 
     // Get and verify stop trading move exists
     let moves = get_trade_moves(&mut app, player_one);
@@ -389,8 +389,8 @@ fn stop_trading_move_is_available() {
 //     //     .world_mut()
 //     //     .resource_mut::<Messages<RecalculatePlayerMoves>>();
 //     //
-//     // events.send(RecalculatePlayerMoves::new(p_one));
-//     // // events.send(RecalculatePlayerMoves::new(p_two));
+//     // events.write(RecalculatePlayerMoves::new(p_one));
+//     // // events.write(RecalculatePlayerMoves::new(p_two));
 //     //
 //     // // Act
 //     // app.update();
@@ -424,7 +424,7 @@ fn stop_trading_move_is_available() {
 //         .world_mut()
 //         .resource_mut::<Messages<RecalculatePlayerMoves>>();
 // 
-//     let _ = events.send(RecalculatePlayerMoves::new(p_one));
+//     let _ = events.write(RecalculatePlayerMoves::new(p_one));
 // 
 //     // Act
 //     app.update();
@@ -649,12 +649,12 @@ fn stop_trading_move_is_available() {
 //         .world_mut()
 //         .resource_mut::<Messages<SendTradingCardsCommand>>();
 // 
-//     events.send(SendTradingCardsCommand::new(
+//     events.write(SendTradingCardsCommand::new(
 //         p_one,
 //         p_two,
 //         HashMap::from([(CommodityCard(Iron), 1), (CommodityCard(Ochre), 2)]),
 //     ));
-//     events.send(SendTradingCardsCommand::new(
+//     events.write(SendTradingCardsCommand::new(
 //         p_two,
 //         p_one,
 //         HashMap::from([(CommodityCard(Salt), 1), (CommodityCard(Hides), 2)]),
