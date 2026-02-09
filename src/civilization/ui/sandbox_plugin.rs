@@ -1,4 +1,4 @@
-use crate::civilization::ui::ui_builder::{
+use lava_ui_builder::{
     ButtonPartial, NodePartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR, TEXT_COLOR,
 };
 

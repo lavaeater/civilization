@@ -2,7 +2,6 @@ use adv_civ::GamePlugin;
 use bevy::prelude::*;
 use bevy::window::WindowMode;
 use bevy::winit::WinitSettings;
-// ToDo: Replace adv_civ with your new crate name.
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn main_rs() {
