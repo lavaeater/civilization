@@ -17,7 +17,7 @@ pub struct CivilizationPlugin;
 impl Plugin for CivilizationPlugin {
     fn build(&self, app: &mut App) {
         // Use DebugOptions::test_manual_pop_exp() to test manual population expansion
-        app.insert_resource(DebugOptions::test_manual_pop_exp())
+        app.insert_resource(DebugOptions::default())
         .register_type::<Token>()
         .register_type::<LandPassage>()
         .register_type::<TokenStock>()
@@ -91,11 +91,11 @@ impl Default for DebugOptions {
         Self {
             add_human_player: true,
             human_faction: GameFaction::Assyria,
-            human_always_pulls_trade_cards: true,
+            human_always_pulls_trade_cards: false,
             ai_always_pulls_trade_cards: false,
             human_starts_with_trade_cards: false,
             auto_trading: false,
-            print_selected_moves: false,
+            print_selected_moves: true,
             log_selected_moves: false,
             number_of_players: 7,
             start_at_activity: None,
