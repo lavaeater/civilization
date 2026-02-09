@@ -1,14 +1,14 @@
 use crate::civilization::components::Faction;
 use crate::civilization::concepts::*;
 use crate::player::Player;
-use bevy::platform::collections::HashMap;
-use crate::civilization::ui::ui_builder::{ButtonPartial, CollapseToggleButton, Collapsible, CollapsibleContent, NodePartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR, CARD_COLOR, TEXT_COLOR};
 use crate::stupid_ai::IsHuman;
 use crate::{GameActivity, GameState};
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
-use bevy::state::state::StateTransitionEvent;
 use bevy::picking::hover::HoverMap;
+use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
+use bevy::state::state::StateTransitionEvent;
+use lava_ui_builder::{ButtonPartial, CollapseToggleButton, Collapsible, CollapsibleContent, NodePartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR, CARD_COLOR, TEXT_COLOR};
 
 #[derive(Component, Default)]
 pub struct GameStateDisplay;

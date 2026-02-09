@@ -2,7 +2,7 @@ use crate::civilization::concepts::trade::trade_components::{
     CanTrade, PlayerTradeInterests, PublishedOffer, PublishedOffersList, TradeButtonAction,
     TradeOffer,
 };
-use crate::civilization::ui::ui_builder::{
+use lava_ui_builder::{
     ButtonPartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR,
 };
 use crate::GameActivity;

@@ -1,0 +1,3 @@
+[submodule "lava_ui_builder"]
+	path = lava_ui_builder
+	url = git@github.com:lavaeater/lava_ui_builder.git

@@ -9,12 +9,12 @@ use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::trade_resources::{CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState};
 use crate::civilization::game_moves::RecalculatePlayerMoves;
 use crate::civilization::game_moves::{AvailableMoves, GameMove, TradeMove};
-use crate::civilization::ui::ui_builder::UiBuilderDefaults;
 use crate::civilization::{TradeCardTrait, TradePhaseUiRoot};
 use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
+use lava_ui_builder::UiBuilderDefaults;
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
