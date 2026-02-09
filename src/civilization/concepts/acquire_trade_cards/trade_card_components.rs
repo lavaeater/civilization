@@ -3,7 +3,6 @@ use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{Color, Component, Reflect, Resource};
 use itertools::Itertools;
 use rand::seq::SliceRandom;
-use std::usize;
 
 pub const MIN_CARDS_REQUIRED_TO_TRADE: usize = 5;
 
@@ -18,7 +17,7 @@ impl CivilizationTradeCards {
         for trade_card in TradeCard::iter() {
             cards
                 .entry(trade_card.value())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .extend(vec![trade_card; trade_card.number_of_cards()]);
         }
         // Shuffle each pile so calamities and commodities are mixed
@@ -105,10 +104,7 @@ impl PlayerTradeCards {
 
     pub fn remove_worst_tradeable_calamity(&mut self) -> Option<TradeCard> {
         if let Some(calamity) = self.worst_tradeable_calamity() {
-            match self.remove_n_trade_cards(1, calamity) {
-                None => None,
-                Some(_) => Some(calamity),
-            }
+            self.remove_n_trade_cards(1, calamity).map(Some(calamity))
         } else {
             None
         }
