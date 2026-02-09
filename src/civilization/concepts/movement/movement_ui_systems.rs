@@ -22,19 +22,27 @@ pub fn setup_human_movement_options(
     mut selection_state: ResMut<MovementSelectionState>,
 ) {
     for (player_entity, available_moves) in human_players.iter() {
-        info!("Human player {:?} got AvailableMoves with {} moves", player_entity, available_moves.moves.len());
-        // Check if there are any movement moves
-        let has_movement_moves = available_moves.moves.values().any(|m| {
-            matches!(
-                m,
-                GameMove::Movement(_) | GameMove::AttackArea(_) | GameMove::AttackCity(_)
-            )
-        });
+        // Collect unique source areas from movement moves
+        let mut source_areas: Vec<Entity> = Vec::new();
+        for game_move in available_moves.moves.values() {
+            let source = match game_move {
+                GameMove::Movement(m) | GameMove::AttackArea(m) | GameMove::AttackCity(m) => {
+                    Some(m.source)
+                }
+                _ => None,
+            };
+            if let Some(s) = source {
+                if !source_areas.contains(&s) {
+                    source_areas.push(s);
+                }
+            }
+        }
 
-        if has_movement_moves {
-            info!("Human player has movement moves, setting up selection state");
+        if !source_areas.is_empty() {
+            info!("Human player has {} source areas to move from", source_areas.len());
             selection_state.player = Some(player_entity);
-            // Don't select a target yet - wait for user interaction
+            selection_state.source_areas = source_areas;
+            selection_state.current_source_index = 0;
         }
     }
 }
@@ -47,7 +55,6 @@ pub fn draw_movement_arrows(
     selection_state: Res<MovementSelectionState>,
 ) {
     for (player_entity, available_moves) in human_players.iter() {
-        info!("Drawing arrows for human player {:?} with {} moves", player_entity, available_moves.moves.len());
         // Group moves by source area
         let mut source_targets: bevy::platform::collections::HashMap<
             Entity,
@@ -84,15 +91,24 @@ pub fn draw_movement_arrows(
             }
         }
 
-        // Draw arrows for each source -> target pair
+        // Only draw arrows from the currently focused source area
+        let focused_source = selection_state.current_source();
+
         for (source, targets) in source_targets.iter() {
+            // Skip sources that aren't the focused one
+            if let Some(focused) = focused_source {
+                if *source != focused {
+                    continue;
+                }
+            }
+
             let Ok(source_transform) = area_transforms.get(*source) else {
                 continue;
             };
             let source_pos = source_transform.translation.truncate();
 
             for (target, is_attack, is_city_attack, _max_tokens) in targets {
-                // If we have a selection, only show the selected arrow
+                // If we have a target selection, only show the selected arrow
                 if selection_state.has_selection()
                     && (selection_state.source_area != Some(*source)
                         || selection_state.target_area != Some(*target))
@@ -160,8 +176,10 @@ pub fn handle_movement_target_click(
 
     const CLICK_RADIUS: f32 = 30.0;
 
+    let focused_source = selection_state.current_source();
+
     for (player_entity, available_moves) in human_players.iter() {
-        // Find which target area was clicked
+        // Find which target area was clicked (only from focused source)
         for game_move in available_moves.moves.values() {
             let movement_move: Option<&MovementMove> = match game_move {
                 GameMove::Movement(m) | GameMove::AttackArea(m) | GameMove::AttackCity(m) => {
@@ -171,6 +189,13 @@ pub fn handle_movement_target_click(
             };
 
             if let Some(m) = movement_move {
+                // Only allow clicking targets from the focused source
+                if let Some(focused) = focused_source {
+                    if m.source != focused {
+                        continue;
+                    }
+                }
+
                 if let Ok((_, target_transform)) = area_query.get(m.target) {
                     let target_pos = target_transform.translation.truncate();
                     let distance = world_pos.distance(target_pos);
@@ -236,7 +261,13 @@ pub fn handle_movement_button_clicks(
                 }
             }
             MovementButtonAction::CancelMove => {
-                selection_state.clear();
+                selection_state.clear_target();
+            }
+            MovementButtonAction::PrevSource => {
+                selection_state.prev_source();
+            }
+            MovementButtonAction::NextSource => {
+                selection_state.next_source();
             }
             MovementButtonAction::EndMovement => {
                 if let Some(player) = selection_state.player {
@@ -305,20 +336,78 @@ pub fn spawn_movement_controls_ui(
                 BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.9)),
             ))
             .with_children(|parent| {
-                // Title
-                parent.spawn((
-                    Text::new("Movement"),
-                    TextFont {
-                        font: font.clone(),
-                        font_size: 24.0,
+                // Source area navigation row
+                parent
+                    .spawn((Node {
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        column_gap: Val::Px(8.0),
+                        margin: UiRect::bottom(Val::Px(8.0)),
                         ..default()
-                    },
-                    TextColor(Color::WHITE),
-                    Node {
-                        margin: UiRect::bottom(Val::Px(10.0)),
-                        ..default()
-                    },
-                ));
+                    },))
+                    .with_children(|row| {
+                        // Prev source button
+                        row.spawn((
+                            Button,
+                            MovementButtonAction::PrevSource,
+                            Node {
+                                width: Val::Px(36.0),
+                                height: Val::Px(36.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
+                        ))
+                        .with_child((
+                            Text::new("<"),
+                            TextFont {
+                                font: font.clone(),
+                                font_size: 24.0,
+                                ..default()
+                            },
+                            TextColor(Color::WHITE),
+                        ));
+
+                        // Source area name display
+                        row.spawn((
+                            SourceAreaDisplay,
+                            Text::new("Source: ?"),
+                            TextFont {
+                                font: font.clone(),
+                                font_size: 20.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgb(1.0, 1.0, 0.0)),
+                            Node {
+                                min_width: Val::Px(200.0),
+                                ..default()
+                            },
+                        ));
+
+                        // Next source button
+                        row.spawn((
+                            Button,
+                            MovementButtonAction::NextSource,
+                            Node {
+                                width: Val::Px(36.0),
+                                height: Val::Px(36.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
+                        ))
+                        .with_child((
+                            Text::new(">"),
+                            TextFont {
+                                font: font.clone(),
+                                font_size: 24.0,
+                                ..default()
+                            },
+                            TextColor(Color::WHITE),
+                        ));
+                    });
 
                 // Token count display row
                 parent
@@ -359,15 +448,15 @@ pub fn spawn_movement_controls_ui(
                         // Token count display
                         row.spawn((
                             TokenCountDisplay,
-                            Text::new("0"),
+                            Text::new("Click target"),
                             TextFont {
                                 font: font.clone(),
-                                font_size: 32.0,
+                                font_size: 24.0,
                                 ..default()
                             },
                             TextColor(Color::WHITE),
                             Node {
-                                min_width: Val::Px(60.0),
+                                min_width: Val::Px(120.0),
                                 justify_content: JustifyContent::Center,
                                 ..default()
                             },
@@ -495,6 +584,31 @@ pub fn update_token_count_display(
             );
         } else {
             **text = "Click target".to_string();
+        }
+    }
+}
+
+/// System to update the source area display text
+pub fn update_source_area_display(
+    selection_state: Res<MovementSelectionState>,
+    mut text_query: Query<&mut Text, With<SourceAreaDisplay>>,
+    area_names: Query<&Name, With<GameArea>>,
+) {
+    if !selection_state.is_changed() {
+        return;
+    }
+
+    for mut text in text_query.iter_mut() {
+        if let Some(source) = selection_state.current_source() {
+            let area_name = area_names.get(source).map(|n| n.as_str()).unwrap_or("?");
+            **text = format!(
+                "{} ({}/{})",
+                area_name,
+                selection_state.current_source_index + 1,
+                selection_state.source_areas.len()
+            );
+        } else {
+            **text = "No sources".to_string();
         }
     }
 }

@@ -28,6 +28,7 @@ impl Plugin for MovementPlugin {
                     handle_movement_target_click.run_if(in_state(GameActivity::Movement)),
                     handle_movement_button_clicks.run_if(in_state(GameActivity::Movement)),
                     update_token_count_display.run_if(in_state(GameActivity::Movement)),
+                    update_source_area_display.run_if(in_state(GameActivity::Movement)),
                     cleanup_movement_ui.run_if(in_state(GameActivity::Movement)),
                 ),
             )

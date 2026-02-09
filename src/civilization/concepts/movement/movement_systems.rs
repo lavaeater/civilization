@@ -6,7 +6,7 @@ use crate::civilization::game_moves::{AvailableMoves, RecalculatePlayerMoves};
 use crate::player::Player;
 use crate::GameActivity;
 use bevy::prelude::{
-    Commands, Entity, MessageReader, MessageWriter, NextState, Query, ResMut, Transform, With, Without,
+    Commands, Entity, MessageReader, MessageWriter, Name, NextState, Query, ResMut, Transform, With, Without, info,
 };
 
 pub fn start_movement_activity(
@@ -15,6 +15,7 @@ pub fn start_movement_activity(
 ) {
     game_info.left_to_move = game_info.census_order.clone();
     game_info.left_to_move.reverse();
+    info!("Starting movement activity with {} players", game_info.left_to_move.len());
     next_player.write(NextPlayerStarted);
 }
 
@@ -23,19 +24,15 @@ pub fn prepare_next_mover(
     mut game_info: ResMut<GameInfoAndStuff>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
-    currently_moving: Query<Entity, With<PerformingMovement>>,
+    names: Query<&Name>,
 ) {
-    // Don't start next player if someone is already performing movement
-    if !currently_moving.is_empty() {
-        // Consume the events but don't act on them
-        for _ in started.read() {}
-        return;
-    }
-    
     for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
+            let name = names.get(to_move).map(|n| n.as_str()).unwrap_or("?");
+            info!("Preparing next mover: {}, {} remaining", name, game_info.left_to_move.len());
             commands.entity(to_move).insert(PerformingMovement);
         } else {
+            info!("No more players to move, transitioning to Conflict");
             next_state.set(GameActivity::Conflict);
         }
     }
@@ -59,18 +56,17 @@ pub fn player_end_movement(
     mut end_event: MessageReader<PlayerMovementEnded>,
     mut commands: Commands,
     mut next_player: MessageWriter<NextPlayerStarted>,
+    names: Query<&Name>,
 ) {
     for end_movement_event in end_event.read() {
-        // //debug!("Player {} has ended movement", end_movement_event.player);
-        // commands.entity(end_movement_event.player).log_components();
+        let name = names.get(end_movement_event.player).map(|n| n.as_str()).unwrap_or("?");
+        info!("Player {} has ended movement", name);
         commands
             .entity(end_movement_event.player)
             .remove::<PerformingMovement>();
         commands
             .entity(end_movement_event.player)
             .remove::<AvailableMoves>();
-        // //debug!("After removing components");
-        // commands.entity(end_movement_event.player).log_components();
         next_player.write(NextPlayerStarted);
     }
 }

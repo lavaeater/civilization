@@ -96,7 +96,7 @@ impl Default for DebugOptions {
             human_starts_with_trade_cards: false,
             auto_trading: false,
             print_selected_moves: true,
-            log_selected_moves: false,
+            log_selected_moves: true,
             number_of_players: 7,
             start_at_activity: None,
             human_token_count: None,

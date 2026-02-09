@@ -5,6 +5,10 @@ use bevy::prelude::*;
 pub struct MovementSelectionState {
     /// The human player currently selecting a move
     pub player: Option<Entity>,
+    /// All source areas the player can move from
+    pub source_areas: Vec<Entity>,
+    /// Index into source_areas for the currently focused source
+    pub current_source_index: usize,
     /// Source area for the movement
     pub source_area: Option<Entity>,
     /// Target area for the movement  
@@ -22,12 +26,44 @@ pub struct MovementSelectionState {
 impl MovementSelectionState {
     pub fn clear(&mut self) {
         self.player = None;
+        self.source_areas.clear();
+        self.current_source_index = 0;
         self.source_area = None;
         self.target_area = None;
         self.token_count = 0;
         self.max_tokens = 0;
         self.is_attack = false;
         self.is_city_attack = false;
+    }
+    
+    pub fn clear_target(&mut self) {
+        self.target_area = None;
+        self.token_count = 0;
+        self.max_tokens = 0;
+        self.is_attack = false;
+        self.is_city_attack = false;
+    }
+    
+    pub fn current_source(&self) -> Option<Entity> {
+        self.source_areas.get(self.current_source_index).copied()
+    }
+    
+    pub fn next_source(&mut self) {
+        if !self.source_areas.is_empty() {
+            self.clear_target();
+            self.current_source_index = (self.current_source_index + 1) % self.source_areas.len();
+        }
+    }
+    
+    pub fn prev_source(&mut self) {
+        if !self.source_areas.is_empty() {
+            self.clear_target();
+            if self.current_source_index == 0 {
+                self.current_source_index = self.source_areas.len() - 1;
+            } else {
+                self.current_source_index -= 1;
+            }
+        }
     }
     
     pub fn has_selection(&self) -> bool {
@@ -104,12 +140,18 @@ pub enum MovementButtonAction {
     ConfirmMove,
     CancelMove,
     EndMovement,
+    PrevSource,
+    NextSource,
     SelectTarget { source: Entity, target: Entity, max_tokens: usize, is_attack: bool, is_city_attack: bool },
 }
 
 /// Marker for the token count display text
 #[derive(Component, Default)]
 pub struct TokenCountDisplay;
+
+/// Marker for the source area name display text
+#[derive(Component, Default)]
+pub struct SourceAreaDisplay;
 
 /// Marker for movement arrow gizmo data
 #[derive(Component, Debug)]
