@@ -54,7 +54,7 @@ pub fn draw_movement_arrows(
     area_transforms: Query<&Transform, With<GameArea>>,
     selection_state: Res<MovementSelectionState>,
 ) {
-    for (player_entity, available_moves) in human_players.iter() {
+    for (_player_entity, available_moves) in human_players.iter() {
         // Group moves by source area
         let mut source_targets: bevy::platform::collections::HashMap<
             Entity,
