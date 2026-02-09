@@ -21,7 +21,7 @@ fn calculate_game_moves_in_population_expansion() {
     let area_one = create_area(&mut app, "Egypt", 1);
     let area_two = create_area(&mut app, "Thrace", 1);
     let area_three = create_area(&mut app, "Crete", 1);
-    let areas = vec![area_one, area_two, area_three];
+    let areas = [area_one, area_two, area_three];
     for area in areas.iter() {
         let mut population = Population::new(4);
         let token = stock.remove_token_from_stock().unwrap();

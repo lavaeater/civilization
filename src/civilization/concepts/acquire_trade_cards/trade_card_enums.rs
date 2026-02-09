@@ -100,8 +100,7 @@ impl TradeCardTrait for TradeCard {
     }
 
     fn is_commodity(&self) -> bool {
-        match *self {
-            TradeCard::VolcanoEarthquake |
+        !matches!(*self, TradeCard::VolcanoEarthquake |
             TradeCard::Treachery |
             TradeCard::Famine |
             TradeCard::Superstition |
@@ -112,14 +111,11 @@ impl TradeCardTrait for TradeCard {
             TradeCard::Epidemic |
             TradeCard::CivilDisorder |
             TradeCard::IconoclasmAndHeresy |
-            TradeCard::Piracy => false,
-            _ => true,
-        }
+            TradeCard::Piracy)
     }
 
     fn is_calamity(&self) -> bool {
-        match *self {
-            TradeCard::VolcanoEarthquake |
+        matches!(*self, TradeCard::VolcanoEarthquake |
             TradeCard::Treachery |
             TradeCard::Famine |
             TradeCard::Superstition |
@@ -130,9 +126,7 @@ impl TradeCardTrait for TradeCard {
             TradeCard::Epidemic |
             TradeCard::CivilDisorder |
             TradeCard::IconoclasmAndHeresy |
-            TradeCard::Piracy => true,
-            _ => false,
-        }
+            TradeCard::Piracy)
     }
 
     fn number_of_cards(&self) -> usize {

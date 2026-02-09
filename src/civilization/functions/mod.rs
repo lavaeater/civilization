@@ -33,10 +33,10 @@ pub fn return_all_tokens_from_area_to_player(
 
 pub fn return_all_tokens_from_area_to_players(
     population: &mut Population,
-    mut commands: &mut Commands,
+    commands: &mut Commands,
 ) {
     for player in population.players() {
-        return_all_tokens_from_area_for_player(population, &player, &mut commands);
+        return_all_tokens_from_area_for_player(population, &player, commands);
     }
 }
 

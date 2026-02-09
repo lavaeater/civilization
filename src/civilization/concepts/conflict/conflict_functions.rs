@@ -68,7 +68,7 @@ pub fn handle_unequal_lengths(
 }
 
 pub fn handle_max_pop_is_one_conflicts(
-    players: &mut Vec<Entity>,
+    players: &mut [Entity],
     population: &mut Population,
     commands: &mut Commands,
 ) {

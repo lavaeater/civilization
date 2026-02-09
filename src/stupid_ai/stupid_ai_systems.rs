@@ -184,11 +184,7 @@ pub fn select_stupid_trade_move(
             let trade_moves = available_moves
                 .moves
                 .values()
-                .filter(|m| matches!(m, GameMove::Trade(_)))
-                .map(|m| match m {
-                    GameMove::Trade(trade_move) => trade_move,
-                    _ => unreachable!(),
-                })
+                .filter_map(|m| match m { GameMove::Trade(trade_move) => Some(trade_move), _ => None })
                 .cloned()
                 .collect::<Vec<_>>();
             for trade_move in trade_moves.iter() {

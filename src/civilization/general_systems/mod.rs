@@ -1,14 +1,17 @@
 use crate::civilization::components::*;
-use crate::civilization::concepts::{Census,AvailableFactions};
+use crate::civilization::concepts::{AvailableFactions, Census};
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::plugins::DebugOptions;
+use crate::civilization::{CivilizationTradeCards, PlayerTradeCards};
 use crate::player::Player;
 use crate::stupid_ai::*;
 use crate::GameActivity;
 use bevy::math::{vec3, Vec3};
-use bevy::prelude::{debug, default, info, Commands, Entity, MessageReader, MessageWriter, Name, NextState, Query, Res, ResMut, Sprite, StateTransitionEvent, Transform, With, Without};
+use bevy::prelude::{
+    debug, default, info, Commands, Entity, MessageReader, MessageWriter, Name, NextState, Query,
+    Res, ResMut, Sprite, StateTransitionEvent, Transform, With, Without,
+};
 use rand::seq::{IteratorRandom, SliceRandom};
-use crate::civilization::{CivilizationTradeCards, PlayerTradeCards};
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
@@ -21,50 +24,58 @@ pub fn start_game(
 ) {
     debug!("4. Starting the game!");
     let human_entity = human_query.iter().next();
-    
-    for (player_entity, name, player_faction) in player_query.iter() {
-        debug!("Starting the game for player: {:#?}", name);
-        
-        // Check if this is the human player and we have debug starting areas set
-        let is_human = human_entity == Some(player_entity);
-        
-        if is_human && debug_options.human_starting_areas.is_some() {
-            // Debug mode: place tokens in multiple random areas for testing
-            let num_areas = debug_options.human_starting_areas.unwrap();
-            let areas: Vec<Entity> = all_areas_query.iter().take(num_areas).collect();
-            
-            for area_entity in areas {
-                debug!("Debug: Putting a token in area {:?} for human player", area_entity);
-                writer.write(MoveTokensFromStockToAreaCommand {
-                    area_entity,
-                    player_entity,
-                    number_of_tokens: 1,
-                });
+
+    player_query
+        .iter()
+        .for_each(|(player_entity, name, player_faction)| {
+            debug!("Starting the game for player: {:#?}", name);
+
+            // Check if this is the human player and we have debug starting areas set
+            let is_human = human_entity == Some(player_entity);
+
+            if is_human {
+                match debug_options.human_starting_areas {
+                    None => {}
+                    Some(num_areas) => {
+                        let areas: Vec<Entity> = all_areas_query.iter().take(num_areas).collect();
+
+                        for area_entity in areas {
+                            debug!(
+                                "Debug: Putting a token in area {:?} for human player",
+                                area_entity
+                            );
+                            writer.write(MoveTokensFromStockToAreaCommand {
+                                area_entity,
+                                player_entity,
+                                number_of_tokens: 1,
+                            });
+                        }
+                    }
+                }
+            } else {
+                // Normal mode: place token in start area
+                if let Some((area_entity, _area_name, _)) = start_area_query
+                    .iter()
+                    .find(|(_, _, start_area)| start_area.faction == player_faction.faction)
+                {
+                    writer.write(MoveTokensFromStockToAreaCommand {
+                        area_entity,
+                        player_entity,
+                        number_of_tokens: 1,
+                    });
+                }
             }
-        } else {
-            // Normal mode: place token in start area
-            if let Some((area_entity, area_name, _)) = start_area_query
-                .iter()
-                .find(|(_, _, start_area)| start_area.faction == player_faction.faction)
-            {
-                debug!("Putting a token in: {:#?}", area_name);
-                writer.write(MoveTokensFromStockToAreaCommand {
-                    area_entity,
-                    player_entity,
-                    number_of_tokens: 1,
-                });
-            }
-        }
-    }
-    
+        });
+
     // Use debug start activity if set, otherwise normal flow
-    let start_activity = debug_options.start_at_activity.clone().unwrap_or(GameActivity::PopulationExpansion);
+    let start_activity = debug_options
+        .start_at_activity
+        .clone()
+        .unwrap_or(GameActivity::PopulationExpansion);
     next_state.set(start_activity);
 }
 
-pub fn start_game_after_player_setup(
-    mut next_state: ResMut<NextState<GameActivity>>,
-) {
+pub fn start_game_after_player_setup(mut next_state: ResMut<NextState<GameActivity>>) {
     next_state.set(GameActivity::StartGame);
 }
 
@@ -100,7 +111,7 @@ pub fn setup_players(
     debug!("3. Setting up players!");
     let mut available_names: Vec<&str> = ANCIENT_RULERS.to_vec();
     available_names.shuffle(&mut rand::rng());
-    
+
     (1..=debug_options.number_of_players).for_each(|n| {
         if let Some(faction) = available_factions
             .remaining_factions
@@ -140,7 +151,8 @@ pub fn setup_players(
             }
 
             // Determine token count - use debug override for human player if set
-            let is_human = debug_options.add_human_player && *faction == debug_options.human_faction;
+            let is_human =
+                debug_options.add_human_player && *faction == debug_options.human_faction;
             let token_count = if is_human {
                 debug_options.human_token_count.unwrap_or(47)
             } else {
@@ -199,10 +211,10 @@ pub fn fix_token_positions(
                 if let Ok(mut token_transform) = token_transform_query.get_mut(*token) {
                     token_transform.translation = area_transform.translation
                         + vec3(
-                        (player_index * 15) as f32,
-                        ((token_index as i32) * -5) as f32,
-                        0.0,
-                    );
+                            (player_index * 15) as f32,
+                            ((token_index as i32) * -5) as f32,
+                            0.0,
+                        );
                 }
             }
         }
