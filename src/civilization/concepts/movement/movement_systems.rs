@@ -23,7 +23,15 @@ pub fn prepare_next_mover(
     mut game_info: ResMut<GameInfoAndStuff>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
+    currently_moving: Query<Entity, With<PerformingMovement>>,
 ) {
+    // Don't start next player if someone is already performing movement
+    if !currently_moving.is_empty() {
+        // Consume the events but don't act on them
+        for _ in started.read() {}
+        return;
+    }
+    
     for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
             commands.entity(to_move).insert(PerformingMovement);
