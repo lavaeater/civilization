@@ -1,4 +1,3 @@
-use crate::civilization::components::Population;
 use crate::civilization::components::*;
 use crate::civilization::concepts::census::GameInfoAndStuff;
 use crate::civilization::concepts::population_expansion::population_expansion_components::{
@@ -9,7 +8,7 @@ use crate::civilization::concepts::population_expansion::population_expansion_ev
     CheckGate, CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand,
 };
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
-use crate::civilization::game_moves::{AvailableMoves, Move};
+use crate::civilization::game_moves::{AvailableMoves, GameMove};
 use crate::loading::TextureAssets;
 use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
@@ -159,7 +158,7 @@ pub fn highlight_pop_exp_areas_for_human(
 ) {
     for (player_entity, available_moves) in human_players.iter() {
         for (_index, game_move) in available_moves.moves.iter() {
-            if let Move::PopulationExpansion(pop_exp_move) = game_move {
+            if let GameMove::PopulationExpansion(pop_exp_move) = game_move {
                 // Mark the area with highlight component if not already marked
                 if let Ok((area_entity, area_transform)) = area_query.get(pop_exp_move.area) {
                     debug!("Highlighting area {:?} for PopExp", area_entity);

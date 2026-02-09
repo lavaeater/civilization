@@ -1,5 +1,5 @@
 use bevy::platform::collections::{HashMap, HashSet};
-use bevy::prelude::{Component, Entity, Reflect, default};
+use bevy::prelude::{default, Component, Entity, Reflect};
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct Population {
@@ -210,6 +210,7 @@ mod tests {
     thread_local! {
         static ENTITY_COUNTER: RefCell<u32> = RefCell::new(0);
     }
+    
     fn create_entity() -> Entity {
         ENTITY_COUNTER.with(|counter| {
             let index = *counter.borrow();

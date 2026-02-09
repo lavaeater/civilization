@@ -5,7 +5,7 @@ use crate::civilization::plugins::DebugOptions;
 use crate::stupid_ai::*;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{
-    debug, Commands, Entity, MessageReader, MessageWriter, Has, Name, Query, Res,
+    debug, Commands, Entity, Has, MessageReader, MessageWriter, Name, Query, Res,
 };
 use itertools::Itertools;
 use rand::prelude::{IteratorRandom, SliceRandom};
@@ -33,7 +33,7 @@ pub fn select_stupid_pop_exp(
                     debug!("{} selects {:#?}", player_name, selected_move);
                 }
                 match selected_move {
-                    Move::PopulationExpansion(pop_exp_move) => {
+                    GameMove::PopulationExpansion(pop_exp_move) => {
                         expand_writer.write(ExpandPopulationManuallyCommand::new(
                             event.player,
                             pop_exp_move.area,
@@ -63,7 +63,7 @@ pub fn select_stupid_movement(
                 .moves
                 .values()
                 .filter(|m| match m {
-                    Move::Movement(move_ment) => {
+                    GameMove::Movement(move_ment) => {
                         let (_population, has_city) =
                             target_area_info_query.get(move_ment.target).unwrap();
                         !has_city
@@ -79,18 +79,18 @@ pub fn select_stupid_movement(
                     debug!("{} selects {:#?}", player_name, selected_move);
                 }
                 match selected_move {
-                    Move::Movement(movement_move) => {
+                    GameMove::Movement(movement_move) => {
                         //A little complexity here: If possible, leave two, but also, always make a move
                         send_movement_move(&mut move_tokens_writer, event, movement_move, false);
                     }
-                    Move::EndMovement => {
+                    GameMove::EndMovement => {
                         end_movement_writer.write(PlayerMovementEnded::new(event.player));
                     }
-                    Move::AttackArea(movement_move) => {
+                    GameMove::AttackArea(movement_move) => {
                         //A little complexity here: If possible, leave two, but also, always make a move
                         send_movement_move(&mut move_tokens_writer, event, movement_move, true);
                     }
-                    Move::AttackCity(movement_move) => {
+                    GameMove::AttackCity(movement_move) => {
                         //A little complexity here: If possible, leave two, but also, always make a move
                         send_movement_move(&mut move_tokens_writer, event, movement_move, true);
                     }
@@ -121,11 +121,11 @@ pub fn select_stupid_city_building(
                     debug!("{} selects {:#?}", player_name, selected_move);
                 }
                 match selected_move {
-                    Move::CityConstruction(build_city_move) => {
+                    GameMove::CityConstruction(build_city_move) => {
                         build_city_writer
                             .write(BuildCityCommand::new(event.player, build_city_move.target));
                     }
-                    Move::EndCityConstruction => {
+                    GameMove::EndCityConstruction => {
                         end_player_city_construction
                             .write(EndPlayerCityConstruction::new(event.player));
                     }
@@ -155,7 +155,7 @@ pub fn select_stupid_city_elimination(
                     debug!("{} selects {:#?}", player_name, selected_move);
                 }
                 match selected_move {
-                    Move::EliminateCity(el_move) => {
+                    GameMove::EliminateCity(el_move) => {
                         eliminate_city.write(EliminateCity::new(
                             el_move.player,
                             el_move.city,
@@ -186,9 +186,9 @@ pub fn select_stupid_trade_move(
             let trade_moves = available_moves
                 .moves
                 .values()
-                .filter(|m| matches!(m, Move::Trade(_)))
+                .filter(|m| matches!(m, GameMove::Trade(_)))
                 .map(|m| match m {
-                    Move::Trade(trade_move) => trade_move,
+                    GameMove::Trade(trade_move) => trade_move,
                     _ => unreachable!(),
                 })
                 .cloned()

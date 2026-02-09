@@ -1,14 +1,11 @@
 use crate::setup_player;
 use adv_civ::civilization::components::*;
+use adv_civ::civilization::concepts::{find_conflict_zones, on_add_unresolved_city_conflict, on_add_unresolved_conflict, UnresolvedCityConflict, UnresolvedConflict};
+use adv_civ::civilization::enums::GameFaction;
 use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Name};
 use bevy::state::app::StatesPlugin;
-use adv_civ::civilization::components::population::Population;
-use adv_civ::civilization::concepts::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
-use adv_civ::civilization::concepts::conflict::conflict_systems::find_conflict_zones;
-use adv_civ::civilization::concepts::conflict::conflict_triggers::{on_add_unresolved_city_conflict, on_add_unresolved_conflict};
-use adv_civ::civilization::enums::GameFaction;
 /****************************************************
 Test for the find_conflict_zones system
 Given two players that have tokens in an area,

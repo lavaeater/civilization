@@ -1,4 +1,4 @@
-// use crate::civilization::components::population::Population;
+// use crate::civilization::components::Population;
 // use crate::civilization::components::*;
 // use bevy::core::Name;
 // use bevy::prelude::{Has, Query};

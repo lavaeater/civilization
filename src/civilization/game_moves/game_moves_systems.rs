@@ -1,4 +1,4 @@
-use crate::civilization::{AvailableMoves, BuildCityMove, BuiltCity, CitySite, CityTokenStock, EliminateCityMove, ExpandAutomatically, ExpandManually, HasTooManyCities, IsBuilding, LandPassage, Move, MovementMove, NeedsExpansion, PlayerAreas, PlayerCities, PlayerMovementEnded, PopExpMove, Population, RecalculatePlayerMoves, TokenHasMoved, TokenStock};
+use crate::civilization::{AvailableMoves, BuildCityMove, BuiltCity, CitySite, CityTokenStock, EliminateCityMove, ExpandAutomatically, ExpandManually, GameMove, HasTooManyCities, IsBuilding, LandPassage, MovementMove, NeedsExpansion, PlayerAreas, PlayerCities, PlayerMovementEnded, PopExpMove, Population, RecalculatePlayerMoves, TokenHasMoved, TokenStock};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Query};
 
@@ -22,7 +22,7 @@ pub fn recalculate_pop_exp_moves_for_player(
                     command_index += 1;
                     moves.insert(
                         command_index,
-                        Move::PopulationExpansion(PopExpMove::new(
+                        GameMove::PopulationExpansion(PopExpMove::new(
                             *area,
                             pop.max_expansion_for_player(event.player)
                                 .min(stock.tokens_in_stock()),
@@ -76,7 +76,7 @@ pub fn recalculate_movement_moves_for_player(
                                         command_index += 1;
                                         moves.insert(
                                             command_index,
-                                            Move::AttackCity(MovementMove::new(
+                                            GameMove::AttackCity(MovementMove::new(
                                                 area,
                                                 *target_area,
                                                 event.player,
@@ -88,7 +88,7 @@ pub fn recalculate_movement_moves_for_player(
                                     command_index += 1;
                                     moves.insert(
                                         command_index,
-                                        Move::AttackArea(MovementMove::new(
+                                        GameMove::AttackArea(MovementMove::new(
                                             area,
                                             *target_area,
                                             event.player,
@@ -99,7 +99,7 @@ pub fn recalculate_movement_moves_for_player(
                                     command_index += 1;
                                     moves.insert(
                                         command_index,
-                                        Move::Movement(MovementMove::new(
+                                        GameMove::Movement(MovementMove::new(
                                             area,
                                             *target_area,
                                             event.player,
@@ -117,7 +117,7 @@ pub fn recalculate_movement_moves_for_player(
         if moves.is_empty() {
             end_player_movement.write(PlayerMovementEnded::new(event.player));
         } else {
-            moves.insert(command_index + 1, Move::EndMovement);
+            moves.insert(command_index + 1, GameMove::EndMovement);
             commands
                 .entity(event.player)
                 .insert(AvailableMoves::new(moves));
@@ -144,7 +144,7 @@ pub fn recalculate_city_construction_moves_for_player(
                                 command_index += 1;
                                 moves.insert(
                                     command_index,
-                                    Move::CityConstruction(BuildCityMove::new(*area, event.player)),
+                                    GameMove::CityConstruction(BuildCityMove::new(*area, event.player)),
                                 );
                             }
                         }
@@ -155,7 +155,7 @@ pub fn recalculate_city_construction_moves_for_player(
                 commands.entity(event.player).remove::<IsBuilding>();
             } else {
                 command_index += 1;
-                moves.insert(command_index, Move::EndCityConstruction);
+                moves.insert(command_index, GameMove::EndCityConstruction);
                 commands
                     .entity(event.player)
                     .insert(AvailableMoves::new(moves));
@@ -180,7 +180,7 @@ pub fn recalculate_city_support_moves_for_player(
                     command_index += 1;
                     moves.insert(
                         command_index,
-                        Move::EliminateCity(EliminateCityMove::new(
+                        GameMove::EliminateCity(EliminateCityMove::new(
                             event.player,
                             *area,
                             *city,

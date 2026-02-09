@@ -7,14 +7,14 @@ use crate::civilization::concepts::trade::trade_components::{
 };
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::trade_resources::{CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState};
-use crate::civilization::game_moves::{AvailableMoves, Move, TradeMove};
 use crate::civilization::game_moves::RecalculatePlayerMoves;
+use crate::civilization::game_moves::{AvailableMoves, GameMove, TradeMove};
 use crate::civilization::ui::ui_builder::UiBuilderDefaults;
+use crate::civilization::{TradeCardTrait, TradePhaseUiRoot};
 use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use crate::civilization::{TradeCardTrait, TradePhaseUiRoot};
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -284,7 +284,7 @@ pub fn recalculate_trade_moves_for_player(
                 command_index += 1;
                 moves.insert(
                     command_index,
-                    Move::Trade(TradeMove::SettleTrade(current_trade)),
+                    GameMove::Trade(TradeMove::SettleTrade(current_trade)),
                 );
             } else {
                 commands.entity(event.player).remove::<PlayerSettlements>();
@@ -307,7 +307,7 @@ pub fn recalculate_trade_moves_for_player(
                     command_index += 1;
                     moves.insert(
                         command_index,
-                        Move::Trade(TradeMove::ProposeTrade(
+                        GameMove::Trade(TradeMove::ProposeTrade(
                             receiver.clone(),
                             matching_cards.clone(),
                         )),
@@ -417,7 +417,7 @@ pub fn recalculate_trade_moves_for_player(
                                         command_index += 1;
                                         moves.insert(
                                             command_index,
-                                            Move::Trade(TradeMove::AcceptOrDeclineTrade(
+                                            GameMove::Trade(TradeMove::AcceptOrDeclineTrade(
                                                 trade_offer_entity,
                                             )),
                                         );
@@ -426,7 +426,7 @@ pub fn recalculate_trade_moves_for_player(
                                         command_index += 1;
                                         moves.insert(
                                             command_index,
-                                            Move::Trade(TradeMove::AutoDeclineTrade(
+                                            GameMove::Trade(TradeMove::AutoDeclineTrade(
                                                 trade_offer_entity,
                                             )),
                                         );
@@ -436,7 +436,7 @@ pub fn recalculate_trade_moves_for_player(
                         }
                     }
                     command_index += 1;
-                    moves.insert(command_index, Move::Trade(TradeMove::StopTrading));
+                    moves.insert(command_index, GameMove::Trade(TradeMove::StopTrading));
                 }
             }
             commands.entity(event.player).remove::<NeedsTradeMove>();

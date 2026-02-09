@@ -5,17 +5,17 @@ use std::fmt::Display;
 
 #[derive(Component, Debug, Default, Reflect)]
 pub struct AvailableMoves {
-    pub moves: HashMap<usize, Move>,
+    pub moves: HashMap<usize, GameMove>,
 }
 
 impl AvailableMoves {
-    pub fn new(moves: HashMap<usize, Move>) -> Self {
+    pub fn new(moves: HashMap<usize, GameMove>) -> Self {
         AvailableMoves { moves }
     }
 }
 
 #[derive(Debug, Clone, Reflect)]
-pub enum Move {
+pub enum GameMove {
     PopulationExpansion(PopExpMove),
     Movement(MovementMove),
     AttackArea(MovementMove),
@@ -27,7 +27,7 @@ pub enum Move {
     Trade(TradeMove),
 }
 
-impl Display for Move {
+impl Display for GameMove {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:#?}", self)
     }

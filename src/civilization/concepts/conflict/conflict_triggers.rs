@@ -2,9 +2,8 @@ use crate::civilization::components::*;
 use crate::civilization::concepts::conflict::conflict_components::*;
 use crate::civilization::concepts::conflict::conflict_functions::*;
 use crate::civilization::functions::{replace_city_with_tokens_for_conflict, return_all_tokens_from_area_to_player};
-use bevy::prelude::{Commands, Entity, Name, Add, Query, On};
+use bevy::prelude::{Add, Commands, Entity, Name, On, Query};
 use std::cmp::Ordering;
-use crate::civilization::components::Population;
 
 pub fn on_add_unresolved_conflict(
     trigger: On<Add, UnresolvedConflict>,

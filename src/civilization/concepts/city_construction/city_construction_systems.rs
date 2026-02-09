@@ -9,7 +9,6 @@ use crate::GameActivity;
 use bevy::prelude::{
     Commands, Entity, MessageReader, MessageWriter, NextState, Query, Res, ResMut, Transform, With,
 };
-use crate::civilization::components::Population;
 
 pub fn city_building_gate(
     query: Query<&IsBuilding>,

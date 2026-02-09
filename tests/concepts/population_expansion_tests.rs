@@ -1,10 +1,7 @@
 use crate::{create_area, setup_bevy_app, setup_player};
-use adv_civ::civilization::components::population::Population;
 use adv_civ::civilization::components::*;
 use adv_civ::civilization::enums::GameFaction;
-use adv_civ::civilization::game_moves::game_moves_components::{AvailableMoves, Move};
-use adv_civ::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
-use adv_civ::civilization::game_moves::game_moves_systems::recalculate_pop_exp_moves_for_player;
+use adv_civ::civilization::game_moves::{recalculate_pop_exp_moves_for_player, AvailableMoves, GameMove, RecalculatePlayerMoves};
 use bevy::app::Update;
 use bevy::prelude::Messages;
 
@@ -41,7 +38,7 @@ fn calculate_game_moves_in_population_expansion() {
         .world_mut()
         .resource_mut::<Messages<RecalculatePlayerMoves>>();
 
-    let _ = events.send(RecalculatePlayerMoves::new(player));
+    let _ = events.write(RecalculatePlayerMoves::new(player));
 
     // Act
     app.update();
@@ -51,8 +48,8 @@ fn calculate_game_moves_in_population_expansion() {
     let player_moves = player_moves.unwrap();
     assert_eq!(player_moves.moves.len(), 3);
     for (_move_index, p_move) in player_moves.moves.iter() {
-        assert!(matches!(p_move, Move::PopulationExpansion(..)));
-        if let Move::PopulationExpansion(pop_exp) = p_move {
+        assert!(matches!(p_move, GameMove::PopulationExpansion(..)));
+        if let GameMove::PopulationExpansion(pop_exp) = p_move {
             assert_eq!(pop_exp.max_tokens, 1);
         };
     }
@@ -90,7 +87,7 @@ fn given_a_player_with_too_few_tokens_for_expansion_the_correct_moves_are_create
         .world_mut()
         .resource_mut::<Messages<RecalculatePlayerMoves>>();
 
-    events.send(RecalculatePlayerMoves::new(player));
+    events.write(RecalculatePlayerMoves::new(player));
 
     // Act
     app.update();
@@ -100,8 +97,8 @@ fn given_a_player_with_too_few_tokens_for_expansion_the_correct_moves_are_create
     let player_moves = player_moves.unwrap();
     assert_eq!(player_moves.moves.len(), 1);
     let (_index, first_move) = player_moves.moves.iter().next().unwrap();
-    assert!(matches!(*first_move, Move::PopulationExpansion(..)));
-    if let Move::PopulationExpansion(pop_exp_move) = first_move {
+    assert!(matches!(*first_move, GameMove::PopulationExpansion(..)));
+    if let GameMove::PopulationExpansion(pop_exp_move) = first_move {
         assert_eq!(pop_exp_move.max_tokens, 2);
         assert_eq!(pop_exp_move.area, area);
     };

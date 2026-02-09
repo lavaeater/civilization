@@ -1,21 +1,20 @@
-use crate::{create_area, setup_bevy_app, setup_player};
+use crate::{create_area, setup_bevy_app, setup_player, Population};
 use bevy::prelude::NextState::Pending;
 use bevy::prelude::{Messages, NextState, Update};
 
-use adv_civ::civilization::concepts::check_city_support::check_city_support_events::{
-    CheckPlayerCitySupport, EliminateCity,
-};
-use adv_civ::civilization::concepts::check_city_support::check_city_support_systems::{
+use adv_civ::civilization::components::{BuiltCity, PlayerCities};
+use adv_civ::civilization::concepts::{
     check_player_city_support, eliminate_city, start_check_city_support,
 };
-use adv_civ::civilization::concepts::check_city_support::{
+use adv_civ::civilization::concepts::{
+    CheckPlayerCitySupport, EliminateCity,
+};
+use adv_civ::civilization::concepts::{
     HasTooManyCities, NeedsToCheckCitySupport,
 };
-use adv_civ::civilization::components::{BuiltCity, PlayerCities};
-use adv_civ::civilization::components::population::Population;
 use adv_civ::civilization::enums::GameFaction;
 use adv_civ::civilization::events::MoveTokensFromStockToAreaCommand;
-use adv_civ::{GameActivity};
+use adv_civ::GameActivity;
 
 #[test]
 fn given_no_cities_next_state_is_set() {
@@ -138,7 +137,7 @@ fn given_a_city_to_eliminate_the_correct_things_happen() {
 
     let mut events = app.world_mut().resource_mut::<Messages<EliminateCity>>();
 
-    let _ = events.send(EliminateCity::new(player, city_token, area, false));    // Act
+    let _ = events.write(EliminateCity::new(player, city_token, area, false));    // Act
     app.update();
 
     // Assert

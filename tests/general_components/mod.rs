@@ -1,4 +1,4 @@
-use adv_civ::civilization::components::population::Population;
+use adv_civ::civilization::components::Population;
 use bevy::ecs::entity::Entity;
 use std::cell::RefCell;
 

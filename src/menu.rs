@@ -65,7 +65,7 @@ fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>) {
                         align_items: AlignItems::Center,
                         ..Default::default()
                     },
-                    BackgroundColor(button_colors.normal.clone()),
+                    BackgroundColor(button_colors.normal),
                     button_colors.clone(),
                     ChangeState(GameState::Playing),
                 ))
