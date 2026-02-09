@@ -261,8 +261,12 @@ pub fn move_tokens_from_stock_to_area(
 
 pub fn print_names_of_phases(
     mut state_transition_event: MessageReader<StateTransitionEvent<GameActivity>>,
+    debug_options: Res<DebugOptions>
 ) {
-    for event in state_transition_event.read() {
-        info!("Went from: {:#?} to {:#?}", event.exited, event.entered);
+    if debug_options.log_selected_moves
+    {
+        for event in state_transition_event.read() {
+            info!("Went from: {:#?} to {:#?}", event.exited, event.entered);
+        }
     }
 }

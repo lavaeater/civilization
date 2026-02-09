@@ -96,17 +96,6 @@ background = false
 on_change_strategy = "kill_then_restart"
 # kill = ["pkill", "-TERM", "-P"]'
 
-[jobs.bevy-run]
-command = [
-    "bevy", "run",
-    # put launch parameters for your program behind a `--` separator
-]
-need_stdout = true
-allow_warnings = true
-background = false
-on_change_strategy = "kill_then_restart"
-# kill = ["pkill", "-TERM", "-P"]'
-
 # This parameterized job runs the example of your choice, as soon
 # as the code compiles.
 # Call it as
@@ -124,4 +113,3 @@ allow_warnings = true
 # alt-m = "job:my-job"
 c = "job:clippy-all" # comment this to have 'c' run clippy on only the default target
 l = "job:run-long"
-b = "job:bevy-run"

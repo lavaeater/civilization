@@ -113,7 +113,7 @@ fn _add_commodity_card(
                         .with_text(
                             format!("{}", (n * n) * card_type.value()),
                             Some(defaults.base_font.clone()),
-                            Some(10.0),
+                            Some(18.0),
                             Some(TEXT_COLOR),
                             None, None
                         );
@@ -236,7 +236,6 @@ fn _setup(
 
     let (_root_entity, _commands) = root_ui.build();
     for human_player in human_players.iter() {
-        info!("Human player: {}", human_player);
         pulled_card_event_writer.write(HumanPlayerTradeCardsUpdated::new(human_player));
     }
 }
@@ -250,9 +249,7 @@ fn handle_player_draws_cards(
 ) {
     let mut new_commands = commands;
     for event in reader.read() {
-        info!("Player {} has updated cards", event.player_entity);
         if let Ok(trade_card_list_entity) = trade_card_list.single() {
-            info!("Trade card list exists");
             if let Ok(player_trade_cards) = player_trade_cards.get(event.player_entity) {
                 let mut ui_builder = UIBuilder::start_from_entity(
                     new_commands,
@@ -285,7 +282,7 @@ pub fn setup_trade_ui(
     ui_defaults.base_font = font;
     ui_defaults.bg_color = BG_COLOR;
     ui_defaults.text_color = TEXT_COLOR;
-    ui_defaults.font_size = 16.0;
+    ui_defaults.font_size = 24.0;
     ui_defaults.border_color = BORDER_COLOR;
     ui_defaults.button_def = Some(ButtonPartial {
         border_radius: Some(BorderRadius::MAX),
@@ -329,12 +326,12 @@ pub fn setup_trade_ui(
     // Right side: Collapsible Game Info section
     ui.add_collapsible("Game Info", |info_section| {
         info_section
-            .width_px(250.0)
+            .width_px(450.0)
             .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.7))
             .padding_all_px(4.0);
         
         // Game State section
-        info_section.add_text_child("Game State", None, Some(14.0), None);
+        info_section.add_text_child("Game State", None, None, None);
         info_section.with_child(|state| {
             state
                 .with_component::<GameStateDisplay>()
@@ -344,12 +341,12 @@ pub fn setup_trade_ui(
                 .padding_all_px(4.0)
                 .margin(UiRect::bottom(Val::Px(8.0)));
             
-            state.add_text_child("State: Playing", None, Some(10.0), None);
-            state.add_text_child("Activity: StartGame", None, Some(10.0), None);
+            state.add_text_child("State: Playing", None, None, None);
+            state.add_text_child("Activity: StartGame", None, None, None);
         });
         
         // Player Activity section
-        info_section.add_text_child("Player Activity", None, Some(14.0), None);
+        info_section.add_text_child("Player Activity", None, None, None);
         info_section.with_child(|list| {
             list.with_component::<PlayerActivityListContainer>()
                 .width_percent(100.0)
@@ -366,12 +363,12 @@ pub fn setup_trade_ui(
 }
 
 pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
-    let small_font_size = 9.0;
-    let medium_font_size = 11.0;
+    let small_font_size = 12.0;
+    let medium_font_size = 18.0;
     
     ui.with_child(|card| {
-        card.width_px(55.0)
-            .height_px(38.0)
+        card.width_px(120.0)
+            .height_px(80.0)
             .display_flex()
             .flex_dir_column()
             .justify_center()
@@ -420,7 +417,7 @@ pub fn build_trade_card_list(ui: &mut UIBuilder, trade_cards: &PlayerTradeCards)
                     .with_flex_shrink(0.0);
                 
                 // Pile label
-                row.add_text_child(format!("{}:", pile_value), None, Some(12.0), None);
+                row.add_text_child(format!("{}:", pile_value), None, Some(24.0), None);
                 
                 // Cards in this pile
                 for stack in sorted_stacks {
@@ -488,8 +485,8 @@ fn update_game_state_display(
         Some(ui_defaults.clone()),
     );
     
-    ui.add_text_child(&state_text, None, Some(10.0), None);
-    ui.add_text_child(&activity_text, None, Some(10.0), None);
+    ui.add_text_child(&state_text, None, Some(18.0), None);
+    ui.add_text_child(&activity_text, None, Some(18.0), None);
     
     ui.build();
 }
@@ -556,7 +553,7 @@ fn update_player_activity_display(
         
         ui.with_child(|row| {
             row.width_percent(100.0)
-                .height_px(36.0)
+                .height_px(80.0)
                 .display_flex()
                 .flex_dir_row()
                 .align_items_center()
@@ -566,15 +563,15 @@ fn update_player_activity_display(
                 .border_radius_all_px(4.0);
             
             row.with_child(|badge| {
-                badge.width_px(12.0)
-                    .height_px(12.0)
+                badge.width_px(24.0)
+                    .height_px(24.0)
                     .bg_color(faction_color)
                     .border_radius_all_px(6.0)
                     .margin_all_px(6.0);
             });
             
-            row.add_text_child(format!("{}: ", name), None, Some(13.0), Some(faction_color));
-            row.add_text_child(activity, None, Some(12.0), None);
+            row.add_text_child(format!("{}: ", name), None, Some(18.0), Some(faction_color));
+            row.add_text_child(activity, None, Some(18.0), None);
         });
     }
     
