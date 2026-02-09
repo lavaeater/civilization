@@ -530,7 +530,7 @@ fn update_player_activity_display(
     activity_log: Res<PlayerActivityLog>,
     ui_defaults: Res<UiBuilderDefaults>,
     container_query: Query<Entity, With<PlayerActivityListContainer>>,
-    players: Query<(Entity, &Name, &Faction), With<Player>>,
+    players: Query<(Entity, &Name, &Faction, Has<IsHuman>), With<Player>>,
 ) {
     if !activity_log.is_changed() {
         return;
@@ -547,9 +547,14 @@ fn update_player_activity_display(
         Some(ui_defaults.clone()),
     );
     
-    for (player_entity, name, faction) in players.iter() {
+    for (player_entity, name, faction, is_human) in players.iter() {
         let activity = activity_log.get(player_entity);
         let faction_color = faction_to_color(faction);
+        let display_name = if is_human {
+            format!("👤 {} (YOU)", name)
+        } else {
+            name.to_string()
+        };
         
         ui.with_child(|row| {
             row.width_percent(100.0)
@@ -570,7 +575,7 @@ fn update_player_activity_display(
                     .margin_all_px(6.0);
             });
             
-            row.add_text_child(format!("{}: ", name), None, Some(18.0), Some(faction_color));
+            row.add_text_child(format!("{}: ", display_name), None, Some(18.0), Some(faction_color));
             row.add_text_child(activity, None, Some(18.0), None);
         });
     }

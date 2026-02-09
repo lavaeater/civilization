@@ -22,6 +22,7 @@ pub fn setup_human_movement_options(
     mut selection_state: ResMut<MovementSelectionState>,
 ) {
     for (player_entity, available_moves) in human_players.iter() {
+        info!("Human player {:?} got AvailableMoves with {} moves", player_entity, available_moves.moves.len());
         // Check if there are any movement moves
         let has_movement_moves = available_moves.moves.values().any(|m| {
             matches!(
@@ -31,6 +32,7 @@ pub fn setup_human_movement_options(
         });
 
         if has_movement_moves {
+            info!("Human player has movement moves, setting up selection state");
             selection_state.player = Some(player_entity);
             // Don't select a target yet - wait for user interaction
         }
@@ -44,7 +46,8 @@ pub fn draw_movement_arrows(
     area_transforms: Query<&Transform, With<GameArea>>,
     selection_state: Res<MovementSelectionState>,
 ) {
-    for (_player_entity, available_moves) in human_players.iter() {
+    for (player_entity, available_moves) in human_players.iter() {
+        info!("Drawing arrows for human player {:?} with {} moves", player_entity, available_moves.moves.len());
         // Group moves by source area
         let mut source_targets: bevy::platform::collections::HashMap<
             Entity,
@@ -282,7 +285,8 @@ pub fn spawn_movement_controls_ui(
         return;
     }
 
-    if let Some(_player) = human_players.iter().next() {
+    if let Some(player) = human_players.iter().next() {
+        debug!("Spawning movement controls UI for human player {:?}", player);
         let font = asset_server.load("fonts/FiraSans-Bold.ttf");
 
         // Spawn the movement controls panel
