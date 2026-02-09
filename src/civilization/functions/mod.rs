@@ -144,20 +144,7 @@ pub fn replace_city_with_tokens_for_conflict(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::ecs::entity::Entity;
-    use std::cell::RefCell;
-
-    thread_local! {
-        static ENTITY_COUNTER: RefCell<u32> = RefCell::new(0);
-    }
-
-    fn create_entity() -> Entity {
-        ENTITY_COUNTER.with(|counter| {
-            let index = *counter.borrow();
-            *counter.borrow_mut() += 1; // Increment the counter for the next entity
-            Entity::from_raw_u32(index).unwrap()
-        })
-    }
+    use crate::test_utils::create_test_entity as create_entity;
 
     #[test]
     fn test_move_from_stock_to_area() {

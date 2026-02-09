@@ -308,7 +308,7 @@ pub fn recalculate_trade_moves_for_player(
                     moves.insert(
                         command_index,
                         GameMove::Trade(TradeMove::ProposeTrade(
-                            receiver.clone(),
+                            receiver,
                             matching_cards.clone(),
                         )),
                     );
@@ -1244,7 +1244,7 @@ pub fn spawn_create_offer_modal(
                                     cards_row
                                         .spawn((
                                             Button,
-                                            OfferCardButton { card: card.clone(), selected: false },
+                                            OfferCardButton { card, selected: false },
                                             Node {
                                                 padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
                                                 margin: UiRect::all(Val::Px(2.0)),
@@ -1266,7 +1266,7 @@ pub fn spawn_create_offer_modal(
                                 cards_row
                                     .spawn((
                                         Button,
-                                        OfferCardButton { card: card.clone(), selected: false },
+                                        OfferCardButton { card, selected: false },
                                         Node {
                                             padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
                                             margin: UiRect::all(Val::Px(2.0)),
@@ -1377,7 +1377,7 @@ pub fn spawn_create_offer_modal(
                                 cards_row
                                     .spawn((
                                         Button,
-                                        WantCardTypeButton { card_type: card_type.clone() },
+                                        WantCardTypeButton { card_type: *card_type },
                                         Node {
                                             padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
                                             margin: UiRect::all(Val::Px(2.0)),
@@ -1576,7 +1576,7 @@ pub fn handle_offer_card_selection(
                 // Select (only if under limit)
                 card_btn.selected = true;
                 *border = BorderColor::all(Color::srgb(0.3, 0.9, 0.4));
-                *create_offer_state.offering_guaranteed.entry(card_btn.card.clone()).or_insert(0) += 1;
+                *create_offer_state.offering_guaranteed.entry(card_btn.card).or_insert(0) += 1;
             }
         }
     }
@@ -1608,7 +1608,7 @@ pub fn handle_want_card_selection(
                 }
             } else if total_guaranteed < 2 {
                 // Add one (only if under limit)
-                *create_offer_state.wanting_guaranteed.entry(want_btn.card_type.clone()).or_insert(0) += 1;
+                *create_offer_state.wanting_guaranteed.entry(want_btn.card_type).or_insert(0) += 1;
                 *border = BorderColor::all(Color::srgb(0.9, 0.6, 0.3));
             }
         }
@@ -2098,7 +2098,7 @@ pub fn spawn_settlement_modal(
                                     cards_row
                                         .spawn((
                                             Button,
-                                            SettlementCardButton { card: card.clone(), selected: false },
+                                            SettlementCardButton { card, selected: false },
                                             Node {
                                                 padding: UiRect::axes(Val::Px(10.0), Val::Px(6.0)),
                                                 margin: UiRect::all(Val::Px(3.0)),
@@ -2120,7 +2120,7 @@ pub fn spawn_settlement_modal(
                                 cards_row
                                     .spawn((
                                         Button,
-                                        SettlementCardButton { card: card.clone(), selected: false },
+                                        SettlementCardButton { card, selected: false },
                                         Node {
                                             padding: UiRect::axes(Val::Px(10.0), Val::Px(6.0)),
                                             margin: UiRect::all(Val::Px(3.0)),
@@ -2232,7 +2232,7 @@ pub fn handle_settlement_card_selection(
             
             if card_btn.selected {
                 *border = BorderColor::all(Color::srgb(0.3, 0.9, 0.4));
-                *selection.selected_cards.entry(card_btn.card.clone()).or_insert(0) += 1;
+                *selection.selected_cards.entry(card_btn.card).or_insert(0) += 1;
             } else {
                 *border = BorderColor::all(Color::NONE);
                 if let Some(count) = selection.selected_cards.get_mut(&card_btn.card) {
@@ -2538,8 +2538,8 @@ pub fn ai_create_trade_offers(
         }
         
         // Add hidden cards to reach minimum 3 each side
-        let offering_hidden = if cards_offered < 3 { 3 - cards_offered } else { 0 };
-        let wanting_hidden = if cards_wanted < 3 { 3 - cards_wanted } else { 0 };
+        let offering_hidden = 3_usize.saturating_sub(cards_offered);
+        let wanting_hidden = 3_usize.saturating_sub(cards_wanted);
         
         // Create the offer
         let mut offer = OpenTradeOffer::new(ai_entity, ai_name.to_string(), None, None);

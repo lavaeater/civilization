@@ -8,6 +8,9 @@ pub mod player;
 pub mod civilization;
 pub mod stupid_ai;
 
+#[cfg(any(test, feature = "test-utils"))]
+pub mod test_utils;
+
 use crate::actions::ActionsPlugin;
 use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;

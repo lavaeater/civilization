@@ -42,6 +42,7 @@ strip = true
 dev = [
     "bevy/dynamic_linking",
 ]
+test-utils = []
 
 # All of Bevy's default features exept for the audio related ones (bevy_audio, vorbis), since they clash with bevy_kira_audio
 #   and android_shared_stdcxx/android-game-activity, since those are covered in `mobile`
@@ -68,6 +69,7 @@ embed-resource = "1"
 
 [dev-dependencies]
 pretty_assertions = "1"
+adv_civ = { path = ".", features = ["test-utils"] }
 
 [lints.clippy]
 too_many_arguments = "allow"

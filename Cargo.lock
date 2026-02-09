@@ -85,6 +85,7 @@ checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
 name = "adv_civ"
 version = "0.1.0"
 dependencies = [
+ "adv_civ",
  "bevy 0.18.0",
  "bevy_asset_loader",
  "bevy_common_assets",

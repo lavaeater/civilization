@@ -160,8 +160,7 @@ fn load_map(
     windows: Query<&Window, With<PrimaryWindow>>,
     mut camera: Query<(&Camera, &mut Projection, &mut Transform), With<GameCamera>>,
 ) {
-    //debug!("2. Loading map");
-    if let Some(level) = maps.get(map.0.id()).clone() {
+    if let Some(level) = maps.get(map.0.id()) {
         let mut ancient_places: HashSet<String> = vec![
             "Assyria",
             "Numidia",
