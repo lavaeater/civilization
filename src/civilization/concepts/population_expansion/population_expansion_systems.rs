@@ -13,7 +13,7 @@ use crate::loading::TextureAssets;
 use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
 use bevy::prelude::{
-    debug, default, ButtonInput, Camera, Commands, Entity, GlobalTransform,
+    debug, default, info, ButtonInput, Camera, Commands, Entity, GlobalTransform, Has,
     MessageReader, MessageWriter, MouseButton, NextState, Query, Res, ResMut, Sprite, Transform,
     Vec3, Window, With, Without,
 };
@@ -44,27 +44,40 @@ pub fn check_area_population_expansion_eligibility(
 }
 
 pub fn enter_population_expansion(
-    player_query: Query<(Entity, &PlayerAreas)>,
+    player_query: Query<(Entity, &PlayerAreas, Has<IsHuman>)>,
     area: Query<(Entity, &Population)>,
     mut game_info: ResMut<GameInfoAndStuff>,
     mut commands: Commands,
     mut checker: MessageWriter<CheckPlayerExpansionEligibility>,
 ) {
     game_info.round += 1;
+    info!("[POP_EXP] Entering population expansion phase, round {}", game_info.round);
+    
+    let mut areas_with_pop = 0;
     for (area_entity, pop) in area.iter() {
         if pop.has_population() {
+            areas_with_pop += 1;
             commands
                 .entity(area_entity)
                 .insert(AreaIsExpanding::new(pop.players()));
         }
     }
+    info!("[POP_EXP] {} areas have population and need expansion", areas_with_pop);
 
-    for (player, player_areas) in player_query.iter() {
+    let mut human_count = 0;
+    let mut ai_count = 0;
+    for (player, player_areas, is_human) in player_query.iter() {
+        if is_human {
+            human_count += 1;
+        } else {
+            ai_count += 1;
+        }
         commands
             .entity(player)
             .insert(NeedsExpansion::new(player_areas.areas()));
         checker.write(CheckPlayerExpansionEligibility::new(player));
     }
+    info!("[POP_EXP] {} human players, {} AI players need expansion check", human_count, ai_count);
 }
 
 pub fn auto_expand_population(
@@ -98,19 +111,28 @@ pub fn auto_expand_population(
 
 pub fn population_expansion_gate(
     mut check_gate: MessageReader<CheckGate>,
-    player_gate_query: Query<Entity, With<NeedsExpansion>>,
+    player_gate_query: Query<(Entity, Has<IsHuman>, Has<ExpandManually>, Has<ExpandAutomatically>), With<NeedsExpansion>>,
     area_gate_query: Query<Entity, With<AreaIsExpanding>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     for _ in check_gate.read() {
-        if player_gate_query.is_empty() {
+        let players_needing_expansion: Vec<_> = player_gate_query.iter().collect();
+        
+        if players_needing_expansion.is_empty() {
+            info!("[POP_EXP] All players done with expansion, transitioning to Census");
             for area in area_gate_query.iter() {
                 commands.entity(area).remove::<AreaIsExpanding>();
             }
             next_state.set(GameActivity::Census);
         } else {
-            //debug!("Players still need expansion");
+            // Log who is still waiting
+            for (entity, is_human, has_manual, has_auto) in players_needing_expansion.iter() {
+                info!(
+                    "[POP_EXP] Player {:?} still needs expansion: human={}, manual={}, auto={}",
+                    entity, is_human, has_manual, has_auto
+                );
+            }
         }
     }
 }
