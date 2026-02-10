@@ -1,5 +1,5 @@
 use crate::GameActivity;
-use bevy::prelude::{Commands, Entity, Has, Name, NextState, Query, ResMut};
+use bevy::prelude::{debug, info, Commands, Entity, Has, Name, NextState, Query, ResMut};
 use crate::civilization::components::{BuiltCity, Population};
 use crate::civilization::concepts::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
 use crate::civilization::ConflictCounterResource;
@@ -10,6 +10,7 @@ pub fn find_conflict_zones(
     mut conflict_counter_resource: ResMut<ConflictCounterResource>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
+    conflict_counter_resource.0 = 0;// reset counter
     pop_query
         .iter()
         .filter(|(_, _, pop, has_city)| pop.is_conflict_zone(*has_city))
@@ -24,7 +25,10 @@ pub fn find_conflict_zones(
             }
         });
     if conflict_counter_resource.0 == 0 {
+        info!("No conflicts found, transitioning to CityConstruction");
         next_state.set(GameActivity::CityConstruction);
+    } else {
+        info!("Found {} conflicts, remaining in Conflict", conflict_counter_resource.0);
     }
 }
 

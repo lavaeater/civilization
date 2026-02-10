@@ -27,7 +27,6 @@ pub fn prepare_next_mover(
 ) {
     for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
-            // let name = names.get(to_move).map(|n| n.as_str()).unwrap_or("?");
             commands.entity(to_move).insert(PerformingMovement);
         } else {
             info!("No more players to move, transitioning to Conflict");

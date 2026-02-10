@@ -131,6 +131,7 @@ pub fn setup_players(
                 .id();
 
             if debug_options.add_human_player && *faction == debug_options.human_faction {
+                info!("Added human player");
                 commands.entity(player).remove::<StupidAi>();
                 commands.entity(player).insert(IsHuman);
                 if debug_options.human_starts_with_trade_cards {
