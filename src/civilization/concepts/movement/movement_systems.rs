@@ -15,7 +15,6 @@ pub fn start_movement_activity(
 ) {
     game_info.left_to_move = game_info.census_order.clone();
     game_info.left_to_move.reverse();
-    info!("Starting movement activity with {} players", game_info.left_to_move.len());
     next_player.write(NextPlayerStarted);
 }
 
@@ -29,7 +28,6 @@ pub fn prepare_next_mover(
     for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
             let name = names.get(to_move).map(|n| n.as_str()).unwrap_or("?");
-            info!("Preparing next mover: {}, {} remaining", name, game_info.left_to_move.len());
             commands.entity(to_move).insert(PerformingMovement);
         } else {
             info!("No more players to move, transitioning to Conflict");

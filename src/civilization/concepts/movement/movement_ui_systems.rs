@@ -39,7 +39,6 @@ pub fn setup_human_movement_options(
         }
 
         if !source_areas.is_empty() {
-            info!("Human player has {} source areas to move from", source_areas.len());
             selection_state.player = Some(player_entity);
             selection_state.source_areas = source_areas;
             selection_state.current_source_index = 0;
