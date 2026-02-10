@@ -59,7 +59,7 @@ itertools = "0.14.0"
 serde_json = { version = "1.0.145" }
 serde = { version = "1.0.228", features = ["derive"] }
 bevy_common_assets = { version = "0.15.0", features = ["ron"] }
-lava_ui_builder = { git = "https://github.com/lavaeater/lava_ui_builder.git", tag= "v0.1.0" }
+lava_ui_builder = { path = "lava_ui_builder" }
 moonshine-save = "0.6.1"
 
 [build-dependencies]

@@ -3208,7 +3208,6 @@ dependencies = [
 [[package]]
 name = "lava_ui_builder"
 version = "0.1.0"
-source = "git+https://github.com/lavaeater/lava_ui_builder.git?tag=v0.1.0#d73b39d0fd4e50b02999ae5f0353a3dc5dc41f6c"
 dependencies = [
  "bevy",
 ]
