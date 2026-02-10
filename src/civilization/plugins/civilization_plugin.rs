@@ -5,6 +5,7 @@ use crate::civilization::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::game_moves::GameMovesPlugin;
 use crate::civilization::general_systems::{connect_areas, fix_token_positions, move_tokens_from_stock_to_area, print_names_of_phases, start_game};
 use crate::civilization::triggers::on_add_return_token_to_stock;
+use crate::player::Player;
 use crate::stupid_ai::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
@@ -18,6 +19,7 @@ impl Plugin for CivilizationPlugin {
     fn build(&self, app: &mut App) {
         // Use DebugOptions::test_manual_pop_exp() to test manual population expansion
         app.insert_resource(DebugOptions::default())
+        .register_type::<Player>()
         .register_type::<Token>()
         .register_type::<LandPassage>()
         .register_type::<TokenStock>()
@@ -50,6 +52,7 @@ impl Plugin for CivilizationPlugin {
             MapPlugin,
             TradeUiPlugin,
             AreaInfoPlugin,
+            SaveGamePlugin,
         ))
         .add_systems(OnEnter(GameActivity::StartGame), start_game)
         .insert_resource(GameInfoAndStuff::default())

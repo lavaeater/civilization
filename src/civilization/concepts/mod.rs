@@ -9,6 +9,7 @@ mod city_construction;
 mod conflict;
 mod remove_surplus_population;
 mod area_info;
+mod save_game;
 
 pub use census::*;
 pub use map::*;
@@ -21,3 +22,4 @@ pub use city_construction::*;
 pub use conflict::*;
 pub use remove_surplus_population::*;
 pub use area_info::*;
+pub use save_game::*;
