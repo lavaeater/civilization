@@ -28,6 +28,7 @@ pub enum GameState {
     #[default]
     Loading,
     Playing,
+    Paused,
     Sandbox,
     Menu,
 }
