@@ -1,6 +1,4 @@
-use lava_ui_builder::{
-    ButtonPartial, NodePartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR, TEXT_COLOR,
-};
+use lava_ui_builder::{UIBuilder, UiTheme};
 
 use crate::civilization::{setup_players, AvailableFactions, GameFaction};
 use crate::GameState;
@@ -9,7 +7,7 @@ pub struct SandboxPlugin;
 
 impl Plugin for SandboxPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(UiBuilderDefaults::new())
+        app.insert_resource(UiTheme::default())
             .init_resource::<AvailableFactions>()
             .init_resource::<SandboxLayoutState>()
             .add_systems(
@@ -97,10 +95,13 @@ fn setup_factions(
     }
 }
 
+const BG_COLOR: Color = Color::srgba(0.5, 0.5, 0.5, 0.25);
+const BORDER_COLOR: Color = Color::srgba(0.2, 0.2, 0.2, 0.25);
+
 fn setup_sandbox(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut ui_defaults: ResMut<UiBuilderDefaults>,
+    mut ui_theme: ResMut<UiTheme>,
     layout_state: Res<SandboxLayoutState>,
 ) {
     // Spawn camera for UI rendering
@@ -112,28 +113,13 @@ fn setup_sandbox(
     ));
 
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-    ui_defaults.base_font = font;
-    ui_defaults.bg_color = BG_COLOR;
-    ui_defaults.text_color = TEXT_COLOR;
-    ui_defaults.font_size = 16.0;
-    ui_defaults.border_color = BORDER_COLOR;
-    ui_defaults.button_def = Some(ButtonPartial {
-        border_radius: Some(BorderRadius::MAX),
-        border_color: Some(BORDER_COLOR),
-        ..default()
-    });
-    ui_defaults.node_def = Some(
-        NodePartial::new()
-            .border_all_px(2.0)
-            .border_color(BORDER_COLOR)
-            .border_radius_zero()
-            .padding_all_px(4.0)
-            .margin_all_px(2.0),
-    );
-    ui_defaults.text_justify = Some(Justify::Center);
-    ui_defaults.text_line_break = Some(LineBreak::WordBoundary);
+    ui_theme.text.font = font;
+    ui_theme.text.label_size = 16.0;
+    ui_theme.bg_color = BG_COLOR;
+    ui_theme.border_color = BORDER_COLOR;
+    ui_theme.button.border_radius = BorderRadius::MAX;
 
-    let mut ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
+    let mut ui = UIBuilder::new(commands, Some(ui_theme.clone()));
 
     ui.with_component::<SandboxUiRoot>()
         .size_percent(98.0, 98.0)
@@ -223,83 +209,67 @@ fn build_control_row(
         ui.text_with_width(label, 50.0);
 
         //Decrease button (-10)
-        ui.with_child(|ui| {
-            ui.add_button(
-                "-10",
-                40.0,
-                28.0,
-                CONTROL_BTN_COLOR,
-                12.0,
-                4.0,
-                LayoutControlButton {
-                    property,
-                    delta: -10.0,
-                },
-            );
-        });
+        ui.add_button(
+            "-10",
+            40.0,
+            28.0,
+            CONTROL_BTN_COLOR,
+            12.0,
+            4.0,
+            LayoutControlButton {
+                property,
+                delta: -10.0,
+            },
+        );
 
         //Decrease button (-1)
-        ui.with_child(|ui| {
-            ui.add_button(
-                "-1",
-                40.0,
-                28.0,
-                CONTROL_BTN_COLOR,
-                12.0,
-                4.0,
-                LayoutControlButton {
-                    property,
-                    delta: -1.0,
-                },
-            );
-        });
+        ui.add_button(
+            "-1",
+            40.0,
+            28.0,
+            CONTROL_BTN_COLOR,
+            12.0,
+            4.0,
+            LayoutControlButton {
+                property,
+                delta: -1.0,
+            },
+        );
 
-        ui.with_child(|ui| {
+        ui.build_text_child(format!("{:.0}", initial_value), |ui| {
             ui.width_px(40.0)
-                .height_px(28.0)
-                .display_flex()
                 .align_items_center()
-                .justify_center();
-
-            ui.build_text(format!("{:.0}", initial_value), |ui| {
-                ui.width_px(40.0)
-                    .align_items_center()
-                    .text_justify_center() // This centers the text content
-                    .insert(LayoutValueDisplay { property });
-            });
+                .text_justify_center()
+                .insert(LayoutValueDisplay { property });
         });
 
         // Increase button (+1)
-        ui.with_child(|ui| {
-            ui.add_button(
-                "+1",
-                40.0,
-                28.0,
-                CONTROL_BTN_COLOR,
-                12.0,
-                4.0,
-                LayoutControlButton {
-                    property,
-                    delta: 1.0,
-                },
-            );
-        });
+        ui.add_button(
+            "+1",
+            40.0,
+            28.0,
+            CONTROL_BTN_COLOR,
+            12.0,
+            4.0,
+            LayoutControlButton {
+                property,
+                delta: 1.0,
+            },
+        );
 
         // Increase button (+10)
-        ui.with_child(|ui| {
-            ui.add_button(
-                "+10",
-                40.0,
-                28.0,
-                CONTROL_BTN_COLOR,
-                12.0,
-                4.0,
-                LayoutControlButton {
-                    property,
-                    delta: 10.0,
-                },
-            );
-        });
+        ui.add_button(
+            "+10",
+            40.0,
+            28.0,
+            CONTROL_BTN_COLOR,
+            12.0,
+            4.0,
+            LayoutControlButton {
+                property,
+                delta: 10.0,
+            },
+        );
     });
 }
 

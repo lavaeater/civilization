@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use lava_ui_builder::{UIBuilder, UiBuilderDefaults};
+use lava_ui_builder::{UIBuilder, UiTheme};
 
 use crate::civilization::components::{
     BuiltCity, Faction, GameArea, GameCamera, Population,
@@ -39,16 +39,16 @@ fn spawn_area_info_markers(
     commands: Commands,
     area_query: Query<(Entity, &GameArea, &Population, Has<BuiltCity>)>,
     player_query: Query<(Entity, &Faction, &Name), With<Player>>,
-    ui_defaults: Res<UiBuilderDefaults>,
+    ui_theme: Res<UiTheme>,
 ) {
-    let mut ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
+    let mut ui = UIBuilder::new(commands, Some(ui_theme.clone()));
 
     ui.insert(AreaInfoRoot)
         .insert(Name::new("area_info_root"))
-        .with(lava_ui_builder::NodePartial {
-            position_type: Some(PositionType::Absolute),
-            width: Some(Val::Percent(100.0)),
-            height: Some(Val::Percent(100.0)),
+        .set_node(Node {
+            position_type: PositionType::Absolute,
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
             ..default()
         });
 
@@ -61,10 +61,7 @@ fn spawn_area_info_markers(
             marker
                 .insert(AreaInfoMarker { area_entity })
                 .insert(Name::new(area_info_name(game_area.id)))
-                .with(lava_ui_builder::NodePartial {
-                    position_type: Some(PositionType::Absolute),
-                    ..default()
-                })
+                .modify_node(|mut n| n.position_type = PositionType::Absolute)
                 .bg_color(Color::srgba(0.0, 0.0, 0.0, 0.7))
                 .padding_all_px(2.0)
                 .border_radius_all_px(3.0);

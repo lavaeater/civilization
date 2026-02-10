@@ -14,7 +14,7 @@ use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use lava_ui_builder::UiBuilderDefaults;
+use lava_ui_builder::UiTheme;
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -99,7 +99,7 @@ pub fn button_action(
 pub fn setup_trade(
     mut commands: Commands,
     trading_players_query: Query<(&PlayerTradeCards, Entity, Has<IsHuman>)>,
-    _ui_builder_defaults: Res<UiBuilderDefaults>,
+    _ui_theme: Res<UiTheme>,
     mut trade_ui_state: ResMut<TradeUiState>,
 ) {
     let mut _has_any_human = false;

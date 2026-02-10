@@ -2,14 +2,13 @@ use crate::civilization::concepts::trade::trade_components::{
     CanTrade, PlayerTradeInterests, PublishedOffer, PublishedOffersList, TradeButtonAction,
     TradeOffer,
 };
-use lava_ui_builder::{
-    ButtonPartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR,
-};
+use lava_ui_builder::UIBuilder;
+use lava_ui_builder::UiTheme;
 use crate::GameActivity;
 use bevy::color::palettes::basic::{GREEN, YELLOW};
 use bevy::log::debug;
 use bevy::prelude::{
-    default, Add, Color, Commands, Entity, JustifyContent, NextState, On, Query, Remove,
+    Add, Color, Commands, Entity, JustifyContent, NextState, On, Query, Remove,
     Res, ResMut, UiRect, Val, With,
 };
 use crate::civilization::TradeMove;
@@ -19,7 +18,7 @@ pub fn offer_published(
     trigger: On<Add, PublishedOffer>,
     published_offers_list: Query<Entity, With<PublishedOffersList>>,
     published_offer_query: Query<(Entity, &TradeOffer), With<PublishedOffer>>,
-    ui_builder_defaults: Res<UiBuilderDefaults>,
+    ui_theme: Res<UiTheme>,
     mut commands: Commands,
 ) {
     let new_commands = commands;
@@ -29,18 +28,21 @@ pub fn offer_published(
                 new_commands,
                 ui_list,
                 false,
-                Some(ui_builder_defaults.clone()),
+                Some(ui_theme.clone()),
             );
 
+            let border_color = ui_theme.border_color;
+            let bg_color = ui_theme.bg_color;
             ui_builder
                 .child()
-                .as_block(Val::Percent(100.0), Val::Auto, BG_COLOR)
+                .size(Val::Percent(100.0), Val::Auto)
+                .bg_color(bg_color)
                 .margin(UiRect::all(Val::Px(10.0)))
                 .padding(UiRect::all(Val::Px(10.0)))
-                .border(UiRect::all(Val::Px(2.0)), BORDER_COLOR)
+                .border(UiRect::all(Val::Px(2.0)), border_color)
                 // Add header with initiator name
                 .child()
-                .as_flex_row()
+                .flex_row()
                 .justify_content(JustifyContent::SpaceBetween)
                 .size(Val::Percent(100.0), Val::Auto)
                 .margin(UiRect::bottom(Val::Px(10.0)))
@@ -69,23 +71,23 @@ pub fn offer_published(
                 .parent()
                 // Trade details section
                 .child()
-                .as_flex_row()
+                .flex_row()
                 .size(Val::Percent(100.0), Val::Auto)
                 .justify_content(JustifyContent::SpaceBetween)
                 // What initiator offers
                 .child()
-                .as_flex_col(Val::Percent(48.0), Val::Auto)
+                .display_flex().flex_column().size(Val::Percent(48.0), Val::Auto)
                 .padding(UiRect::all(Val::Px(8.0)))
                 // Header for what initiator offers
                 .child()
                 .default_text("Offers:")
                 .parent()
-                .foreach_child(trade_offer.initiator_pays.iter(), |builder, (commodity, count)| {
+                .foreach_child(trade_offer.initiator_pays.iter(), |builder: &mut UIBuilder, (commodity, count)| {
                     builder.default_text(format!("{}: {}", commodity, count));
                 })
                 .foreach_child(
                     trade_offer.initiator_pays_guaranteed.iter(),
-                    |builder, (commodity, count)| {
+                    |builder: &mut UIBuilder, (commodity, count)| {
                         builder.default_text(format!(
                             "{}: {} (Guaranteed)",
                             commodity, count
@@ -94,18 +96,18 @@ pub fn offer_published(
                 )
                 .parent()
                 .child()
-                .as_flex_col(Val::Percent(48.0), Val::Auto)
+                .display_flex().flex_column().size(Val::Percent(48.0), Val::Auto)
                 .padding(UiRect::all(Val::Px(8.0)))
                 // Header for what initiator wants
                 .child()
                 .default_text("Wants:")
                 .parent()
-                .foreach_child(trade_offer.initiator_gets.iter(), |builder, (commodity, count)| {
+                .foreach_child(trade_offer.initiator_gets.iter(), |builder: &mut UIBuilder, (commodity, count)| {
                     builder.default_text(format!("{}: {}", commodity, count));
                 })
                 .foreach_child(
                     trade_offer.initiator_gets_guaranteed.iter(),
-                    |builder, (commodity, count)| {
+                    |builder: &mut UIBuilder, (commodity, count)| {
                         builder.default_text(format!(
                             "{}: {} (Guaranteed)",
                             commodity, count
@@ -117,16 +119,16 @@ pub fn offer_published(
                     .parent()
                     .parent()
                     .child()
-                    .as_flex_row()
+                    .flex_row()
                     .size(Val::Percent(100.0), Val::Px(40.0))
                     .justify_content(JustifyContent::FlexEnd)
                     .margin(UiRect::top(Val::Px(10.0)))
 
                     // Accept button
-                    .with_button(Some(ButtonPartial {
-                        text: Some("Accept".to_string()),
-                        ..default()
-                    }), TradeButtonAction::TradeAction(TradeMove::AcceptOrDeclineTrade(trade_offer_entity)))
+                    .add_themed_button(
+                        TradeButtonAction::TradeAction(TradeMove::AcceptOrDeclineTrade(trade_offer_entity)),
+                        |btn| { btn.text("Accept"); },
+                    )
             
                 // Decline button
                 ;

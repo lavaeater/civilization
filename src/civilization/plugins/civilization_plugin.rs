@@ -67,6 +67,7 @@ impl Plugin for CivilizationPlugin {
             TradeUiPlugin,
             AreaInfoPlugin,
             SaveGamePlugin,
+            lava_ui_builder::LavaUiPlugin,
         ))
         .add_systems(OnEnter(GameActivity::StartGame), start_game)
         .insert_resource(GameInfoAndStuff::default())
