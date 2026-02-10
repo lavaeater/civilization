@@ -60,6 +60,7 @@ serde_json = { version = "1.0.145" }
 serde = { version = "1.0.228", features = ["derive"] }
 bevy_common_assets = { version = "0.15.0", features = ["ron"] }
 lava_ui_builder = { git = "https://github.com/lavaeater/lava_ui_builder.git" }
+bevy_save = {git = "https://github.com/lavaeater/bevy_save.git", branch = "main"}
 
 [build-dependencies]
 embed-resource = "1"
