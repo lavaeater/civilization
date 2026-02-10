@@ -75,7 +75,7 @@ mod tests {
     }
 
     // ========================================================================
-    // Integration: find_conflict_zones → observer → conflict_gate
+    // Integration: find_conflict_zones → observer → counter-based transition
     // ========================================================================
 
     #[test]
@@ -111,7 +111,7 @@ mod tests {
             None,
         );
 
-        // Run frames: OnEnter inserts UnresolvedConflict, observer resolves it, gate transitions
+        // Run frames: OnEnter inserts UnresolvedConflict, observer resolves it and decrements counter
         app.update();
         app.update();
         app.update();
