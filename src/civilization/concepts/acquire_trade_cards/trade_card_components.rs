@@ -1,6 +1,6 @@
 use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::{TradeCard, TradeCardTrait};
 use bevy::platform::collections::{HashMap, HashSet};
-use bevy::prelude::{Color, Component, Reflect, Resource};
+use bevy::prelude::{Color, Component, Reflect, ReflectComponent, Resource};
 use itertools::Itertools;
 use rand::seq::SliceRandom;
 
@@ -51,6 +51,7 @@ pub struct PlayerCardStack {
 }
 
 #[derive(Component, Debug, Reflect, Default, Clone)]
+#[reflect(Component)]
 pub struct PlayerTradeCards {
     cards: HashMap<TradeCard, usize>,
 }

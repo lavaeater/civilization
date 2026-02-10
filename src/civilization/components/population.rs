@@ -1,7 +1,8 @@
 use bevy::platform::collections::{HashMap, HashSet};
-use bevy::prelude::{default, Component, Entity, Reflect};
+use bevy::prelude::{default, Component, Entity, Reflect, ReflectComponent};
 
 #[derive(Component, Debug, Reflect, Default)]
+#[reflect(Component)]
 pub struct Population {
     player_tokens: HashMap<Entity, HashSet<Entity>>,
     pub max_population: usize,

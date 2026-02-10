@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 
 #[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
 pub struct StupidAi;
 
 #[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
 pub struct IsHuman; //Not really, though
 
 #[derive(Resource, Default)]

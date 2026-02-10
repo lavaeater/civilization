@@ -1,6 +1,7 @@
 use crate::civilization::enums::GameFaction;
 use bevy::platform::collections::{HashMap, HashSet};
-use bevy::prelude::{Component, Entity, Reflect};
+use bevy::prelude::{Component, Entity, Reflect, ReflectComponent};
+use moonshine_save::prelude::Save;
 
 mod population;
 pub use population::*;
@@ -9,6 +10,8 @@ pub use population::*;
 pub struct GameCamera;
 
 #[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
+#[require(Save)]
 pub struct GameArea {
     pub id: i32,
 }
@@ -20,6 +23,7 @@ impl GameArea {
 }
 
 #[derive(Component, Debug, Reflect, Default)]
+#[reflect(Component)]
 pub struct LandPassage {
     pub to_areas: Vec<Entity>,
 }
@@ -35,6 +39,7 @@ impl LandPassage {
 }
 
 #[derive(Component, Debug, Reflect, Default)]
+#[reflect(Component)]
 pub struct NeedsConnections {
     pub land_connections: Vec<i32>,
     pub sea_connections: Vec<i32>,
@@ -44,18 +49,24 @@ pub struct NeedsConnections {
 pub struct FixTokenPositions;
 
 #[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
 pub struct FloodPlain;
 
 #[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
 pub struct Volcano;
 
 #[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
 pub struct CityFlood;
 
 #[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
 pub struct CitySite;
 
 #[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
+#[require(Save)]
 pub struct CityToken {
     pub player: Entity,
 }
@@ -67,6 +78,8 @@ impl CityToken {
 }
 
 #[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
+#[require(Save)]
 pub struct BuiltCity {
     pub city: Entity,
     pub player: Entity,
@@ -78,7 +91,8 @@ impl BuiltCity {
     }
 }
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
 pub struct StartArea {
     pub faction: GameFaction,
 }
@@ -90,6 +104,7 @@ impl StartArea {
 }
 
 #[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
 pub struct Faction {
     pub faction: GameFaction,
 }
@@ -101,6 +116,8 @@ impl Faction {
 }
 
 #[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
+#[require(Save)]
 pub struct Token {
     player: Entity,
 }
@@ -116,6 +133,7 @@ impl Token {
 }
 
 #[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
 pub struct TokenStock {
     pub max_tokens: usize,
     tokens: HashSet<Entity>,
@@ -180,6 +198,7 @@ impl TokenStock {
 }
 
 #[derive(Component, Debug, Reflect, Default)]
+#[reflect(Component)]
 pub struct PlayerCities {
     pub areas_and_cities: HashMap<Entity, Entity>,
 }
@@ -211,6 +230,7 @@ impl PlayerCities {
 }
 
 #[derive(Component, Debug, Reflect, Default)]
+#[reflect(Component)]
 pub struct PlayerAreas {
     areas: HashSet<Entity>,
     area_population: HashMap<Entity, HashSet<Entity>>,
@@ -335,6 +355,7 @@ impl PlayerAreas {
 }
 
 #[derive(Component, Debug, Reflect, Default)]
+#[reflect(Component)]
 pub struct Treasury {
     tokens: Vec<Entity>,
 }
@@ -354,6 +375,7 @@ impl Treasury {
 }
 
 #[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
 pub struct CityTokenStock {
     pub max_tokens: usize,
     tokens: Vec<Entity>,
