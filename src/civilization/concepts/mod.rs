@@ -8,6 +8,7 @@ mod check_city_support;
 mod city_construction;
 mod conflict;
 mod remove_surplus_population;
+mod area_info;
 
 pub use census::*;
 pub use map::*;
@@ -19,3 +20,4 @@ pub use check_city_support::*;
 pub use city_construction::*;
 pub use conflict::*;
 pub use remove_surplus_population::*;
+pub use area_info::*;

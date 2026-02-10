@@ -1,11 +1,12 @@
-use crate::civilization::components::{Population, BuiltCity, ReturnTokenToStock};
+use crate::civilization::components::{BuiltCity, Population, ReturnTokenToStock};
 use crate::GameActivity;
+use bevy::log::info;
 use bevy::prelude::{Commands, Has, Name, NextState, Query, ResMut};
 
 pub fn remove_surplus_population(
     mut next_state: ResMut<NextState<GameActivity>>,
     mut areas: Query<(&mut Population, Has<BuiltCity>)>,
-    _name_query: Query<&Name>,
+    name_query: Query<&Name>,
     mut commands: Commands,
 ) {
     for (mut area, has_city) in areas.iter_mut() {
@@ -15,8 +16,8 @@ pub fn remove_surplus_population(
                     commands.entity(token).insert(ReturnTokenToStock);
                 }
             } else if area.number_of_players() > 1 {
-                for (_player, _tokens) in area.player_tokens().iter() {
-                    //debug!("Player {:#?} has {:#?} tokens", name_query.get(*player), tokens.len());
+                for (player, tokens) in area.player_tokens().iter() {
+                    info!("Player {:#?} has {:#?} tokens", name_query.get(*player), tokens.len());
                 }
             } else {
                 for token in area.remove_surplus() {

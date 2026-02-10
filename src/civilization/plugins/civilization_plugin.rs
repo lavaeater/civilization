@@ -49,9 +49,9 @@ impl Plugin for CivilizationPlugin {
             TradeCardPlugin,
             MapPlugin,
             TradeUiPlugin,
+            AreaInfoPlugin,
         ))
         .add_systems(OnEnter(GameActivity::StartGame), start_game)
-        // .add_plugins(WorldInspectorPlugin::new())
         .insert_resource(GameInfoAndStuff::default())
         .add_systems(
             Update,
@@ -74,6 +74,7 @@ pub struct DebugOptions {
     pub human_starts_with_trade_cards: bool,
     pub auto_trading: bool,
     pub print_selected_moves: bool,
+    pub log_selected_moves: bool,
     pub number_of_players: usize,
     /// If set, the game will start at this activity instead of the normal flow.
     pub start_at_activity: Option<GameActivity>,
@@ -83,6 +84,9 @@ pub struct DebugOptions {
     /// Number of areas to populate for the human player at start (for testing expansion).
     /// If None, uses normal start (1 token in start area).
     pub human_starting_areas: Option<usize>,
+    pub specific_state_name: Option<String>,
+    /// Delay in seconds before AI processes each move (0.0 = instant)
+    pub ai_move_delay_secs: f32,
 }
 
 impl Default for DebugOptions {
@@ -90,15 +94,18 @@ impl Default for DebugOptions {
         Self {
             add_human_player: true,
             human_faction: GameFaction::Assyria,
-            human_always_pulls_trade_cards: true,
+            human_always_pulls_trade_cards: false,
             ai_always_pulls_trade_cards: false,
             human_starts_with_trade_cards: false,
             auto_trading: false,
-            print_selected_moves: false,
+            print_selected_moves: true,
+            log_selected_moves: false,
             number_of_players: 7,
             start_at_activity: None,
             human_token_count: None,
             human_starting_areas: None,
+            specific_state_name: None,
+            ai_move_delay_secs: 0.1,
         }
     }
 }
@@ -115,12 +122,15 @@ impl DebugOptions {
             human_starts_with_trade_cards: false,
             auto_trading: false,
             print_selected_moves: true,
+            log_selected_moves: false,
             number_of_players: 2,
             start_at_activity: None,
             // Give human only 2 tokens so they can't auto-expand all areas
             human_token_count: Some(2),
             // Populate 3 areas so manual choice is required
             human_starting_areas: Some(3),
+            specific_state_name: None,
+            ai_move_delay_secs: 0.1,
         }
     }
 }

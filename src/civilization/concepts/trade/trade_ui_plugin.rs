@@ -1,4 +1,4 @@
-use crate::civilization::components::Faction;
+use crate::civilization::components::{Faction, PlayerAreas};
 use crate::civilization::concepts::*;
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
@@ -113,7 +113,7 @@ fn _add_commodity_card(
                         .with_text(
                             format!("{}", (n * n) * card_type.value()),
                             Some(defaults.base_font.clone()),
-                            Some(10.0),
+                            Some(18.0),
                             Some(TEXT_COLOR),
                             None, None
                         );
@@ -236,7 +236,6 @@ fn _setup(
 
     let (_root_entity, _commands) = root_ui.build();
     for human_player in human_players.iter() {
-        info!("Human player: {}", human_player);
         pulled_card_event_writer.write(HumanPlayerTradeCardsUpdated::new(human_player));
     }
 }
@@ -250,9 +249,7 @@ fn handle_player_draws_cards(
 ) {
     let mut new_commands = commands;
     for event in reader.read() {
-        info!("Player {} has updated cards", event.player_entity);
         if let Ok(trade_card_list_entity) = trade_card_list.single() {
-            info!("Trade card list exists");
             if let Ok(player_trade_cards) = player_trade_cards.get(event.player_entity) {
                 let mut ui_builder = UIBuilder::start_from_entity(
                     new_commands,
@@ -285,7 +282,7 @@ pub fn setup_trade_ui(
     ui_defaults.base_font = font;
     ui_defaults.bg_color = BG_COLOR;
     ui_defaults.text_color = TEXT_COLOR;
-    ui_defaults.font_size = 16.0;
+    ui_defaults.font_size = 24.0;
     ui_defaults.border_color = BORDER_COLOR;
     ui_defaults.button_def = Some(ButtonPartial {
         border_radius: Some(BorderRadius::MAX),
@@ -329,12 +326,12 @@ pub fn setup_trade_ui(
     // Right side: Collapsible Game Info section
     ui.add_collapsible("Game Info", |info_section| {
         info_section
-            .width_px(250.0)
+            .width_px(450.0)
             .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.7))
             .padding_all_px(4.0);
         
         // Game State section
-        info_section.add_text_child("Game State", None, Some(14.0), None);
+        info_section.add_text_child("Game State", None, None, None);
         info_section.with_child(|state| {
             state
                 .with_component::<GameStateDisplay>()
@@ -344,12 +341,12 @@ pub fn setup_trade_ui(
                 .padding_all_px(4.0)
                 .margin(UiRect::bottom(Val::Px(8.0)));
             
-            state.add_text_child("State: Playing", None, Some(10.0), None);
-            state.add_text_child("Activity: StartGame", None, Some(10.0), None);
+            state.add_text_child("State: Playing", None, None, None);
+            state.add_text_child("Activity: StartGame", None, None, None);
         });
         
         // Player Activity section
-        info_section.add_text_child("Player Activity", None, Some(14.0), None);
+        info_section.add_text_child("Player Activity", None, None, None);
         info_section.with_child(|list| {
             list.with_component::<PlayerActivityListContainer>()
                 .width_percent(100.0)
@@ -366,12 +363,12 @@ pub fn setup_trade_ui(
 }
 
 pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
-    let small_font_size = 9.0;
-    let medium_font_size = 11.0;
+    let small_font_size = 12.0;
+    let medium_font_size = 18.0;
     
     ui.with_child(|card| {
-        card.width_px(55.0)
-            .height_px(38.0)
+        card.width_px(120.0)
+            .height_px(80.0)
             .display_flex()
             .flex_dir_column()
             .justify_center()
@@ -420,7 +417,7 @@ pub fn build_trade_card_list(ui: &mut UIBuilder, trade_cards: &PlayerTradeCards)
                     .with_flex_shrink(0.0);
                 
                 // Pile label
-                row.add_text_child(format!("{}:", pile_value), None, Some(12.0), None);
+                row.add_text_child(format!("{}:", pile_value), None, Some(24.0), None);
                 
                 // Cards in this pile
                 for stack in sorted_stacks {
@@ -463,6 +460,8 @@ fn update_game_state_display(
     ui_defaults: Res<UiBuilderDefaults>,
     current_state: Res<State<GameState>>,
     current_activity: Option<Res<State<GameActivity>>>,
+    game_info: Res<GameInfoAndStuff>,
+    player_query: Query<(&Name, &PlayerAreas, &Faction, Has<IsHuman>), With<Player>>,
 ) {
     let state_changed = game_state_events.read().count() > 0;
     let activity_changed = game_activity_events.read().count() > 0;
@@ -480,6 +479,7 @@ fn update_game_state_display(
         Some(activity) => format!("Activity: {:?}", activity.get()),
         None => "Activity: None".to_string(),
     };
+    let round_text = format!("Round: {}", game_info.round);
     
     let mut ui = UIBuilder::start_from_entity(
         commands,
@@ -488,8 +488,21 @@ fn update_game_state_display(
         Some(ui_defaults.clone()),
     );
     
-    ui.add_text_child(&state_text, None, Some(10.0), None);
-    ui.add_text_child(&activity_text, None, Some(10.0), None);
+    ui.add_text_child(&state_text, None, Some(18.0), None);
+    ui.add_text_child(&activity_text, None, Some(18.0), None);
+    ui.add_text_child(&round_text, None, Some(18.0), None);
+
+    // Census order display
+    ui.add_text_child("Census Order:", None, Some(16.0), Some(Color::srgb(1.0, 0.8, 0.0)));
+    for (i, player_entity) in game_info.census_order.iter().enumerate() {
+        if let Ok((name, player_areas, faction, is_human)) = player_query.get(*player_entity) {
+            let pop = player_areas.total_population();
+            let faction_color = faction_to_color(faction);
+            let human_marker = if is_human { " (YOU)" } else { "" };
+            let census_line = format!("{}. {}{} - Pop: {}", i + 1, name, human_marker, pop);
+            ui.add_text_child(&census_line, None, Some(14.0), Some(faction_color));
+        }
+    }
     
     ui.build();
 }
@@ -533,7 +546,7 @@ fn update_player_activity_display(
     activity_log: Res<PlayerActivityLog>,
     ui_defaults: Res<UiBuilderDefaults>,
     container_query: Query<Entity, With<PlayerActivityListContainer>>,
-    players: Query<(Entity, &Name, &Faction), With<Player>>,
+    players: Query<(Entity, &Name, &Faction, Has<IsHuman>), With<Player>>,
 ) {
     if !activity_log.is_changed() {
         return;
@@ -550,13 +563,18 @@ fn update_player_activity_display(
         Some(ui_defaults.clone()),
     );
     
-    for (player_entity, name, faction) in players.iter() {
+    for (player_entity, name, faction, is_human) in players.iter() {
         let activity = activity_log.get(player_entity);
         let faction_color = faction_to_color(faction);
+        let display_name = if is_human {
+            format!("👤 {} (YOU)", name)
+        } else {
+            name.to_string()
+        };
         
         ui.with_child(|row| {
             row.width_percent(100.0)
-                .height_px(36.0)
+                .height_px(80.0)
                 .display_flex()
                 .flex_dir_row()
                 .align_items_center()
@@ -566,15 +584,15 @@ fn update_player_activity_display(
                 .border_radius_all_px(4.0);
             
             row.with_child(|badge| {
-                badge.width_px(12.0)
-                    .height_px(12.0)
+                badge.width_px(24.0)
+                    .height_px(24.0)
                     .bg_color(faction_color)
                     .border_radius_all_px(6.0)
                     .margin_all_px(6.0);
             });
             
-            row.add_text_child(format!("{}: ", name), None, Some(13.0), Some(faction_color));
-            row.add_text_child(activity, None, Some(12.0), None);
+            row.add_text_child(format!("{}: ", display_name), None, Some(18.0), Some(faction_color));
+            row.add_text_child(activity, None, Some(18.0), None);
         });
     }
     

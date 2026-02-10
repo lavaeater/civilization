@@ -1,4 +1,4 @@
-use crate::civilization::components::{Population, FixTokenPositions, PlayerAreas, Token};
+use crate::civilization::components::{FixTokenPositions, PlayerAreas, Population, Token};
 use crate::civilization::concepts::census::GameInfoAndStuff;
 use crate::civilization::concepts::movement::movement_components::*;
 use crate::civilization::concepts::movement::movement_events::*;
@@ -6,7 +6,7 @@ use crate::civilization::game_moves::{AvailableMoves, RecalculatePlayerMoves};
 use crate::player::Player;
 use crate::GameActivity;
 use bevy::prelude::{
-    Commands, Entity, MessageReader, MessageWriter, NextState, Query, ResMut, Transform, With, Without,
+    info, Commands, Entity, MessageReader, MessageWriter, Name, NextState, Query, ResMut, Transform, With, Without,
 };
 
 pub fn start_movement_activity(
@@ -23,11 +23,14 @@ pub fn prepare_next_mover(
     mut game_info: ResMut<GameInfoAndStuff>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
+    _names: Query<&Name>,
 ) {
     for _ in started.read() {
         if let Some(to_move) = game_info.left_to_move.pop() {
+            // let name = names.get(to_move).map(|n| n.as_str()).unwrap_or("?");
             commands.entity(to_move).insert(PerformingMovement);
         } else {
+            info!("No more players to move, transitioning to Conflict");
             next_state.set(GameActivity::Conflict);
         }
     }
@@ -51,18 +54,17 @@ pub fn player_end_movement(
     mut end_event: MessageReader<PlayerMovementEnded>,
     mut commands: Commands,
     mut next_player: MessageWriter<NextPlayerStarted>,
+    names: Query<&Name>,
 ) {
     for end_movement_event in end_event.read() {
-        // //debug!("Player {} has ended movement", end_movement_event.player);
-        // commands.entity(end_movement_event.player).log_components();
+        let name = names.get(end_movement_event.player).map(|n| n.as_str()).unwrap_or("?");
+        info!("Player {} has ended movement", name);
         commands
             .entity(end_movement_event.player)
             .remove::<PerformingMovement>();
         commands
             .entity(end_movement_event.player)
             .remove::<AvailableMoves>();
-        // //debug!("After removing components");
-        // commands.entity(end_movement_event.player).log_components();
         next_player.write(NextPlayerStarted);
     }
 }

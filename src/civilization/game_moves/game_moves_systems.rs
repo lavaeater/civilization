@@ -1,6 +1,6 @@
 use crate::civilization::{AvailableMoves, BuildCityMove, BuiltCity, CitySite, CityTokenStock, EliminateCityMove, ExpandAutomatically, ExpandManually, GameMove, HasTooManyCities, IsBuilding, LandPassage, MovementMove, NeedsExpansion, PlayerAreas, PlayerCities, PlayerMovementEnded, PopExpMove, Population, RecalculatePlayerMoves, TokenHasMoved, TokenStock};
 use bevy::platform::collections::HashMap;
-use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Query};
+use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Name, Query, info};
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: MessageReader<RecalculatePlayerMoves>,
@@ -53,6 +53,7 @@ pub fn recalculate_movement_moves_for_player(
     token_filter_query: Query<Has<TokenHasMoved>>,
     mut commands: Commands,
     mut end_player_movement: MessageWriter<PlayerMovementEnded>,
+    names: Query<&Name>,
 ) {
     for event in recalc_player_reader.read() {
         commands.entity(event.player).remove::<AvailableMoves>();
@@ -114,9 +115,12 @@ pub fn recalculate_movement_moves_for_player(
             }
         }
 
+        let player_name = names.get(event.player).map(|n| n.as_str()).unwrap_or("?");
         if moves.is_empty() {
+            info!("Player {} has no movement moves, ending movement", player_name);
             end_player_movement.write(PlayerMovementEnded::new(event.player));
         } else {
+            info!("Player {} has {} movement moves", player_name, moves.len());
             moves.insert(command_index + 1, GameMove::EndMovement);
             commands
                 .entity(event.player)

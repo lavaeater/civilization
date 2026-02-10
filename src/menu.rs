@@ -34,7 +34,6 @@ impl Default for ButtonColors {
 struct Menu;
 
 fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>) {
-    info!("menu");
     commands.spawn((
         Camera2d,
         IsDefaultUiCamera,

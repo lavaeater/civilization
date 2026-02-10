@@ -30,27 +30,21 @@ pub fn start_game(
         .for_each(|(player_entity, name, player_faction)| {
             debug!("Starting the game for player: {:#?}", name);
 
-            // Check if this is the human player and we have debug starting areas set
+            // Debug: human player with special starting areas
             let is_human = human_entity == Some(player_entity);
-
-            if is_human {
-                match debug_options.human_starting_areas {
-                    None => {}
-                    Some(num_areas) => {
-                        let areas: Vec<Entity> = all_areas_query.iter().take(num_areas).collect();
-
-                        for area_entity in areas {
-                            debug!(
-                                "Debug: Putting a token in area {:?} for human player",
-                                area_entity
-                            );
-                            writer.write(MoveTokensFromStockToAreaCommand {
-                                area_entity,
-                                player_entity,
-                                number_of_tokens: 1,
-                            });
-                        }
-                    }
+            if is_human && debug_options.human_starting_areas.is_some() {
+                let num_areas = debug_options.human_starting_areas.unwrap();
+                let areas: Vec<Entity> = all_areas_query.iter().take(num_areas).collect();
+                for area_entity in areas {
+                    debug!(
+                        "Debug: Putting a token in area {:?} for human player",
+                        area_entity
+                    );
+                    writer.write(MoveTokensFromStockToAreaCommand {
+                        area_entity,
+                        player_entity,
+                        number_of_tokens: 1,
+                    });
                 }
             } else {
                 // Normal mode: place token in start area
@@ -261,8 +255,12 @@ pub fn move_tokens_from_stock_to_area(
 
 pub fn print_names_of_phases(
     mut state_transition_event: MessageReader<StateTransitionEvent<GameActivity>>,
+    debug_options: Res<DebugOptions>
 ) {
-    for event in state_transition_event.read() {
-        info!("Went from: {:#?} to {:#?}", event.exited, event.entered);
+    if debug_options.log_selected_moves
+    {
+        for event in state_transition_event.read() {
+            info!("Went from: {:#?} to {:#?}", event.exited, event.entered);
+        }
     }
 }

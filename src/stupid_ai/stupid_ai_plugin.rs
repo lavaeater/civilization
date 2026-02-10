@@ -9,10 +9,12 @@ impl Plugin for StupidAiPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<StupidAiMessage>()
             .add_message::<SelectStupidMove>()
+            .init_resource::<AiMoveQueue>()
             .add_systems(
                 Update,
                 (
                     setup_stupid_ai.run_if(in_state(GameState::Playing)),
+                    drain_ai_move_queue.run_if(in_state(GameState::Playing)),
                     select_stupid_pop_exp.run_if(in_state(GameActivity::PopulationExpansion)),
                     select_stupid_movement.run_if(in_state(GameActivity::Movement)),
                     select_stupid_city_building.run_if(in_state(GameActivity::CityConstruction)),

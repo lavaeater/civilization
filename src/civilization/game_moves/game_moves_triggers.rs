@@ -20,7 +20,6 @@ pub fn on_add_perform_movement(
     trigger: On<Add, PerformingMovement>,
     mut event_writer: MessageWriter<RecalculatePlayerMoves>,
 ) {
-    // //debug!("on_add_perform_movement");
     event_writer.write(RecalculatePlayerMoves::new(trigger.event().entity));
 }
 
