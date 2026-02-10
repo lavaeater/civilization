@@ -2,13 +2,17 @@ use crate::civilization::components::*;
 use crate::civilization::concepts::conflict::conflict_components::*;
 use crate::civilization::concepts::conflict::conflict_functions::*;
 use crate::civilization::functions::{replace_city_with_tokens_for_conflict, return_all_tokens_from_area_to_player};
-use bevy::prelude::{Add, Commands, Entity, Name, On, Query};
+use bevy::prelude::{Add, Commands, Entity, Name, NextState, On, Query, ResMut};
 use std::cmp::Ordering;
+use crate::civilization::ConflictCounterResource;
+use crate::GameActivity;
 
 pub fn on_add_unresolved_conflict(
     trigger: On<Add, UnresolvedConflict>,
     mut areas: Query<(Entity, &Name, &mut Population)>,
     mut commands: Commands,
+    mut conflict_counter_resource: ResMut<ConflictCounterResource>,
+    mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     if let Ok((area_entity, _name, mut population)) = areas.get_mut(trigger.event().entity) {
         let temp_map = population.player_tokens().clone();
@@ -24,6 +28,10 @@ pub fn on_add_unresolved_conflict(
         }
 
         commands.entity(area_entity).remove::<UnresolvedConflict>();
+        conflict_counter_resource.0 -= 1;
+        if conflict_counter_resource.0 == 0 {
+            next_state.set(GameActivity::CityConstruction);
+        }
     }
 }
 
@@ -37,8 +45,9 @@ pub fn on_add_unresolved_city_conflict(
         &mut PlayerAreas,
     )>,
     mut commands: Commands,
+    mut conflict_counter_resource: ResMut<ConflictCounterResource>,
+    mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    //debug!("Lets resolve a City Conflict found");
     if let Ok((area_entity, _name, mut population, built_city)) = areas.get_mut(trigger.event().entity) {
         let mut other_players = population.players();
         other_players.remove(&built_city.player);
@@ -48,10 +57,8 @@ pub fn on_add_unresolved_city_conflict(
         {
             match other_players.len().cmp(&1) {
                 Ordering::Less => {
-                    //debug!("There are no other players here, bro");
                 }
                 Ordering::Equal => {
-                    //debug!("There is one other player, we eliminate the city and resolve a regular conflict");
                     if let Ok((
                         mut city_stock,
                         mut token_stock,
@@ -77,13 +84,10 @@ pub fn on_add_unresolved_city_conflict(
                     This is a super special case that requires handling - battles between other parties are to be resolved first, which
                     we incidentally actually CAN handle... yay!
                      */
-                    //debug!("There are more than one other player with six or more tokens!");
                     commands.entity(trigger.event().entity).insert(UnresolvedConflict);
                 }
             }
         } else {
-            //debug!("There are no players with six or more tokens, we eliminate all tokens");
-            // Kill them all
             for player in other_players {
                 if let Ok((_, mut token_stock, _, mut player_areas)) =
                     player_with_city.get_mut(player)
@@ -101,5 +105,9 @@ pub fn on_add_unresolved_city_conflict(
         commands
             .entity(area_entity)
             .remove::<UnresolvedCityConflict>();
+        conflict_counter_resource.0 -= 1;
+        if conflict_counter_resource.0 == 0 {
+            next_state.set(GameActivity::CityConstruction);
+        }
     }
 }

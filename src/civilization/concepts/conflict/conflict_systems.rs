@@ -2,36 +2,30 @@ use crate::GameActivity;
 use bevy::prelude::{Commands, Entity, Has, Name, NextState, Query, ResMut};
 use crate::civilization::components::{BuiltCity, Population};
 use crate::civilization::concepts::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
-
-pub fn conflict_gate(
-    conflicts: Query<&UnresolvedConflict>,
-    city_conflicts: Query<&UnresolvedCityConflict>,
-    mut next_state: ResMut<NextState<GameActivity>>,
-) {
-    if conflicts.is_empty() && city_conflicts.is_empty() {
-        //debug!("No conflicts found, moving to next state");
-        next_state.set(GameActivity::CityConstruction);
-    }
-}
+use crate::civilization::ConflictCounterResource;
 
 pub fn find_conflict_zones(
     pop_query: Query<(Entity, &Name, &Population, Has<BuiltCity>)>,
     mut commands: Commands,
+    mut conflict_counter_resource: ResMut<ConflictCounterResource>,
+    mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     pop_query
         .iter()
         .filter(|(_, _, pop, has_city)| pop.is_conflict_zone(*has_city))
         .for_each(|(conflict_zone, _name, _, has_city)| {
+            conflict_counter_resource.0 += 1;
             if has_city {
-                //debug!("City Conflict Zone found: {:#?}", name);
                 commands
                     .entity(conflict_zone)
                     .insert(UnresolvedCityConflict);
             } else {
-                //debug!("Conflict Zone found: {:#?}", name);
                 commands.entity(conflict_zone).insert(UnresolvedConflict);
             }
         });
+    if conflict_counter_resource.0 == 0 {
+        next_state.set(GameActivity::CityConstruction);
+    }
 }
 
 #[cfg(test)]
@@ -51,11 +45,8 @@ mod tests {
         app.insert_state(GameState::Playing);
         app.add_sub_state::<GameActivity>();
         app.insert_state(GameActivity::Conflict);
+        app.init_resource::<ConflictCounterResource>();
         app.add_systems(OnEnter(GameActivity::Conflict), find_conflict_zones);
-        app.add_systems(
-            Update,
-            conflict_gate.run_if(in_state(GameActivity::Conflict)),
-        );
         app.add_observer(on_add_unresolved_conflict);
         app.add_observer(on_add_unresolved_city_conflict);
         app
