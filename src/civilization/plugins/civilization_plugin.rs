@@ -49,6 +49,7 @@ impl Plugin for CivilizationPlugin {
             TradeCardPlugin,
             MapPlugin,
             TradeUiPlugin,
+            AreaInfoPlugin,
         ))
         .add_systems(OnEnter(GameActivity::StartGame), start_game)
         .insert_resource(GameInfoAndStuff::default())
