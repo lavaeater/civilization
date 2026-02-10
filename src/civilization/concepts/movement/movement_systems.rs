@@ -6,8 +6,9 @@ use crate::civilization::game_moves::{AvailableMoves, RecalculatePlayerMoves};
 use crate::player::Player;
 use crate::GameActivity;
 use bevy::prelude::{
-    info, Commands, Entity, MessageReader, MessageWriter, Name, NextState, Query, ResMut, Transform, With, Without,
+    info, Commands, Entity, MessageReader, MessageWriter, Name, NextState, Query, Res, ResMut, Transform, With, Without,
 };
+use bevy::time::Time;
 
 pub fn start_movement_activity(
     mut game_info: ResMut<GameInfoAndStuff>,
@@ -74,7 +75,7 @@ pub fn move_tokens_from_area_to_area(
     mut commands: Commands,
     mut player_areas: Query<&mut PlayerAreas>,
     tokens_that_can_move: Query<&Token, Without<TokenHasMoved>>,
-    mut token_transform: Query<&mut Transform, With<Token>>,
+    token_transform: Query<&Transform, With<Token>>,
     mut recalculate_player_moves: MessageWriter<RecalculatePlayerMoves>,
 ) {
     for ev in move_events.read() {
@@ -100,10 +101,16 @@ pub fn move_tokens_from_area_to_area(
 
                     if let Ok((mut to_pop, target_transform)) = pop_query.get_mut(ev.target_area) {
                         if let Ok(mut player_area) = player_areas.get_mut(ev.player) {
+                            let target_pos = target_transform.translation;
                             tokens_to_move.iter().for_each(|token| {
                                 commands.entity(*token).insert(TokenHasMoved);
-                                if let Ok(mut token_transform) = token_transform.get_mut(*token) {
-                                    token_transform.translation = target_transform.translation;
+                                if let Ok(token_transform) = token_transform.get(*token) {
+                                    let start_pos = token_transform.translation;
+                                    commands.entity(*token).insert(TokenMoveAnimation::new(
+                                        start_pos,
+                                        target_pos,
+                                        0.15, // 150ms animation duration
+                                    ));
                                 }
                                 player_area.remove_token_from_area(&ev.source_area, *token);
                                 to_pop.add_token_to_area(ev.player, *token);
@@ -117,5 +124,23 @@ pub fn move_tokens_from_area_to_area(
         commands.entity(ev.player).insert(HasJustMoved);
         commands.entity(ev.source_area).insert(FixTokenPositions);
         commands.entity(ev.target_area).insert(FixTokenPositions);
+    }
+}
+
+/// System to animate tokens moving from one area to another
+pub fn animate_token_movement(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut query: Query<(Entity, &mut Transform, &mut TokenMoveAnimation)>,
+) {
+    for (entity, mut transform, mut animation) in query.iter_mut() {
+        animation.elapsed += time.delta_secs();
+        transform.translation = animation.current_position();
+        
+        if animation.is_complete() {
+            // Ensure we're exactly at the end position
+            transform.translation = animation.end_pos;
+            commands.entity(entity).remove::<TokenMoveAnimation>();
+        }
     }
 }

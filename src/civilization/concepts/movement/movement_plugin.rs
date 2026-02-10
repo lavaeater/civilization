@@ -21,6 +21,7 @@ impl Plugin for MovementPlugin {
                     prepare_next_mover.run_if(in_state(GameActivity::Movement)),
                     player_end_movement.run_if(in_state(GameActivity::Movement)),
                     move_tokens_from_area_to_area.run_if(in_state(GameActivity::Movement)),
+                    animate_token_movement.run_if(in_state(GameActivity::Movement)),
                     // Human player movement UI systems
                     setup_human_movement_options.run_if(in_state(GameActivity::Movement)),
                     spawn_movement_controls_ui.run_if(in_state(GameActivity::Movement)),

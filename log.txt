@@ -1,0 +1,8 @@
+:civilization::concepts::remove_surplus_popu
+ lation::remove_surplus_systems: [SURPLUS] After removal: total=3, surplus=0
+ 2026-02-10T20:37:46.909844Z  WARN calloop::loop_logic: [calloop] Received an event for
+  non-existence source: TokenInner { id: 3, version: 11, sub_id: 0 }
+ 2026-02-10T20:37:48.360552Z  WARN calloop::loop_logic: [calloop] Received an event for
+  non-existence source: TokenInner { id: 3, version: 12, sub_id: 0 }
+ 2026-02-10T20:38:13.960855Z  WARN calloop::loop_logic: [calloop] Received an event for
+  non-existence source: TokenInner { id: 3, version: 13, sub_id: 0 }    
