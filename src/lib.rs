@@ -28,10 +28,15 @@ pub enum GameState {
     #[default]
     Loading,
     Playing,
-    Paused,
     Sandbox,
     Menu,
 }
+
+/// Resource that indicates the game is paused. When present, game systems
+/// should be suspended but `GameState::Playing` remains active so that
+/// `GameActivity` sub-state is preserved.
+#[derive(Resource, Default)]
+pub struct GamePaused;
 
 #[derive(SubStates, Clone, PartialEq, Eq, Hash, Debug, Default, Reflect)]
 #[source(GameState = GameState::Playing)]
