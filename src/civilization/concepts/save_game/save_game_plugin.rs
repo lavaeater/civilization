@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::platform::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -8,16 +9,28 @@ use crate::civilization::concepts::census::GameInfoAndStuff;
 use crate::civilization::enums::GameFaction;
 use crate::civilization::{PlayerTradeCards, Census, TradeCard};
 use crate::player::Player;
-use crate::stupid_ai::IsHuman;
+use crate::stupid_ai::{IsHuman, StupidAi};
 use crate::GameActivity;
 
 const SAVE_FILE_PATH: &str = "savegame.json";
+
+/// Resource to signal that a game should be loaded
+#[derive(Resource)]
+pub struct PendingGameLoad(pub GameSaveData);
 
 pub struct SaveGamePlugin;
 
 impl Plugin for SaveGamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (save_on_key, load_on_key));
+        app.add_systems(Update, (save_on_key, trigger_load_on_key))
+            .add_systems(
+                OnEnter(GameActivity::PrepareGame),
+                load_game_from_save.before(crate::civilization::general_systems::setup_players),
+            )
+            .add_systems(
+                OnEnter(GameActivity::StartGame),
+                restore_area_populations,
+            );
     }
 }
 
@@ -139,8 +152,9 @@ fn save_on_key(
     }
 }
 
-fn load_on_key(
+fn trigger_load_on_key(
     keys: Res<ButtonInput<KeyCode>>,
+    mut commands: Commands,
 ) {
     if !keys.just_pressed(KeyCode::F9) {
         return;
@@ -157,14 +171,202 @@ fn load_on_key(
         Ok(json) => {
             match serde_json::from_str::<GameSaveData>(&json) {
                 Ok(save_data) => {
-                    info!("Loaded save data: round {}, {} players, {} areas",
+                    info!("Parsed save data: round {}, {} players, {} areas",
                         save_data.round, save_data.players.len(), save_data.area_populations.len());
-                    // TODO: Implement actual game state restoration
-                    // This will require triggering a state transition and spawning entities
+                    // Insert the pending load resource - will be processed on PrepareGame
+                    commands.insert_resource(PendingGameLoad(save_data));
+                    info!("Save data queued for loading. Start a new game to apply.");
                 }
                 Err(e) => error!("Failed to parse save file: {}", e),
             }
         }
         Err(e) => error!("Failed to read save file: {}", e),
     }
+}
+
+/// System that loads game state from a pending save file.
+/// Runs before setup_players on PrepareGame entry.
+fn load_game_from_save(
+    mut commands: Commands,
+    pending_load: Option<Res<PendingGameLoad>>,
+    mut game_info: ResMut<GameInfoAndStuff>,
+    _area_query: Query<(Entity, &GameArea, &mut Population)>,
+) {
+    let Some(pending) = pending_load else {
+        return;
+    };
+    
+    let save_data = &pending.0;
+    info!("Loading game from save: round {}, {} players", save_data.round, save_data.players.len());
+    
+    // Set game round
+    game_info.round = save_data.round;
+    
+    // Create a map of faction -> player entity for later use
+    let mut faction_to_player: HashMap<GameFaction, Entity> = HashMap::default();
+    
+    // Create players
+    for (n, saved_player) in save_data.players.iter().enumerate() {
+        info!("Creating player: {} ({:?})", saved_player.name, saved_player.faction);
+        
+        // Create trade cards from saved data
+        let trade_cards = PlayerTradeCards::from_cards_vec(saved_player.trade_cards.clone());
+        
+        // Create player entity
+        let player = commands
+            .spawn((
+                Player,
+                Name::new(saved_player.name.clone()),
+                Census { population: saved_player.census_population },
+                Treasury::default(), // Treasury tokens will be created separately if needed
+                Faction::new(saved_player.faction),
+                PlayerAreas::default(),
+                PlayerCities::default(),
+                trade_cards,
+            ))
+            .id();
+        
+        // Add AI or Human marker
+        if saved_player.is_human {
+            commands.entity(player).insert(IsHuman);
+            info!("  -> Human player");
+        } else {
+            commands.entity(player).insert(StupidAi);
+        }
+        
+        // Create tokens for stock
+        let tokens: Vec<Entity> = (0..saved_player.tokens_in_stock)
+            .map(|_| {
+                commands
+                    .spawn((Name::new(format!("Token {n}")), Token::new(player)))
+                    .id()
+            })
+            .collect();
+        
+        // Create city tokens for stock
+        let city_tokens: Vec<Entity> = (0..saved_player.city_tokens_in_stock)
+            .map(|_| {
+                commands
+                    .spawn((Name::new(format!("City {n}")), CityToken::new(player)))
+                    .id()
+            })
+            .collect();
+        
+        commands.entity(player).insert((
+            TokenStock::new(47, tokens), // max_tokens is always 47
+            CityTokenStock::new(9, city_tokens),
+        ));
+        
+        faction_to_player.insert(saved_player.faction, player);
+    }
+    
+    // Store faction_to_player mapping for area population restoration
+    commands.insert_resource(LoadedFactionMap(faction_to_player.clone()));
+    commands.insert_resource(PendingAreaPopulations(save_data.area_populations.clone()));
+    
+    // Remove the pending load resource
+    commands.remove_resource::<PendingGameLoad>();
+    
+    info!("Players created from save. Area populations will be restored after map loads.");
+}
+
+/// Resource to map factions to player entities during load
+#[derive(Resource)]
+pub struct LoadedFactionMap(pub HashMap<GameFaction, Entity>);
+
+/// Resource to hold pending area populations to restore after map loads
+#[derive(Resource)]
+pub struct PendingAreaPopulations(pub Vec<SavedAreaPopulation>);
+
+/// System to restore area populations from save data.
+/// Runs on StartGame entry, after the map has been loaded.
+fn restore_area_populations(
+    mut commands: Commands,
+    pending_pops: Option<Res<PendingAreaPopulations>>,
+    faction_map: Option<Res<LoadedFactionMap>>,
+    mut area_query: Query<(Entity, &GameArea, &mut Population)>,
+    mut player_areas_query: Query<&mut PlayerAreas>,
+    mut player_cities_query: Query<&mut PlayerCities>,
+    mut city_stock_query: Query<&mut CityTokenStock>,
+) {
+    let Some(pending) = pending_pops else {
+        return;
+    };
+    let Some(factions) = faction_map else {
+        return;
+    };
+    
+    info!("Restoring {} area populations from save", pending.0.len());
+    
+    // Build a map of area_id -> area_entity
+    let area_id_to_entity: HashMap<i32, Entity> = area_query
+        .iter()
+        .map(|(entity, game_area, _)| (game_area.id, entity))
+        .collect();
+    
+    for saved_area in pending.0.iter() {
+        let Some(&area_entity) = area_id_to_entity.get(&saved_area.area_id) else {
+            warn!("Area {} not found in map, skipping", saved_area.area_id);
+            continue;
+        };
+        
+        // Get mutable population for this area
+        let Ok((_, _, mut population)) = area_query.get_mut(area_entity) else {
+            continue;
+        };
+        
+        // Add tokens for each faction
+        for (faction, token_count) in &saved_area.tokens_by_faction {
+            let Some(&player_entity) = factions.0.get(faction) else {
+                warn!("Faction {:?} not found in loaded players", faction);
+                continue;
+            };
+            
+            // Create tokens and add them to the area
+            for _ in 0..*token_count {
+                let token = commands
+                    .spawn((Name::new("Loaded Token"), Token::new(player_entity)))
+                    .id();
+                population.add_token_to_area(player_entity, token);
+                
+                // Update player areas
+                if let Ok(mut player_areas) = player_areas_query.get_mut(player_entity) {
+                    player_areas.add_token_to_area(area_entity, token);
+                }
+            }
+            
+            info!("  Area {}: {} tokens for {:?}", saved_area.area_id, token_count, faction);
+        }
+        
+        // Build city if needed
+        if let Some(city_faction) = &saved_area.city_owner {
+            let Some(&player_entity) = factions.0.get(city_faction) else {
+                warn!("City owner faction {:?} not found", city_faction);
+                continue;
+            };
+            
+            // Get a city token from the player's stock
+            if let Ok(mut city_stock) = city_stock_query.get_mut(player_entity) {
+                if let Some(city_token) = city_stock.get_token_from_stock() {
+                    // Add BuiltCity component to the area
+                    commands.entity(area_entity).insert(BuiltCity::new(city_token, player_entity));
+                    
+                    // Update player cities
+                    if let Ok(mut player_cities) = player_cities_query.get_mut(player_entity) {
+                        player_cities.build_city_in_area(area_entity, city_token);
+                    }
+                    
+                    info!("  Area {}: city built by {:?}", saved_area.area_id, city_faction);
+                } else {
+                    warn!("No city tokens available for {:?}", city_faction);
+                }
+            }
+        }
+    }
+    
+    // Clean up resources
+    commands.remove_resource::<PendingAreaPopulations>();
+    commands.remove_resource::<LoadedFactionMap>();
+    
+    info!("Area populations restored from save");
 }
