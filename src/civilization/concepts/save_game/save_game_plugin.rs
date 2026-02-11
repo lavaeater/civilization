@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
+use bevy::render::sync_world::SyncToRenderWorld;
 use bevy_camera::visibility::VisibilityClass;
 use moonshine_save::prelude::*;
 
@@ -13,11 +14,19 @@ impl Plugin for SaveGamePlugin {
     }
 }
 
-/// Creates a SaveWorld event with problematic components excluded
+/// Creates a SaveWorld event with problematic components excluded.
+/// These components contain types that can't be serialized (asset handles, TypeId, etc.)
 pub fn create_save_event() -> SaveWorld {
     SaveWorld::default_into_file("savegame.ron")
         .exclude_component::<VisibilityClass>()
         .exclude_component::<CameraRenderGraph>()
+        .exclude_component::<Sprite>()
+        .exclude_component::<Transform>()
+        .exclude_component::<GlobalTransform>()
+        .exclude_component::<Visibility>()
+        .exclude_component::<InheritedVisibility>()
+        .exclude_component::<ViewVisibility>()
+        .exclude_component::<SyncToRenderWorld>()
 }
 
 fn save_on_key(mut commands: Commands, keys: Res<ButtonInput<KeyCode>>) {

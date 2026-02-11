@@ -106,75 +106,98 @@ pub fn setup_players(
     let mut available_names: Vec<&str> = ANCIENT_RULERS.to_vec();
     available_names.shuffle(&mut rand::rng());
 
-    (1..=debug_options.number_of_players).for_each(|n| {
-        if let Some(faction) = available_factions
-            .remaining_factions
-            .clone()
-            .iter()
-            .choose(&mut rand::rng())
-        {
-            available_factions.remaining_factions.remove(faction);
-            let ruler_name = available_names.pop().unwrap_or("Unknown");
-            // Create Player
-            let player = commands
-                .spawn((
-                    Player,
-                    Name::new(format!("{} of {:?}", ruler_name, faction)),
-                    Census { population: 0 },
-                    Treasury::default(),
-                    Faction::new(*faction),
-                    PlayerAreas::default(),
-                    PlayerCities::default(),
-                    StupidAi,
-                    PlayerTradeCards::default(),
-                ))
-                .id();
-
-            if debug_options.add_human_player && *faction == debug_options.human_faction {
-                info!("Added human player");
-                commands.entity(player).remove::<StupidAi>();
-                commands.entity(player).insert(IsHuman);
-                if debug_options.human_starts_with_trade_cards {
-                    let mut player_trade_cards = PlayerTradeCards::default();
-                    (1..=9).for_each(|pile| {
-                        if let Some(pulled_card) = trade_card_resource.pull_card_from(pile) {
-                            player_trade_cards.add_trade_card(pulled_card);
-                        }
-                    });
-                    commands.entity(player).insert(player_trade_cards);
-                }
-            }
-
-            // Determine token count - use debug override for human player if set
-            let is_human =
-                debug_options.add_human_player && *faction == debug_options.human_faction;
-            let token_count = if is_human {
-                debug_options.human_token_count.unwrap_or(47)
-            } else {
-                47
-            };
-
-            let tokens = (0..token_count)
-                .map(|_| {
-                    commands
-                        .spawn((Name::new(format!("Token {n}")), Token::new(player)))
-                        .id()
-                })
-                .collect::<Vec<Entity>>();
-
-            let city_tokens = (0..9)
-                .map(|_| {
-                    commands
-                        .spawn((Name::new(format!("City {n}")), CityToken::new(player)))
-                        .id()
-                })
-                .collect::<Vec<Entity>>();
-            commands.entity(player).insert((
-                TokenStock::new(token_count, tokens),
-                CityTokenStock::new(9, city_tokens),
-            ));
+    // If adding a human player, ensure their faction is included first
+    let mut factions_to_use: Vec<_> = if debug_options.add_human_player {
+        // Start with the human faction
+        let mut factions = vec![debug_options.human_faction];
+        available_factions.remaining_factions.remove(&debug_options.human_faction);
+        
+        // Add random factions for the remaining players
+        let remaining_count = debug_options.number_of_players.saturating_sub(1);
+        let mut remaining: Vec<_> = available_factions.remaining_factions.iter().copied().collect();
+        remaining.shuffle(&mut rand::rng());
+        factions.extend(remaining.into_iter().take(remaining_count));
+        
+        // Remove used factions from available
+        for f in &factions {
+            available_factions.remaining_factions.remove(f);
         }
-    });
+        factions
+    } else {
+        // No human player - just pick random factions
+        let mut remaining: Vec<_> = available_factions.remaining_factions.iter().copied().collect();
+        remaining.shuffle(&mut rand::rng());
+        let factions: Vec<_> = remaining.into_iter().take(debug_options.number_of_players).collect();
+        for f in &factions {
+            available_factions.remaining_factions.remove(f);
+        }
+        factions
+    };
+    
+    // Shuffle so human isn't always first
+    factions_to_use.shuffle(&mut rand::rng());
+
+    for (n, faction) in factions_to_use.into_iter().enumerate() {
+        let ruler_name = available_names.pop().unwrap_or("Unknown");
+        // Create Player
+        let player = commands
+            .spawn((
+                Player,
+                Name::new(format!("{} of {:?}", ruler_name, faction)),
+                Census { population: 0 },
+                Treasury::default(),
+                Faction::new(faction),
+                PlayerAreas::default(),
+                PlayerCities::default(),
+                StupidAi,
+                PlayerTradeCards::default(),
+            ))
+            .id();
+
+        if debug_options.add_human_player && faction == debug_options.human_faction {
+            info!("Added human player");
+            commands.entity(player).remove::<StupidAi>();
+            commands.entity(player).insert(IsHuman);
+            if debug_options.human_starts_with_trade_cards {
+                let mut player_trade_cards = PlayerTradeCards::default();
+                (1..=9).for_each(|pile| {
+                    if let Some(pulled_card) = trade_card_resource.pull_card_from(pile) {
+                        player_trade_cards.add_trade_card(pulled_card);
+                    }
+                });
+                commands.entity(player).insert(player_trade_cards);
+            }
+        }
+
+        // Determine token count - use debug override for human player if set
+        let is_human =
+            debug_options.add_human_player && faction == debug_options.human_faction;
+        let token_count = if is_human {
+            debug_options.human_token_count.unwrap_or(47)
+        } else {
+            47
+        };
+
+        let tokens = (0..token_count)
+            .map(|_| {
+                commands
+                    .spawn((Name::new(format!("Token {n}")), Token::new(player)))
+                    .id()
+            })
+            .collect::<Vec<Entity>>();
+
+        let city_tokens = (0..9)
+            .map(|_| {
+                commands
+                    .spawn((Name::new(format!("City {n}")), CityToken::new(player)))
+                    .id()
+            })
+            .collect::<Vec<Entity>>();
+        commands.entity(player).insert((
+            TokenStock::new(token_count, tokens),
+            CityTokenStock::new(9, city_tokens),
+        ));
+    }
 }
 
 pub fn connect_areas(
