@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
-use bevy::render::view::VisibilityClass;
+use bevy_camera::visibility::VisibilityClass;
 use moonshine_save::prelude::*;
 
 pub struct SaveGamePlugin;
