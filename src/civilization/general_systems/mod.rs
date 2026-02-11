@@ -1,5 +1,6 @@
 use crate::civilization::components::*;
 use crate::civilization::concepts::{AvailableFactions, Census};
+use crate::civilization::concepts::save_game::LoadingFromSave;
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::plugins::DebugOptions;
 use crate::civilization::{CivilizationTradeCards, PlayerTradeCards};
@@ -101,11 +102,11 @@ pub fn setup_players(
     mut trade_card_resource: ResMut<CivilizationTradeCards>,
     mut commands: Commands,
     mut available_factions: ResMut<AvailableFactions>,
-    existing_players: Query<Entity, With<Player>>,
+    loading_from_save: Option<Res<LoadingFromSave>>,
 ) {
-    // Skip setup if players already exist (e.g., after loading a save)
-    if !existing_players.is_empty() {
-        info!("Players already exist ({}), skipping setup (likely loaded from save)", existing_players.iter().count());
+    // Skip setup entirely if we're loading from a save file
+    if loading_from_save.is_some() {
+        info!("Loading from save - skipping setup_players");
         return;
     }
     

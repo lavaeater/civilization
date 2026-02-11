@@ -10,13 +10,18 @@ use crate::civilization::enums::GameFaction;
 use crate::civilization::{PlayerTradeCards, Census, TradeCard};
 use crate::player::Player;
 use crate::stupid_ai::{IsHuman, StupidAi};
-use crate::GameActivity;
+use crate::{GameActivity, GameState};
 
 const SAVE_FILE_PATH: &str = "savegame.json";
 
 /// Resource to signal that a game should be loaded
 #[derive(Resource)]
 pub struct PendingGameLoad(pub GameSaveData);
+
+/// Resource that indicates we're loading from a save file.
+/// When present, setup_players should be skipped entirely.
+#[derive(Resource)]
+pub struct LoadingFromSave;
 
 pub struct SaveGamePlugin;
 
@@ -155,6 +160,7 @@ fn save_on_key(
 fn trigger_load_on_key(
     keys: Res<ButtonInput<KeyCode>>,
     mut commands: Commands,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     if !keys.just_pressed(KeyCode::F9) {
         return;
@@ -175,7 +181,9 @@ fn trigger_load_on_key(
                         save_data.round, save_data.players.len(), save_data.area_populations.len());
                     // Insert the pending load resource - will be processed on PrepareGame
                     commands.insert_resource(PendingGameLoad(save_data));
-                    info!("Save data queued for loading. Start a new game to apply.");
+                    // Transition to Playing state to trigger the game start
+                    next_state.set(GameState::Playing);
+                    info!("Loading saved game...");
                 }
                 Err(e) => error!("Failed to parse save file: {}", e),
             }
@@ -195,6 +203,9 @@ fn load_game_from_save(
     let Some(pending) = pending_load else {
         return;
     };
+    
+    // Mark that we're loading from save - this prevents setup_players from running
+    commands.insert_resource(LoadingFromSave);
     
     let save_data = &pending.0;
     info!("Loading game from save: round {}, {} players", save_data.round, save_data.players.len());
@@ -367,6 +378,7 @@ fn restore_area_populations(
     // Clean up resources
     commands.remove_resource::<PendingAreaPopulations>();
     commands.remove_resource::<LoadedFactionMap>();
+    commands.remove_resource::<LoadingFromSave>();
     
     info!("Area populations restored from save");
 }
