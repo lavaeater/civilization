@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy::render::sync_world::SyncToRenderWorld;
 use bevy_camera::visibility::VisibilityClass;
+use crate::stupid_ai::{IsHuman, StupidAi};
 use moonshine_save::prelude::*;
 
 pub struct SaveGamePlugin;
@@ -40,5 +41,18 @@ fn load_on_key(mut commands: Commands, keys: Res<ButtonInput<KeyCode>>) {
     if keys.just_pressed(KeyCode::F9) {
         info!("Loading game...");
         commands.trigger_load(LoadWorld::default_from_file("savegame.ron"));
+    }
+}
+
+/// System to verify IsHuman component is present after load
+pub fn verify_human_player_after_load(
+    human_query: Query<(Entity, &Name), With<IsHuman>>,
+    ai_query: Query<(Entity, &Name), With<StupidAi>>,
+) {
+    for (entity, name) in human_query.iter() {
+        info!("[LOAD_VERIFY] Human player found: {:?} - {}", entity, name);
+    }
+    for (entity, name) in ai_query.iter() {
+        info!("[LOAD_VERIFY] AI player found: {:?} - {}", entity, name);
     }
 }

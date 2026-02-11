@@ -101,7 +101,14 @@ pub fn setup_players(
     mut trade_card_resource: ResMut<CivilizationTradeCards>,
     mut commands: Commands,
     mut available_factions: ResMut<AvailableFactions>,
+    existing_players: Query<Entity, With<Player>>,
 ) {
+    // Skip setup if players already exist (e.g., after loading a save)
+    if !existing_players.is_empty() {
+        info!("Players already exist ({}), skipping setup (likely loaded from save)", existing_players.iter().count());
+        return;
+    }
+    
     debug!("3. Setting up players!");
     let mut available_names: Vec<&str> = ANCIENT_RULERS.to_vec();
     available_names.shuffle(&mut rand::rng());
