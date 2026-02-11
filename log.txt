@@ -1,8 +1,4 @@
-:civilization::concepts::remove_surplus_popu
- lation::remove_surplus_systems: [SURPLUS] After removal: total=3, surplus=0
- 2026-02-10T20:37:46.909844Z  WARN calloop::loop_logic: [calloop] Received an event for
-  non-existence source: TokenInner { id: 3, version: 11, sub_id: 0 }
- 2026-02-10T20:37:48.360552Z  WARN calloop::loop_logic: [calloop] Received an event for
-  non-existence source: TokenInner { id: 3, version: 12, sub_id: 0 }
- 2026-02-10T20:38:13.960855Z  WARN calloop::loop_logic: [calloop] Received an event for
-  non-existence source: TokenInner { id: 3, version: 13, sub_id: 0 }    
+
+2026-02-11T07:57:45.501955Z  INFO adv_civ::menu: Saving game...
+2026-02-11T07:57:45.503776Z ERROR moonshine_save::save: save failed: Ron(Message("type `core::any::TypeId` did not register the `ReflectSerialize` or `ReflectSerializeWithRegistry` type data. For certain types, this may need to be registered manually using `register_type_data` (stack: `bevy_camera::visibility::VisibilityClass` -> `smallvec::SmallVec<[core::any::TypeId; 1]>` -> `core::any::TypeId`)"))
+ (Command `Enable the debug feature to see the name` failed)

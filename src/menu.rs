@@ -1,4 +1,5 @@
 use crate::civilization::components::GameCamera;
+use crate::civilization::save_game::create_save_event;
 use crate::loading::TextureAssets;
 use crate::{GamePaused, GameState};
 use bevy::prelude::*;
@@ -202,7 +203,7 @@ fn handle_pause_buttons(
     for interaction in &save_query {
         if *interaction == Interaction::Pressed {
             info!("Saving game...");
-            commands.trigger_save(SaveWorld::default_into_file("savegame.ron"));
+            commands.trigger_save(create_save_event());
         }
     }
     for interaction in &load_query {
