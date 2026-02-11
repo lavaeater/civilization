@@ -278,6 +278,20 @@ impl PlayerTradeCards {
             None => None, // No cards of this type
         }
     }
+    
+    /// Returns cards as a vector of (TradeCard, count) tuples for serialization
+    pub fn cards_as_vec(&self) -> Vec<(TradeCard, usize)> {
+        self.cards.iter().map(|(card, count)| (*card, *count)).collect()
+    }
+    
+    /// Restores cards from a vector of (TradeCard, count) tuples
+    pub fn from_cards_vec(cards: Vec<(TradeCard, usize)>) -> Self {
+        let mut player_cards = Self::default();
+        for (card, count) in cards {
+            player_cards.cards.insert(card, count);
+        }
+        player_cards
+    }
 }
 
 pub fn hex(hex_str: &str) -> Color {

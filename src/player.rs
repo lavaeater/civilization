@@ -2,13 +2,11 @@ use crate::GameState;
 use crate::actions::Actions;
 use crate::loading::TextureAssets;
 use bevy::prelude::*;
-use moonshine_save::prelude::Save;
 
 pub struct PlayerPlugin;
 
 #[derive(Component, Default, Reflect)]
 #[reflect(Component)]
-#[require(Save)]
 pub struct Player;
 
 /// This plugin handles player related stuff like movement

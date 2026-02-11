@@ -45,7 +45,6 @@ test-utils = []
 #   and android_shared_stdcxx/android-game-activity, since those are covered in `mobile`
 [dependencies]
 bevy = { version = "0.18.0", default-features = false, features = ["2d", "ui", "experimental_bevy_feathers", "bevy_gizmos"] }
-bevy_camera = { version = "0.18.0" }
 bevy_kira_audio = { version = "0.25.0", features = ["android_shared_stdcxx"] }
 bevy_asset_loader = { version = "0.25.0" }
 rand = { version = "0.10.0-rc.8" }
@@ -61,7 +60,6 @@ serde_json = { version = "1.0.145" }
 serde = { version = "1.0.228", features = ["derive"] }
 bevy_common_assets = { version = "0.15.0", features = ["ron"] }
 lava_ui_builder = { path = "lava_ui_builder" }
-moonshine-save = "0.6.1"
 
 [build-dependencies]
 embed-resource = "1"

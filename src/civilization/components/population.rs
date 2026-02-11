@@ -1,27 +1,11 @@
 use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{default, Component, Entity, Reflect, ReflectComponent};
-use moonshine_save::prelude::{EntityMapper, MapEntities, ReflectMapEntities};
 
 #[derive(Component, Debug, Reflect, Default)]
-#[component(map_entities)]
-#[reflect(Component, MapEntities)]
+#[reflect(Component)]
 pub struct Population {
     player_tokens: HashMap<Entity, HashSet<Entity>>,
     pub max_population: usize,
-}
-
-impl MapEntities for Population {
-    fn map_entities<M: EntityMapper>(&mut self, mapper: &mut M) {
-        self.player_tokens = self
-            .player_tokens
-            .drain()
-            .map(|(player, tokens)| {
-                let new_player = mapper.get_mapped(player);
-                let new_tokens = tokens.iter().map(|t| mapper.get_mapped(*t)).collect();
-                (new_player, new_tokens)
-            })
-            .collect();
-    }
 }
 
 impl Population {

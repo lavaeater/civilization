@@ -88,7 +88,6 @@ dependencies = [
  "adv_civ",
  "bevy",
  "bevy_asset_loader",
- "bevy_camera",
  "bevy_common_assets",
  "bevy_kira_audio",
  "embed-resource",
@@ -96,7 +95,6 @@ dependencies = [
  "itertools 0.14.0",
  "lava_ui_builder",
  "log",
- "moonshine-save",
  "pretty_assertions",
  "rand 0.10.0-rc.8",
  "serde",
@@ -3397,39 +3395,6 @@ name = "mint"
 version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e53debba6bda7a793e5f99b8dacf19e626084f525f7829104ba9898f367d85ff"
-
-[[package]]
-name = "moonshine-save"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90b460c1065d660fc40aa86921aa75dfb1b14693ec0b5d9fd1a8e7d892e101b0"
-dependencies = [
- "bevy_app",
- "bevy_ecs",
- "bevy_log",
- "bevy_platform",
- "bevy_reflect",
- "bevy_scene",
- "bevy_utils",
- "moonshine-util",
- "ron 0.12.0",
- "serde",
- "thiserror 2.0.12",
-]
-
-[[package]]
-name = "moonshine-util"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9057c9b2627df7dfe9478bd2519ed06aa8a801dba1e39d768d731ade428fad3"
-dependencies = [
- "bevy_app",
- "bevy_ecs",
- "bevy_log",
- "bevy_platform",
- "bevy_reflect",
- "disqualified",
-]
 
 [[package]]
 name = "moxcms"

@@ -1,10 +1,8 @@
 use crate::civilization::components::GameCamera;
-use crate::civilization::concepts::create_save_event;
 use crate::loading::TextureAssets;
 use crate::{GamePaused, GameState};
 use bevy::prelude::*;
 use lava_ui_builder::{UIBuilder, UiTheme};
-use moonshine_save::prelude::*;
 
 pub struct MenuPlugin;
 
@@ -108,9 +106,8 @@ fn handle_menu_buttons(
     }
     for interaction in &load_query {
         if *interaction == Interaction::Pressed {
-            info!("Loading game from main menu...");
-            commands.trigger_load(LoadWorld::default_from_file("savegame.ron"));
-            next_state.set(GameState::Playing);
+            info!("Load from main menu - use F9 key instead for now");
+            // TODO: Implement menu-triggered load
         }
     }
 }
@@ -202,18 +199,14 @@ fn handle_pause_buttons(
     }
     for interaction in &save_query {
         if *interaction == Interaction::Pressed {
-            info!("Saving game...");
-            commands.trigger_save(create_save_event());
+            info!("Save triggered from menu - use F5 key instead for now");
+            // TODO: Implement menu-triggered save
         }
     }
     for interaction in &load_query {
         if *interaction == Interaction::Pressed {
-            info!("Loading game...");
-            commands.remove_resource::<GamePaused>();
-            for entity in pause_menu.iter() {
-                commands.entity(entity).despawn();
-            }
-            commands.trigger_load(LoadWorld::default_from_file("savegame.ron"));
+            info!("Load triggered from menu - use F9 key instead for now");
+            // TODO: Implement menu-triggered load
         }
     }
     for interaction in &main_menu_query {

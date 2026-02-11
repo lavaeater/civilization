@@ -1,7 +1,6 @@
 use crate::civilization::enums::GameFaction;
 use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{Component, Entity, Reflect, ReflectComponent};
-use moonshine_save::prelude::{EntityMapper, MapEntities, ReflectMapEntities, Save};
 
 mod population;
 pub use population::*;
@@ -11,7 +10,6 @@ pub struct GameCamera;
 
 #[derive(Component, Debug, Reflect)]
 #[reflect(Component)]
-#[require(Save)]
 pub struct GameArea {
     pub id: i32,
 }
@@ -22,9 +20,8 @@ impl GameArea {
     }
 }
 
-#[derive(Component, Debug, Reflect, Default, MapEntities)]
-#[component(map_entities)]
-#[reflect(Component, MapEntities)]
+#[derive(Component, Debug, Reflect, Default)]
+#[reflect(Component)]
 pub struct LandPassage {
     pub to_areas: Vec<Entity>,
 }
@@ -65,10 +62,8 @@ pub struct CityFlood;
 #[reflect(Component)]
 pub struct CitySite;
 
-#[derive(Component, Debug, Reflect, MapEntities)]
-#[component(map_entities)]
-#[reflect(Component, MapEntities)]
-#[require(Save)]
+#[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
 pub struct CityToken {
     pub player: Entity,
 }
@@ -79,10 +74,8 @@ impl CityToken {
     }
 }
 
-#[derive(Component, Debug, Reflect, MapEntities)]
-#[component(map_entities)]
-#[reflect(Component, MapEntities)]
-#[require(Save)]
+#[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
 pub struct BuiltCity {
     pub city: Entity,
     pub player: Entity,
@@ -118,10 +111,8 @@ impl Faction {
     }
 }
 
-#[derive(Component, Debug, Reflect, MapEntities)]
-#[component(map_entities)]
-#[reflect(Component, MapEntities)]
-#[require(Save)]
+#[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
 pub struct Token {
     player: Entity,
 }
@@ -137,17 +128,10 @@ impl Token {
 }
 
 #[derive(Component, Debug, Reflect)]
-#[component(map_entities)]
-#[reflect(Component, MapEntities)]
+#[reflect(Component)]
 pub struct TokenStock {
     pub max_tokens: usize,
     tokens: HashSet<Entity>,
-}
-
-impl MapEntities for TokenStock {
-    fn map_entities<M: EntityMapper>(&mut self, mapper: &mut M) {
-        self.tokens = self.tokens.iter().map(|e| mapper.get_mapped(*e)).collect();
-    }
 }
 
 impl TokenStock {
@@ -208,9 +192,8 @@ impl TokenStock {
     }
 }
 
-#[derive(Component, Debug, Reflect, Default, MapEntities)]
-#[component(map_entities)]
-#[reflect(Component, MapEntities)]
+#[derive(Component, Debug, Reflect, Default)]
+#[reflect(Component)]
 pub struct PlayerCities {
     pub areas_and_cities: HashMap<Entity, Entity>,
 }
@@ -241,9 +224,8 @@ impl PlayerCities {
     }
 }
 
-#[derive(Component, Debug, Reflect, Default, MapEntities)]
-#[component(map_entities)]
-#[reflect(Component, MapEntities)]
+#[derive(Component, Debug, Reflect, Default)]
+#[reflect(Component)]
 pub struct PlayerAreas {
     areas: HashSet<Entity>,
     area_population: HashMap<Entity, HashSet<Entity>>,
@@ -367,9 +349,8 @@ impl PlayerAreas {
     }
 }
 
-#[derive(Component, Debug, Reflect, Default, MapEntities)]
-#[component(map_entities)]
-#[reflect(Component, MapEntities)]
+#[derive(Component, Debug, Reflect, Default)]
+#[reflect(Component)]
 pub struct Treasury {
     tokens: Vec<Entity>,
 }
@@ -389,17 +370,10 @@ impl Treasury {
 }
 
 #[derive(Component, Debug, Reflect)]
-#[component(map_entities)]
-#[reflect(Component, MapEntities)]
+#[reflect(Component)]
 pub struct CityTokenStock {
     pub max_tokens: usize,
     tokens: Vec<Entity>,
-}
-
-impl MapEntities for CityTokenStock {
-    fn map_entities<M: EntityMapper>(&mut self, mapper: &mut M) {
-        self.tokens.iter_mut().for_each(|e| *e = mapper.get_mapped(*e));
-    }
 }
 
 impl CityTokenStock {
@@ -421,6 +395,10 @@ impl CityTokenStock {
 
     pub fn return_token_to_stock(&mut self, token: Entity) {
         self.tokens.push(token);
+    }
+    
+    pub fn city_tokens_in_stock(&self) -> usize {
+        self.tokens.len()
     }
 }
 
