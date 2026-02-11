@@ -296,10 +296,11 @@ fn restore_area_populations(
     mut commands: Commands,
     pending_pops: Option<Res<PendingAreaPopulations>>,
     faction_map: Option<Res<LoadedFactionMap>>,
-    mut area_query: Query<(Entity, &GameArea, &mut Population)>,
+    mut area_query: Query<(Entity, &GameArea, &mut Population, &Transform)>,
     mut player_areas_query: Query<&mut PlayerAreas>,
     mut player_cities_query: Query<&mut PlayerCities>,
     mut city_stock_query: Query<&mut CityTokenStock>,
+    game_factions: Res<AvailableFactions>,
 ) {
     let Some(pending) = pending_pops else {
         return;
@@ -310,20 +311,20 @@ fn restore_area_populations(
     
     info!("Restoring {} area populations from save", pending.0.len());
     
-    // Build a map of area_id -> area_entity
-    let area_id_to_entity: HashMap<i32, Entity> = area_query
+    // Build a map of area_id -> (area_entity, transform)
+    let area_id_to_entity: HashMap<i32, (Entity, Vec3)> = area_query
         .iter()
-        .map(|(entity, game_area, _)| (game_area.id, entity))
+        .map(|(entity, game_area, _, transform)| (game_area.id, (entity, transform.translation)))
         .collect();
     
     for saved_area in pending.0.iter() {
-        let Some(&area_entity) = area_id_to_entity.get(&saved_area.area_id) else {
+        let Some(&(area_entity, area_position)) = area_id_to_entity.get(&saved_area.area_id) else {
             warn!("Area {} not found in map, skipping", saved_area.area_id);
             continue;
         };
         
         // Get mutable population for this area
-        let Ok((_, _, mut population)) = area_query.get_mut(area_entity) else {
+        let Ok((_, _, mut population, _)) = area_query.get_mut(area_entity) else {
             continue;
         };
         
@@ -334,10 +335,25 @@ fn restore_area_populations(
                 continue;
             };
             
+            // Get the faction icon for this faction
+            let Some(faction_icon) = game_factions.faction_icons.get(faction) else {
+                warn!("No icon for faction {:?}", faction);
+                continue;
+            };
+            
             // Create tokens and add them to the area
             for _ in 0..*token_count {
                 let token = commands
-                    .spawn((Name::new("Loaded Token"), Token::new(player_entity)))
+                    .spawn((
+                        Name::new("Loaded Token"),
+                        Token::new(player_entity),
+                        Sprite {
+                            image: faction_icon.clone(),
+                            ..default()
+                        },
+                        Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
+                            .with_translation(area_position),
+                    ))
                     .id();
                 population.add_token_to_area(player_entity, token);
                 
@@ -349,6 +365,9 @@ fn restore_area_populations(
             
             info!("  Area {}: {} tokens for {:?}", saved_area.area_id, token_count, faction);
         }
+        
+        // Mark area for token position fixing
+        commands.entity(area_entity).insert(FixTokenPositions);
         
         // Build city if needed
         if let Some(city_faction) = &saved_area.city_owner {
