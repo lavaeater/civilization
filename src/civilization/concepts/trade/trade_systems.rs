@@ -2465,13 +2465,12 @@ pub fn ai_create_trade_offers(
     }
 }
 
-/// AI accepts trade offers that benefit them
+/// AI accepts trade offers that benefit them.
+/// Criteria: The trade must either increase the AI's total stack value OR enable trading away a calamity.
 pub fn ai_accept_trade_offers(
     ai_players: Query<(Entity, &Name, &PlayerTradeCards, &CanTrade), Without<IsHuman>>,
     mut offers: Query<(Entity, &mut OpenTradeOffer)>,
 ) {
-    let mut rng = rand::rng();
-    
     for (ai_entity, ai_name, ai_cards, _) in ai_players.iter() {
         for (_offer_entity, mut offer) in offers.iter_mut() {
             // Skip if we can't accept
@@ -2502,20 +2501,33 @@ pub fn ai_accept_trade_offers(
                 continue;
             }
             
-            // Simple heuristic: accept if what we get is higher value than what we give
-            let offering_value: usize = offer.offering_guaranteed.iter()
-                .map(|(c, n)| c.value() * n)
-                .sum();
-            let wanting_value: usize = offer.wanting_guaranteed.iter()
-                .map(|(c, n)| c.value() * n)
-                .sum();
+            // Calculate current stack value
+            let current_stack_value = ai_cards.total_stack_value();
             
-            // Accept if offering value >= wanting value (good deal for acceptor)
-            // or randomly accept with 30% chance even if slightly worse
-            use rand::RngExt;
-            if offering_value >= wanting_value || rng.random_bool(0.3) {
+            // Simulate the trade to calculate new stack value
+            // We receive: offering_guaranteed cards, we give: wanting_guaranteed cards
+            let mut simulated_cards = ai_cards.clone();
+            
+            // Remove cards we would give away
+            for (card, count) in offer.wanting_guaranteed.iter() {
+                simulated_cards.remove_n_trade_cards(*count, *card);
+            }
+            
+            // Add cards we would receive
+            for (card, count) in offer.offering_guaranteed.iter() {
+                simulated_cards.add_trade_cards(*card, *count);
+            }
+            
+            let new_stack_value = simulated_cards.total_stack_value();
+            
+            // Check if this trade enables trading away a calamity (hidden card slot)
+            let can_trade_away_calamity = ai_cards.has_tradeable_calamity() && offer.wanting_hidden_count > 0;
+            
+            // Accept if: trade increases stack value OR enables trading away a calamity
+            if new_stack_value > current_stack_value || can_trade_away_calamity {
                 offer.accept(ai_entity, ai_name.to_string());
-                debug!("{} accepted trade offer from {}", ai_name, offer.creator_name);
+                debug!("{} accepted trade offer from {} (value: {} -> {}, calamity: {})", 
+                    ai_name, offer.creator_name, current_stack_value, new_stack_value, can_trade_away_calamity);
                 break; // Only accept one offer per frame
             }
         }

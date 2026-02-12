@@ -211,6 +211,16 @@ impl PlayerTradeCards {
             .collect()
     }
 
+    /// Returns the total value of all commodity card stacks (count² × face_value for each)
+    pub fn total_stack_value(&self) -> usize {
+        self.commodity_card_suites().values().sum()
+    }
+
+    /// Returns true if the player has any tradeable calamity cards
+    pub fn has_tradeable_calamity(&self) -> bool {
+        self.number_of_tradeable_calamity_cards() > 0
+    }
+
     pub fn commodities(&self) -> HashSet<TradeCard> {
         self.cards
             .keys()
