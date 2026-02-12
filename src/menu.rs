@@ -1,142 +1,113 @@
 use crate::civilization::components::GameCamera;
+use crate::civilization::concepts::save_game::{LoadGameRequest, SaveGameRequest};
 use crate::loading::TextureAssets;
-use crate::GameState;
+use crate::{GamePaused, GameState};
 use bevy::prelude::*;
+use lava_ui_builder::{UIBuilder, UiTheme};
 
 pub struct MenuPlugin;
 
-/// This plugin is responsible for the game menu (containing only one button...)
-/// The menu is only drawn during the State `GameState::Menu` and is removed when that state is exited
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Menu), setup_menu)
-            .add_systems(Update, click_play_button.run_if(in_state(GameState::Menu)))
-            .add_systems(OnExit(GameState::Menu), cleanup_menu);
+            .add_systems(
+                Update,
+                handle_menu_buttons.run_if(in_state(GameState::Menu)),
+            )
+            .add_systems(OnExit(GameState::Menu), cleanup_menu)
+            .add_systems(
+                Update,
+                (
+                    toggle_pause.run_if(in_state(GameState::Playing)),
+                    handle_pause_buttons.run_if(resource_exists::<GamePaused>),
+                ),
+            );
     }
 }
 
-#[derive(Component, Clone)]
-struct ButtonColors {
-    normal: Color,
-    hovered: Color,
-}
-
-impl Default for ButtonColors {
-    fn default() -> Self {
-        ButtonColors {
-            normal: Color::linear_rgb(0.15, 0.15, 0.15),
-            hovered: Color::linear_rgb(0.25, 0.25, 0.25),
-        }
-    }
-}
-
-#[derive(Component)]
-struct Menu;
-
-fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>) {
-    commands.spawn((
-        Camera2d,
-        IsDefaultUiCamera,
-        Projection::Orthographic(OrthographicProjection::default_2d()),
-        GameCamera,
-        Msaa::Off,));
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
-            Menu,
-        ))
-        .with_children(|children| {
-            let button_colors = ButtonColors::default();
-            children
-                .spawn((
-                    Button,
-                    Node {
-                        width: Val::Px(140.0),
-                        height: Val::Px(50.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..Default::default()
-                    },
-                    BackgroundColor(button_colors.normal),
-                    button_colors.clone(),
-                    ChangeState(GameState::Playing),
-                ))
-                .with_child((
-                    Text::new("Play"),
-                    TextFont {
-                        font_size: 40.0,
-                        ..default()
-                    },
-                    TextColor(Color::linear_rgb(0.9, 0.9, 0.9)),
-                ));
-            children
-                .spawn((
-                    Button,
-                    Node {
-                        width: Val::Px(140.0),
-                        height: Val::Px(50.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..Default::default()
-                    },
-                    BackgroundColor(button_colors.normal),
-                    button_colors,
-                    ChangeState(GameState::Sandbox),
-                ))
-                .with_child((
-                    Text::new("Sandbox"),
-                    TextFont {
-                        font_size: 40.0,
-                        ..default()
-                    },
-                    TextColor(Color::linear_rgb(0.9, 0.9, 0.9)),
-                ));
-        });
-}
+// ============================================================================
+// Shared components
+// ============================================================================
 
 #[derive(Component)]
 struct ChangeState(GameState);
 
 #[derive(Component)]
-struct OpenLink(&'static str);
+struct LoadGameButton;
 
-fn click_play_button(
-    mut next_state: ResMut<NextState<GameState>>,
-    mut interaction_query: Query<
-        (
-            &Interaction,
-            &mut BackgroundColor,
-            &ButtonColors,
-            Option<&ChangeState>,
-            Option<&OpenLink>,
-        ),
-        (Changed<Interaction>, With<Button>),
-    >,
+#[derive(Component)]
+struct SaveGameButton;
+
+#[derive(Component)]
+struct ResumeButton;
+
+#[derive(Component)]
+struct MainMenuButton;
+
+#[derive(Component, Default)]
+struct Menu;
+
+#[derive(Component, Default)]
+struct PauseMenu;
+
+// ============================================================================
+// Main Menu
+// ============================================================================
+
+fn setup_menu(
+    mut commands: Commands,
+    _textures: Res<TextureAssets>,
+    theme: Res<UiTheme>,
 ) {
-    for (interaction, mut color, button_colors, change_state, open_link) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                if let Some(state) = change_state {
-                    next_state.set(state.0.clone());
-                } else if let Some(link) = open_link {
-                    if let Err(error) = webbrowser::open(link.0) {
-                        warn!("Failed to open link {error:?}");
-                    }
-                }
-            }
-            Interaction::Hovered => {
-                *color = button_colors.hovered.into();
-            }
-            Interaction::None => {
-                *color = button_colors.normal.into();
-            }
+    commands.spawn((
+        Camera2d,
+        IsDefaultUiCamera,
+        Projection::Orthographic(OrthographicProjection::default_2d()),
+        GameCamera,
+        Msaa::Off,
+    ));
+
+    let mut ui = UIBuilder::new(commands, Some(theme.clone()));
+
+    ui.with_component::<Menu>()
+        .size_percent(100.0, 100.0)
+        .display_flex()
+        .flex_column()
+        .align_items_center()
+        .justify_center()
+        .gap_px(16.0);
+
+    ui.add_text_child("Advanced Civilization", None, Some(48.0), None);
+
+    ui.add_themed_button(ChangeState(GameState::Playing), |btn| {
+        btn.text("Play").size_px(300.0, 60.0);
+    });
+
+    ui.add_themed_button(ChangeState(GameState::Sandbox), |btn| {
+        btn.text("Sandbox").size_px(300.0, 60.0);
+    });
+
+    ui.add_themed_button(LoadGameButton, |btn| {
+        btn.text("Load Game").size_px(300.0, 60.0);
+    });
+
+    ui.build();
+}
+
+fn handle_menu_buttons(
+    mut next_state: ResMut<NextState<GameState>>,
+    change_query: Query<(&Interaction, &ChangeState), (Changed<Interaction>, With<Button>)>,
+    load_query: Query<&Interaction, (Changed<Interaction>, With<LoadGameButton>, With<Button>)>,
+    mut load_writer: MessageWriter<LoadGameRequest>,
+) {
+    for (interaction, change_state) in &change_query {
+        if *interaction == Interaction::Pressed {
+            next_state.set(change_state.0.clone());
+        }
+    }
+    for interaction in &load_query {
+        if *interaction == Interaction::Pressed {
+            load_writer.write(LoadGameRequest);
         }
     }
 }
@@ -144,5 +115,107 @@ fn click_play_button(
 fn cleanup_menu(mut commands: Commands, menu: Query<Entity, With<Menu>>) {
     for entity in menu.iter() {
         commands.entity(entity).despawn();
+    }
+}
+
+// ============================================================================
+// Pause Menu (overlay — GameState stays Playing)
+// ============================================================================
+
+fn toggle_pause(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut commands: Commands,
+    paused: Option<Res<GamePaused>>,
+    theme: Res<UiTheme>,
+    pause_menu: Query<Entity, With<PauseMenu>>,
+) {
+    if !keys.just_pressed(KeyCode::Escape) {
+        return;
+    }
+
+    if paused.is_some() {
+        // Unpause: remove resource and despawn overlay
+        commands.remove_resource::<GamePaused>();
+        for entity in pause_menu.iter() {
+            commands.entity(entity).despawn();
+        }
+    } else {
+        // Pause: insert resource and spawn overlay
+        commands.insert_resource(GamePaused);
+        spawn_pause_menu(commands, &theme);
+    }
+}
+
+fn spawn_pause_menu(commands: Commands, theme: &UiTheme) {
+    let mut ui = UIBuilder::new(commands, Some(theme.clone()));
+
+    ui.with_component::<PauseMenu>()
+        .size_percent(100.0, 100.0)
+        .display_flex()
+        .flex_column()
+        .align_items_center()
+        .justify_center()
+        .bg_color(Color::srgba(0.0, 0.0, 0.0, 0.7))
+        .gap_px(16.0);
+
+    ui.add_text_child("Paused", None, Some(48.0), None);
+
+    ui.add_themed_button(ResumeButton, |btn| {
+        btn.text("Resume").size_px(300.0, 60.0);
+    });
+
+    ui.add_themed_button(SaveGameButton, |btn| {
+        btn.text("Save Game").size_px(300.0, 60.0);
+    });
+
+    ui.add_themed_button(LoadGameButton, |btn| {
+        btn.text("Load Game").size_px(300.0, 60.0);
+    });
+
+    ui.add_themed_button(MainMenuButton, |btn| {
+        btn.text("Main Menu").size_px(300.0, 60.0);
+    });
+
+    ui.build();
+}
+
+fn handle_pause_buttons(
+    mut next_state: ResMut<NextState<GameState>>,
+    mut commands: Commands,
+    resume_query: Query<&Interaction, (Changed<Interaction>, With<ResumeButton>, With<Button>)>,
+    save_query: Query<&Interaction, (Changed<Interaction>, With<SaveGameButton>, With<Button>)>,
+    load_query: Query<&Interaction, (Changed<Interaction>, With<LoadGameButton>, With<Button>)>,
+    main_menu_query: Query<&Interaction, (Changed<Interaction>, With<MainMenuButton>, With<Button>)>,
+    pause_menu: Query<Entity, With<PauseMenu>>,
+    mut save_writer: MessageWriter<SaveGameRequest>,
+    mut load_writer: MessageWriter<LoadGameRequest>,
+) {
+    for interaction in &resume_query {
+        if *interaction == Interaction::Pressed {
+            commands.remove_resource::<GamePaused>();
+            for entity in pause_menu.iter() {
+                commands.entity(entity).despawn();
+            }
+            return;
+        }
+    }
+    for interaction in &save_query {
+        if *interaction == Interaction::Pressed {
+            save_writer.write(SaveGameRequest);
+        }
+    }
+    for interaction in &load_query {
+        if *interaction == Interaction::Pressed {
+            load_writer.write(LoadGameRequest);
+        }
+    }
+    for interaction in &main_menu_query {
+        if *interaction == Interaction::Pressed {
+            commands.remove_resource::<GamePaused>();
+            for entity in pause_menu.iter() {
+                commands.entity(entity).despawn();
+            }
+            next_state.set(GameState::Menu);
+        }
     }
 }

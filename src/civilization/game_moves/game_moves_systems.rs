@@ -117,10 +117,8 @@ pub fn recalculate_movement_moves_for_player(
 
         let player_name = names.get(event.player).map(|n| n.as_str()).unwrap_or("?");
         if moves.is_empty() {
-            info!("Player {} has no movement moves, ending movement", player_name);
             end_player_movement.write(PlayerMovementEnded::new(event.player));
         } else {
-            info!("Player {} has {} movement moves", player_name, moves.len());
             moves.insert(command_index + 1, GameMove::EndMovement);
             commands
                 .entity(event.player)

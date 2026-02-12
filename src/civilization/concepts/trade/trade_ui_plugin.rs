@@ -3,12 +3,10 @@ use crate::civilization::concepts::*;
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
 use crate::{GameActivity, GameState};
-use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
-use bevy::picking::hover::HoverMap;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::state::state::StateTransitionEvent;
-use lava_ui_builder::{ButtonPartial, CollapseToggleButton, Collapsible, CollapsibleContent, NodePartial, UIBuilder, UiBuilderDefaults, BG_COLOR, BORDER_COLOR, CARD_COLOR, TEXT_COLOR};
+use lava_ui_builder::{UIBuilder, UiTheme};
 
 #[derive(Component, Default)]
 pub struct GameStateDisplay;
@@ -42,17 +40,14 @@ impl Plugin for TradeUiPlugin {
     fn build(&self, app: &mut App) {
         app
             // .insert_resource(WinitSettings::desktop_app())
-            .insert_resource(UiBuilderDefaults::new())
+            .insert_resource(UiTheme::default())
             .init_resource::<PlayerActivityLog>()
             .add_systems(OnEnter(GameActivity::StartGame), setup_trade_ui)
             .add_systems(Update, (
                 handle_player_draws_cards,
-                handle_trade_scroll_input,
                 update_game_state_display,
                 track_player_activities,
                 update_player_activity_display,
-                handle_collapse_toggle_button,
-                update_collapsible_visibility,
             ));
     }
 }
@@ -72,18 +67,22 @@ fn _add_commodity_card(
     b: &mut UIBuilder,
     card_type: TradeCard,
     count: usize,
-    defaults: &UiBuilderDefaults,
+    theme: &UiTheme,
 ) {
     let active_index = count.clamp(1, _commodity_card_max_set_size(card_type));
     let max_set_size = _commodity_card_max_set_size(card_type);
     let highlight_bg = Color::srgba(1.0, 1.0, 1.0, 0.25);
     let normal_bg = Color::srgba(0.0, 0.0, 0.0, 0.0);
     let highlight_border = Color::srgba(1.0, 1.0, 1.0, 0.85);
+    let card_color = Color::srgba(0.2, 0.2, 0.3, 0.8);
+    let border_color = theme.border_color;
+    let text_color = theme.text.label_color;
+    let font = theme.text.font.clone();
 
-    b.as_block_px(160., 240., CARD_COLOR)
+    b.size_px(160., 240.).bg_color(card_color)
         .display(Display::Flex)
         .flex_direction(FlexDirection::Column)
-        .border_all_px(2.0, BORDER_COLOR)
+        .border_all_px(2.0, border_color)
         .padding_all_px(4.0)
         .with_child(|b| {
             // Top set-value boxes (first half)
@@ -96,15 +95,15 @@ fn _add_commodity_card(
                 .column_gap_px(2.0)
                 .width_percent(100.)
                 .height_px(40.0)
-                .foreach_child(1..=max_set_size.min(4), |b, n| {
+                .foreach_child(1..=max_set_size.min(4), |b: &mut UIBuilder, n| {
                     let is_active = n == active_index;
                     let bg = if is_active { highlight_bg } else { normal_bg };
                     let bc = if is_active {
                         highlight_border
                     } else {
-                        BORDER_COLOR
+                        border_color
                     };
-                    b.as_block_px(18., 18., bg)
+                    b.size_px(18., 18.).bg_color(bg)
                         .border_all_px(1., bc)
                         // .align_content(AlignContent::Center)
                         // .align_items(AlignItems::Center)
@@ -112,9 +111,9 @@ fn _add_commodity_card(
                         // .justify_items(JustifyItems::Center)
                         .with_text(
                             format!("{}", (n * n) * card_type.value()),
-                            Some(defaults.base_font.clone()),
+                            Some(font.clone()),
                             Some(18.0),
-                            Some(TEXT_COLOR),
+                            Some(text_color),
                             None, None
                         );
                 });
@@ -195,43 +194,23 @@ fn _add_commodity_card(
 fn _setup(
     commands: Commands,
     asset_server: Res<AssetServer>,
-    mut ui_defaults: ResMut<UiBuilderDefaults>,
+    mut ui_theme: ResMut<UiTheme>,
     human_players: Query<Entity, With<IsHuman>>,
     mut pulled_card_event_writer: MessageWriter<HumanPlayerTradeCardsUpdated>,
 ) {
-    // root node
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-    ui_defaults.base_font = font.clone();
-    ui_defaults.bg_color = BG_COLOR;
-    ui_defaults.text_color = TEXT_COLOR;
-    ui_defaults.font_size = 18.0;
-    ui_defaults.border_color = BORDER_COLOR;
-    ui_defaults.button_def = Some(ButtonPartial {
-        border_radius: Some(BorderRadius::MAX),
-        ..default()
-    });
-    ui_defaults.node_def = Some(
-        NodePartial::new()
-            .border(UiRect::all(Val::Px(2.5)))
-            .border_color(BORDER_COLOR)
-            .border_radius(BorderRadius::ZERO)
-            .padding(UiRect::all(Val::Px(5.0)))
-            .margin(UiRect::all(Val::Px(2.5)))
-            .justify_content(JustifyContent::FlexStart)
-            .align_items(AlignItems::FlexStart)
-            .align_content(AlignContent::Center)
-            .justify_items(JustifyItems::Center)
-            .justify_self(JustifySelf::Auto),
-    );
+    ui_theme.text.font = font.clone();
+    ui_theme.text.label_size = 18.0;
+    ui_theme.button.border_radius = BorderRadius::MAX;
 
-    let mut root_ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
+    let mut root_ui = UIBuilder::new(commands, Some(ui_theme.clone()));
 
     root_ui
         .with_component::<TradeCardUiRoot>()
-        .as_flex_col(Val::Percent(25.), Val::Percent(100.))
+        .display_flex().flex_column().size(Val::Percent(25.), Val::Percent(100.))
         .text_node("Your trade cards!")
         .child()
-        .as_flex_col(Val::Percent(100.), Val::Percent(100.))
+        .display_flex().flex_column().size(Val::Percent(100.), Val::Percent(100.))
         .with_component::<TradeCardList>();
 
     let (_root_entity, _commands) = root_ui.build();
@@ -243,7 +222,7 @@ fn _setup(
 fn handle_player_draws_cards(
     mut reader: MessageReader<HumanPlayerTradeCardsUpdated>,
     commands: Commands,
-    ui_builder_defaults: Res<UiBuilderDefaults>,
+    ui_theme: Res<UiTheme>,
     trade_card_list: Query<Entity, With<TradeCardList>>,
     player_trade_cards: Query<&PlayerTradeCards, With<IsHuman>>,
 ) {
@@ -255,7 +234,7 @@ fn handle_player_draws_cards(
                     new_commands,
                     trade_card_list_entity,
                     true,
-                    Some(ui_builder_defaults.clone()),
+                    Some(ui_theme.clone()),
                 );
                 build_trade_card_list(&mut ui_builder, player_trade_cards);
                 new_commands = ui_builder.build().1;
@@ -267,40 +246,15 @@ fn handle_player_draws_cards(
 pub fn setup_trade_ui(
     commands: Commands,
     asset_server: Res<AssetServer>,
-    mut ui_defaults: ResMut<UiBuilderDefaults>,
+    mut ui_theme: ResMut<UiTheme>,
     _player_trade_cards: Query<&PlayerTradeCards, With<IsHuman>>,
 ) {
-    // // Spawn camera for UI rendering
-    // commands.spawn((
-    //     Camera2d,
-    //     IsDefaultUiCamera,
-    //     Projection::Orthographic(OrthographicProjection::default_2d()),
-    //     Msaa::Off,
-    // ));
-
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-    ui_defaults.base_font = font;
-    ui_defaults.bg_color = BG_COLOR;
-    ui_defaults.text_color = TEXT_COLOR;
-    ui_defaults.font_size = 24.0;
-    ui_defaults.border_color = BORDER_COLOR;
-    ui_defaults.button_def = Some(ButtonPartial {
-        border_radius: Some(BorderRadius::MAX),
-        border_color: Some(BORDER_COLOR),
-        ..default()
-    });
-    ui_defaults.node_def = Some(
-        NodePartial::new()
-            .border_all_px(2.0)
-            .border_color(BORDER_COLOR)
-            .border_radius_zero()
-            .padding_all_px(4.0)
-            .margin_all_px(2.0),
-    );
-    ui_defaults.text_justify = Some(Justify::Center);
-    ui_defaults.text_line_break = Some(LineBreak::WordBoundary);
+    ui_theme.text.font = font;
+    ui_theme.text.label_size = 24.0;
+    ui_theme.button.border_radius = BorderRadius::MAX;
 
-    let mut ui = UIBuilder::new(commands, Some(ui_defaults.clone()));
+    let mut ui = UIBuilder::new(commands, Some(ui_theme.clone()));
 
     ui.with_component::<TradeCardUiRoot>()
         .display_flex()
@@ -428,36 +382,12 @@ pub fn build_trade_card_list(ui: &mut UIBuilder, trade_cards: &PlayerTradeCards)
     }
 }
 
-/// Handle mouse wheel scroll input for scrollable containers
-pub fn handle_trade_scroll_input(
-    mut mouse_wheel_events: MessageReader<MouseWheel>,
-    hover_map: Res<HoverMap>,
-    mut scroll_query: Query<&mut ScrollPosition>,
-) {
-    for mouse_wheel in mouse_wheel_events.read() {
-        let dy = match mouse_wheel.unit {
-            MouseScrollUnit::Line => mouse_wheel.y * 20.0,
-            MouseScrollUnit::Pixel => mouse_wheel.y,
-        };
-
-        // Apply scroll to hovered scrollable elements
-        for pointer_map in hover_map.values() {
-            for entity in pointer_map.keys() {
-                if let Ok(mut scroll_position) = scroll_query.get_mut(*entity) {
-                    scroll_position.y -= dy;
-                    scroll_position.y = scroll_position.y.max(0.0);
-                }
-            }
-        }
-    }
-}
-
 fn update_game_state_display(
     commands: Commands,
     mut game_state_events: MessageReader<StateTransitionEvent<GameState>>,
     mut game_activity_events: MessageReader<StateTransitionEvent<GameActivity>>,
     display_query: Query<Entity, With<GameStateDisplay>>,
-    ui_defaults: Res<UiBuilderDefaults>,
+    ui_theme: Res<UiTheme>,
     current_state: Res<State<GameState>>,
     current_activity: Option<Res<State<GameActivity>>>,
     game_info: Res<GameInfoAndStuff>,
@@ -485,7 +415,7 @@ fn update_game_state_display(
         commands,
         display_entity,
         true,
-        Some(ui_defaults.clone()),
+        Some(ui_theme.clone()),
     );
     
     ui.add_text_child(&state_text, None, Some(18.0), None);
@@ -544,7 +474,7 @@ fn track_player_activities(
 fn update_player_activity_display(
     commands: Commands,
     activity_log: Res<PlayerActivityLog>,
-    ui_defaults: Res<UiBuilderDefaults>,
+    ui_theme: Res<UiTheme>,
     container_query: Query<Entity, With<PlayerActivityListContainer>>,
     players: Query<(Entity, &Name, &Faction, Has<IsHuman>), With<Player>>,
 ) {
@@ -560,7 +490,7 @@ fn update_player_activity_display(
         commands,
         container,
         true,
-        Some(ui_defaults.clone()),
+        Some(ui_theme.clone()),
     );
     
     for (player_entity, name, faction, is_human) in players.iter() {
@@ -612,136 +542,6 @@ fn faction_to_color(faction: &Faction) -> Color {
         GameFaction::Iberia => Color::srgb(0.8, 0.6, 0.1),
         GameFaction::Thrace => Color::srgb(0.4, 0.5, 0.6),
     }
-}
-
-// ============================================================================
-// COLLAPSIBLE UI SYSTEMS
-// ============================================================================
-
-/// Handle clicking the collapse/expand toggle button
-pub fn handle_collapse_toggle_button(
-    mut interaction_query: Query<
-        (&Interaction, &CollapseToggleButton, &mut BackgroundColor),
-        Changed<Interaction>,
-    >,
-    mut collapsible_query: Query<&mut Collapsible>,
-) {
-    for (interaction, toggle_btn, mut bg_color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                *bg_color = BackgroundColor(Color::srgb(0.4, 0.6, 0.4));
-                if let Ok(mut collapsible) = collapsible_query.get_mut(toggle_btn.target) {
-                    collapsible.collapsed = !collapsible.collapsed;
-                }
-            }
-            Interaction::Hovered => {
-                *bg_color = BackgroundColor(Color::srgb(0.35, 0.35, 0.4));
-            }
-            Interaction::None => {
-                *bg_color = BackgroundColor(Color::srgb(0.25, 0.25, 0.3));
-            }
-        }
-    }
-}
-
-/// Update visibility of collapsible content based on collapsed state
-pub fn update_collapsible_visibility(
-    collapsible_query: Query<(Entity, &Collapsible), Changed<Collapsible>>,
-    mut content_query: Query<(&CollapsibleContent, &mut Node)>,
-    mut button_text_query: Query<(&CollapseToggleButton, &Children)>,
-    mut text_query: Query<&mut Text>,
-) {
-    for (collapsible_entity, collapsible) in collapsible_query.iter() {
-        // Update content visibility
-        for (content, mut node) in content_query.iter_mut() {
-            if content.parent == collapsible_entity {
-                node.display = if collapsible.collapsed {
-                    Display::None
-                } else {
-                    Display::Flex
-                };
-            }
-        }
-        
-        // Update button text
-        for (toggle_btn, children) in button_text_query.iter_mut() {
-            if toggle_btn.target == collapsible_entity {
-                for child in children.iter() {
-                    if let Ok(mut text) = text_query.get_mut(child) {
-                        **text = if collapsible.collapsed {
-                            format!("▶ {}", collapsible.label)
-                        } else {
-                            format!("▼ {}", collapsible.label)
-                        };
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// Helper function to spawn a collapsible section with content
-/// Returns the content entity where children should be added
-pub fn spawn_collapsible_section(
-    commands: &mut Commands,
-    label: &str,
-    initially_collapsed: bool,
-) -> (Entity, Entity) {
-    let collapsible_entity = commands
-        .spawn((
-            if initially_collapsed {
-                Collapsible::collapsed(label)
-            } else {
-                Collapsible::new(label)
-            },
-            Node {
-                flex_direction: FlexDirection::Column,
-                width: Val::Auto,
-                ..Default::default()
-            },
-        ))
-        .id();
-    
-    // Spawn toggle button
-    commands.entity(collapsible_entity).with_children(|parent| {
-        parent
-            .spawn((
-                Button,
-                CollapseToggleButton { target: collapsible_entity },
-                Node {
-                    padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
-                    margin: UiRect::bottom(Val::Px(4.0)),
-                    ..Default::default()
-                },
-                BackgroundColor(Color::srgb(0.25, 0.25, 0.3)),
-            ))
-            .with_child((
-                Text::new(if initially_collapsed {
-                    format!("▶ {}", label)
-                } else {
-                    format!("▼ {}", label)
-                }),
-                TextFont { font_size: 12.0, ..Default::default() },
-                TextColor(Color::WHITE),
-            ));
-    });
-    
-    // Spawn content container
-    let content_entity = commands
-        .spawn((
-            CollapsibleContent { parent: collapsible_entity },
-            Node {
-                flex_direction: FlexDirection::Column,
-                width: Val::Percent(100.0),
-                display: if initially_collapsed { Display::None } else { Display::Flex },
-                ..Default::default()
-            },
-        ))
-        .id();
-    
-    commands.entity(collapsible_entity).add_child(content_entity);
-    
-    (collapsible_entity, content_entity)
 }
 
 #[derive(Component, Default)]

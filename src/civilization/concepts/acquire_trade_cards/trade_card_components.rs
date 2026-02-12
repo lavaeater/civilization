@@ -1,6 +1,6 @@
 use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::{TradeCard, TradeCardTrait};
 use bevy::platform::collections::{HashMap, HashSet};
-use bevy::prelude::{Color, Component, Reflect, Resource};
+use bevy::prelude::{Color, Component, Reflect, ReflectComponent, Resource};
 use itertools::Itertools;
 use rand::seq::SliceRandom;
 
@@ -51,6 +51,7 @@ pub struct PlayerCardStack {
 }
 
 #[derive(Component, Debug, Reflect, Default, Clone)]
+#[reflect(Component)]
 pub struct PlayerTradeCards {
     cards: HashMap<TradeCard, usize>,
 }
@@ -276,6 +277,20 @@ impl PlayerTradeCards {
             }
             None => None, // No cards of this type
         }
+    }
+    
+    /// Returns cards as a vector of (TradeCard, count) tuples for serialization
+    pub fn cards_as_vec(&self) -> Vec<(TradeCard, usize)> {
+        self.cards.iter().map(|(card, count)| (*card, *count)).collect()
+    }
+    
+    /// Restores cards from a vector of (TradeCard, count) tuples
+    pub fn from_cards_vec(cards: Vec<(TradeCard, usize)>) -> Self {
+        let mut player_cards = Self::default();
+        for (card, count) in cards {
+            player_cards.cards.insert(card, count);
+        }
+        player_cards
     }
 }
 

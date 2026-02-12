@@ -40,6 +40,16 @@ impl MovementSelectionState {
         self.skipped_sources.clear();
     }
     
+    /// Clears selection state but preserves skipped sources for the rest of the movement phase
+    pub fn clear_preserving_skips(&mut self) {
+        self.source_area = None;
+        self.target_area = None;
+        self.token_count = 0;
+        self.max_tokens = 0;
+        self.is_attack = false;
+        self.is_city_attack = false;
+    }
+    
     pub fn clear_target(&mut self) {
         self.target_area = None;
         self.token_count = 0;

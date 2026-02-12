@@ -32,7 +32,13 @@ pub enum GameState {
     Menu,
 }
 
-#[derive(SubStates, Clone, PartialEq, Eq, Hash, Debug, Default, Reflect)]
+/// Resource that indicates the game is paused. When present, game systems
+/// should be suspended but `GameState::Playing` remains active so that
+/// `GameActivity` sub-state is preserved.
+#[derive(Resource, Default)]
+pub struct GamePaused;
+
+#[derive(SubStates, Clone, PartialEq, Eq, Hash, Debug, Default, Reflect, serde::Serialize, serde::Deserialize)]
 #[source(GameState = GameState::Playing)]
 pub enum GameActivity {
     #[default]

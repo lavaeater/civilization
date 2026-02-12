@@ -1,7 +1,8 @@
 use bevy::platform::collections::{HashMap, HashSet};
-use bevy::prelude::{default, Component, Entity, Reflect};
+use bevy::prelude::{default, Component, Entity, Reflect, ReflectComponent};
 
 #[derive(Component, Debug, Reflect, Default)]
+#[reflect(Component)]
 pub struct Population {
     player_tokens: HashMap<Entity, HashSet<Entity>>,
     pub max_population: usize,
@@ -377,5 +378,209 @@ mod tests {
 
         assert!(population.is_conflict_zone(false));
         assert!(population.is_conflict_zone(true));
+    }
+
+    // ========================================================================
+    // Comprehensive is_conflict_zone tests
+    // ========================================================================
+
+    #[test]
+    fn test_is_conflict_zone_max_pop_1_single_player_at_max() {
+        // max=1, 1 player with 1 token → no conflict (at capacity, not over)
+        let mut pop = Population::new(1);
+        let p1 = create_entity();
+        pop.add_token_to_area(p1, create_entity());
+
+        assert!(!pop.is_conflict_zone(false), "Single player at max should not be conflict");
+    }
+
+    #[test]
+    fn test_is_conflict_zone_max_pop_1_single_player_over() {
+        // max=1, 1 player with 2 tokens → no conflict (only 1 player)
+        let mut pop = Population::new(1);
+        let p1 = create_entity();
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p1, create_entity());
+
+        assert!(!pop.is_conflict_zone(false), "Single player over max is not a conflict zone");
+    }
+
+    #[test]
+    fn test_is_conflict_zone_max_pop_1_two_players_one_each() {
+        // max=1, 2 players with 1 token each → conflict (2 > 1)
+        let mut pop = Population::new(1);
+        let p1 = create_entity();
+        let p2 = create_entity();
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p2, create_entity());
+
+        assert!(pop.is_conflict_zone(false), "Two players exceeding max=1 should be conflict");
+    }
+
+    #[test]
+    fn test_is_conflict_zone_max_pop_1_two_players_unequal() {
+        // max=1, p1 has 3, p2 has 1 → conflict (4 > 1)
+        let mut pop = Population::new(1);
+        let p1 = create_entity();
+        let p2 = create_entity();
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p2, create_entity());
+
+        assert!(pop.is_conflict_zone(false), "Two players with 4 tokens in max=1 should be conflict");
+    }
+
+    #[test]
+    fn test_is_conflict_zone_max_pop_3_two_players_at_max() {
+        // max=3, p1 has 2, p2 has 1 → total=3, no conflict (not over)
+        let mut pop = Population::new(3);
+        let p1 = create_entity();
+        let p2 = create_entity();
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p2, create_entity());
+
+        assert!(!pop.is_conflict_zone(false), "Two players at exactly max=3 should NOT be conflict");
+    }
+
+    #[test]
+    fn test_is_conflict_zone_max_pop_3_two_players_over() {
+        // max=3, p1 has 2, p2 has 2 → total=4 > 3, conflict
+        let mut pop = Population::new(3);
+        let p1 = create_entity();
+        let p2 = create_entity();
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p2, create_entity());
+        pop.add_token_to_area(p2, create_entity());
+
+        assert!(pop.is_conflict_zone(false), "Two players with 4 tokens in max=3 should be conflict");
+    }
+
+    #[test]
+    fn test_is_conflict_zone_max_pop_3_three_players_at_max() {
+        // max=3, 3 players with 1 token each → total=3, no conflict
+        let mut pop = Population::new(3);
+        let p1 = create_entity();
+        let p2 = create_entity();
+        let p3 = create_entity();
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p2, create_entity());
+        pop.add_token_to_area(p3, create_entity());
+
+        assert!(!pop.is_conflict_zone(false), "Three players at exactly max=3 should NOT be conflict");
+    }
+
+    #[test]
+    fn test_is_conflict_zone_max_pop_3_three_players_over() {
+        // max=3, 3 players, total=4 → conflict
+        let mut pop = Population::new(3);
+        let p1 = create_entity();
+        let p2 = create_entity();
+        let p3 = create_entity();
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p2, create_entity());
+        pop.add_token_to_area(p3, create_entity());
+
+        assert!(pop.is_conflict_zone(false), "Three players with 4 tokens in max=3 should be conflict");
+    }
+
+    #[test]
+    fn test_is_conflict_zone_empty_area_no_city() {
+        // Empty area, no city → no conflict
+        let pop = Population::new(3);
+        assert!(!pop.is_conflict_zone(false), "Empty area without city should not be conflict");
+    }
+
+    #[test]
+    fn test_is_conflict_zone_empty_area_with_city() {
+        // Empty area with city → no conflict (no population)
+        let pop = Population::new(3);
+        assert!(!pop.is_conflict_zone(true), "Empty area with city should not be conflict");
+    }
+
+    #[test]
+    fn test_is_conflict_zone_city_with_owner_only() {
+        // City with only owner's tokens → conflict (city rule)
+        let mut pop = Population::new(3);
+        let owner = create_entity();
+        pop.add_token_to_area(owner, create_entity());
+
+        assert!(pop.is_conflict_zone(true), "City with owner tokens should be conflict zone");
+    }
+
+    #[test]
+    fn test_is_conflict_zone_city_with_invader() {
+        // City with owner and invader → conflict
+        let mut pop = Population::new(3);
+        let owner = create_entity();
+        let invader = create_entity();
+        pop.add_token_to_area(owner, create_entity());
+        pop.add_token_to_area(invader, create_entity());
+
+        assert!(pop.is_conflict_zone(true), "City with invader should be conflict zone");
+    }
+
+    #[test]
+    fn test_is_conflict_zone_max_pop_2_exactly_at_max_two_players() {
+        // max=2, p1 has 1, p2 has 1 → total=2, no conflict
+        let mut pop = Population::new(2);
+        let p1 = create_entity();
+        let p2 = create_entity();
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p2, create_entity());
+
+        assert!(!pop.is_conflict_zone(false), "Two players at exactly max=2 should NOT be conflict");
+    }
+
+    #[test]
+    fn test_is_conflict_zone_max_pop_2_one_over() {
+        // max=2, p1 has 2, p2 has 1 → total=3 > 2, conflict
+        let mut pop = Population::new(2);
+        let p1 = create_entity();
+        let p2 = create_entity();
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p2, create_entity());
+
+        assert!(pop.is_conflict_zone(false), "Two players with 3 tokens in max=2 should be conflict");
+    }
+
+    #[test]
+    fn test_is_conflict_zone_max_pop_5_odd_boundary() {
+        // max=5, various scenarios
+        let mut pop = Population::new(5);
+        let p1 = create_entity();
+        let p2 = create_entity();
+
+        // At max: 3 + 2 = 5
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p2, create_entity());
+        pop.add_token_to_area(p2, create_entity());
+
+        assert!(!pop.is_conflict_zone(false), "Two players at exactly max=5 should NOT be conflict");
+
+        // Add one more to go over
+        pop.add_token_to_area(p2, create_entity());
+        assert!(pop.is_conflict_zone(false), "Two players with 6 tokens in max=5 should be conflict");
+    }
+
+    #[test]
+    fn test_is_conflict_zone_single_player_many_tokens_no_conflict() {
+        // Single player with many tokens over max → NOT a conflict (needs 2+ players)
+        let mut pop = Population::new(2);
+        let p1 = create_entity();
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p1, create_entity());
+        pop.add_token_to_area(p1, create_entity());
+
+        assert!(!pop.is_conflict_zone(false), "Single player over max is NOT a conflict zone");
+        assert!(pop.has_too_many_tokens(), "But should have too many tokens for surplus removal");
     }
 }

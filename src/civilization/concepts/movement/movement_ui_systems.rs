@@ -1,4 +1,4 @@
-use crate::civilization::components::GameArea;
+use crate::civilization::components::{GameArea, GameCamera};
 use crate::civilization::concepts::movement::movement_components::PerformingMovement;
 use crate::civilization::concepts::movement::movement_events::{
     MoveTokenFromAreaToAreaCommand, PlayerMovementEnded,
@@ -255,7 +255,7 @@ pub fn handle_movement_button_clicks(
                             selection_state.token_count,
                             player,
                         ));
-                        selection_state.clear();
+                        selection_state.clear_preserving_skips();
                     }
                 }
             }
@@ -673,4 +673,30 @@ pub fn cleanup_movement_ui_on_exit(
         commands.entity(entity).despawn();
     }
     selection_state.clear();
+}
+
+/// System to pan the camera to the current source area when it changes
+pub fn pan_camera_to_current_source(
+    selection_state: Res<MovementSelectionState>,
+    area_transforms: Query<&Transform, With<GameArea>>,
+    mut camera_query: Query<&mut Transform, (With<GameCamera>, Without<GameArea>)>,
+) {
+    if !selection_state.is_changed() {
+        return;
+    }
+
+    let Some(current_source) = selection_state.current_source() else {
+        return;
+    };
+
+    let Ok(area_transform) = area_transforms.get(current_source) else {
+        return;
+    };
+
+    let Ok(mut camera_transform) = camera_query.single_mut() else {
+        return;
+    };
+
+    camera_transform.translation.x = area_transform.translation.x;
+    camera_transform.translation.y = area_transform.translation.y;
 }
