@@ -1,6 +1,6 @@
-use bevy::prelude::{Entity, Resource, Timer, TimerMode, Reflect};
-use bevy::platform::collections::HashMap;
 use crate::civilization::concepts::acquire_trade_cards::TradeCard;
+use bevy::platform::collections::HashMap;
+use bevy::prelude::{Entity, Reflect, Resource, Timer, TimerMode};
 
 #[derive(Default, Resource)]
 pub struct TradeUiState {
@@ -15,7 +15,7 @@ pub struct TradeCountdown {
 impl TradeCountdown {
     pub fn new() -> Self {
         Self {
-            trade_timer: Timer::from_seconds(5.0, TimerMode::Repeating),
+            trade_timer: Timer::from_seconds(2.0, TimerMode::Repeating),
         }
     }
 }

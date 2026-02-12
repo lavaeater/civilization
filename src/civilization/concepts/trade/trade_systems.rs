@@ -26,12 +26,11 @@ pub fn check_trade_gate(
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    if players_can_trade.iter().len() < 2 {
-        debug!("Not enough players can trade. Skipping trade phase.");
-        for (entity, _) in players_can_trade.iter() {
-            commands.entity(entity).remove::<CanTrade>();
-            commands.entity(entity).remove::<PlayerTradeInterests>();
-        }
+    // Only end trading when NO players remain. Individual players leaving
+    // (including the human) should not end the phase — the countdown timer
+    // or all players finishing will eventually bring this to zero.
+    if players_can_trade.iter().len() == 0 {
+        debug!("No players left trading. Ending trade phase.");
         for (entity, _) in trade_offers.iter() {
             commands.entity(entity).despawn();
         }
@@ -101,27 +100,26 @@ pub fn setup_trade(
     trading_players_query: Query<(&PlayerTradeCards, Entity, Has<IsHuman>)>,
     _ui_theme: Res<UiTheme>,
     mut trade_ui_state: ResMut<TradeUiState>,
+    mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    let mut _has_any_human = false;
-    let mut _players_that_can_trade_count: usize = 0;
+    let mut players_that_can_trade_count: usize = 0;
     for (trade_cards, player, is_human) in trading_players_query.iter() {
         if trade_cards.can_trade() {
             if is_human {
-                _has_any_human = true;
                 trade_ui_state.human_player = Some(player);
             }
             commands.entity(player).insert(CanTrade);
             commands
                 .entity(player)
                 .insert(PlayerTradeInterests::from_trade_cards(trade_cards));
-            _players_that_can_trade_count += 1;
+            players_that_can_trade_count += 1;
         }
     }
-    // This is checked and handled in the gate checker instead,
-    // if players_that_can_trade_count < 2 {
-    //     debug!("Not enough players can trade. Skipping trade phase.");
-    //     next_state.set(GameActivity::PopulationExpansion)
-    // }
+    // Skip trade phase entirely if fewer than 2 players can trade at the start
+    if players_that_can_trade_count < 2 {
+        debug!("Not enough players can trade at start. Skipping trade phase.");
+        next_state.set(GameActivity::PopulationExpansion);
+    }
 }
 
 pub fn remove_rejected_trades(
@@ -755,11 +753,13 @@ pub fn cleanup_trade_phase_ui(
     }
 }
 
-/// Update the countdown timer display
+/// Update the countdown timer display and end trade when timer expires
 pub fn update_trade_countdown_display(
     time: Res<Time>,
     mut trade_phase_state: ResMut<TradePhaseState>,
     mut countdown_text: Query<&mut Text, With<TradeCountdownText>>,
+    can_trade_query: Query<Entity, With<CanTrade>>,
+    mut commands: Commands,
 ) {
     trade_phase_state.countdown_seconds -= time.delta_secs();
     if trade_phase_state.countdown_seconds < 0.0 {
@@ -771,6 +771,14 @@ pub fn update_trade_countdown_display(
     
     for mut text in countdown_text.iter_mut() {
         **text = format!("{}:{:02}", minutes, seconds);
+    }
+    
+    // End trading for all players when countdown expires
+    if trade_phase_state.countdown_seconds <= 0.0 {
+        debug!("Trade countdown expired — removing CanTrade from all remaining players");
+        for entity in can_trade_query.iter() {
+            commands.entity(entity).remove::<CanTrade>();
+        }
     }
 }
 
@@ -1018,9 +1026,11 @@ pub fn handle_done_trading_button(
     >,
     mut trade_phase_state: ResMut<TradePhaseState>,
     trade_ui_state: Res<TradeUiState>,
-    _can_trade_query: Query<&CanTrade>,
     mut commands: Commands,
 ) {
+    if trade_phase_state.human_done {
+        return;
+    }
     for (interaction, mut bg_color) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
@@ -1051,6 +1061,9 @@ pub fn handle_create_offer_button(
     >,
     mut trade_phase_state: ResMut<TradePhaseState>,
 ) {
+    if trade_phase_state.human_done {
+        return;
+    }
     for (interaction, mut bg_color) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
@@ -1065,6 +1078,30 @@ pub fn handle_create_offer_button(
                 *bg_color = BackgroundColor(Color::srgb(0.2, 0.5, 0.3));
             }
         }
+    }
+}
+
+/// Visually disable buttons and show feedback when human is done trading
+pub fn update_human_done_ui(
+    trade_phase_state: Res<TradePhaseState>,
+    mut done_btn_query: Query<(&mut BackgroundColor, &Children), With<DoneTradingButton>>,
+    mut create_btn_query: Query<&mut BackgroundColor, (With<CreateOfferButton>, Without<DoneTradingButton>)>,
+    mut text_query: Query<&mut Text>,
+) {
+    if !trade_phase_state.human_done {
+        return;
+    }
+    let grayed = Color::srgb(0.3, 0.3, 0.3);
+    for (mut bg, children) in done_btn_query.iter_mut() {
+        *bg = BackgroundColor(grayed);
+        for child in children.iter() {
+            if let Ok(mut text) = text_query.get_mut(child) {
+                **text = "Waiting for AI players...".to_string();
+            }
+        }
+    }
+    for mut bg in create_btn_query.iter_mut() {
+        *bg = BackgroundColor(grayed);
     }
 }
 
@@ -2365,14 +2402,22 @@ pub fn ai_create_trade_offers(
             continue;
         }
         
-        // Pick what AI wants - prefer higher value commodities they don't have much of
+        // Pick what AI wants — only request cards up to their own max card value.
+        // An AI with max value 4 cards should never ask for Gold (9) or Ivory (9).
         let mut wanting_guaranteed: HashMap<TradeCard, usize> = HashMap::default();
         let mut cards_wanted = 0;
         
-        // Get commodities AI has few of (wants more)
         let ai_card_counts: HashMap<TradeCard, usize> = commodities.iter().cloned().collect();
+        let max_own_value = commodities.iter()
+            .map(|(card, _)| card.value())
+            .max()
+            .unwrap_or(0);
+        
+        // Want commodities that: (a) are at or below our max value, (b) we have few of,
+        // (c) prefer higher value within that range (to try completing sets)
         let mut desired: Vec<TradeCard> = TradeCard::iter()
             .filter(|c| c.is_commodity())
+            .filter(|c| c.value() <= max_own_value)
             .filter(|c| ai_card_counts.get(c).copied().unwrap_or(0) < 2)
             .collect();
         desired.sort_by_key(|c| std::cmp::Reverse(c.value()));
@@ -2387,8 +2432,11 @@ pub fn ai_create_trade_offers(
         }
         
         if cards_wanted < 2 {
-            // Fallback: just want any 2 different commodities
-            for card in TradeCard::iter().filter(|c| c.is_commodity()).take(2) {
+            // Fallback: want any commodity at or below our max value
+            for card in TradeCard::iter()
+                .filter(|c| c.is_commodity())
+                .filter(|c| c.value() <= max_own_value)
+            {
                 if cards_wanted >= 2 {
                     break;
                 }

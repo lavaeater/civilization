@@ -147,13 +147,11 @@ pub fn can_trade_removed(
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     debug!("Someone decided not to trade anymore.");
-    debug!("{} players can trade", players_can_trade.iter().len());
-    if players_can_trade.iter().len() < 2 {
-        debug!("Not enough players can trade. Skipping trade phase.");
-        for (entity, _) in players_can_trade.iter() {
-            commands.entity(entity).remove::<CanTrade>();
-            commands.entity(entity).remove::<PlayerTradeInterests>();
-        }
+    debug!("{} players can still trade", players_can_trade.iter().len());
+    // Only end trading when NO players remain. The countdown timer
+    // handles removing CanTrade from everyone when it expires.
+    if players_can_trade.iter().len() == 0 {
+        debug!("No players left trading. Ending trade phase.");
         for (entity, _) in trade_offers.iter() {
             commands.entity(entity).despawn();
         }
