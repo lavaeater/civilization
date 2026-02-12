@@ -551,6 +551,20 @@ fn restore_area_populations(
                     // Add BuiltCity component to the area
                     commands.entity(area_entity).insert(BuiltCity::new(city_token, player_entity));
                     
+                    // Add sprite and transform to the city token
+                    if let Some(city_icon) = game_factions.faction_city_icons.get(city_faction) {
+                        commands.entity(city_token).insert((
+                            Sprite {
+                                image: city_icon.clone(),
+                                ..default()
+                            },
+                            Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
+                                .with_translation(area_position),
+                        ));
+                    } else {
+                        warn!("No city icon for faction {:?}", city_faction);
+                    }
+                    
                     // Update player cities
                     if let Ok(mut player_cities) = player_cities_query.get_mut(player_entity) {
                         player_cities.build_city_in_area(area_entity, city_token);

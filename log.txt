@@ -1,2 +1,9 @@
- ERROR moonshine_save::save: save failed: Ron(Message("type `bevy_platform::sync::Arc<bevy_asset::handle::StrongHandle>` did not register the `ReflectSerialize` or `ReflectSerializeWithRegistry` type data. For certain types, this may need to be registered manually using `register_type_data` (stack: `bevy_sprite::sprite::Sprite` -> `bevy_asset::handle::Handle<bevy_image::image::Image>` -> `bevy_platform::sync::Arc<bevy_asset::handle::StrongHandle>`)"))
- (Command `Enable the debug feature to see the name` failed)
+                                                                                                                    ▐
+ thread 'main' (141366) panicked at src/civilization/concepts/conflict/conflict_triggers.rs:54:9:                                                   ▐
+ attempt to subtract with overflow                                                                                                                  ▐
+ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace                                                                      ▐
+ Encountered a panic when applying buffers for system `adv_civ::civilization::concepts::conflict::conflict_systems::find_conflict_zones`!           ▐
+ Encountered a panic in system `Pipe(bevy_state::state::transitions::last_transition<adv_civ::GameActivity>, bevy_state::state::transitions::run_ent▐
+ er<adv_civ::GameActivity>)`!                                                                                                                       ▐
+ Encountered a panic in system `bevy_app::main_schedule::Main::run_main`!                                                                           ▐
+ 2026-02-12T14:46:39.733398Z  WARN bevy_ecs::world::command_queue: CommandQueue has
