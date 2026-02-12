@@ -1,4 +1,5 @@
 use crate::civilization::components::GameCamera;
+use crate::civilization::concepts::save_game::{LoadGameRequest, SaveGameRequest};
 use crate::loading::TextureAssets;
 use crate::{GamePaused, GameState};
 use bevy::prelude::*;
@@ -95,9 +96,9 @@ fn setup_menu(
 
 fn handle_menu_buttons(
     mut next_state: ResMut<NextState<GameState>>,
-    mut commands: Commands,
     change_query: Query<(&Interaction, &ChangeState), (Changed<Interaction>, With<Button>)>,
     load_query: Query<&Interaction, (Changed<Interaction>, With<LoadGameButton>, With<Button>)>,
+    mut load_writer: MessageWriter<LoadGameRequest>,
 ) {
     for (interaction, change_state) in &change_query {
         if *interaction == Interaction::Pressed {
@@ -106,8 +107,7 @@ fn handle_menu_buttons(
     }
     for interaction in &load_query {
         if *interaction == Interaction::Pressed {
-            info!("Load from main menu - use F9 key instead for now");
-            // TODO: Implement menu-triggered load
+            load_writer.write(LoadGameRequest);
         }
     }
 }
@@ -187,6 +187,8 @@ fn handle_pause_buttons(
     load_query: Query<&Interaction, (Changed<Interaction>, With<LoadGameButton>, With<Button>)>,
     main_menu_query: Query<&Interaction, (Changed<Interaction>, With<MainMenuButton>, With<Button>)>,
     pause_menu: Query<Entity, With<PauseMenu>>,
+    mut save_writer: MessageWriter<SaveGameRequest>,
+    mut load_writer: MessageWriter<LoadGameRequest>,
 ) {
     for interaction in &resume_query {
         if *interaction == Interaction::Pressed {
@@ -199,14 +201,12 @@ fn handle_pause_buttons(
     }
     for interaction in &save_query {
         if *interaction == Interaction::Pressed {
-            info!("Save triggered from menu - use F5 key instead for now");
-            // TODO: Implement menu-triggered save
+            save_writer.write(SaveGameRequest);
         }
     }
     for interaction in &load_query {
         if *interaction == Interaction::Pressed {
-            info!("Load triggered from menu - use F9 key instead for now");
-            // TODO: Implement menu-triggered load
+            load_writer.write(LoadGameRequest);
         }
     }
     for interaction in &main_menu_query {

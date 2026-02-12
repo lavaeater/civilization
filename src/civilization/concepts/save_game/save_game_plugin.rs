@@ -17,6 +17,15 @@ use crate::stupid_ai::{IsHuman, StupidAi};
 use crate::{GameActivity, GameState};
 
 const SAVE_FILE_PATH: &str = "savegame.json";
+const SAVE_GAME_VERSION: &str = "0.0.1";
+
+/// Message to request a game save (fired by F5 key or menu button)
+#[derive(Message)]
+pub struct SaveGameRequest;
+
+/// Message to request a game load (fired by F9 key or menu button)
+#[derive(Message)]
+pub struct LoadGameRequest;
 
 /// Resource to signal that a game should be loaded
 #[derive(Resource)]
@@ -42,7 +51,7 @@ pub struct SaveGamePlugin;
 
 impl Plugin for SaveGamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (save_on_key, trigger_load_on_key))
+        app.add_systems(Update, (save_on_key, trigger_load_on_key, handle_save_request, handle_load_request))
             .add_systems(
                 OnEnter(GameActivity::PrepareGame),
                 load_game_from_save.before(crate::civilization::general_systems::setup_players),
@@ -104,6 +113,7 @@ pub struct SavedAreaPopulation {
 /// Complete game save data
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GameSaveData {
+    pub version: String,
     pub round: usize,
     pub game_activity: GameActivity,
     pub players: Vec<SavedPlayer>,
@@ -149,6 +159,15 @@ fn is_player_done_with_activity(
 
 fn save_on_key(
     keys: Res<ButtonInput<KeyCode>>,
+    mut writer: MessageWriter<SaveGameRequest>,
+) {
+    if keys.just_pressed(KeyCode::F5) {
+        writer.write(SaveGameRequest);
+    }
+}
+
+fn handle_save_request(
+    mut events: MessageReader<SaveGameRequest>,
     game_info: Res<GameInfoAndStuff>,
     current_activity: Option<Res<State<GameActivity>>>,
     player_query: Query<(
@@ -168,7 +187,7 @@ fn save_on_key(
     performing_movement_query: Query<Entity, With<PerformingMovement>>,
     is_building_query: Query<Entity, With<IsBuilding>>,
 ) {
-    if !keys.just_pressed(KeyCode::F5) {
+    if events.read().next().is_none() {
         return;
     }
     
@@ -241,6 +260,7 @@ fn save_on_key(
         .collect();
     
     let save_data = GameSaveData {
+        version: SAVE_GAME_VERSION.to_string(),
         round: game_info.round,
         game_activity: activity,
         players,
@@ -264,10 +284,19 @@ fn save_on_key(
 
 fn trigger_load_on_key(
     keys: Res<ButtonInput<KeyCode>>,
+    mut writer: MessageWriter<LoadGameRequest>,
+) {
+    if keys.just_pressed(KeyCode::F9) {
+        writer.write(LoadGameRequest);
+    }
+}
+
+fn handle_load_request(
+    mut events: MessageReader<LoadGameRequest>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if !keys.just_pressed(KeyCode::F9) {
+    if events.read().next().is_none() {
         return;
     }
     
@@ -282,8 +311,13 @@ fn trigger_load_on_key(
         Ok(json) => {
             match serde_json::from_str::<GameSaveData>(&json) {
                 Ok(save_data) => {
-                    info!("Parsed save data: round {}, {} players, {} areas",
-                        save_data.round, save_data.players.len(), save_data.area_populations.len());
+                    if save_data.version != SAVE_GAME_VERSION {
+                        error!("Save file version mismatch: expected {}, got {}. Save file rejected.",
+                            SAVE_GAME_VERSION, save_data.version);
+                        return;
+                    }
+                    info!("Parsed save data (v{}): round {}, {} players, {} areas",
+                        save_data.version, save_data.round, save_data.players.len(), save_data.area_populations.len());
                     // Insert the pending load resource - will be processed on PrepareGame
                     commands.insert_resource(PendingGameLoad(save_data));
                     // Transition to Playing state to trigger the game start
