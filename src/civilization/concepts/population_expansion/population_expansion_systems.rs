@@ -7,6 +7,7 @@ use crate::civilization::concepts::population_expansion::population_expansion_co
 use crate::civilization::concepts::population_expansion::population_expansion_events::{
     CheckGate, CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand,
 };
+use crate::civilization::concepts::save_game::LoadingFromSave;
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::game_moves::{AvailableMoves, GameMove};
 use crate::loading::TextureAssets;
@@ -44,11 +45,12 @@ pub fn check_area_population_expansion_eligibility(
 }
 
 pub fn enter_population_expansion(
-    player_query: Query<(Entity, &PlayerAreas, Has<IsHuman>)>,
+    player_query: Query<(Entity, &Faction, &PlayerAreas, Has<IsHuman>)>,
     area: Query<(Entity, &Population)>,
     mut game_info: ResMut<GameInfoAndStuff>,
     mut commands: Commands,
     mut checker: MessageWriter<CheckPlayerExpansionEligibility>,
+    loading_from_save: Option<Res<LoadingFromSave>>,
 ) {
     game_info.round += 1;
     info!("[POP_EXP] Entering population expansion phase, round {}", game_info.round);
@@ -66,7 +68,16 @@ pub fn enter_population_expansion(
 
     let mut human_count = 0;
     let mut ai_count = 0;
-    for (player, player_areas, is_human) in player_query.iter() {
+    let mut skipped_count = 0;
+    for (player, faction, player_areas, is_human) in player_query.iter() {
+        // Skip players that already completed expansion in the saved game
+        if let Some(ref save_state) = loading_from_save {
+            if save_state.completed_factions.contains(&faction.faction) {
+                info!("[POP_EXP] Skipping {:?} - already completed expansion in save", faction.faction);
+                skipped_count += 1;
+                continue;
+            }
+        }
         if is_human {
             human_count += 1;
         } else {
@@ -77,7 +88,12 @@ pub fn enter_population_expansion(
             .insert(NeedsExpansion::new(player_areas.areas()));
         checker.write(CheckPlayerExpansionEligibility::new(player));
     }
-    info!("[POP_EXP] {} human players, {} AI players need expansion check", human_count, ai_count);
+    info!("[POP_EXP] {} human, {} AI need expansion, {} skipped (already done)", human_count, ai_count, skipped_count);
+    
+    // Clean up LoadingFromSave now that we've used it
+    if loading_from_save.is_some() {
+        commands.remove_resource::<LoadingFromSave>();
+    }
 }
 
 pub fn auto_expand_population(

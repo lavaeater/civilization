@@ -1,7 +1,8 @@
-use crate::civilization::components::{FixTokenPositions, PlayerAreas, Population, Token};
+use crate::civilization::components::{Faction, FixTokenPositions, PlayerAreas, Population, Token};
 use crate::civilization::concepts::census::GameInfoAndStuff;
 use crate::civilization::concepts::movement::movement_components::*;
 use crate::civilization::concepts::movement::movement_events::*;
+use crate::civilization::concepts::save_game::LoadingFromSave;
 use crate::civilization::game_moves::{AvailableMoves, RecalculatePlayerMoves};
 use crate::player::Player;
 use crate::GameActivity;
@@ -13,9 +14,33 @@ use bevy::time::Time;
 pub fn start_movement_activity(
     mut game_info: ResMut<GameInfoAndStuff>,
     mut next_player: MessageWriter<NextPlayerStarted>,
+    loading_from_save: Option<Res<LoadingFromSave>>,
+    faction_query: Query<(Entity, &Faction), With<Player>>,
+    mut commands: Commands,
 ) {
-    game_info.left_to_move = game_info.census_order.clone();
-    game_info.left_to_move.reverse();
+    if let Some(ref save_state) = loading_from_save {
+        // Restore census_order and left_to_move from save data
+        // Resolve faction names back to entities
+        let faction_to_entity: bevy::platform::collections::HashMap<_, _> = faction_query
+            .iter()
+            .map(|(e, f)| (f.faction, e))
+            .collect();
+        
+        game_info.census_order = save_state.census_order.iter()
+            .filter_map(|f| faction_to_entity.get(f).copied())
+            .collect();
+        game_info.left_to_move = save_state.left_to_move.iter()
+            .filter_map(|f| faction_to_entity.get(f).copied())
+            .collect();
+        
+        info!("[MOVEMENT] Restored from save: {} in census_order, {} left to move",
+            game_info.census_order.len(), game_info.left_to_move.len());
+        
+        commands.remove_resource::<LoadingFromSave>();
+    } else {
+        game_info.left_to_move = game_info.census_order.clone();
+        game_info.left_to_move.reverse();
+    }
     next_player.write(NextPlayerStarted);
 }
 

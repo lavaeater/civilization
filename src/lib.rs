@@ -38,7 +38,7 @@ pub enum GameState {
 #[derive(Resource, Default)]
 pub struct GamePaused;
 
-#[derive(SubStates, Clone, PartialEq, Eq, Hash, Debug, Default, Reflect)]
+#[derive(SubStates, Clone, PartialEq, Eq, Hash, Debug, Default, Reflect, serde::Serialize, serde::Deserialize)]
 #[source(GameState = GameState::Playing)]
 pub enum GameActivity {
     #[default]

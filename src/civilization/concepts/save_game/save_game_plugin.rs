@@ -6,6 +6,9 @@ use std::path::Path;
 
 use crate::civilization::components::*;
 use crate::civilization::concepts::census::GameInfoAndStuff;
+use crate::civilization::concepts::city_construction::IsBuilding;
+use crate::civilization::concepts::movement::movement_components::PerformingMovement;
+use crate::civilization::concepts::population_expansion::population_expansion_components::NeedsExpansion;
 use crate::civilization::concepts::AvailableFactions;
 use crate::civilization::enums::GameFaction;
 use crate::civilization::{PlayerTradeCards, Census, TradeCard};
@@ -21,8 +24,19 @@ pub struct PendingGameLoad(pub GameSaveData);
 
 /// Resource that indicates we're loading from a save file.
 /// When present, setup_players should be skipped entirely.
+/// Also carries the saved activity and per-player completion state
+/// so that OnEnter systems can skip already-completed players.
 #[derive(Resource)]
-pub struct LoadingFromSave;
+pub struct LoadingFromSave {
+    /// The activity the game was in when saved
+    pub saved_activity: GameActivity,
+    /// Factions that had already completed the current activity when saved
+    pub completed_factions: Vec<GameFaction>,
+    /// Saved census order (as factions, resolved to entities after load)
+    pub census_order: Vec<GameFaction>,
+    /// Saved left_to_move (as factions, resolved to entities after load)
+    pub left_to_move: Vec<GameFaction>,
+}
 
 pub struct SaveGamePlugin;
 
@@ -36,7 +50,27 @@ impl Plugin for SaveGamePlugin {
             .add_systems(
                 OnEnter(GameActivity::StartGame),
                 restore_area_populations,
-            );
+            )
+            // Safety net: clean up LoadingFromSave for atomic activities that don't
+            // consume it themselves (Census, Conflict, RemoveSurplus, CheckCitySupport,
+            // AcquireTradeCards, Trade). The per-player activities (PopExpansion,
+            // Movement, CityConstruction) clean it up in their own OnEnter systems.
+            .add_systems(OnEnter(GameActivity::Census), cleanup_loading_from_save)
+            .add_systems(OnEnter(GameActivity::Conflict), cleanup_loading_from_save)
+            .add_systems(OnEnter(GameActivity::RemoveSurplusPopulation), cleanup_loading_from_save)
+            .add_systems(OnEnter(GameActivity::CheckCitySupport), cleanup_loading_from_save)
+            .add_systems(OnEnter(GameActivity::AcquireTradeCards), cleanup_loading_from_save)
+            .add_systems(OnEnter(GameActivity::Trade), cleanup_loading_from_save);
+    }
+}
+
+fn cleanup_loading_from_save(
+    mut commands: Commands,
+    loading_from_save: Option<Res<LoadingFromSave>>,
+) {
+    if loading_from_save.is_some() {
+        info!("Cleaning up LoadingFromSave resource (atomic activity)");
+        commands.remove_resource::<LoadingFromSave>();
     }
 }
 
@@ -51,6 +85,10 @@ pub struct SavedPlayer {
     pub tokens_in_stock: usize,
     pub city_tokens_in_stock: usize,
     pub trade_cards: Vec<(TradeCard, usize)>,
+    /// Whether this player has completed the current game activity.
+    /// Used on load to avoid re-running activity logic for players who already finished.
+    #[serde(default)]
+    pub done_with_current_activity: bool,
 }
 
 /// Saved data for population in an area
@@ -67,9 +105,46 @@ pub struct SavedAreaPopulation {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GameSaveData {
     pub round: usize,
-    pub game_activity: String,
+    pub game_activity: GameActivity,
     pub players: Vec<SavedPlayer>,
     pub area_populations: Vec<SavedAreaPopulation>,
+    /// Census order saved as factions (resolved to entities on load)
+    #[serde(default)]
+    pub census_order: Vec<GameFaction>,
+    /// Players left to move, saved as factions (resolved to entities on load)
+    #[serde(default)]
+    pub left_to_move: Vec<GameFaction>,
+}
+
+/// Determine whether a player has completed the current game activity.
+/// A player is "done" if they no longer have the marker component for that activity.
+fn is_player_done_with_activity(
+    player: Entity,
+    activity: &GameActivity,
+    needs_expansion_query: &Query<Entity, With<NeedsExpansion>>,
+    performing_movement_query: &Query<Entity, With<PerformingMovement>>,
+    is_building_query: &Query<Entity, With<IsBuilding>>,
+    left_to_move: &[Entity],
+) -> bool {
+    match activity {
+        GameActivity::PopulationExpansion => {
+            // Player is done if they no longer have NeedsExpansion
+            needs_expansion_query.get(player).is_err()
+        }
+        GameActivity::Movement => {
+            // Player is done if they're not currently performing movement
+            // AND they're not in the left_to_move list
+            performing_movement_query.get(player).is_err()
+                && !left_to_move.contains(&player)
+        }
+        GameActivity::CityConstruction => {
+            // Player is done if they no longer have IsBuilding
+            is_building_query.get(player).is_err()
+        }
+        // Atomic activities (Census, Conflict, RemoveSurplus, etc.) run in one shot,
+        // so if we're saved during them, no player has partial state.
+        _ => false,
+    }
 }
 
 fn save_on_key(
@@ -77,6 +152,7 @@ fn save_on_key(
     game_info: Res<GameInfoAndStuff>,
     current_activity: Option<Res<State<GameActivity>>>,
     player_query: Query<(
+        Entity,
         &Name,
         &Faction,
         &Census,
@@ -88,16 +164,32 @@ fn save_on_key(
     ), With<Player>>,
     area_query: Query<(&GameArea, &Population, Option<&BuiltCity>)>,
     faction_query: Query<&Faction>,
+    needs_expansion_query: Query<Entity, With<NeedsExpansion>>,
+    performing_movement_query: Query<Entity, With<PerformingMovement>>,
+    is_building_query: Query<Entity, With<IsBuilding>>,
 ) {
     if !keys.just_pressed(KeyCode::F5) {
         return;
     }
     
-    info!("Saving game...");
+    let activity = current_activity
+        .as_ref()
+        .map(|a| a.get().clone())
+        .unwrap_or_default();
     
-    // Collect player data
+    info!("Saving game (activity: {:?})...", activity);
+    
+    // Collect player data with per-player completion state
     let mut players = Vec::new();
-    for (name, faction, census, treasury, token_stock, city_stock, trade_cards, is_human) in player_query.iter() {
+    for (entity, name, faction, census, treasury, token_stock, city_stock, trade_cards, is_human) in player_query.iter() {
+        let done = is_player_done_with_activity(
+            entity,
+            &activity,
+            &needs_expansion_query,
+            &performing_movement_query,
+            &is_building_query,
+            &game_info.left_to_move,
+        );
         let saved_player = SavedPlayer {
             name: name.to_string(),
             faction: faction.faction,
@@ -107,7 +199,13 @@ fn save_on_key(
             tokens_in_stock: token_stock.tokens_in_stock(),
             city_tokens_in_stock: city_stock.city_tokens_in_stock(),
             trade_cards: trade_cards.cards_as_vec(),
+            done_with_current_activity: done,
         };
+        if done {
+            info!("  Player {} ({:?}) is DONE with {:?}", name, faction.faction, activity);
+        } else {
+            info!("  Player {} ({:?}) is NOT done with {:?}", name, faction.faction, activity);
+        }
         players.push(saved_player);
     }
     
@@ -134,15 +232,21 @@ fn save_on_key(
         }
     }
     
-    let activity_name = current_activity
-        .map(|a| format!("{:?}", a.get()))
-        .unwrap_or_else(|| "Unknown".to_string());
+    // Save census_order and left_to_move as faction lists
+    let census_order: Vec<GameFaction> = game_info.census_order.iter()
+        .filter_map(|e| faction_query.get(*e).ok().map(|f| f.faction))
+        .collect();
+    let left_to_move: Vec<GameFaction> = game_info.left_to_move.iter()
+        .filter_map(|e| faction_query.get(*e).ok().map(|f| f.faction))
+        .collect();
     
     let save_data = GameSaveData {
         round: game_info.round,
-        game_activity: activity_name,
+        game_activity: activity,
         players,
         area_populations,
+        census_order,
+        left_to_move,
     };
     
     match serde_json::to_string_pretty(&save_data) {
@@ -205,11 +309,23 @@ fn load_game_from_save(
         return;
     };
     
-    // Mark that we're loading from save - this prevents setup_players from running
-    commands.insert_resource(LoadingFromSave);
-    
     let save_data = &pending.0;
     info!("Loading game from save: round {}, {} players", save_data.round, save_data.players.len());
+    
+    // Determine which factions have completed the current activity
+    let completed_factions: Vec<GameFaction> = save_data.players.iter()
+        .filter(|p| p.done_with_current_activity)
+        .map(|p| p.faction)
+        .collect();
+    
+    // Mark that we're loading from save - this prevents setup_players from running
+    // and carries activity state for OnEnter systems
+    commands.insert_resource(LoadingFromSave {
+        saved_activity: save_data.game_activity.clone(),
+        completed_factions,
+        census_order: save_data.census_order.clone(),
+        left_to_move: save_data.left_to_move.clone(),
+    });
     
     // Set game round
     game_info.round = save_data.round;
@@ -395,10 +511,9 @@ fn restore_area_populations(
         }
     }
     
-    // Clean up resources
+    // Clean up area-related load resources (but keep LoadingFromSave for OnEnter systems)
     commands.remove_resource::<PendingAreaPopulations>();
     commands.remove_resource::<LoadedFactionMap>();
-    commands.remove_resource::<LoadingFromSave>();
     
     info!("Area populations restored from save");
 }

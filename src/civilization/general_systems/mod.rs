@@ -22,7 +22,17 @@ pub fn start_game(
     mut writer: MessageWriter<MoveTokensFromStockToAreaCommand>,
     mut next_state: ResMut<NextState<GameActivity>>,
     debug_options: Res<DebugOptions>,
+    loading_from_save: Option<Res<LoadingFromSave>>,
 ) {
+    // When loading from save, skip initial token placement (already restored)
+    // and transition directly to the saved activity
+    if let Some(save_state) = &loading_from_save {
+        let activity = save_state.saved_activity.clone();
+        info!("Resuming saved game at activity: {:?}", activity);
+        next_state.set(activity);
+        return;
+    }
+
     debug!("4. Starting the game!");
     let human_entity = human_query.iter().next();
 
