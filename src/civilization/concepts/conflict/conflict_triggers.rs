@@ -51,7 +51,7 @@ pub fn on_add_unresolved_conflict(
         );
 
         commands.entity(area_entity).remove::<UnresolvedConflict>();
-        conflict_counter_resource.0 -= 1;
+        conflict_counter_resource.0 = conflict_counter_resource.0.saturating_sub(1);
         info!("[CONFLICT] Conflicts remaining: {}", conflict_counter_resource.0);
         if conflict_counter_resource.0 == 0 {
             info!("[CONFLICT] All conflicts resolved, transitioning to CityConstruction");
@@ -161,11 +161,19 @@ pub fn on_add_unresolved_city_conflict(
         commands
             .entity(area_entity)
             .remove::<UnresolvedCityConflict>();
-        conflict_counter_resource.0 -= 1;
-        info!("[CITY CONFLICT] Conflicts remaining: {}", conflict_counter_resource.0);
-        if conflict_counter_resource.0 == 0 {
-            info!("[CITY CONFLICT] All conflicts resolved, transitioning to CityConstruction");
-            next_state.set(GameActivity::CityConstruction);
+        
+        // Only decrement the counter if we did NOT chain into UnresolvedConflict.
+        // When we insert UnresolvedConflict (large invader paths), that observer
+        // will handle the decrement — so we must not double-decrement here.
+        if !has_large_invader {
+            conflict_counter_resource.0 = conflict_counter_resource.0.saturating_sub(1);
+            info!("[CITY CONFLICT] Conflicts remaining: {}", conflict_counter_resource.0);
+            if conflict_counter_resource.0 == 0 {
+                info!("[CITY CONFLICT] All conflicts resolved, transitioning to CityConstruction");
+                next_state.set(GameActivity::CityConstruction);
+            }
+        } else {
+            info!("[CITY CONFLICT] Chained into UnresolvedConflict — counter will be decremented by that observer");
         }
     } else {
         info!("[CITY CONFLICT] Failed to get area for entity {:?}", trigger.event().entity);

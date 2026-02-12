@@ -297,6 +297,59 @@ mod tests {
     }
 
     #[test]
+    fn test_city_conflict_large_invader_no_counter_underflow() {
+        // Regression test: when a city conflict chains into a regular conflict
+        // (large invader path), the counter must only be decremented once — not
+        // once in on_add_unresolved_city_conflict AND again in on_add_unresolved_conflict.
+        // Before the fix this caused "attempt to subtract with overflow" panic.
+        let mut app = create_test_app();
+        let city_owner = app.world_mut().spawn_empty().id();
+        let invader = app.world_mut().spawn_empty().id();
+
+        app.world_mut().entity_mut(city_owner).insert((
+            TokenStock::new(47, vec![]),
+            PlayerAreas::default(),
+            CityTokenStock::new(7, vec![]),
+            PlayerCities::default(),
+        ));
+        app.world_mut().entity_mut(invader).insert((
+            TokenStock::new(47, vec![]),
+            PlayerAreas::default(),
+            CityTokenStock::new(7, vec![]),
+            PlayerCities::default(),
+        ));
+
+        let city = BuiltCity::new(Entity::PLACEHOLDER, city_owner);
+        // Single city conflict zone: invader has >6 tokens → large invader path
+        // chains UnresolvedCityConflict → UnresolvedConflict
+        spawn_area(
+            app.world_mut(),
+            "City Area",
+            4,
+            &[(city_owner, 2), (invader, 7)],
+            Some(city),
+        );
+
+        // This must not panic with "attempt to subtract with overflow"
+        for _ in 0..5 {
+            app.update();
+        }
+
+        let counter = app.world().resource::<ConflictCounterResource>();
+        assert_eq!(
+            counter.0, 0,
+            "Counter should be exactly 0 after all conflicts resolve — not underflowed"
+        );
+
+        let state = app.world().resource::<State<GameActivity>>();
+        assert_eq!(
+            *state.get(),
+            GameActivity::CityConstruction,
+            "Should transition after city→regular conflict chain resolves"
+        );
+    }
+
+    #[test]
     fn test_city_conflict_owner_only_no_hang() {
         // City with only the owner's tokens → is_conflict_zone returns true
         // but on_add_unresolved_city_conflict should still remove the component
