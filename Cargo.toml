@@ -44,7 +44,7 @@ test-utils = []
 # All of Bevy's default features exept for the audio related ones (bevy_audio, vorbis), since they clash with bevy_kira_audio
 #   and android_shared_stdcxx/android-game-activity, since those are covered in `mobile`
 [dependencies]
-bevy = { version = "0.18.0", default-features = false, features = ["2d", "ui", "experimental_bevy_feathers", "bevy_gizmos"] }
+bevy = { version = "0.18.0", default-features = false, features = ["2d", "ui", "experimental_bevy_feathers", "bevy_gizmos", "debug"] }
 bevy_kira_audio = { version = "0.25.0", features = ["android_shared_stdcxx"] }
 bevy_asset_loader = { version = "0.25.0" }
 rand = { version = "0.10.0-rc.8" }

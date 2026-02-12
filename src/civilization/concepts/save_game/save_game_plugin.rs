@@ -51,7 +51,10 @@ pub struct SaveGamePlugin;
 
 impl Plugin for SaveGamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (save_on_key, trigger_load_on_key, handle_save_request, handle_load_request))
+        app
+            .add_message::<SaveGameRequest>()
+            .add_message::<LoadGameRequest>()
+            .add_systems(Update, (save_on_key, trigger_load_on_key, handle_save_request, handle_load_request))
             .add_systems(
                 OnEnter(GameActivity::PrepareGame),
                 load_game_from_save.before(crate::civilization::general_systems::setup_players),
