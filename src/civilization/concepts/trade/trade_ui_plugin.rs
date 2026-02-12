@@ -1,4 +1,4 @@
-use crate::civilization::components::{Faction, PlayerAreas};
+use crate::civilization::components::{Faction, PlayerAreas, PlayerCities};
 use crate::civilization::concepts::*;
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
@@ -391,7 +391,7 @@ fn update_game_state_display(
     current_state: Res<State<GameState>>,
     current_activity: Option<Res<State<GameActivity>>>,
     game_info: Res<GameInfoAndStuff>,
-    player_query: Query<(&Name, &PlayerAreas, &Faction, Has<IsHuman>), With<Player>>,
+    player_query: Query<(&Name, &PlayerAreas, &PlayerCities, &PlayerTradeCards, &Faction, Has<IsHuman>), With<Player>>,
 ) {
     let state_changed = game_state_events.read().count() > 0;
     let activity_changed = game_activity_events.read().count() > 0;
@@ -425,11 +425,13 @@ fn update_game_state_display(
     // Census order display
     ui.add_text_child("Census Order:", None, Some(16.0), Some(Color::srgb(1.0, 0.8, 0.0)));
     for (i, player_entity) in game_info.census_order.iter().enumerate() {
-        if let Ok((name, player_areas, faction, is_human)) = player_query.get(*player_entity) {
+        if let Ok((name, player_areas, player_cities, player_trade_cards, faction, is_human)) = player_query.get(*player_entity) {
             let pop = player_areas.total_population();
+            let cities = player_cities.number_of_cities();
+            let cards = player_trade_cards.number_of_trade_cards();
             let faction_color = faction_to_color(faction);
             let human_marker = if is_human { " (YOU)" } else { "" };
-            let census_line = format!("{}. {}{} - Pop: {}", i + 1, name, human_marker, pop);
+            let census_line = format!("{}. {}{} - Pop: {} | Cities: {} | Cards: {}", i + 1, name, human_marker, pop, cities, cards);
             ui.add_text_child(&census_line, None, Some(14.0), Some(faction_color));
         }
     }
