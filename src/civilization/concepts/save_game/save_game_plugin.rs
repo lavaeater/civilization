@@ -45,6 +45,8 @@ pub struct LoadingFromSave {
     pub census_order: Vec<GameFaction>,
     /// Saved left_to_move (as factions, resolved to entities after load)
     pub left_to_move: Vec<GameFaction>,
+    /// The faction that was actively moving when saved (already popped from left_to_move)
+    pub current_mover: Option<GameFaction>,
 }
 
 pub struct SaveGamePlugin;
@@ -127,6 +129,9 @@ pub struct GameSaveData {
     /// Players left to move, saved as factions (resolved to entities on load)
     #[serde(default)]
     pub left_to_move: Vec<GameFaction>,
+    /// The faction currently performing movement (already popped from left_to_move)
+    #[serde(default)]
+    pub current_mover: Option<GameFaction>,
 }
 
 /// Determine whether a player has completed the current game activity.
@@ -262,6 +267,15 @@ fn handle_save_request(
         .filter_map(|e| faction_query.get(*e).ok().map(|f| f.faction))
         .collect();
     
+    // Find the player currently performing movement (already popped from left_to_move)
+    let current_mover = if activity == GameActivity::Movement {
+        performing_movement_query.iter().next().and_then(|e| {
+            faction_query.get(e).ok().map(|f| f.faction)
+        })
+    } else {
+        None
+    };
+    
     let save_data = GameSaveData {
         version: SAVE_GAME_VERSION.to_string(),
         round: game_info.round,
@@ -270,6 +284,7 @@ fn handle_save_request(
         area_populations,
         census_order,
         left_to_move,
+        current_mover,
     };
     
     match serde_json::to_string_pretty(&save_data) {
@@ -362,6 +377,7 @@ fn load_game_from_save(
         completed_factions,
         census_order: save_data.census_order.clone(),
         left_to_move: save_data.left_to_move.clone(),
+        current_mover: save_data.current_mover,
     });
     
     // Set game round

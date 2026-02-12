@@ -33,6 +33,20 @@ pub fn start_movement_activity(
             .filter_map(|f| faction_to_entity.get(f).copied())
             .collect();
         
+        // Restore the player who was actively moving (already popped from left_to_move)
+        if let Some(ref mover_faction) = save_state.current_mover {
+            if let Some(&mover_entity) = faction_to_entity.get(mover_faction) {
+                info!("[MOVEMENT] Restoring current mover: {:?}", mover_faction);
+                commands.entity(mover_entity).insert(PerformingMovement);
+            } else {
+                info!("[MOVEMENT] No current mover to restore, advancing to next player");
+                next_player.write(NextPlayerStarted);
+            }
+        } else {
+            info!("[MOVEMENT] No current mover in save, advancing to next player");
+            next_player.write(NextPlayerStarted);
+        }
+        
         info!("[MOVEMENT] Restored from save: {} in census_order, {} left to move",
             game_info.census_order.len(), game_info.left_to_move.len());
         
@@ -40,8 +54,8 @@ pub fn start_movement_activity(
     } else {
         game_info.left_to_move = game_info.census_order.clone();
         game_info.left_to_move.reverse();
+        next_player.write(NextPlayerStarted);
     }
-    next_player.write(NextPlayerStarted);
 }
 
 pub fn prepare_next_mover(
