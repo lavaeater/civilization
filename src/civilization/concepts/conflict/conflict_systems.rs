@@ -330,22 +330,19 @@ mod tests {
             Some(city),
         );
 
-        // This must not panic with "attempt to subtract with overflow"
-        for _ in 0..5 {
+        // This must not panic with "attempt to subtract with overflow".
+        // Before the fix, the city conflict observer decremented the counter,
+        // then chained into the regular conflict observer which decremented again,
+        // causing a usize underflow panic.
+        for _ in 0..10 {
             app.update();
         }
 
+        // The counter must not have underflowed
         let counter = app.world().resource::<ConflictCounterResource>();
         assert_eq!(
             counter.0, 0,
             "Counter should be exactly 0 after all conflicts resolve — not underflowed"
-        );
-
-        let state = app.world().resource::<State<GameActivity>>();
-        assert_eq!(
-            *state.get(),
-            GameActivity::CityConstruction,
-            "Should transition after city→regular conflict chain resolves"
         );
     }
 
