@@ -1,0 +1,328 @@
+29. RESOLUTION OF CALAMITIES
+29.1 All calamities are resolved immediately after trading ends, before
+the acquisition of civilization cards.
+29.2 Non-tradable calamity cards must be retained by the players who
+drew them until the end of trading. Such calamities are resolved against
+the drawing player once trading is completed .
+29.3 Tradable Calamity cards arc also not revealed when drawn. A
+player who draws a tradable calamity eard may trade it to another player.
+A player who receives such a calamity card in trade may in turn trade it
+to another player, and so on, until the trading session ends. There is no
+limit to the number of times a tradable calamity card may be traded. At
+the end of the trading session, all calamity cards are revealed by the
+players who hold them.
+29.4 A player who drew a tradable calamity card need not have trll.ded
+it, but such cards cannot be held for future turns. Subject to 29.5, all
+calamities take effect on the turn in which they are drawn . If a player
+retains a tradable calamity card, he becomes the primary victim of the
+calamity, just as though the card had been traded to him. When a player
+retains a tradable calamity which calls for secondary victims (Epidemic,
+Iconoclasm and Heresy, and Piracy), any other eligible player may be
+named as a secondary victim.
+29.S No player may be the primary victim of more than two calamities
+in the same turn . If a playcr receives marc than two calamities in the
+same turn, his calan1'ities arc shuffled together, and two are drawn at
+
+random. The rcmaining calamities received by that player are disre-
+garded and are returned to the appropriate stack of trade cards. There is
+
+no restriction on the infliction of secondary effects of calamities.
+29.6 Calamities arc resolved in ascending order, starting with Volcanic
+Eruption/Earthquakeand ending with Piracy . Non·tradabl e calamities are
+resolved before tradable calamities of the same numeric value (I.e., the
+order of resolution is Volcanic Eruption, Treachery, Famine.
+Superstition, etc.).
+29.61 The player who holds a calamity card at the end of the trading
+session is the primary victim of that calamity. In many cases, other
+players must be selected by the primary victim as secondary victims. The
+player who traded a tradable calamity card to the primary victim may not
+be selected as a secondary victim.
+EXAMPLE: Crete df1!.WR Epidemic. and trades it to Egypt. At the end of the tradinr seaaion. qypt loeea 16 unit poinb. and Crete is inumme from the sccondlU)' effectll of
+
+the Epidemic, as the player who traded it to Egypt Had Crete not traded Epidemic. it
+would have been the primary victim, and all other playera would be potential secondary
+victims.
+29.62 When resolving calamities, cities arc worth up to five unit points
+and tokens are worth one unit point. If a city is reduced, surviving
+tokens are not counted towards the resolution of the calamity.
+EXA}.{PLE: Africa must remove ten unit points because of Famine. It could remove
+two cities, ten tokens, or any combination thereof. If the African player decided to
+reduce a city, leaving two tokens in its place. this would count as three unit points.
+29.63 Players must fulfill their losses from calamities by the exact
+amount required, if possible. If unable to do so, a player may exceed the
+amount required, but only by as small an amount as is necessary.
+29.64 Whenever a calamity requires that the primary victim direct effects
+against other players, the primary victim must do so.
+29.65 Barbarian tokens and Pirate cities are never affected by calamities.
+29.7 After all calamities are resolved, they are put to one side. After
+civilization cards are purchased, tradable calamity cards are shuffled
+together with returned trade cards of the same value and returned , face
+down, to the bottom of the appropriate stack of trade cards. Non-tradable
+calamity cards are then placed at the bottom of the appropriate stack of
+trade cards.
+29.8 Once all calamities are resolved, players must again check for city
+support as explained above (26.3).
+30. CALAMITIES
+30.1 The effects of tbe various calamities are set out below. The
+calamities are listed in the order in which they are resolved. Thus
+Volcano/Earthquake and Treachery are placed in the second trade stack,
+Famine and Superstition in the third trade stack, and so on . There are no
+calamities associated with the first trade card stack. These effects are
+reprinted in tbe Summary of Calamity Effects.
+30.2 Second level calamities
+30.21 Volcanic Eruption or Eartbquake
+30.211 If the primary victim has any cities in an area touched by a
+volcano, the volcano erupts and eliminates all units, irrespcctive of
+ownership, in the areas touched by the volcano. If the primary victim
+has cities in areas touched by more than one volcano , the site of the
+eruption is that which causes the greatest total damage to the primary
+victim and any secondary victims. In the event of a tie, the primary
+victim selects the location of the eruption.
+30.212 If the primary victim has no cities in an area touched by a
+volcano, one of his cities is destroyed by earthquake. One city belonging
+to another player is reduced. This second city must be in an area
+adjacent to the destroyed city, even across water. As above, the site of
+the earthquake is that which causes the greatest total damage.
+30.213 If the primary victim holds Engineering, an earthquake reduces,
+rarher than destroys, his city. A player who holds Engineering may not
+be selected as a secondary victim of an Earthquake. Engineering has no
+effect on Volcanoes.
+30.22 Treachery
+30.221 One city belonging to the primary victim is replaced by one
+city belonging to the player who traded him the card. If the trading
+
+playcr has no available cities, the victim's city is eliminated. The play-
+er trading the card selects the city.
+
+30.222 If Treachery is drawn by a player and not traded , one eity
+belonging to that player is reduced . As no one traded the card to thc
+primary victim, no other player benefits from the primary victim's
+misfortune.
+30.3 Third level calamities
+30.31 Famine
+30.311 The pri:nary vlcttm loses ten unit points himself, and must
+instruct other players to remove 20 unit points, no more than eight of
+which may come from anyone player. The primary victim decides how
+many unit points are lost by each of the secondary victims, but the
+secondary victims decide whieh units to remove.
+30.312 Players who hold Pottery may reduce their losses by four unil
+pOinlsforeach Grain lrade card held. Grain cards usedfor this purpose
+
+11
+are not discarded, but must be pLacedface up infront of the player until
+the end of the turn and may not be used fO acquire civilization cards until
+lhe follOwing lurn.
+30.32 Superstition
+30.321 Three cities belonging to the primary victim are reduced. The
+primary victim chooses which cities.
+30.322 Jjthe primary victim has Mysticism, two cities are reduced; if the
+primary victim holds Deism, one ciry is reduced; if the primary victim
+holds Enlightenment, there is no effect. These effects are not cwnulative.
+The governing effecr is lhar of the highest level Religion card held.
+30.4 Fourth level calamities
+30.41 Civil War
+30.411 The primary victim's nation is divided into two factions. The
+player with the most unit points in stock is the beneficiary of the Civil
+War. This determination is made by counting tokens in stock (one each)
+and cities in stock (five each). If the primary victim has the most units
+in stock there is no Civil War.
+30.412 The composition of the first faction is decided by both the
+primary victim and the beneficiary as follows:
+30.4121 The primary victim begins by selecting 15 unit points.
+30.4122 Jjthe primary victim holds Music he selects an additionalfive
+unir points. If the primary victim holds Drama and Poetry he selects an
+additional five unit poinls. If lhe primary victim holds Denwcracy he
+selects an additional ten unit points. The effects of Music, Drama and
+Poelry, and Democracy are cumulative.
+30.4123 After the primary victim completes his selection, the beneficiary
+selccts an additional 20 unit points belonging to the primary victim to
+complete the first faction.
+30.4124 Jj the primary victim holds Philosophy, the first faction is
+automatically comprised of 15 units chosen by the beneficiary, regardless
+of any other civilization cards held by the primary victim.
+30.413 Whatever remains constitutes the second faction . If there is no
+second faction there is no Civil War.
+30.414 If lhe primary victim holds MiliTary, five unit points are rembved
+from eachfacIion to refleclthe increased destructiveness of the Civil War.
+The required units are removed after factions are selected. Each player
+must, ifpossible, remove the reqUired units from areas adjacent to the
+other faction.
+30.415 The primary victim then decides whether he will continue to play
+the units of the first or second faction. The primary victim retains his
+stock, ships, treasury , civilization cards, and position on the AS. T. The
+beneficiary annexes whichever faction is not retained by the primary
+victim by replacing the units involved with his own. If he runs out of
+units, the remainder are taken over by the next player with the most units
+in stock, and so on.
+30.42 Slave Revolt
+30.421 Fifteen tokens belonging to the primary victim may not be used
+to support his cities. This effect is resolved immediately. After the end
+of the current calamity phase, the tokens again function normally.
+30.422 Cities are reduced one at a time, with the newly available tokens
+being eligible to provide support for the victim's remaining cities (see
+26.6). If the primary victim has less than fifteen tokens on the board,
+only those tokens are affected by Slave Revolt. Tokens placed on the
+board aftcr the resulting reduction of the primary victim's cities may
+always be used for city support.
+30.423 If the primary victim holds Mining, an additionaljive tokens may
+not be usedfor dry SUppOrT. Iflhe primary victim holds Enlightenment,
+the number of tokens which may not be used for city support is reduced
+by five. Jj a player holds both Mining and Enlightenment, lhe effects
+cancel.
+30.5 Fifth level calamities
+30.51 Flood
+30.511 If the primary victim has units on a flood plain (4.42), he loses
+a maximum of 17 unit points from that flood plain. Cities are vulnerable
+
+12
+to flood if they have been built in areas with no city site or 8. city shown
+as a white square. Cities on black city sites are safe.
+30.512 Ten unit points on the same flood plain belonging to one or
+more secondary victims are also removed. The primary victim divides
+the tcn unit point loss among the secondary victims as he chooses, but the
+secondary victims themselves choose which units are to be lost. If the
+number of units on the affected flood plain belonging to other players
+totals ten unit points or less, all those other players automatically become
+secondary victims and all their units are eliminated.
+30.513 If the primary victim has units on more than one flood plain, the
+flood occurs on the flood plain containing the greatest number of his unit
+points. In the event of tie, the primary victim selects the location of the
+flood.
+30.514 If the primary victim has no units in a flood plain, one of his
+coastal cities is eliminated.. The primary victim chooses the city. If the
+primary victim has no coastal cities, he is unaffected by the flood.
+30.515 A player who holds Engineering who has units on a flood plain
+loses a maximum of seven unil points from flood, whether as a primary
+or secondary victim. if a primary victim who holds Engineering has no
+units on a flood plain, one of his coastal cities is reduced rarher than
+e/iminazed.
+30.52 Barbarian Hordes
+30.521 Initial placement
+30.5211 Fifteen tokens belonging to one of the nations which did not
+start the game are placed in one of the primary victim's start areas.
+These Barbarian tokens are placed in the start area which causes the
+greatest damage to the primary victim. If the primary victim does not
+have un its in any of his start areas, the Barbarians are initially placed in
+an empty start area. They may be placed in an area which contains units
+belonging to a player othcr than the primary victim only if no other area
+is available.
+30.5212 Immediately after initial placement, conflict is resolved between
+the newty·placed Barbarians and any units, including those of nations
+other than the primary victim, in the area occupied by the Barbarians.
+30.523 Continued movement
+30.5231 Once conflict arising out of their initial placement is resolved,
+all surviving Barbarians in excess of the population limit of the area of
+initial placement move to the adjacent area which will result in the
+greatest damage to the primary victim. Conflict is again resolved.
+30.5232 This process is repeated until there arc no surplus Barbarian
+tokens. At the end of the calamity phase, surviving Barbarian tokens
+may not exceed the population limits of the areas they occupy.
+30.5233 Barharian~ always move 8S a unit, other than when they leave
+tokens in areas they have already occupied. Barbarians may move across
+water boundaries, but not across open sea areas.
+30.5234 The movemcnt of Barbarians is governed by the principle that
+they always move into the area which causes the greatest immediate
+damage to the primary victim. No calculation is made as to whcther the
+overall damage to the primary victim would be greater if the Barbarians
+went into one area as opposed to another, as the determination of greatest
+damage is made for each Barbarian movement in turn.
+30.5235 All movement and conflict involving Barbarians is complcted
+during the calamity phase, prior to the resolution of any other calamities.
+Once the Barbarians have stopped moving, they remain on the board until
+eliminated by other players. Barbarians do not increase their population
+and may not be selected as secondary victims of calamities.
+30.524 Conflict with other nations
+30.5241 Barbarians must enter areas occupied solely by cities or tokens
+belonging to the primary victim, provided they can inflict damage on the
+primary victim by entering such areas. If they are unable to move into
+such an area, they may enter empty areas or areas occupied by units
+belonging to other nations in order to reach the nearest area in which they
+can inflict damage on the primary victim.
+30.5242 If Barbarians cnter areas containing units belonging to nations
+other than the primary victim, they engage in conflict with those units.
+Barbarians do not attack their own tokens, and thus may pass through
+areas they have already occupied with no ill effects. It is possible that a
+
+primary victim who has no units near his starting areas might not suffer
+any ill effects from this calamity. as the Barbarians might exhaust
+themselves ravaging and occupying areas while trying to reach the nearest
+vulnerable primary victim units.
+30.525 Resolving ties
+30.5251 If Barbarians have a choice of areas to enter. the player who
+traded the calamity to the primary victim selects the area. If the calamity
+was not traded, such decisions are made by the player with the most units
+in stock at the time the calamity is resolved.
+30.5252 Barbarian tokens do not benefit from any of the attributes oi
+their cantrall ing player.
+30.526 If Barbarians eliminate a city, no trade card is drawn from the
+victim.
+30.527 Crete may not be the primary victim of Barbarian Hordes.
+30.6 Sixth level calamities
+30.61 Epidemic
+30.611 The primary victim loses 16 unit points. The primary v ictim
+must also order other players to lose 25 unit points of their choice, no
+marc than 10 of wh ich may come from any onc player. The player who
+traded Epidemic to the primary victim may not be selected as a secondary
+victim.
+30.612 A nation removing tokens as a result of an Epidemic must leave
+at least one token in each affected area. Cities which are eliminated by
+an Epidcmic are replaced by at least one token, so citics account for a
+maximum of four un it points when calculating losses from this calamity.
+30.613 If a primary victim of Epidemic holds Medicine, his losses are
+reduced by eighl unil points. If a secondary viClim oj Epidemic holds
+Medicine, his losses are reduced by five unil points.
+30.614 A player who holds Roadbuilding loses an additional five unil
+poinls to Epidemic, both as a primary and a secondary victim.
+30.615 The effects of 30. 613 - 30.614 are cumulative.
+30.7 Seventh level calamities
+30.71 Ovil Disorder
+30.711 All but three of the primary victim's cities are reduced. The
+primary victim chooses which cities are reduced.
+30.712 The number of Ihe primary victim's cities reduced is decreased
+by one for each of the following civilization cards held: Music, Drama
+and Poelry, Law and Democracy.
+30.713 The number of the primary victim's ciries reducedis increased by
+one if Ihe primary victim holds Military.
+30.714 The nwnber of the pn'mary victim's cities reduced is increased by
+one Ij the primary victim holds Roadbuilding.
+30.715 The effects of 30.712 - 30.714 are cumulative.
+30.8 Eighth level calamities
+30.81 Iconoclasm and Heresy
+30.811 Four of the primary victim's cities are reduced. The primary
+v ictim chooses which cities are reduced.
+30.812 iflhe primary victim holds Law, the number oj cities reduced is
+decreased by one.
+30.813 If the primary victim holds Philosophy, the number of cities
+reduced is decreased by one.
+30.814 If the primary victim holds Theology, the number of cities
+reduced is decreased by three.
+30.815 if lhe primary victim holds Monotheism, the number oj cities
+reduced is increased by one.
+30.816 TJlhe primary victim holds Roadbuilding, ehe number of cities
+reduced is increased by one.
+30.817 The effeClS of 30.812 - 30.816 are cumulative.
+30.818 The primary victim must also order the reduction of a total qf
+two cities belonging to other players. The player who traded Iconoclasm
+
+and Heresy to the primary victim may not be selected as a secondary
+victim.
+30.819 A secondary victim who holds Philosophy may nor lose more lhan
+one city as a result oj the primary victim's order. A player who holds
+Theology cannol be named as a secondary victim.
+30.9 Ninth level calamities
+30.91 Piracy
+30.911 The primary victim loses two coastal cities. The player trading
+the card selects the cities. These cities are replaced by two pirate cities
+belonging to one of the nations which did not start the game (for
+convenience, use the same units as for Barbarian Hordes).
+30.912 Two coastal cities belonging to two other players are similarly
+replaced by pirate cities, even if the primary victim had fewer than two
+coastal cities and was thus not himself fully affected. The primary victim
+selects these cities. The secondary victims may each lose only one city.
+The player who traded Piracy to the primary victim may not be selected
+as a secondary victim.
+30.913 Pirate cities do not require city support, and remain on the board
+until attacked and destroyed. When a pirate eity is attacked, it is replaced
+by unused tokens solely for the purpose of resolving combat. After
+combat is resolved, any surviving pirate tokens are eliminated. When a
+pirate city is destroyed, the attacker may pillage the city.
