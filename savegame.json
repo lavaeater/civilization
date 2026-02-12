@@ -10,7 +10,7 @@
       "census_population": 34,
       "treasury": 0,
       "tokens_in_stock": 13,
-      "city_tokens_in_stock": 5,
+      "city_tokens_in_stock": 3,
       "trade_cards": [
         [
           "Ochre",
@@ -45,7 +45,7 @@
       "census_population": 47,
       "treasury": 0,
       "tokens_in_stock": 0,
-      "city_tokens_in_stock": 7,
+      "city_tokens_in_stock": 6,
       "trade_cards": [
         [
           "Hides",
@@ -72,7 +72,7 @@
       "census_population": 42,
       "treasury": 0,
       "tokens_in_stock": 5,
-      "city_tokens_in_stock": 7,
+      "city_tokens_in_stock": 6,
       "trade_cards": [
         [
           "Ochre",
@@ -103,7 +103,7 @@
       "census_population": 27,
       "treasury": 0,
       "tokens_in_stock": 20,
-      "city_tokens_in_stock": 3,
+      "city_tokens_in_stock": 0,
       "trade_cards": [
         [
           "VolcanoEarthquake",
@@ -126,6 +126,16 @@
     }
   ],
   "area_populations": [
+    {
+      "area_id": 64,
+      "tokens_by_faction": [
+        [
+          "Asia",
+          2
+        ]
+      ],
+      "city_owner": null
+    },
     {
       "area_id": 105,
       "tokens_by_faction": [
@@ -187,11 +197,11 @@
       "city_owner": null
     },
     {
-      "area_id": 57,
+      "area_id": 60,
       "tokens_by_faction": [
         [
           "Assyria",
-          4
+          2
         ]
       ],
       "city_owner": null
@@ -325,7 +335,7 @@
       "city_owner": null
     },
     {
-      "area_id": 60,
+      "area_id": 57,
       "tokens_by_faction": [
         [
           "Assyria",
@@ -335,61 +345,11 @@
       "city_owner": null
     },
     {
-      "area_id": 64,
+      "area_id": 9,
       "tokens_by_faction": [
         [
-          "Asia",
+          "Assyria",
           2
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 61,
-      "tokens_by_faction": [
-        [
-          "Asia",
-          2
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 138,
-      "tokens_by_faction": [
-        [
-          "Africa",
-          1
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 137,
-      "tokens_by_faction": [
-        [
-          "Africa",
-          1
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 65,
-      "tokens_by_faction": [
-        [
-          "Iberia",
-          1
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 136,
-      "tokens_by_faction": [
-        [
-          "Africa",
-          1
         ]
       ],
       "city_owner": null
@@ -425,20 +385,20 @@
       "city_owner": null
     },
     {
-      "area_id": 9,
+      "area_id": 42,
       "tokens_by_faction": [
         [
-          "Assyria",
-          4
+          "Iberia",
+          2
         ]
       ],
       "city_owner": null
     },
     {
-      "area_id": 10,
+      "area_id": 24,
       "tokens_by_faction": [
         [
-          "Assyria",
+          "Iberia",
           2
         ]
       ],
@@ -468,12 +428,12 @@
       "area_id": 41,
       "tokens_by_faction": [
         [
-          "Asia",
-          1
-        ],
-        [
           "Assyria",
           2
+        ],
+        [
+          "Asia",
+          1
         ]
       ],
       "city_owner": null
@@ -523,20 +483,30 @@
       "city_owner": null
     },
     {
-      "area_id": 24,
+      "area_id": 10,
       "tokens_by_faction": [
         [
-          "Iberia",
+          "Assyria",
           2
         ]
       ],
       "city_owner": null
     },
     {
-      "area_id": 42,
+      "area_id": 11,
       "tokens_by_faction": [
         [
-          "Iberia",
+          "Assyria",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 61,
+      "tokens_by_faction": [
+        [
+          "Asia",
           2
         ]
       ],
@@ -586,9 +556,109 @@
       "area_id": 30,
       "tokens_by_faction": [
         [
-          "Illyria",
+          "Iberia",
           1
         ],
+        [
+          "Illyria",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 134,
+      "tokens_by_faction": [
+        [
+          "Africa",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 135,
+      "tokens_by_faction": [
+        [
+          "Africa",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 148,
+      "tokens_by_faction": [
+        [
+          "Asia",
+          5
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 88,
+      "tokens_by_faction": [
+        [
+          "Asia",
+          2
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 89,
+      "tokens_by_faction": [
+        [
+          "Asia",
+          2
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 36,
+      "tokens_by_faction": [
+        [
+          "Thrace",
+          3
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 27,
+      "tokens_by_faction": [
+        [
+          "Iberia",
+          2
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 138,
+      "tokens_by_faction": [
+        [
+          "Africa",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 137,
+      "tokens_by_faction": [
+        [
+          "Africa",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 65,
+      "tokens_by_faction": [
         [
           "Iberia",
           1
@@ -597,14 +667,34 @@
       "city_owner": null
     },
     {
+      "area_id": 136,
+      "tokens_by_faction": [
+        [
+          "Africa",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 58,
+      "tokens_by_faction": [
+        [
+          "Asia",
+          4
+        ]
+      ],
+      "city_owner": null
+    },
+    {
       "area_id": 14,
       "tokens_by_faction": [
         [
-          "Illyria",
+          "Iberia",
           3
         ],
         [
-          "Iberia",
+          "Illyria",
           3
         ]
       ],
@@ -701,6 +791,16 @@
       "city_owner": null
     },
     {
+      "area_id": 85,
+      "tokens_by_faction": [
+        [
+          "Asia",
+          4
+        ]
+      ],
+      "city_owner": null
+    },
+    {
       "area_id": 38,
       "tokens_by_faction": [
         [
@@ -709,27 +809,17 @@
         ],
         [
           "Assyria",
-          2
+          4
         ]
       ],
       "city_owner": null
     },
     {
-      "area_id": 21,
+      "area_id": 22,
       "tokens_by_faction": [
         [
           "Assyria",
-          2
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 23,
-      "tokens_by_faction": [
-        [
-          "Assyria",
-          2
+          3
         ]
       ],
       "city_owner": null
@@ -991,99 +1081,24 @@
       "city_owner": null
     },
     {
-      "area_id": 58,
+      "area_id": 23,
       "tokens_by_faction": [
         [
-          "Asia",
-          4
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 85,
-      "tokens_by_faction": [
-        [
-          "Asia",
-          4
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 134,
-      "tokens_by_faction": [
-        [
-          "Africa",
+          "Assyria",
           1
         ]
       ],
       "city_owner": null
     },
     {
-      "area_id": 135,
+      "area_id": 21,
       "tokens_by_faction": [
         [
-          "Africa",
+          "Assyria",
           1
         ]
       ],
       "city_owner": null
-    },
-    {
-      "area_id": 148,
-      "tokens_by_faction": [
-        [
-          "Asia",
-          5
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 88,
-      "tokens_by_faction": [
-        [
-          "Asia",
-          2
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 89,
-      "tokens_by_faction": [
-        [
-          "Asia",
-          2
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 36,
-      "tokens_by_faction": [
-        [
-          "Thrace",
-          3
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 27,
-      "tokens_by_faction": [
-        [
-          "Iberia",
-          2
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 93,
-      "tokens_by_faction": [],
-      "city_owner": "Africa"
     },
     {
       "area_id": 35,
@@ -1124,6 +1139,11 @@
         ]
       ],
       "city_owner": "Asia"
+    },
+    {
+      "area_id": 93,
+      "tokens_by_faction": [],
+      "city_owner": "Africa"
     }
   ],
   "census_order": [
