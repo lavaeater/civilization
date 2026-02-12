@@ -464,7 +464,7 @@ pub fn setup_trade_phase_ui(
     human_player_query: Query<(&Name, &PlayerTradeCards), With<IsHuman>>,
     mut trade_phase_state: ResMut<TradePhaseState>,
 ) {
-    trade_phase_state.countdown_seconds = 300.0; // 5 minutes
+    trade_phase_state.countdown_seconds = 90.0; // 5 minutes
     trade_phase_state.human_done = false;
     
     // Get human player's cards for display - handle case where no human player exists
