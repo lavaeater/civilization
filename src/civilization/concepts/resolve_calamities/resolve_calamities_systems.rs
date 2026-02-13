@@ -164,7 +164,7 @@ pub fn resolve_volcano_earthquake(
         }
         
         if !volcano_candidates.is_empty() {
-            volcano_candidates.sort_by(|a, b| b.1.cmp(&a.1));
+            volcano_candidates.sort_by_key(|b| std::cmp::Reverse(b.1));
             let (volcano_area, _, _) = volcano_candidates[0];
             
             info!("[VOLCANO] Eruption at area {:?}", volcano_area);

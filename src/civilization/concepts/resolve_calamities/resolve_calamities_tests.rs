@@ -70,13 +70,11 @@ mod tests {
 
     #[test]
     fn test_rule_29_5_selection_logic() {
-        let calamities = vec![
-            TradeCard::Famine,
+        let calamities = [TradeCard::Famine,
             TradeCard::Superstition,
             TradeCard::CivilWar,
             TradeCard::Flood,
-            TradeCard::Epidemic,
-        ];
+            TradeCard::Epidemic];
         
         // Rule 29.5: If more than 2 calamities, only 2 are kept
         let selected_count = if calamities.len() > 2 { 2 } else { calamities.len() };
@@ -85,7 +83,7 @@ mod tests {
 
     #[test]
     fn test_rule_29_5_with_exactly_two() {
-        let calamities = vec![TradeCard::Famine, TradeCard::Superstition];
+        let calamities = [TradeCard::Famine, TradeCard::Superstition];
         
         let selected_count = if calamities.len() > 2 { 2 } else { calamities.len() };
         assert_eq!(selected_count, 2);
@@ -93,7 +91,7 @@ mod tests {
 
     #[test]
     fn test_rule_29_5_with_one() {
-        let calamities = vec![TradeCard::Famine];
+        let calamities = [TradeCard::Famine];
         
         let selected_count = if calamities.len() > 2 { 2 } else { calamities.len() };
         assert_eq!(selected_count, 1);
@@ -105,15 +103,13 @@ mod tests {
 
     #[test]
     fn test_calamity_ordering_by_value() {
-        let calamities = vec![
-            (TradeCard::Piracy, 9),           // value 9
+        let calamities = [(TradeCard::Piracy, 9),           // value 9
             (TradeCard::VolcanoEarthquake, 2), // value 2
             (TradeCard::Famine, 3),           // value 3
-            (TradeCard::CivilWar, 4),         // value 4
-        ];
+            (TradeCard::CivilWar, 4)];
 
         let mut sorted: Vec<_> = calamities.iter().collect();
-        sorted.sort_by(|a, b| a.1.cmp(&b.1));
+        sorted.sort_by_key(|a| a.1);
 
         assert_eq!(sorted[0].0, TradeCard::VolcanoEarthquake);
         assert_eq!(sorted[1].0, TradeCard::Famine);
