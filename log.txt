@@ -1,9 +1,4 @@
-                                                                                                                    ▐
- thread 'main' (141366) panicked at src/civilization/concepts/conflict/conflict_triggers.rs:54:9:                                                   ▐
- attempt to subtract with overflow                                                                                                                  ▐
- note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace                                                                      ▐
- Encountered a panic when applying buffers for system `adv_civ::civilization::concepts::conflict::conflict_systems::find_conflict_zones`!           ▐
- Encountered a panic in system `Pipe(bevy_state::state::transitions::last_transition<adv_civ::GameActivity>, bevy_state::state::transitions::run_ent▐
- er<adv_civ::GameActivity>)`!                                                                                                                       ▐
- Encountered a panic in system `bevy_app::main_schedule::Main::run_main`!                                                                           ▐
- 2026-02-12T14:46:39.733398Z  WARN bevy_ecs::world::command_queue: CommandQueue has
+2026-02-13T15:19:37.125958Z  INFO adv_civ::civilization::concepts::conflict::conflict_triggers: [CONFLICT] Conflicts remaining: 0
+2026-02-13T15:19:37.125961Z  INFO adv_civ::civilization::concepts::conflict::conflict_triggers: [CONFLICT] All conflicts resolved, transitioning to CityConstruction
+2026-02-13T15:19:37.175686Z  INFO adv_civ::civilization::concepts::remove_surplus_population::remove_surplus_systems: [SURPLUS] '140:Thapsus' has surplus: total=3, max=2, surplus=1, players=1, has_city=false
+2026-02-13T15:19:37.175702Z  INFO adv_civ::civilization::concep

@@ -15,7 +15,9 @@ pub fn city_building_gate(
     query: Query<&IsBuilding>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    if query.is_empty() {
+    let building_count = query.iter().count();
+    if building_count == 0 {
+        info!("[CITY_CONSTRUCTION] Gate: No players with IsBuilding, transitioning to RemoveSurplusPopulation");
         next_state.set(GameActivity::RemoveSurplusPopulation);
     }
 }
@@ -67,7 +69,19 @@ pub fn on_enter_city_construction(
     mut commands: Commands,
     loading_from_save: Option<Res<LoadingFromSave>>,
 ) {
+    info!("[CITY_CONSTRUCTION] Entering city construction phase");
+    info!("[CITY_CONSTRUCTION] LoadingFromSave present: {}", loading_from_save.is_some());
+    
+    if let Some(ref save_state) = loading_from_save {
+        info!("[CITY_CONSTRUCTION] Save state - saved_activity: {:?}", save_state.saved_activity);
+        info!("[CITY_CONSTRUCTION] Save state - completed_factions: {:?}", save_state.completed_factions);
+    }
+    
+    let total_players = player_query.iter().count();
+    info!("[CITY_CONSTRUCTION] Total players: {}", total_players);
+    
     let mut skipped = 0;
+    let mut marked_for_building = 0;
     for (player_entity, faction) in player_query.iter() {
         if let Some(ref save_state) = loading_from_save {
             if save_state.completed_factions.contains(&faction.faction) {
@@ -76,12 +90,15 @@ pub fn on_enter_city_construction(
                 continue;
             }
         }
+        info!("[CITY_CONSTRUCTION] Marking {:?} for building", faction.faction);
         commands.entity(player_entity).insert(IsBuilding);
+        marked_for_building += 1;
     }
-    if skipped > 0 {
-        info!("[CITY_CONSTRUCTION] Skipped {} players (already done)", skipped);
-    }
+    
+    info!("[CITY_CONSTRUCTION] Summary: {} marked for building, {} skipped", marked_for_building, skipped);
+    
     if loading_from_save.is_some() {
+        info!("[CITY_CONSTRUCTION] Removing LoadingFromSave resource");
         commands.remove_resource::<LoadingFromSave>();
     }
 }
