@@ -40,5 +40,3 @@ impl Plugin for ResolveCalamitiesPlugin {
             );
     }
 }
-
-}
