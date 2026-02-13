@@ -72,7 +72,7 @@ impl Plugin for SaveGamePlugin {
             .add_systems(OnEnter(GameActivity::Census), cleanup_loading_from_save)
             .add_systems(OnEnter(GameActivity::Conflict), cleanup_loading_from_save)
             .add_systems(OnEnter(GameActivity::RemoveSurplusPopulation), cleanup_loading_from_save)
-            .add_systems(OnEnter(GameActivity::CheckCitySupport), cleanup_loading_from_save)
+            .add_systems(OnEnter(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation), cleanup_loading_from_save)
             .add_systems(OnEnter(GameActivity::AcquireTradeCards), cleanup_loading_from_save)
             .add_systems(OnEnter(GameActivity::Trade), cleanup_loading_from_save);
     }

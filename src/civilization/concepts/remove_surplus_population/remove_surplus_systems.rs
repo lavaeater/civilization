@@ -72,7 +72,7 @@ pub fn remove_surplus_population(
         total_areas_processed, areas_with_surplus, total_tokens_removed
     );
     
-    next_state.set(GameActivity::CheckCitySupport);
+    next_state.set(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation);
 }
 
 /// Remove surplus tokens from an area with multiple players.

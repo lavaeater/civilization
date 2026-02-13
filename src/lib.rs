@@ -51,10 +51,11 @@ pub enum GameActivity {
     Conflict,
     CityConstruction,
     RemoveSurplusPopulation,
-    CheckCitySupport,
+    CheckCitySupportAfterRemoveSurplusPopulation,
     AcquireTradeCards,
     Trade,
     ResolveCalamities,
+    CheckCitySupportAfterResolveCalamities,
     // AcquireCivilizationCards,
     // MoveSuccessionMarkers,
 }

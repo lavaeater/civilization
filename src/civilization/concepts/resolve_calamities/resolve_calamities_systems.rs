@@ -41,7 +41,7 @@ pub fn start_calamity_resolution(
     
     if !any_calamities {
         info!("[CALAMITIES] No calamities to resolve, skipping phase");
-        next_state.set(GameActivity::CheckCitySupport);
+        next_state.set(GameActivity::CheckCitySupportAfterResolveCalamities);
     }
 }
 
@@ -72,7 +72,7 @@ pub fn process_pending_calamities(
             commands.entity(player_entity).remove::<PendingCalamities>();
         }
         info!("[CALAMITIES] All calamities resolved, transitioning to CheckCitySupport");
-        next_state.set(GameActivity::CheckCitySupport);
+        next_state.set(GameActivity::CheckCitySupportAfterResolveCalamities);
         return;
     }
     

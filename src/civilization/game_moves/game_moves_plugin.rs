@@ -21,7 +21,7 @@ impl Plugin for GameMovesPlugin {
                     recalculate_city_construction_moves_for_player
                         .run_if(in_state(GameActivity::CityConstruction)),
                     recalculate_city_support_moves_for_player
-                        .run_if(in_state(GameActivity::CheckCitySupport)),
+                        .run_if(in_state(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation)),
                     recalculate_trade_moves_for_player.run_if(in_state(GameActivity::Trade)),
                 ),
             )

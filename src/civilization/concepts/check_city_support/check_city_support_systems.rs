@@ -45,7 +45,7 @@ pub fn eliminate_city(
     }
 }
 
-pub fn check_status(
+pub fn check_status_after_remove_surplus_population(
     needs_city_support: Query<&HasTooManyCities>,
     needs_to_check_city_support: Query<&NeedsToCheckCitySupport>,
     mut next_state: ResMut<NextState<GameActivity>>,
@@ -56,6 +56,20 @@ pub fn check_status(
     if too_many_cities_count == 0 && needs_check_count == 0 {
         info!("[CITY_SUPPORT] All checks complete, transitioning to AcquireTradeCards");
         next_state.set(GameActivity::AcquireTradeCards);
+    }
+}
+
+pub fn check_status_after_resolve_calamities(
+    needs_city_support: Query<&HasTooManyCities>,
+    needs_to_check_city_support: Query<&NeedsToCheckCitySupport>,
+    mut next_state: ResMut<NextState<GameActivity>>,
+) {
+    let too_many_cities_count = needs_city_support.iter().count();
+    let needs_check_count = needs_to_check_city_support.iter().count();
+
+    if too_many_cities_count == 0 && needs_check_count == 0 {
+        info!("[CITY_SUPPORT] All checks complete, transitioning to AcquireCivilizationCards");
+        next_state.set(GameActivity::PopulationExpansion);
     }
 }
 
