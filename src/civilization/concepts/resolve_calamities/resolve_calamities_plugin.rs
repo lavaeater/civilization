@@ -3,12 +3,18 @@ use bevy::prelude::{in_state, App, IntoScheduleConfigs, OnEnter, Plugin, Update}
 
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::*;
+use crate::civilization::resolve_calamities::resolve_calamities_events::{CalamityResolved, Earthquake, ResolveNextCalamity, ResolveVolcanoEarthquake, VolcanoEruption};
 
 pub struct ResolveCalamitiesPlugin;
 
 impl Plugin for ResolveCalamitiesPlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_message::<ResolveNextCalamity>()
+            .add_message::<ResolveVolcanoEarthquake>()
+            .add_message::<VolcanoEruption>()
+            .add_message::<Earthquake>()
+            .add_message::<CalamityResolved>()
             .register_type::<NeedsCalamityResolution>()
             .register_type::<CalamityVictim>()
             .register_type::<PendingCalamities>()
@@ -33,4 +39,6 @@ impl Plugin for ResolveCalamitiesPlugin {
                 ).run_if(in_state(GameActivity::ResolveCalamities)),
             );
     }
+}
+
 }
