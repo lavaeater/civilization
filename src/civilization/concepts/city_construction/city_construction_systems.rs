@@ -1,5 +1,5 @@
 use crate::civilization::components::*;
-use crate::civilization::concepts::city_construction::city_construction_components::*;
+use crate::civilization::concepts::city_construction::city_construction_components::{CityConstructionPhaseActive, IsBuilding};
 use crate::civilization::concepts::city_construction::city_construction_events::*;
 use crate::civilization::concepts::map::map_plugin::AvailableFactions;
 use crate::civilization::concepts::save_game::LoadingFromSave;
@@ -13,11 +13,18 @@ use bevy::prelude::{
 
 pub fn city_building_gate(
     query: Query<&IsBuilding>,
+    phase_active: Option<Res<CityConstructionPhaseActive>>,
     mut next_state: ResMut<NextState<GameActivity>>,
+    mut commands: Commands,
 ) {
+    if phase_active.is_none() {
+        return;
+    }
+    
     let building_count = query.iter().count();
     if building_count == 0 {
         info!("[CITY_CONSTRUCTION] Gate: No players with IsBuilding, transitioning to RemoveSurplusPopulation");
+        commands.remove_resource::<CityConstructionPhaseActive>();
         next_state.set(GameActivity::RemoveSurplusPopulation);
     }
 }
@@ -96,6 +103,9 @@ pub fn on_enter_city_construction(
     }
     
     info!("[CITY_CONSTRUCTION] Summary: {} marked for building, {} skipped", marked_for_building, skipped);
+    
+    commands.insert_resource(CityConstructionPhaseActive);
+    info!("[CITY_CONSTRUCTION] Inserted CityConstructionPhaseActive resource");
     
     if loading_from_save.is_some() {
         info!("[CITY_CONSTRUCTION] Removing LoadingFromSave resource");

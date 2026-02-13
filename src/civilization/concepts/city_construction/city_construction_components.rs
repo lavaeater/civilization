@@ -1,4 +1,4 @@
-use bevy::prelude::{Component, Entity, Reflect};
+use bevy::prelude::{Component, Entity, Reflect, Resource};
 
 #[derive(Component, Debug, Reflect)]
 pub struct CityBuildTargets {
@@ -7,3 +7,6 @@ pub struct CityBuildTargets {
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct IsBuilding;
+
+#[derive(Resource, Debug, Default)]
+pub struct CityConstructionPhaseActive;
