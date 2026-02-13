@@ -1,5 +1,5 @@
 use crate::civilization::concepts::trade::trade_components::{
-    CanTrade, PlayerTradeInterests, PublishedOffer, PublishedOffersList, TradeButtonAction,
+    CanTrade, PublishedOffer, PublishedOffersList, TradeButtonAction,
     TradeOffer,
 };
 use lava_ui_builder::UIBuilder;

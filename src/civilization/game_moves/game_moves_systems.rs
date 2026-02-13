@@ -1,6 +1,6 @@
 use crate::civilization::{AvailableMoves, BuildCityMove, BuiltCity, CitySite, CityTokenStock, EliminateCityMove, ExpandAutomatically, ExpandManually, GameMove, HasTooManyCities, IsBuilding, LandPassage, MovementMove, NeedsExpansion, PlayerAreas, PlayerCities, PlayerMovementEnded, PopExpMove, Population, RecalculatePlayerMoves, TokenHasMoved, TokenStock};
 use bevy::platform::collections::HashMap;
-use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Name, Query, info};
+use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Name, Query};
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: MessageReader<RecalculatePlayerMoves>,
@@ -115,7 +115,7 @@ pub fn recalculate_movement_moves_for_player(
             }
         }
 
-        let player_name = names.get(event.player).map(|n| n.as_str()).unwrap_or("?");
+        let _player_name = names.get(event.player).map(|n| n.as_str()).unwrap_or("?");
         if moves.is_empty() {
             end_player_movement.write(PlayerMovementEnded::new(event.player));
         } else {

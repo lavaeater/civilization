@@ -12,7 +12,7 @@ use bevy::prelude::{
     debug, default, info, Commands, Entity, MessageReader, MessageWriter, Name, NextState, Query,
     Res, ResMut, Sprite, StateTransitionEvent, Transform, With, Without,
 };
-use rand::seq::{IteratorRandom, SliceRandom};
+use rand::seq::{SliceRandom};
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,

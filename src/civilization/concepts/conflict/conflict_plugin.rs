@@ -1,10 +1,10 @@
-use crate::civilization::concepts::conflict::conflict_systems::{find_conflict_zones};
+use crate::civilization::concepts::conflict::conflict_systems::find_conflict_zones;
 use crate::civilization::concepts::conflict::conflict_triggers::{
     on_add_unresolved_city_conflict, on_add_unresolved_conflict,
 };
 use crate::GameActivity;
 use bevy::app::App;
-use bevy::prelude::{in_state, IntoScheduleConfigs, OnEnter, Plugin, Resource, Update};
+use bevy::prelude::{OnEnter, Plugin, Resource};
 
 pub struct ConflictPlugin;
 

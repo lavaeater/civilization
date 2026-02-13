@@ -12,7 +12,6 @@ pub mod stupid_ai;
 pub mod test_utils;
 
 use crate::actions::ActionsPlugin;
-use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
 use crate::menu::MenuPlugin;
 
@@ -71,7 +70,6 @@ impl Plugin for GamePlugin {
             MenuPlugin,
             SandboxPlugin,
             ActionsPlugin,
-            InternalAudioPlugin,
             CivilizationPlugin
         ));
 

@@ -2,7 +2,7 @@ use crate::civilization::components::*;
 use crate::civilization::concepts::conflict::conflict_components::*;
 use crate::civilization::concepts::conflict::conflict_functions::*;
 use crate::civilization::functions::{replace_city_with_tokens_for_conflict, return_all_tokens_from_area_to_player};
-use bevy::prelude::{debug, Add, Commands, Entity, Name, NextState, On, Query, ResMut};
+use bevy::prelude::{Add, Commands, Entity, Name, NextState, On, Query, ResMut};
 use std::cmp::Ordering;
 use bevy::log::info;
 use crate::civilization::ConflictCounterResource;
