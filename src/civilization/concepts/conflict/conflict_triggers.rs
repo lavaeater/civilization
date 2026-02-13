@@ -1,8 +1,10 @@
 use crate::civilization::components::*;
 use crate::civilization::concepts::conflict::conflict_components::*;
 use crate::civilization::concepts::conflict::conflict_functions::*;
+use crate::civilization::concepts::map::CameraFocusQueue;
 use crate::civilization::functions::{replace_city_with_tokens_for_conflict, return_all_tokens_from_area_to_player};
-use bevy::prelude::{Add, Commands, Entity, Name, NextState, On, Query, ResMut};
+use crate::stupid_ai::IsHuman;
+use bevy::prelude::{Add, Commands, Entity, Name, NextState, On, Query, ResMut, Transform, With};
 use std::cmp::Ordering;
 use bevy::log::info;
 use crate::civilization::ConflictCounterResource;
@@ -10,18 +12,32 @@ use crate::GameActivity;
 
 pub fn on_add_unresolved_conflict(
     trigger: On<Add, UnresolvedConflict>,
-    mut areas: Query<(Entity, &Name, &mut Population)>,
+    mut areas: Query<(Entity, &Name, &mut Population, &Transform)>,
     mut commands: Commands,
     mut conflict_counter_resource: ResMut<ConflictCounterResource>,
     mut next_state: ResMut<NextState<GameActivity>>,
+    human_players: Query<Entity, With<IsHuman>>,
+    mut camera_focus: ResMut<CameraFocusQueue>,
 ) {
-    if let Ok((area_entity, name, mut population)) = areas.get_mut(trigger.event().entity) {
+    if let Ok((area_entity, name, mut population, transform)) = areas.get_mut(trigger.event().entity) {
         let player_count = population.number_of_players();
         let total_pop = population.total_population();
         let max_pop = population.max_population;
+        
+        // Check if human player is involved in this conflict
+        let human_involved = human_players.iter().any(|human| population.has_player(&human));
+        
+        if human_involved {
+            camera_focus.add_focus(
+                transform.translation,
+                1.5,
+                format!("Conflict in {}", name),
+            );
+        }
+        
         info!(
-            "[CONFLICT] Regular conflict in '{}': {} players, {} tokens, max_pop={}, conflicts_pending={}",
-            name, player_count, total_pop, max_pop, conflict_counter_resource.0
+            "[CONFLICT] Regular conflict in '{}': {} players, {} tokens, max_pop={}, conflicts_pending={}, human_involved={}",
+            name, player_count, total_pop, max_pop, conflict_counter_resource.0, human_involved
         );
 
         let temp_map = population.player_tokens().clone();
@@ -64,7 +80,7 @@ pub fn on_add_unresolved_conflict(
 
 pub fn on_add_unresolved_city_conflict(
     trigger: On<Add, UnresolvedCityConflict>,
-    mut areas: Query<(Entity, &Name, &mut Population, &BuiltCity)>,
+    mut areas: Query<(Entity, &Name, &mut Population, &BuiltCity, &Transform)>,
     mut player_with_city: Query<(
         &mut CityTokenStock,
         &mut TokenStock,
@@ -74,12 +90,27 @@ pub fn on_add_unresolved_city_conflict(
     mut commands: Commands,
     mut conflict_counter_resource: ResMut<ConflictCounterResource>,
     mut next_state: ResMut<NextState<GameActivity>>,
+    human_players: Query<Entity, With<IsHuman>>,
+    mut camera_focus: ResMut<CameraFocusQueue>,
 ) {
-    if let Ok((area_entity, name, mut population, built_city)) = areas.get_mut(trigger.event().entity) {
+    if let Ok((area_entity, name, mut population, built_city, transform)) = areas.get_mut(trigger.event().entity) {
         let total_pop = population.total_population();
         let max_pop = population.max_population;
         let city_owner = built_city.player;
         let owner_tokens = population.population_for_player(city_owner);
+        
+        // Check if human player is involved (either as city owner or invader)
+        let human_is_owner = human_players.iter().any(|h| h == city_owner);
+        let human_is_invader = human_players.iter().any(|human| population.has_player(&human) && human != city_owner);
+        let human_involved = human_is_owner || human_is_invader;
+        
+        if human_involved {
+            camera_focus.add_focus(
+                transform.translation,
+                1.5,
+                format!("City conflict in {}", name),
+            );
+        }
         
         let mut other_players = population.players();
         other_players.remove(&built_city.player);
