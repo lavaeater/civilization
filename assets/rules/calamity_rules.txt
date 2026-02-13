@@ -19,9 +19,9 @@ calamity, just as though the card had been traded to him. When a player
 retains a tradable calamity which calls for secondary victims (Epidemic,
 Iconoclasm and Heresy, and Piracy), any other eligible player may be
 named as a secondary victim.
-29.S No player may be the primary victim of more than two calamities
+29.5 No player may be the primary victim of more than two calamities
 in the same turn . If a playcr receives marc than two calamities in the
-same turn, his calan1'ities arc shuffled together, and two are drawn at
+same turn, his calanmities arc shuffled together, and two are drawn at
 
 random. The rcmaining calamities received by that player are disre-
 garded and are returned to the appropriate stack of trade cards. There is

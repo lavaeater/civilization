@@ -10,6 +10,7 @@ mod conflict;
 mod remove_surplus_population;
 mod area_info;
 pub mod save_game;
+pub mod resolve_calamities;
 
 pub use census::*;
 pub use map::*;
