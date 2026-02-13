@@ -155,6 +155,6 @@ pub fn can_trade_removed(
         for (entity, _) in trade_offers.iter() {
             commands.entity(entity).despawn();
         }
-        next_state.set(GameActivity::PopulationExpansion);
+        next_state.set(GameActivity::ResolveCalamities);
     }
 }
