@@ -1,20 +1,20 @@
-use crate::{create_area, setup_bevy_app, setup_player, Population};
 use bevy::prelude::NextState::Pending;
 use bevy::prelude::{Messages, NextState, Update};
 
-use adv_civ::civilization::components::{BuiltCity, PlayerCities};
-use adv_civ::civilization::concepts::{
+use adv_civ::civilization::{BuiltCity, PlayerCities, Population};
+use adv_civ::civilization::{
     check_player_city_support, eliminate_city, start_check_city_support,
 };
-use adv_civ::civilization::concepts::{
+use adv_civ::civilization::{
     CheckPlayerCitySupport, EliminateCity,
 };
-use adv_civ::civilization::concepts::{
+use adv_civ::civilization::{
     HasTooManyCities, NeedsToCheckCitySupport,
 };
-use adv_civ::civilization::enums::GameFaction;
-use adv_civ::civilization::events::MoveTokensFromStockToAreaCommand;
+use adv_civ::civilization::GameFaction;
+use adv_civ::civilization::MoveTokensFromStockToAreaCommand;
 use adv_civ::GameActivity;
+use crate::{create_area, setup_bevy_app, setup_player};
 
 #[test]
 fn given_no_cities_next_state_is_set() {

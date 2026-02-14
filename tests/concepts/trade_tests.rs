@@ -1,12 +1,25 @@
 use crate::setup_player;
-use adv_civ::civilization::concepts::PlayerTradeCards;
-use adv_civ::civilization::concepts::TradeCard;
-use adv_civ::civilization::concepts::{begin_trade_settlement, recalculate_trade_moves_for_player};
-use adv_civ::civilization::concepts::{CanTrade, InSettlement, PlayerSettlements, PlayerTradeInterests, PublishedOffer, TradeOffer};
-use adv_civ::civilization::enums::GameFaction;
-use adv_civ::civilization::game_moves::RecalculatePlayerMoves;
-use adv_civ::civilization::game_moves::{AvailableMoves, GameMove, TradeMove};
-use adv_civ::{GameActivity, GameState};
+use adv_civ::{
+    civilization::{
+        TradeCard,
+        PlayerTradeCards,
+        begin_trade_settlement,
+        recalculate_trade_moves_for_player,
+        CanTrade,
+        InSettlement,
+        PlayerSettlements,
+        PlayerTradeInterests,
+        PublishedOffer,
+        TradeOffer,
+        GameFaction,
+        RecalculatePlayerMoves,
+        AvailableMoves,
+        GameMove,
+        TradeMove
+    },
+    GameActivity,
+    GameState
+};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;

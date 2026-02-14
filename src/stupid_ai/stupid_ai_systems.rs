@@ -1,12 +1,9 @@
-use crate::civilization::components::*;
-use crate::civilization::concepts::*;
-use crate::civilization::game_moves::*;
-use crate::civilization::plugins::DebugOptions;
 use crate::stupid_ai::*;
 use bevy::prelude::{
     debug, Commands, Has, MessageReader, MessageWriter, Name, Query, Res,
 };
 use rand::prelude::{IteratorRandom, SliceRandom};
+use crate::civilization::*;
 
 pub fn setup_stupid_ai(mut stupid_ai_event: MessageReader<StupidAiMessage>, mut commands: Commands) {
     for e in stupid_ai_event.read() {

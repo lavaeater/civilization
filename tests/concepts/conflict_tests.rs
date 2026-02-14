@@ -1,8 +1,5 @@
 use crate::setup_player;
-use adv_civ::civilization::components::*;
-use adv_civ::civilization::concepts::{find_conflict_zones, on_add_unresolved_city_conflict, on_add_unresolved_conflict, UnresolvedCityConflict, UnresolvedConflict};
-use adv_civ::civilization::enums::GameFaction;
-use adv_civ::civilization::ConflictCounterResource;
+use adv_civ::civilization::{find_conflict_zones, on_add_unresolved_city_conflict, on_add_unresolved_conflict, BuiltCity, CityTokenStock, ConflictCounterResource, GameArea, GameFaction, LandPassage, PlayerAreas, PlayerCities, Population, TokenStock, UnresolvedCityConflict, UnresolvedConflict};
 use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Name};

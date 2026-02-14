@@ -1,8 +1,12 @@
 use crate::{create_area, setup_bevy_app, setup_player};
-use adv_civ::civilization::concepts::start_check_city_support;
-use adv_civ::civilization::concepts::CheckPlayerCitySupport;
-use adv_civ::civilization::enums::GameFaction;
-use adv_civ::GameActivity;
+use adv_civ::{
+    civilization::{
+        CheckPlayerCitySupport,
+        start_check_city_support,
+        GameFaction
+    },
+    GameActivity
+};
 use bevy::prelude::NextState::Pending;
 use bevy::prelude::{NextState, Update};
 /***

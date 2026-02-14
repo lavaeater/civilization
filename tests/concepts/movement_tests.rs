@@ -1,16 +1,9 @@
 use crate::{create_area, create_area_w_components, setup_bevy_app, setup_player};
-use adv_civ::civilization::components::*;
-use adv_civ::civilization::concepts::move_tokens_from_area_to_area;
-use adv_civ::civilization::concepts::TokenHasMoved;
-use adv_civ::civilization::concepts::{MoveTokenFromAreaToAreaCommand, PlayerMovementEnded};
-use adv_civ::civilization::enums::GameFaction;
-use adv_civ::civilization::game_moves::recalculate_movement_moves_for_player;
-use adv_civ::civilization::game_moves::RecalculatePlayerMoves;
-use adv_civ::civilization::game_moves::{AvailableMoves, GameMove};
 use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Messages, Name, Transform};
 use bevy::state::app::StatesPlugin;
+use adv_civ::civilization::{move_tokens_from_area_to_area, recalculate_movement_moves_for_player, AvailableMoves, GameArea, GameFaction, GameMove, LandPassage, MoveTokenFromAreaToAreaCommand, PlayerAreas, PlayerMovementEnded, Population, RecalculatePlayerMoves, TokenHasMoved, TokenStock};
 
 fn setup_app() -> App {
     let mut app = App::new();

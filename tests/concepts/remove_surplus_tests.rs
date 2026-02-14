@@ -1,8 +1,5 @@
 use crate::{create_area, setup_bevy_app, setup_player};
-use adv_civ::civilization::components::BuiltCity;
-use adv_civ::civilization::components::Population;
-use adv_civ::civilization::concepts::remove_surplus_population;
-use adv_civ::civilization::enums::GameFaction;
+use adv_civ::civilization::{BuiltCity, Population, remove_surplus_population, GameFaction};
 use bevy::prelude::{Entity, Update};
 
 #[test]

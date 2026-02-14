@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
-struct InputPlugin {}
+struct InputPlugin;
 
 ///
 /// This plugin only enables input, all the 

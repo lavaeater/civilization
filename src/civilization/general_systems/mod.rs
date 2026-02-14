@@ -1,13 +1,8 @@
-use crate::civilization::components::*;
-use crate::civilization::concepts::save_game::LoadingFromSave;
-use crate::civilization::concepts::{AvailableFactions, Census};
-use crate::civilization::events::MoveTokensFromStockToAreaCommand;
-use crate::civilization::plugins::DebugOptions;
-use crate::civilization::{CivilizationTradeCards, MovementInput, PlayerTradeCards};
+use crate::civilization::*;
 use crate::player::Player;
 use crate::stupid_ai::*;
 use crate::GameActivity;
-use bevy::math::{vec2, vec3, Vec2, Vec3};
+use bevy::math::{vec3, Vec2, Vec3};
 use bevy::prelude::{
     debug, default, info, Bundle, Commands, Entity, KeyCode, MessageReader, MessageWriter, Name,
     NextState, Query, Res, ResMut, SpawnRelated, Sprite, StateTransitionEvent, Transform, With,
@@ -190,7 +185,7 @@ pub fn setup_players(
             .id();
 
         if debug_options.add_human_player && faction == debug_options.human_faction {
-            setup_human_player(&debug_options, trade_card_resource, &mut commands, player);
+            setup_human_player(&debug_options, &mut trade_card_resource, &mut commands, player);
         }
 
         // Determine token count - use debug override for human player if set
@@ -225,7 +220,7 @@ pub fn setup_players(
 
 pub fn setup_human_player(
     debug_options: &Res<DebugOptions>,
-    mut trade_card_resource: ResMut<CivilizationTradeCards>,
+    trade_card_resource: &mut ResMut<CivilizationTradeCards>,
     commands: &mut Commands,
     player: Entity,
 ) {
@@ -254,15 +249,11 @@ struct MapInput;
 
 #[derive(InputAction)]
 #[action_output(bool)]
-struct Ok;
+struct OkAction;
 
 #[derive(InputAction)]
 #[action_output(bool)]
-struct Cancel;
-
-#[derive(InputAction)]
-#[action_output(bool)]
-struct Cancel;
+struct CancelAction;
 
 pub fn player_input_bundle() -> impl Bundle {
     (
@@ -270,19 +261,17 @@ pub fn player_input_bundle() -> impl Bundle {
         actions!(MovementInput[
             (
                 Action::<CardinalInput>::new(),
-                DeadZone::default(),
-                Bindings::spawn((Cardinal::wasd_keys())),
+                Bindings::spawn(Cardinal::wasd_keys()),
             ),(
                 Action::<MapInput>::new(),
-                DeadZone::default(),
-                Bindings::spawn(Spatial::new( KeyCode::KeyX, KeyCode::KeyZ KeyCode::ArrowLeft, KeyCode::ArrowRight, KeyCode::ArrowUp, KeyCode::ArrowDown)),
+                Bindings::spawn(Spatial::new(KeyCode::KeyX, KeyCode::KeyZ, KeyCode::ArrowLeft, KeyCode::ArrowRight, KeyCode::ArrowUp, KeyCode::ArrowDown)),
             ),
             (
-                Action::<Ok>::new(),
+                Action::<OkAction>::new(),
                 bindings![KeyCode::Enter],
             ),
                         (
-                Action::<Cancel>::new(),
+                Action::<CancelAction>::new(),
                 bindings![KeyCode::Escape],
             ),
         ]),

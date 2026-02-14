@@ -1,5 +1,5 @@
-use crate::civilization::components::GameCamera;
-use crate::civilization::concepts::save_game::{LoadGameRequest, SaveGameRequest};
+use crate::civilization::GameCamera;
+use crate::civilization::save_game::{LoadGameRequest, SaveGameRequest};
 use crate::loading::TextureAssets;
 use crate::{GamePaused, GameState};
 use bevy::prelude::*;
