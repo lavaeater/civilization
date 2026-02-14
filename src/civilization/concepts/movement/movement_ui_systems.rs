@@ -282,19 +282,25 @@ pub fn spawn_movement_controls_ui(
         // Token count display row
         builder.add_row(|token_count_row| {
             token_count_row.align_items_center().column_gap(px(10.0)).margin_btm(px(10.0));
-            token_count_row.feathers_button("-", |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
-                info!("Minus clicked");
-                selection_state.decrement();
+            token_count_row.add_column(|c| {
+                c.feathers_button("-", |_activate: On<Activate>| {
+                    info!("Minus clicked");
+                    // , mut selection_state: ResMut<MovementSelectionState>
+                    // selection_state.decrement();
+                })
+                    .border_all(px(5.0), Color::srgba(0.1, 0.1, 0.1, 0.9));
             });
+                
+            
             token_count_row.with_child(|child| {
                 child.component::<TokenCountDisplay>()
                     .with_text("Click target", Some(font.clone()), Some(24.0), Some(Color::WHITE), Some(Justify::Center), Some(LineBreak::NoWrap))
                     .width(px(120.));
             });
-            token_count_row.feathers_button("+", |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
+            token_count_row.feathers_button("+", |_activate: On<Activate>| {
                 info!("Plus clicked");
-                selection_state.increment();
-            });
+                // , mut selection_state: ResMut<MovementSelectionState>                selection_state.increment();
+            }).border_all(px(5.0), Color::srgba(0.1, 0.1, 0.1, 0.9));
         });
         // Action buttons row - OK and End Movement use markers for global observers (need MessageWriter)
         builder.add_row(|action_row| {
