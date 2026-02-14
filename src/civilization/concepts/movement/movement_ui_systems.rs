@@ -3,7 +3,10 @@ use crate::civilization::concepts::movement::movement_components::PerformingMove
 use crate::civilization::concepts::movement::movement_events::{
     MoveTokenFromAreaToAreaCommand, PlayerMovementEnded,
 };
-use crate::civilization::concepts::movement::movement_ui_components::*;
+use crate::civilization::concepts::movement::movement_ui_components::{
+    ConfirmMovementButton, EndMovementButton, MovementSelectionState, MovementUiRoot,
+    SourceAreaDisplay, TokenCountDisplay,
+};
 use crate::civilization::game_moves::{AvailableMoves, GameMove, MovementMove};
 use crate::stupid_ai::IsHuman;
 use bevy::prelude::*;
@@ -231,9 +234,6 @@ pub fn spawn_movement_controls_ui(
     existing_ui: Query<Entity, With<MovementUiRoot>>,
     asset_server: Res<AssetServer>,
     ui_theme: Res<UiTheme>,
-    mut selection_state: ResMut<MovementSelectionState>,
-    mut move_writer: MessageWriter<MoveTokenFromAreaToAreaCommand>,
-    mut end_movement_writer: MessageWriter<PlayerMovementEnded>,
 ) {
     // Don't spawn if UI already exists
     if !existing_ui.is_empty() {
@@ -258,7 +258,7 @@ pub fn spawn_movement_controls_ui(
         // Source area navigation row
         builder.add_row(|source_control_row| {
             source_control_row.align_items_center().column_gap(px(8.0)).margin_btm(px(8.0));
-            source_control_row.feathers_button("Previous Source", |_activate: On<Activate>| {
+            source_control_row.feathers_button("Previous Source", |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
                 info!("Previous source clicked");
                 selection_state.prev_source();
             })
@@ -267,13 +267,13 @@ pub fn spawn_movement_controls_ui(
                         .with_text("Source: ?", Some(font.clone()), Some(20.0), Some(Color::WHITE), Some(Justify::Center), Some(LineBreak::NoWrap))
                         .width(px(200.));
                 })
-                .feathers_button("Next Source", |_activate: On<Activate>| {
+                .feathers_button("Next Source", |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
                     info!("Next source clicked");
                     selection_state.next_source();
                 })
                 .feathers_button(
                     "Skip Source",
-                    |_activate: On<Activate>| {
+                    |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
                         info!("Skip source clicked");
                         selection_state.skip_current_source();
                     }
@@ -282,7 +282,7 @@ pub fn spawn_movement_controls_ui(
         // Token count display row
         builder.add_row(|token_count_row| {
             token_count_row.align_items_center().column_gap(px(10.0)).margin_btm(px(10.0));
-            token_count_row.feathers_button("-", move|_activate: On<Activate>| {
+            token_count_row.feathers_button("-", |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
                 info!("Minus clicked");
                 selection_state.decrement();
             });
@@ -291,43 +291,24 @@ pub fn spawn_movement_controls_ui(
                     .with_text("Click target", Some(font.clone()), Some(24.0), Some(Color::WHITE), Some(Justify::Center), Some(LineBreak::NoWrap))
                     .width(px(120.));
             });
-            token_count_row.feathers_button("+", |_activate: On<Activate>| {
+            token_count_row.feathers_button("+", |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
                 info!("Plus clicked");
                 selection_state.increment();
             });
         });
-        // Action buttons row
+        // Action buttons row - OK and End Movement use markers for global observers (need MessageWriter)
         builder.add_row(|action_row| {
             action_row.column_gap(px(10.));
             action_row
-                .feathers_button("OK", |_activate: On<Activate>| {
+                .feathers_button_marked("OK", ConfirmMovementButton, |_activate: On<Activate>| {
                     info!("OK clicked");
-                    if let (Some(player), Some(source), Some(target)) = (
-                        selection_state.player,
-                        selection_state.source_area,
-                        selection_state.target_area,
-                    ) {
-                        if selection_state.token_count > 0 {
-                            move_writer.write(MoveTokenFromAreaToAreaCommand::new(
-                                source,
-                                target,
-                                selection_state.token_count,
-                                player,
-                            ));
-                            selection_state.clear_preserving_skips();
-                        }
-                    }
                 })
-                .feathers_button("Cancel", |_activate: On<Activate>| {
-                info!("Cancel clicked");
-                selection_state.clear_target();
-            })
-                .feathers_button("End Movement", |_activate: On<Activate>| {
+                .feathers_button("Cancel", |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
+                    info!("Cancel clicked");
+                    selection_state.clear_target();
+                })
+                .feathers_button_marked("End Movement", EndMovementButton, |_activate: On<Activate>| {
                     info!("End Movement clicked");
-                    if let Some(player) = selection_state.player {
-                        end_movement_writer.write(PlayerMovementEnded::new(player));
-                        selection_state.clear();
-                    }
                 });
         });
         builder.build();
@@ -440,4 +421,53 @@ pub fn pan_camera_to_current_source(
 
     camera_transform.translation.x = area_transform.translation.x;
     camera_transform.translation.y = area_transform.translation.y;
+}
+
+// ============================================================================
+// Global observers for buttons that need MessageWriter access
+// ============================================================================
+
+/// Global observer for the Confirm Movement (OK) button
+pub fn on_confirm_movement_button(
+    trigger: On<Activate>,
+    confirm_buttons: Query<(), With<ConfirmMovementButton>>,
+    mut selection_state: ResMut<MovementSelectionState>,
+    mut move_writer: MessageWriter<MoveTokenFromAreaToAreaCommand>,
+) {
+    if confirm_buttons.get(trigger.entity).is_err() {
+        return;
+    }
+
+    if let (Some(player), Some(source), Some(target)) = (
+        selection_state.player,
+        selection_state.source_area,
+        selection_state.target_area,
+    ) {
+        if selection_state.token_count > 0 {
+            move_writer.write(MoveTokenFromAreaToAreaCommand::new(
+                source,
+                target,
+                selection_state.token_count,
+                player,
+            ));
+            selection_state.clear_preserving_skips();
+        }
+    }
+}
+
+/// Global observer for the End Movement button
+pub fn on_end_movement_button(
+    trigger: On<Activate>,
+    end_buttons: Query<(), With<EndMovementButton>>,
+    mut selection_state: ResMut<MovementSelectionState>,
+    mut end_movement_writer: MessageWriter<PlayerMovementEnded>,
+) {
+    if end_buttons.get(trigger.entity).is_err() {
+        return;
+    }
+
+    if let Some(player) = selection_state.player {
+        end_movement_writer.write(PlayerMovementEnded::new(player));
+        selection_state.clear();
+    }
 }

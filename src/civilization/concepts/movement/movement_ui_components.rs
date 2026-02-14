@@ -210,3 +210,12 @@ pub struct MovementArrowGizmo {
     pub target_pos: Vec2,
     pub color: Color,
 }
+
+// Button markers for global observers (hybrid pattern)
+/// Marker for the OK/Confirm movement button
+#[derive(Component, Default)]
+pub struct ConfirmMovementButton;
+
+/// Marker for the End Movement button
+#[derive(Component, Default)]
+pub struct EndMovementButton;
