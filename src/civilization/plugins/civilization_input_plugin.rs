@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
-struct InputPlugin;
+pub struct CivilizationInputPlugin;
 
 ///
 /// This plugin only enables input, all the 
@@ -10,7 +10,7 @@ struct InputPlugin;
 /// This plugin must also register all the actions,
 /// it would seem, but the actual systems should probably be under
 /// the concepts.
-impl Plugin for InputPlugin {
+impl Plugin for CivilizationInputPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(EnhancedInputPlugin)
             .add_input_context::<MovementInput>();

@@ -9,8 +9,8 @@ use crate::player::Player;
 use crate::stupid_ai::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
-use bevy::input::InputPlugin;
 use bevy::prelude::{in_state, AppExtStates, IntoScheduleConfigs, OnEnter, Resource};
+use crate::civilization::CivilizationInputPlugin;
 use crate::civilization::resolve_calamities::resolve_calamities_plugin::ResolveCalamitiesPlugin;
 
 pub struct CivilizationPlugin;
@@ -56,7 +56,7 @@ impl Plugin for CivilizationPlugin {
             MovementPlugin,
             ConflictPlugin,
             TradePlugin,
-            InputPlugin,
+            CivilizationInputPlugin,
         ))
         .add_plugins((
             CityConstructionPlugin,
