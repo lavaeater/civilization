@@ -149,7 +149,7 @@ pub fn handle_movement_target_click(
     windows: Query<&Window, With<PrimaryWindow>>,
     camera_query: Query<
         (&Camera, &GlobalTransform),
-        With<crate::civilization::components::GameCamera>,
+        With<GameCamera>,
     >,
     human_players: Query<(Entity, &AvailableMoves), (With<IsHuman>, With<PerformingMovement>)>,
     area_query: Query<(Entity, &Transform), With<GameArea>>,
@@ -217,88 +217,9 @@ pub fn handle_movement_target_click(
     }
 }
 
-/// System to handle movement control button interactions
-pub fn handle_movement_button_clicks(
-    interaction_query: Query<
-        (&Interaction, &MovementButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut selection_state: ResMut<MovementSelectionState>,
-    mut move_writer: MessageWriter<MoveTokenFromAreaToAreaCommand>,
-    mut end_movement_writer: MessageWriter<PlayerMovementEnded>,
-) {
-    for (interaction, action) in interaction_query.iter() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-
-        match action {
-            MovementButtonAction::IncrementTokens => {
-                selection_state.increment();
-            }
-            MovementButtonAction::DecrementTokens => {
-                selection_state.decrement();
-            }
-            MovementButtonAction::ConfirmMove => {
-                if let (Some(player), Some(source), Some(target)) = (
-                    selection_state.player,
-                    selection_state.source_area,
-                    selection_state.target_area,
-                ) {
-                    if selection_state.token_count > 0 {
-                        move_writer.write(MoveTokenFromAreaToAreaCommand::new(
-                            source,
-                            target,
-                            selection_state.token_count,
-                            player,
-                        ));
-                        selection_state.clear_preserving_skips();
-                    }
-                }
-            }
-            MovementButtonAction::CancelMove => {
-                selection_state.clear_target();
-            }
-            MovementButtonAction::PrevSource => {
-                selection_state.prev_source();
-            }
-            MovementButtonAction::NextSource => {
-                selection_state.next_source();
-            }
-            MovementButtonAction::SkipSource => {
-                selection_state.skip_current_source();
-            }
-            MovementButtonAction::EndMovement => {
-                if let Some(player) = selection_state.player {
-                    end_movement_writer.write(PlayerMovementEnded::new(player));
-                    selection_state.clear();
-                }
-            }
-            MovementButtonAction::SelectTarget {
-                source,
-                target,
-                max_tokens,
-                is_attack,
-                is_city_attack,
-            } => {
-                if let Some(player) = selection_state.player {
-                    selection_state.select_target(
-                        player,
-                        *source,
-                        *target,
-                        *max_tokens,
-                        *is_attack,
-                        *is_city_attack,
-                    );
-                }
-            }
-        }
-    }
-}
-
 /// System to spawn the movement controls UI when human player is performing movement
 pub fn spawn_movement_controls_ui(
-    mut commands: Commands,
+    commands: Commands,
     human_players: Query<
         Entity,
         (
@@ -332,7 +253,7 @@ pub fn spawn_movement_controls_ui(
             .left(percent(50.0))
             .flex_column()
             .padding_all(px(10.0))
-            .background_color(Color::srgba(0.1, 0.1, 0.1, 0.9));
+            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.9));
 
         // Source area navigation row
         builder.add_row(|source_control_row| {
@@ -343,28 +264,31 @@ pub fn spawn_movement_controls_ui(
             })
                 .with_child(|area_name_display|  {
                     area_name_display.component::<SourceAreaDisplay>()
-                        .with_text("Source: ?", Some(font.clone()), Some(20.0), Some(Color::WHITE), Some(JustifyContent::Center), Some(LineBreak::NoWrap))
+                        .with_text("Source: ?", Some(font.clone()), Some(20.0), Some(Color::WHITE), Some(Justify::Center), Some(LineBreak::NoWrap))
                         .width(px(200.));
                 })
                 .feathers_button("Next Source", |_activate: On<Activate>| {
                     info!("Next source clicked");
                     selection_state.next_source();
                 })
-                .feathers_button("Skip Source", |_activate: On<Activate>| {
-                    info!("Skip source clicked");
-                    selection_state.skip_current_source();
-                });
+                .feathers_button(
+                    "Skip Source",
+                    |_activate: On<Activate>| {
+                        info!("Skip source clicked");
+                        selection_state.skip_current_source();
+                    }
+                );
         });
         // Token count display row
         builder.add_row(|token_count_row| {
             token_count_row.align_items_center().column_gap(px(10.0)).margin_btm(px(10.0));
-            token_count_row.feathers_button("-", |_activate: On<Activate>| {
+            token_count_row.feathers_button("-", move|_activate: On<Activate>| {
                 info!("Minus clicked");
                 selection_state.decrement();
             });
             token_count_row.with_child(|child| {
                 child.component::<TokenCountDisplay>()
-                    .with_text("Click target", Some(font.clone()), Some(24.0), Some(Color::WHITE), Some(JustifyContent::Center), Some(LineBreak::NoWrap))
+                    .with_text("Click target", Some(font.clone()), Some(24.0), Some(Color::WHITE), Some(Justify::Center), Some(LineBreak::NoWrap))
                     .width(px(120.));
             });
             token_count_row.feathers_button("+", |_activate: On<Activate>| {
@@ -393,7 +317,8 @@ pub fn spawn_movement_controls_ui(
                             selection_state.clear_preserving_skips();
                         }
                     }
-                }).feathers_button("Cancel", |_activate: On<Activate>| {
+                })
+                .feathers_button("Cancel", |_activate: On<Activate>| {
                 info!("Cancel clicked");
                 selection_state.clear_target();
             })
@@ -405,6 +330,7 @@ pub fn spawn_movement_controls_ui(
                     }
                 });
         });
+        builder.build();
     }
 }
 
