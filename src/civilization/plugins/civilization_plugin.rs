@@ -10,6 +10,7 @@ use crate::stupid_ai::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{in_state, AppExtStates, IntoScheduleConfigs, OnEnter, Resource};
+use crate::civilization::resolve_calamities::resolve_calamities_plugin::ResolveCalamitiesPlugin;
 
 pub struct CivilizationPlugin;
 
@@ -49,7 +50,6 @@ impl Plugin for CivilizationPlugin {
             (print_names_of_phases.run_if(in_state(GameState::Playing)),),
         )
         .add_plugins((
-            // CommandsPlugin,
             PopulationExpansionPlugin,
             CensusPlugin,
             MovementPlugin,
@@ -59,6 +59,7 @@ impl Plugin for CivilizationPlugin {
         .add_plugins((
             CityConstructionPlugin,
             RemoveSurplusPlugin,
+            ResolveCalamitiesPlugin,
             CitySupportPlugin,
             StupidAiPlugin,
             GameMovesPlugin,

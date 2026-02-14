@@ -1,9 +1,13 @@
-                                                                                                                    ▐
- thread 'main' (141366) panicked at src/civilization/concepts/conflict/conflict_triggers.rs:54:9:                                                   ▐
- attempt to subtract with overflow                                                                                                                  ▐
- note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace                                                                      ▐
- Encountered a panic when applying buffers for system `adv_civ::civilization::concepts::conflict::conflict_systems::find_conflict_zones`!           ▐
- Encountered a panic in system `Pipe(bevy_state::state::transitions::last_transition<adv_civ::GameActivity>, bevy_state::state::transitions::run_ent▐
- er<adv_civ::GameActivity>)`!                                                                                                                       ▐
- Encountered a panic in system `bevy_app::main_schedule::Main::run_main`!                                                                           ▐
- 2026-02-12T14:46:39.733398Z  WARN bevy_ecs::world::command_queue: CommandQueue has
+13T15:37:44.829005Z  INFO adv_civ::civilization::concepts::city_construction::city_construction_systems: [CITY_CONSTRUCTION] Entering city construction phase
+2026-02-13T15:37:44.829021Z  INFO adv_civ::civilization::concepts::city_construction::city_construction_systems: [CITY_CONSTRUCTION] LoadingFromSave present: false
+2026-02-13T15:37:44.829026Z  INFO adv_civ::civilization::concepts::city_construction::city_construction_systems: [CITY_CONSTRUCTION] Total players: 7
+2026-02-13T15:37:44.829032Z  INFO adv_civ::civilization::concepts::city_construction::city_construction_systems: [CITY_CONSTRUCTION] Marking Assyria for building
+2026-02-13T15:37:44.829039Z  INFO adv_civ::civilization::concepts::city_construction::city_construction_systems: [CITY_CONSTRUCTION] Marking Iberia for building
+2026-02-13T15:37:44.829045Z  INFO adv_civ::civilization::concepts::city_construction::city_construction_systems: [CITY_CONSTRUCTION] Marking Illyria for building
+2026-02-13T15:37:44.829051Z  INFO adv_civ::civilization::concepts::city_construction::city_construction_systems: [CITY_CONSTRUCTION] Marking Thrace for building
+2026-02-13T15:37:44.829056Z  INFO adv_civ::civilization::concepts::city_construction::city_construction_systems: [CITY_CONSTRUCTION] Marking Asia for building
+2026-02-13T15:37:44.829061Z  INFO adv_civ::civilization::concepts::city_construction::city_construction_systems: [CITY_CONSTRUCTION] Marking Africa for building
+2026-02-13T15:37:44.829066Z  INFO adv_civ::civilization::concepts::city_construction::city_construction_systems: [CITY_CONSTRUCTION] Marking Babylon for building
+2026-02-13T15:37:44.829072Z  INFO adv_civ::civilization::concepts::city_construction::city_construction_systems: [CITY_CONSTRUCTION] Summary: 7 marked for building, 0 skipped
+2026-02-13T15:37:44.969728Z  INFO adv_civ::civilization::concepts::city_construction::city_construction_systems: [CITY_CONSTRUCTION] Gate: No players with IsBuilding, transitioning to RemoveSurplusPopulation
+2026-02-13T15:37:44.977773Z  INFO adv_civ::civilization::concepts::remove_surplus_population::remove_surplus_systems: [SURPL

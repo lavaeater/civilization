@@ -34,7 +34,7 @@ pub fn check_trade_gate(
         for (entity, _) in trade_offers.iter() {
             commands.entity(entity).despawn();
         }
-        next_state.set(GameActivity::PopulationExpansion);
+        next_state.set(GameActivity::ResolveCalamities);
     }
 }
 
@@ -118,7 +118,7 @@ pub fn setup_trade(
     // Skip trade phase entirely if fewer than 2 players can trade at the start
     if players_that_can_trade_count < 2 {
         debug!("Not enough players can trade at start. Skipping trade phase.");
-        next_state.set(GameActivity::PopulationExpansion);
+        next_state.set(GameActivity::ResolveCalamities);
     }
 }
 

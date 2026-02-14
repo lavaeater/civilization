@@ -1,13 +1,15 @@
-use crate::civilization::components::{Faction, FixTokenPositions, PlayerAreas, Population, Token};
+use crate::civilization::components::{Faction, FixTokenPositions, GameArea, PlayerAreas, Population, Token};
 use crate::civilization::concepts::census::GameInfoAndStuff;
+use crate::civilization::concepts::map::CameraFocusQueue;
 use crate::civilization::concepts::movement::movement_components::*;
 use crate::civilization::concepts::movement::movement_events::*;
 use crate::civilization::concepts::save_game::LoadingFromSave;
 use crate::civilization::game_moves::{AvailableMoves, RecalculatePlayerMoves};
 use crate::player::Player;
+use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
 use bevy::prelude::{
-    info, Commands, Entity, MessageReader, MessageWriter, Name, NextState, Query, Res, ResMut, Transform, With, Without,
+    info, Commands, Entity, Has, MessageReader, MessageWriter, Name, NextState, Query, Res, ResMut, Transform, With, Without,
 };
 use bevy::time::Time;
 
@@ -110,15 +112,20 @@ pub fn player_end_movement(
 
 pub fn move_tokens_from_area_to_area(
     mut move_events: MessageReader<MoveTokenFromAreaToAreaCommand>,
-    mut pop_query: Query<(&mut Population, &Transform), Without<Token>>,
+    mut pop_query: Query<(&mut Population, &Transform, Option<&Name>, Option<&GameArea>), Without<Token>>,
     mut commands: Commands,
     mut player_areas: Query<&mut PlayerAreas>,
     tokens_that_can_move: Query<&Token, Without<TokenHasMoved>>,
     token_transform: Query<&Transform, With<Token>>,
     mut recalculate_player_moves: MessageWriter<RecalculatePlayerMoves>,
+    human_query: Query<Entity, With<IsHuman>>,
+    player_is_human: Query<Has<IsHuman>>,
+    mut camera_focus: ResMut<CameraFocusQueue>,
 ) {
+    let human_player = human_query.iter().next();
+    
     for ev in move_events.read() {
-        if let Ok((mut from_pop, _)) = pop_query.get_mut(ev.source_area) {
+        if let Ok((mut from_pop, _, _, _)) = pop_query.get_mut(ev.source_area) {
             let cloned = from_pop.player_tokens().clone();
             if let Some(player_tokens) = cloned.get(&ev.player) {
                 let tokens_that_can_move = player_tokens
@@ -138,7 +145,25 @@ pub fn move_tokens_from_area_to_area(
                         from_pop.remove_token_from_area(ev.player, *token);
                     }
 
-                    if let Ok((mut to_pop, target_transform)) = pop_query.get_mut(ev.target_area) {
+                    if let Ok((mut to_pop, target_transform, area_name, game_area)) = pop_query.get_mut(ev.target_area) {
+                        // Check if AI is moving into an area with human player tokens
+                        let mover_is_ai = player_is_human.get(ev.player).map(|h| !h).unwrap_or(true);
+                        let human_has_tokens = human_player
+                            .map(|h| to_pop.has_player(&h))
+                            .unwrap_or(false);
+                        
+                        if mover_is_ai && human_has_tokens {
+                            let area_desc = area_name
+                                .map(|n| n.to_string())
+                                .or_else(|| game_area.map(|a| format!("Area {}", a.id)))
+                                .unwrap_or_else(|| "unknown area".to_string());
+                            camera_focus.add_focus(
+                                target_transform.translation,
+                                1.0,
+                                format!("AI moving into {}", area_desc),
+                            );
+                        }
+                        
                         if let Ok(mut player_area) = player_areas.get_mut(ev.player) {
                             let target_pos = target_transform.translation;
                             tokens_to_move.iter().for_each(|token| {

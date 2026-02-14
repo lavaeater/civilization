@@ -12,7 +12,6 @@ pub mod stupid_ai;
 pub mod test_utils;
 
 use crate::actions::ActionsPlugin;
-use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
 use crate::menu::MenuPlugin;
 
@@ -52,10 +51,11 @@ pub enum GameActivity {
     Conflict,
     CityConstruction,
     RemoveSurplusPopulation,
-    CheckCitySupport,
+    CheckCitySupportAfterRemoveSurplusPopulation,
     AcquireTradeCards,
     Trade,
-    // ResolveCalamities,
+    ResolveCalamities,
+    CheckCitySupportAfterResolveCalamities,
     // AcquireCivilizationCards,
     // MoveSuccessionMarkers,
 }
@@ -71,7 +71,6 @@ impl Plugin for GamePlugin {
             MenuPlugin,
             SandboxPlugin,
             ActionsPlugin,
-            InternalAudioPlugin,
             CivilizationPlugin
         ));
 

@@ -2,6 +2,7 @@ use crate::setup_player;
 use adv_civ::civilization::components::*;
 use adv_civ::civilization::concepts::{find_conflict_zones, on_add_unresolved_city_conflict, on_add_unresolved_conflict, UnresolvedCityConflict, UnresolvedConflict};
 use adv_civ::civilization::enums::GameFaction;
+use adv_civ::civilization::ConflictCounterResource;
 use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Name};
@@ -20,6 +21,7 @@ fn given_an_area_with_a_city_and_some_population() {
     app.add_plugins(StatesPlugin)
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
+        .init_resource::<ConflictCounterResource>()
         .add_systems(Update, find_conflict_zones);
 
     let (player_one, _, mut p_one_cities) =
@@ -57,6 +59,7 @@ fn given_a_city_conflict_with_too_few_tokens() {
     app.add_plugins(StatesPlugin)
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
+        .init_resource::<ConflictCounterResource>()
         .add_observer(on_add_unresolved_conflict)
         .add_observer(on_add_unresolved_city_conflict);
 
@@ -98,6 +101,7 @@ fn given_a_city_conflict_with_enough_tokens() {
     app.add_plugins(StatesPlugin)
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
+        .init_resource::<ConflictCounterResource>()
         .add_observer(on_add_unresolved_conflict)
         .add_observer(on_add_unresolved_city_conflict);
 
@@ -153,6 +157,7 @@ fn given_two_players_in_an_area_with_too_much_population_area_is_marked_as_confl
     app.add_plugins(StatesPlugin)
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
+        .init_resource::<ConflictCounterResource>()
         .add_systems(Update, find_conflict_zones);
 
     let (player_one, mut player_one_tokens, _) =
@@ -259,6 +264,7 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
     app.add_plugins(StatesPlugin)
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
+        .init_resource::<ConflictCounterResource>()
         .add_observer(on_add_unresolved_conflict)
         .add_observer(on_add_unresolved_city_conflict);
 
@@ -335,7 +341,7 @@ fn given_three_conflicteers_the_correct_result_is_obtained() {
     app.add_plugins(StatesPlugin)
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
-        // .add_systems(Update, resolve_conflicts);
+        .init_resource::<ConflictCounterResource>()
         .add_observer(on_add_unresolved_conflict)
         .add_observer(on_add_unresolved_city_conflict);
 

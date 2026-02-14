@@ -1,6 +1,6 @@
 use crate::civilization::components::*;
-use crate::civilization::concepts::{AvailableFactions, Census};
 use crate::civilization::concepts::save_game::LoadingFromSave;
+use crate::civilization::concepts::{AvailableFactions, Census};
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::plugins::DebugOptions;
 use crate::civilization::{CivilizationTradeCards, PlayerTradeCards};
@@ -12,7 +12,7 @@ use bevy::prelude::{
     debug, default, info, Commands, Entity, MessageReader, MessageWriter, Name, NextState, Query,
     Res, ResMut, Sprite, StateTransitionEvent, Transform, With, Without,
 };
-use rand::seq::{IteratorRandom, SliceRandom};
+use rand::seq::SliceRandom;
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
@@ -44,6 +44,7 @@ pub fn start_game(
             // Debug: human player with special starting areas
             let is_human = human_entity == Some(player_entity);
             if is_human && debug_options.human_starting_areas.is_some() {
+                #[allow(clippy::unnecessary_unwrap)]
                 let num_areas = debug_options.human_starting_areas.unwrap();
                 let areas: Vec<Entity> = all_areas_query.iter().take(num_areas).collect();
                 for area_entity in areas {

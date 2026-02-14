@@ -6,7 +6,7 @@ use std::path::Path;
 
 use crate::civilization::components::*;
 use crate::civilization::concepts::census::GameInfoAndStuff;
-use crate::civilization::concepts::city_construction::IsBuilding;
+use crate::civilization::concepts::city_construction::{CityConstructionPhaseActive, IsBuilding};
 use crate::civilization::concepts::movement::movement_components::PerformingMovement;
 use crate::civilization::concepts::population_expansion::population_expansion_components::NeedsExpansion;
 use crate::civilization::concepts::AvailableFactions;
@@ -17,7 +17,7 @@ use crate::stupid_ai::{IsHuman, StupidAi};
 use crate::{GameActivity, GameState};
 
 const SAVE_FILE_PATH: &str = "savegame.json";
-const SAVE_GAME_VERSION: &str = "0.0.1";
+const SAVE_GAME_VERSION: &str = "0.0.2";
 
 /// Message to request a game save (fired by F5 key or menu button)
 #[derive(Message)]
@@ -72,7 +72,7 @@ impl Plugin for SaveGamePlugin {
             .add_systems(OnEnter(GameActivity::Census), cleanup_loading_from_save)
             .add_systems(OnEnter(GameActivity::Conflict), cleanup_loading_from_save)
             .add_systems(OnEnter(GameActivity::RemoveSurplusPopulation), cleanup_loading_from_save)
-            .add_systems(OnEnter(GameActivity::CheckCitySupport), cleanup_loading_from_save)
+            .add_systems(OnEnter(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation), cleanup_loading_from_save)
             .add_systems(OnEnter(GameActivity::AcquireTradeCards), cleanup_loading_from_save)
             .add_systems(OnEnter(GameActivity::Trade), cleanup_loading_from_save);
     }
@@ -444,6 +444,12 @@ fn load_game_from_save(
     // Store faction_to_player mapping for area population restoration
     commands.insert_resource(LoadedFactionMap(faction_to_player.clone()));
     commands.insert_resource(PendingAreaPopulations(save_data.area_populations.clone()));
+    
+    // Insert activity-specific resources based on saved activity
+    if save_data.game_activity == GameActivity::CityConstruction {
+        commands.insert_resource(CityConstructionPhaseActive);
+        info!("Inserted CityConstructionPhaseActive resource for loaded save");
+    }
     
     // Remove the pending load resource
     commands.remove_resource::<PendingGameLoad>();

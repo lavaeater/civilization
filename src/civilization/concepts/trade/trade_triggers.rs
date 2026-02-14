@@ -1,5 +1,5 @@
 use crate::civilization::concepts::trade::trade_components::{
-    CanTrade, PlayerTradeInterests, PublishedOffer, PublishedOffersList, TradeButtonAction,
+    CanTrade, PublishedOffer, PublishedOffersList, TradeButtonAction,
     TradeOffer,
 };
 use lava_ui_builder::UIBuilder;
@@ -155,6 +155,6 @@ pub fn can_trade_removed(
         for (entity, _) in trade_offers.iter() {
             commands.entity(entity).despawn();
         }
-        next_state.set(GameActivity::PopulationExpansion);
+        next_state.set(GameActivity::ResolveCalamities);
     }
 }

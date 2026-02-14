@@ -1,5 +1,5 @@
 use crate::civilization::components::*;
-use crate::civilization::concepts::city_construction::city_construction_components::*;
+use crate::civilization::concepts::city_construction::city_construction_components::{CityConstructionPhaseActive, IsBuilding};
 use crate::civilization::concepts::city_construction::city_construction_events::*;
 use crate::civilization::concepts::map::map_plugin::AvailableFactions;
 use crate::civilization::concepts::save_game::LoadingFromSave;
@@ -13,9 +13,18 @@ use bevy::prelude::{
 
 pub fn city_building_gate(
     query: Query<&IsBuilding>,
+    phase_active: Option<Res<CityConstructionPhaseActive>>,
     mut next_state: ResMut<NextState<GameActivity>>,
+    mut commands: Commands,
 ) {
-    if query.is_empty() {
+    if phase_active.is_none() {
+        return;
+    }
+    
+    let building_count = query.iter().count();
+    if building_count == 0 {
+        info!("[CITY_CONSTRUCTION] Gate: No players with IsBuilding, transitioning to RemoveSurplusPopulation");
+        commands.remove_resource::<CityConstructionPhaseActive>();
         next_state.set(GameActivity::RemoveSurplusPopulation);
     }
 }
@@ -67,7 +76,19 @@ pub fn on_enter_city_construction(
     mut commands: Commands,
     loading_from_save: Option<Res<LoadingFromSave>>,
 ) {
+    info!("[CITY_CONSTRUCTION] Entering city construction phase");
+    info!("[CITY_CONSTRUCTION] LoadingFromSave present: {}", loading_from_save.is_some());
+    
+    if let Some(ref save_state) = loading_from_save {
+        info!("[CITY_CONSTRUCTION] Save state - saved_activity: {:?}", save_state.saved_activity);
+        info!("[CITY_CONSTRUCTION] Save state - completed_factions: {:?}", save_state.completed_factions);
+    }
+    
+    let total_players = player_query.iter().count();
+    info!("[CITY_CONSTRUCTION] Total players: {}", total_players);
+    
     let mut skipped = 0;
+    let mut marked_for_building = 0;
     for (player_entity, faction) in player_query.iter() {
         if let Some(ref save_state) = loading_from_save {
             if save_state.completed_factions.contains(&faction.faction) {
@@ -76,12 +97,18 @@ pub fn on_enter_city_construction(
                 continue;
             }
         }
+        info!("[CITY_CONSTRUCTION] Marking {:?} for building", faction.faction);
         commands.entity(player_entity).insert(IsBuilding);
+        marked_for_building += 1;
     }
-    if skipped > 0 {
-        info!("[CITY_CONSTRUCTION] Skipped {} players (already done)", skipped);
-    }
+    
+    info!("[CITY_CONSTRUCTION] Summary: {} marked for building, {} skipped", marked_for_building, skipped);
+    
+    commands.insert_resource(CityConstructionPhaseActive);
+    info!("[CITY_CONSTRUCTION] Inserted CityConstructionPhaseActive resource");
+    
     if loading_from_save.is_some() {
+        info!("[CITY_CONSTRUCTION] Removing LoadingFromSave resource");
         commands.remove_resource::<LoadingFromSave>();
     }
 }

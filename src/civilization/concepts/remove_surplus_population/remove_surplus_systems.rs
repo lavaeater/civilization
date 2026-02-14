@@ -11,7 +11,7 @@ pub fn remove_surplus_population(
     let mut areas_with_surplus = 0;
     let mut total_tokens_removed = 0;
     
-    for (area_entity, name, mut area, has_city) in areas.iter_mut() {
+    for (_area_entity, name, mut area, has_city) in areas.iter_mut() {
         total_areas_processed += 1;
         let total_pop = area.total_population();
         let max_pop = area.max_population;
@@ -72,7 +72,7 @@ pub fn remove_surplus_population(
         total_areas_processed, areas_with_surplus, total_tokens_removed
     );
     
-    next_state.set(GameActivity::CheckCitySupport);
+    next_state.set(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation);
 }
 
 /// Remove surplus tokens from an area with multiple players.

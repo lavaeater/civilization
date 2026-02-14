@@ -63,7 +63,7 @@ impl MovementSelectionState {
     }
     
     pub fn is_current_skipped(&self) -> bool {
-        self.current_source().map_or(false, |s| self.skipped_sources.contains(&s))
+        self.current_source().is_some_and(|s| self.skipped_sources.contains(&s))
     }
     
     pub fn skip_current_source(&mut self) {

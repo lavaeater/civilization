@@ -1,4 +1,5 @@
 use crate::civilization::components::{CityFlood, CitySite, FloodPlain, GameArea, GameCamera, LandPassage, NeedsConnections, Population, StartArea, Volcano};
+use crate::civilization::concepts::map::camera_focus::{CameraFocusQueue, process_camera_focus};
 use crate::civilization::enums::GameFaction;
 use crate::civilization::general_systems::setup_players;
 use crate::civilization::start_game_after_player_setup;
@@ -16,6 +17,7 @@ pub struct MapPlugin;
 impl Plugin for MapPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AvailableFactions>()
+            .init_resource::<CameraFocusQueue>()
             .add_plugins(RonAssetPlugin::<Map>::new(&["map.ron"]))
             .add_systems(Startup, setup)
             .add_systems(
@@ -27,6 +29,7 @@ impl Plugin for MapPlugin {
                 (
                     fit_map_camera_on_resize,
                     handle_map_camera_controls,
+                    process_camera_focus,
                 ).run_if(in_state(GameState::Playing)),
             );
     }
