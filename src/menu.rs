@@ -115,7 +115,7 @@ fn demo_root() -> impl Bundle {
         children![(
             Node {
                 display: Display::Flex,
-                flex_direction: FlexDirection::Column,
+                flex_direction: FlexDirection::Row,
                 align_items: AlignItems::Stretch,
                 justify_content: JustifyContent::Start,
                 padding: UiRect::all(px(8)),
@@ -139,10 +139,11 @@ fn demo_root() -> impl Bundle {
                             button(
                                 ButtonProps::default(),
                                 (),
-                                Spawn((Text::new("Normal"), ThemedText))
+                                Spawn((Text::new("Play"), ThemedText))
                             ),
-                            observe(|_activate: On<Activate>| {
+                            observe(|_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
                                 info!("Normal button clicked!");
+                                next_state.set(GameState::Playing);
                             })
                         ),
                         (
