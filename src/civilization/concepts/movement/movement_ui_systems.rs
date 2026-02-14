@@ -342,8 +342,9 @@ pub fn spawn_movement_controls_ui(
                 selection_state.prev_source();
             })
                 .with_child(|area_name_display|  {
-                    area_name_display.component::<SourceAreaDisplay>();
-                    area_name_display.with_text(selection_state.current_source().map(|s| s.to_string()), Some(font.clone()), Some(24.0), Some(Color::WHITE), Some(JustifyContent::Center), Some(LineBreak::NoWrap));
+                    area_name_display.component::<SourceAreaDisplay>()
+                        .with_text("Source: ?", Some(font.clone()), Some(20.0), Some(Color::WHITE), Some(JustifyContent::Center), Some(LineBreak::NoWrap))
+                        .width(px(200.));
                 })
                 .feathers_button("Next Source", |_activate: On<Activate>| {
                     info!("Next source clicked");
