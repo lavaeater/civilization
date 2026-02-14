@@ -3,13 +3,14 @@ use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Messages, Name, Transform};
 use bevy::state::app::StatesPlugin;
-use adv_civ::civilization::{move_tokens_from_area_to_area, recalculate_movement_moves_for_player, AvailableMoves, GameArea, GameFaction, GameMove, LandPassage, MoveTokenFromAreaToAreaCommand, PlayerAreas, PlayerMovementEnded, Population, RecalculatePlayerMoves, TokenHasMoved, TokenStock};
+use adv_civ::civilization::{move_tokens_from_area_to_area, recalculate_movement_moves_for_player, AvailableMoves, CameraFocusQueue, GameArea, GameFaction, GameMove, LandPassage, MoveTokenFromAreaToAreaCommand, PlayerAreas, PlayerMovementEnded, Population, RecalculatePlayerMoves, TokenHasMoved, TokenStock};
 
 fn setup_app() -> App {
     let mut app = App::new();
     app.add_plugins(StatesPlugin)
         .add_message::<MoveTokenFromAreaToAreaCommand>()
         .add_message::<RecalculatePlayerMoves>()
+        .init_resource::<CameraFocusQueue>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
         .add_systems(Update, move_tokens_from_area_to_area);
