@@ -4,7 +4,7 @@ use crate::civilization::concepts::movement::movement_events::{
     MoveTokenFromAreaToAreaCommand, PlayerMovementEnded,
 };
 use crate::civilization::concepts::movement::movement_ui_components::{
-    ConfirmMovementButton, EndMovementButton, MovementSelectionState, MovementUiRoot,
+    MovementSelectionState, MovementUiRoot,
     SourceAreaDisplay, TokenCountDisplay,
 };
 use crate::civilization::game_moves::{AvailableMoves, GameMove, MovementMove};
@@ -300,15 +300,32 @@ pub fn spawn_movement_controls_ui(
         builder.add_row(|action_row| {
             action_row.column_gap(px(10.));
             action_row
-                .feathers_button_marked("OK", ConfirmMovementButton, |_activate: On<Activate>| {
-                    info!("OK clicked");
-                })
+                .feathers_button("OK", |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>, mut move_writer: MessageWriter<MoveTokenFromAreaToAreaCommand>| {
+                    if let (Some(player), Some(source), Some(target)) = (
+                        selection_state.player,
+                        selection_state.source_area,
+                        selection_state.target_area,
+                    ) {
+                        if selection_state.token_count > 0 {
+                            move_writer.write(MoveTokenFromAreaToAreaCommand::new(
+                                source,
+                                target,
+                                selection_state.token_count,
+                                player,
+                            ));
+                            selection_state.clear_preserving_skips();
+                        }
+                    }                })
                 .feathers_button("Cancel", |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
                     info!("Cancel clicked");
                     selection_state.clear_target();
                 })
-                .feathers_button_marked("End Movement", EndMovementButton, |_activate: On<Activate>| {
+                .feathers_button("End Movement", |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>, mut end_movement_writer: MessageWriter<PlayerMovementEnded>| {
                     info!("End Movement clicked");
+                    if let Some(player) = selection_state.player {
+                        end_movement_writer.write(PlayerMovementEnded::new(player));
+                        selection_state.clear();
+                    }
                 });
         });
         builder.build();
@@ -421,53 +438,4 @@ pub fn pan_camera_to_current_source(
 
     camera_transform.translation.x = area_transform.translation.x;
     camera_transform.translation.y = area_transform.translation.y;
-}
-
-// ============================================================================
-// Global observers for buttons that need MessageWriter access
-// ============================================================================
-
-/// Global observer for the Confirm Movement (OK) button
-pub fn on_confirm_movement_button(
-    trigger: On<Activate>,
-    confirm_buttons: Query<(), With<ConfirmMovementButton>>,
-    mut selection_state: ResMut<MovementSelectionState>,
-    mut move_writer: MessageWriter<MoveTokenFromAreaToAreaCommand>,
-) {
-    if confirm_buttons.get(trigger.entity).is_err() {
-        return;
-    }
-
-    if let (Some(player), Some(source), Some(target)) = (
-        selection_state.player,
-        selection_state.source_area,
-        selection_state.target_area,
-    ) {
-        if selection_state.token_count > 0 {
-            move_writer.write(MoveTokenFromAreaToAreaCommand::new(
-                source,
-                target,
-                selection_state.token_count,
-                player,
-            ));
-            selection_state.clear_preserving_skips();
-        }
-    }
-}
-
-/// Global observer for the End Movement button
-pub fn on_end_movement_button(
-    trigger: On<Activate>,
-    end_buttons: Query<(), With<EndMovementButton>>,
-    mut selection_state: ResMut<MovementSelectionState>,
-    mut end_movement_writer: MessageWriter<PlayerMovementEnded>,
-) {
-    if end_buttons.get(trigger.entity).is_err() {
-        return;
-    }
-
-    if let Some(player) = selection_state.player {
-        end_movement_writer.write(PlayerMovementEnded::new(player));
-        selection_state.clear();
-    }
 }
