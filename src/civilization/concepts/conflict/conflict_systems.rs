@@ -40,6 +40,7 @@ mod tests {
     use crate::GameState;
     use bevy::prelude::*;
     use bevy::state::app::StatesPlugin;
+    use crate::civilization::CameraFocusQueue;
 
     fn create_test_app() -> App {
         let mut app = App::new();
@@ -50,6 +51,7 @@ mod tests {
         app.add_sub_state::<GameActivity>();
         app.insert_state(GameActivity::Conflict);
         app.init_resource::<ConflictCounterResource>();
+        app.init_resource::<CameraFocusQueue>();
         // Run find_conflict_zones in Update with state condition instead of OnEnter
         // This works better in tests since OnEnter doesn't fire on initial state
         app.add_systems(Update, find_conflict_zones.run_if(in_state(GameActivity::Conflict)));
