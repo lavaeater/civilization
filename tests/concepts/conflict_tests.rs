@@ -1,8 +1,10 @@
+use bevy::app::RunMode::Once;
 use crate::setup_player;
 use adv_civ::civilization::{find_conflict_zones, on_add_unresolved_city_conflict, on_add_unresolved_conflict, BuiltCity, CameraFocusQueue, CityTokenStock, ConflictCounterResource, GameArea, GameFaction, LandPassage, PlayerAreas, PlayerCities, Population, TokenStock, UnresolvedCityConflict, UnresolvedConflict};
 use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
-use bevy::prelude::{App, AppExtStates, Name};
+use bevy::ecs::system::SystemId;
+use bevy::prelude::{App, AppExtStates, Name, NextState};
 use bevy::state::app::StatesPlugin;
 /****************************************************
 Test for the find_conflict_zones system
@@ -11,20 +13,23 @@ when the system is run, that area should have a component
 added indicating that it has a conflict.
 *****************************************************/
 
-fn setup_conflict_test_app() -> App {
+fn setup_conflict_test_app() -> (App, SystemId){
     let mut app = App::new();
     app.add_plugins(StatesPlugin)
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
+        .insert_state(GameActivity::Conflict)
         .init_resource::<ConflictCounterResource>()
         .init_resource::<CameraFocusQueue>();
-    app
+    
+    let system_id = app.world_mut().register_system(find_conflict_zones);
+    
+    (app, system_id)
 }
 #[test]
 fn given_an_area_with_a_city_and_some_population() {
     // Arrange
-    let mut app = setup_conflict_test_app();
-    app.add_systems(Update, find_conflict_zones);
+    let (mut app, system_id) = setup_conflict_test_app();
 
     let (player_one, _, mut p_one_cities) =
         setup_player(&mut app, "player one", GameFaction::Egypt);

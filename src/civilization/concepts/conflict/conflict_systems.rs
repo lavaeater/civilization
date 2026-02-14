@@ -1,8 +1,10 @@
+use crate::civilization::components::{BuiltCity, Population};
+use crate::civilization::concepts::conflict::conflict_components::{
+    UnresolvedCityConflict, UnresolvedConflict,
+};
+use crate::civilization::ConflictCounterResource;
 use crate::GameActivity;
 use bevy::prelude::{info, Commands, Entity, Has, Name, NextState, Query, ResMut};
-use crate::civilization::components::{BuiltCity, Population};
-use crate::civilization::concepts::conflict::conflict_components::{UnresolvedCityConflict, UnresolvedConflict};
-use crate::civilization::ConflictCounterResource;
 
 pub fn find_conflict_zones(
     pop_query: Query<(Entity, &Name, &Population, Has<BuiltCity>)>,
@@ -10,7 +12,7 @@ pub fn find_conflict_zones(
     mut conflict_counter_resource: ResMut<ConflictCounterResource>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    conflict_counter_resource.0 = 0;// reset counter
+    conflict_counter_resource.0 = 0; // reset counter
     pop_query
         .iter()
         .filter(|(_, _, pop, has_city)| pop.is_conflict_zone(*has_city))
@@ -28,7 +30,10 @@ pub fn find_conflict_zones(
         info!("No conflicts found, transitioning to CityConstruction");
         next_state.set(GameActivity::CityConstruction);
     } else {
-        info!("Found {} conflicts, remaining in Conflict", conflict_counter_resource.0);
+        info!(
+            "Found {} conflicts, remaining in Conflict",
+            conflict_counter_resource.0
+        );
     }
 }
 
@@ -37,10 +42,11 @@ mod tests {
     use super::*;
     use crate::civilization::components::*;
     use crate::civilization::concepts::conflict::conflict_triggers::*;
+    use crate::civilization::CameraFocusQueue;
     use crate::GameState;
+    use bevy::ecs::system::{RunSystemError, RunSystemOnce};
     use bevy::prelude::*;
     use bevy::state::app::StatesPlugin;
-    use crate::civilization::CameraFocusQueue;
 
     fn create_test_app() -> App {
         let mut app = App::new();
@@ -52,16 +58,14 @@ mod tests {
         app.insert_state(GameActivity::Conflict);
         app.init_resource::<ConflictCounterResource>();
         app.init_resource::<CameraFocusQueue>();
-        // Run find_conflict_zones in Update with state condition instead of OnEnter
-        // This works better in tests since OnEnter doesn't fire on initial state
-        app.add_systems(Update, find_conflict_zones.run_if(in_state(GameActivity::Conflict)));
         app.add_observer(on_add_unresolved_conflict);
         app.add_observer(on_add_unresolved_city_conflict);
+
         app
     }
-    
-    fn transition_to_conflict(_app: &mut App) {
-        // No-op now since we start in Conflict state and use Update schedule
+
+    fn transition_to_conflict(app: &mut App) -> std::result::Result<(), RunSystemError> {
+        app.world_mut().run_system_once(find_conflict_zones)
     }
 
     /// Helper: spawn an area with a Name, Population, and optional BuiltCity.
@@ -99,7 +103,7 @@ mod tests {
 
         // Run updates: first runs find_conflict_zones which sets NextState,
         // second processes the state transition
-        transition_to_conflict(&mut app);
+        transition_to_conflict(&mut app).unwrap();
         app.update();
         app.update();
 
@@ -126,7 +130,7 @@ mod tests {
         );
 
         // Transition into Conflict state to trigger OnEnter, then run frames for resolution
-        transition_to_conflict(&mut app);
+        transition_to_conflict(&mut app).unwrap();
         app.update();
         app.update();
 
@@ -154,29 +158,11 @@ mod tests {
         let p3 = app.world_mut().spawn_empty().id();
 
         // Multiple conflict zones
-        spawn_area(
-            app.world_mut(),
-            "Area A",
-            2,
-            &[(p1, 3), (p2, 1)],
-            None,
-        );
-        spawn_area(
-            app.world_mut(),
-            "Area B",
-            3,
-            &[(p2, 3), (p3, 2)],
-            None,
-        );
-        spawn_area(
-            app.world_mut(),
-            "Area C",
-            1,
-            &[(p1, 1), (p3, 1)],
-            None,
-        );
+        spawn_area(app.world_mut(), "Area A", 2, &[(p1, 3), (p2, 1)], None);
+        spawn_area(app.world_mut(), "Area B", 3, &[(p2, 3), (p3, 2)], None);
+        spawn_area(app.world_mut(), "Area C", 1, &[(p1, 1), (p3, 1)], None);
 
-        transition_to_conflict(&mut app);
+        transition_to_conflict(&mut app).unwrap();
         for _ in 0..5 {
             app.update();
         }
@@ -233,7 +219,7 @@ mod tests {
             Some(city),
         );
 
-        transition_to_conflict(&mut app);
+        transition_to_conflict(&mut app).unwrap();
         for _ in 0..5 {
             app.update();
         }
@@ -250,7 +236,10 @@ mod tests {
             .query::<&UnresolvedCityConflict>()
             .iter(app.world())
             .count();
-        assert_eq!(city_conflicts, 0, "UnresolvedCityConflict should be removed");
+        assert_eq!(
+            city_conflicts, 0,
+            "UnresolvedCityConflict should be removed"
+        );
     }
 
     #[test]
@@ -283,7 +272,7 @@ mod tests {
             Some(city),
         );
 
-        transition_to_conflict(&mut app);
+        transition_to_conflict(&mut app).unwrap();
         for _ in 0..5 {
             app.update();
         }
@@ -347,7 +336,7 @@ mod tests {
         // Before the fix, the city conflict observer decremented the counter,
         // then chained into the regular conflict observer which decremented again,
         // causing a usize underflow panic.
-        transition_to_conflict(&mut app);
+        transition_to_conflict(&mut app).unwrap();
         for _ in 0..10 {
             app.update();
         }
@@ -383,7 +372,7 @@ mod tests {
             Some(city),
         );
 
-        transition_to_conflict(&mut app);
+        transition_to_conflict(&mut app).unwrap();
         for _ in 0..5 {
             app.update();
         }
