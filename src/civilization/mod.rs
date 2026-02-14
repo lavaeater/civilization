@@ -1,14 +1,13 @@
-// pub mod console;
-pub mod components;
-pub mod concepts;
-pub mod enums;
-pub mod events;
-pub mod functions;
-pub mod game_moves;
-pub mod plugins;
-pub mod general_systems;
-pub mod triggers;
-pub mod ui;
+mod components;
+mod concepts;
+mod enums;
+mod events;
+mod functions;
+mod game_moves;
+mod plugins;
+mod general_systems;
+mod triggers;
+mod ui;
 
 pub use components::*;
 pub use concepts::*;

@@ -3,15 +3,18 @@ use crate::civilization::concepts::save_game::LoadingFromSave;
 use crate::civilization::concepts::{AvailableFactions, Census};
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::plugins::DebugOptions;
-use crate::civilization::{CivilizationTradeCards, PlayerTradeCards};
+use crate::civilization::{CivilizationTradeCards, MovementInput, PlayerTradeCards};
 use crate::player::Player;
 use crate::stupid_ai::*;
 use crate::GameActivity;
-use bevy::math::{vec3, Vec3};
+use bevy::math::{vec2, vec3, Vec2, Vec3};
 use bevy::prelude::{
-    debug, default, info, Commands, Entity, MessageReader, MessageWriter, Name, NextState, Query,
-    Res, ResMut, Sprite, StateTransitionEvent, Transform, With, Without,
+    debug, default, info, Bundle, Commands, Entity, KeyCode, MessageReader, MessageWriter, Name,
+    NextState, Query, Res, ResMut, SpawnRelated, Sprite, StateTransitionEvent, Transform, With,
+    Without,
 };
+use bevy_enhanced_input::actions;
+use bevy_enhanced_input::prelude::*;
 use rand::seq::SliceRandom;
 
 pub fn start_game(
@@ -120,7 +123,7 @@ pub fn setup_players(
         info!("Loading from save - skipping setup_players");
         return;
     }
-    
+
     debug!("3. Setting up players!");
     let mut available_names: Vec<&str> = ANCIENT_RULERS.to_vec();
     available_names.shuffle(&mut rand::rng());
@@ -129,14 +132,20 @@ pub fn setup_players(
     let mut factions_to_use: Vec<_> = if debug_options.add_human_player {
         // Start with the human faction
         let mut factions = vec![debug_options.human_faction];
-        available_factions.remaining_factions.remove(&debug_options.human_faction);
-        
+        available_factions
+            .remaining_factions
+            .remove(&debug_options.human_faction);
+
         // Add random factions for the remaining players
         let remaining_count = debug_options.number_of_players.saturating_sub(1);
-        let mut remaining: Vec<_> = available_factions.remaining_factions.iter().copied().collect();
+        let mut remaining: Vec<_> = available_factions
+            .remaining_factions
+            .iter()
+            .copied()
+            .collect();
         remaining.shuffle(&mut rand::rng());
         factions.extend(remaining.into_iter().take(remaining_count));
-        
+
         // Remove used factions from available
         for f in &factions {
             available_factions.remaining_factions.remove(f);
@@ -144,15 +153,22 @@ pub fn setup_players(
         factions
     } else {
         // No human player - just pick random factions
-        let mut remaining: Vec<_> = available_factions.remaining_factions.iter().copied().collect();
+        let mut remaining: Vec<_> = available_factions
+            .remaining_factions
+            .iter()
+            .copied()
+            .collect();
         remaining.shuffle(&mut rand::rng());
-        let factions: Vec<_> = remaining.into_iter().take(debug_options.number_of_players).collect();
+        let factions: Vec<_> = remaining
+            .into_iter()
+            .take(debug_options.number_of_players)
+            .collect();
         for f in &factions {
             available_factions.remaining_factions.remove(f);
         }
         factions
     };
-    
+
     // Shuffle so human isn't always first
     factions_to_use.shuffle(&mut rand::rng());
 
@@ -174,23 +190,11 @@ pub fn setup_players(
             .id();
 
         if debug_options.add_human_player && faction == debug_options.human_faction {
-            info!("Added human player");
-            commands.entity(player).remove::<StupidAi>();
-            commands.entity(player).insert(IsHuman);
-            if debug_options.human_starts_with_trade_cards {
-                let mut player_trade_cards = PlayerTradeCards::default();
-                (1..=9).for_each(|pile| {
-                    if let Some(pulled_card) = trade_card_resource.pull_card_from(pile) {
-                        player_trade_cards.add_trade_card(pulled_card);
-                    }
-                });
-                commands.entity(player).insert(player_trade_cards);
-            }
+            setup_human_player(&debug_options, trade_card_resource, &mut commands, player);
         }
 
         // Determine token count - use debug override for human player if set
-        let is_human =
-            debug_options.add_human_player && faction == debug_options.human_faction;
+        let is_human = debug_options.add_human_player && faction == debug_options.human_faction;
         let token_count = if is_human {
             debug_options.human_token_count.unwrap_or(47)
         } else {
@@ -217,6 +221,72 @@ pub fn setup_players(
             CityTokenStock::new(9, city_tokens),
         ));
     }
+}
+
+pub fn setup_human_player(
+    debug_options: &Res<DebugOptions>,
+    mut trade_card_resource: ResMut<CivilizationTradeCards>,
+    commands: &mut Commands,
+    player: Entity,
+) {
+    info!("Added human player");
+    commands.entity(player).remove::<StupidAi>();
+    commands.entity(player).insert(IsHuman);
+    if debug_options.human_starts_with_trade_cards {
+        let mut player_trade_cards = PlayerTradeCards::default();
+        (1..=9).for_each(|pile| {
+            if let Some(pulled_card) = trade_card_resource.pull_card_from(pile) {
+                player_trade_cards.add_trade_card(pulled_card);
+            }
+        });
+        commands.entity(player).insert(player_trade_cards);
+        commands.entity(player).insert(player_input_bundle());
+    }
+}
+
+#[derive(InputAction)]
+#[action_output(Vec2)]
+struct CardinalInput;
+
+#[derive(InputAction)]
+#[action_output(Vec3)]
+struct MapInput;
+
+#[derive(InputAction)]
+#[action_output(bool)]
+struct Ok;
+
+#[derive(InputAction)]
+#[action_output(bool)]
+struct Cancel;
+
+#[derive(InputAction)]
+#[action_output(bool)]
+struct Cancel;
+
+pub fn player_input_bundle() -> impl Bundle {
+    (
+        MovementInput,
+        actions!(MovementInput[
+            (
+                Action::<CardinalInput>::new(),
+                DeadZone::default(),
+                Bindings::spawn((Cardinal::wasd_keys())),
+            ),(
+                Action::<MapInput>::new(),
+                DeadZone::default(),
+                Bindings::spawn(Spatial::new( KeyCode::KeyX, KeyCode::KeyZ KeyCode::ArrowLeft, KeyCode::ArrowRight, KeyCode::ArrowUp, KeyCode::ArrowDown)),
+            ),
+            (
+                Action::<Ok>::new(),
+                bindings![KeyCode::Enter],
+            ),
+                        (
+                Action::<Cancel>::new(),
+                bindings![KeyCode::Escape],
+            ),
+        ]),
+    )
 }
 
 pub fn connect_areas(
@@ -298,10 +368,9 @@ pub fn move_tokens_from_stock_to_area(
 
 pub fn print_names_of_phases(
     mut state_transition_event: MessageReader<StateTransitionEvent<GameActivity>>,
-    debug_options: Res<DebugOptions>
+    debug_options: Res<DebugOptions>,
 ) {
-    if debug_options.log_selected_moves
-    {
+    if debug_options.log_selected_moves {
         for event in state_transition_event.read() {
             info!("Went from: {:#?} to {:#?}", event.exited, event.entered);
         }

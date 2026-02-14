@@ -1,6 +1,5 @@
 #![allow(clippy::type_complexity)]
 
-pub mod actions;
 pub mod audio;
 pub mod loading;
 pub mod menu;
