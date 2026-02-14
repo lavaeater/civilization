@@ -1,7 +1,10 @@
-use crate::civilization::GameCamera;
 use crate::civilization::save_game::{LoadGameRequest, SaveGameRequest};
+use crate::civilization::GameCamera;
 use crate::loading::TextureAssets;
 use crate::{GamePaused, GameState};
+use bevy::feathers::dark_theme::create_dark_theme;
+use bevy::feathers::theme::UiTheme;
+use bevy::feathers::FeathersPlugins;
 use bevy::prelude::*;
 use lava_ui_builder::{UIBuilder, UiTheme};
 
@@ -9,7 +12,9 @@ pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Menu), setup_menu)
+        app.add_plugins(FeathersPlugins)
+            .insert_resource(UiTheme(create_dark_theme()))
+            .add_systems(OnEnter(GameState::Menu), setup_menu)
             .add_systems(
                 Update,
                 handle_menu_buttons.run_if(in_state(GameState::Menu)),
@@ -67,31 +72,32 @@ fn setup_menu(
         Msaa::Off,
     ));
 
-    let mut ui = UIBuilder::new(commands, Some(theme.clone()));
 
-    ui.component::<Menu>()
-        .size_percent(100.0, 100.0)
-        .display_flex()
-        .flex_column()
-        .align_items_center()
-        .justify_center()
-        .gap_px(16.0);
-
-    ui.add_text_child("Advanced Civilization", None, Some(48.0), None);
-
-    ui.add_themed_button(ChangeState(GameState::Playing), |btn| {
-        btn.text("Play").size_px(300.0, 60.0);
-    });
-
-    ui.add_themed_button(ChangeState(GameState::Sandbox), |btn| {
-        btn.text("Sandbox").size_px(300.0, 60.0);
-    });
-
-    ui.add_themed_button(LoadGameButton, |btn| {
-        btn.text("Load Game").size_px(300.0, 60.0);
-    });
-
-    ui.build();
+    // let mut ui = UIBuilder::new(commands, Some(theme.clone()));
+    // 
+    // ui.component::<Menu>()
+    //     .size_percent(100.0, 100.0)
+    //     .display_flex()
+    //     .flex_column()
+    //     .align_items_center()
+    //     .justify_center()
+    //     .gap_px(16.0);
+    // 
+    // ui.add_text_child("Advanced Civilization", None, Some(48.0), None);
+    // 
+    // ui.add_themed_button(ChangeState(GameState::Playing), |btn| {
+    //     btn.text("Play").size_px(300.0, 60.0);
+    // });
+    // 
+    // ui.add_themed_button(ChangeState(GameState::Sandbox), |btn| {
+    //     btn.text("Sandbox").size_px(300.0, 60.0);
+    // });
+    // 
+    // ui.add_themed_button(LoadGameButton, |btn| {
+    //     btn.text("Load Game").size_px(300.0, 60.0);
+    // });
+    // 
+    // ui.build();
 }
 
 fn handle_menu_buttons(
