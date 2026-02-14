@@ -195,20 +195,6 @@ pub struct MovementUiRoot;
 #[derive(Component, Default)]
 pub struct MovementControlsPanel;
 
-/// Button actions for movement UI
-#[derive(Component, Debug, Clone)]
-pub enum MovementButtonAction {
-    IncrementTokens,
-    DecrementTokens,
-    ConfirmMove,
-    CancelMove,
-    EndMovement,
-    PrevSource,
-    NextSource,
-    SkipSource,
-    SelectTarget { source: Entity, target: Entity, max_tokens: usize, is_attack: bool, is_city_attack: bool },
-}
-
 /// Marker for the token count display text
 #[derive(Component, Default)]
 pub struct TokenCountDisplay;

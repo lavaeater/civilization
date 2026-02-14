@@ -69,7 +69,7 @@ fn setup_menu(
 
     let mut ui = UIBuilder::new(commands, Some(theme.clone()));
 
-    ui.with_component::<Menu>()
+    ui.component::<Menu>()
         .size_percent(100.0, 100.0)
         .display_flex()
         .flex_column()
@@ -149,7 +149,7 @@ fn toggle_pause(
 fn spawn_pause_menu(commands: Commands, theme: &UiTheme) {
     let mut ui = UIBuilder::new(commands, Some(theme.clone()));
 
-    ui.with_component::<PauseMenu>()
+    ui.component::<PauseMenu>()
         .size_percent(100.0, 100.0)
         .display_flex()
         .flex_column()

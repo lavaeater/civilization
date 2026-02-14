@@ -206,12 +206,12 @@ fn _setup(
     let mut root_ui = UIBuilder::new(commands, Some(ui_theme.clone()));
 
     root_ui
-        .with_component::<TradeCardUiRoot>()
+        .component::<TradeCardUiRoot>()
         .display_flex().flex_column().size(Val::Percent(25.), Val::Percent(100.))
         .text_node("Your trade cards!")
         .child()
         .display_flex().flex_column().size(Val::Percent(100.), Val::Percent(100.))
-        .with_component::<TradeCardList>();
+        .component::<TradeCardList>();
 
     let (_root_entity, _commands) = root_ui.build();
     for human_player in human_players.iter() {
@@ -256,7 +256,7 @@ pub fn setup_trade_ui(
 
     let mut ui = UIBuilder::new(commands, Some(ui_theme.clone()));
 
-    ui.with_component::<TradeCardUiRoot>()
+    ui.component::<TradeCardUiRoot>()
         .display_flex()
         .flex_dir_row()
         .padding_all_px(4.0);
@@ -264,7 +264,7 @@ pub fn setup_trade_ui(
     // Left side: Collapsible Trade Cards section
     ui.add_collapsible("Trade Cards", |cards_section| {
         cards_section
-            .with_component::<TradeCardList>()
+            .component::<TradeCardList>()
             .width_px(300.0)
             .height_px(400.0)
             .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.7))
@@ -288,7 +288,7 @@ pub fn setup_trade_ui(
         info_section.add_text_child("Game State", None, None, None);
         info_section.with_child(|state| {
             state
-                .with_component::<GameStateDisplay>()
+                .component::<GameStateDisplay>()
                 .width_percent(100.0)
                 .display_flex()
                 .flex_dir_column()
@@ -302,7 +302,7 @@ pub fn setup_trade_ui(
         // Player Activity section
         info_section.add_text_child("Player Activity", None, None, None);
         info_section.with_child(|list| {
-            list.with_component::<PlayerActivityListContainer>()
+            list.component::<PlayerActivityListContainer>()
                 .width_percent(100.0)
                 .height_px(300.0)
                 .display_flex()

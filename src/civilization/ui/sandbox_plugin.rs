@@ -121,7 +121,7 @@ fn setup_sandbox(
 
     let mut ui = UIBuilder::new(commands, Some(ui_theme.clone()));
 
-    ui.with_component::<SandboxUiRoot>()
+    ui.component::<SandboxUiRoot>()
         .size_percent(98.0, 98.0)
         .display_flex()
         .flex_dir_row();
@@ -137,7 +137,7 @@ fn setup_sandbox(
 
         // The sample box we'll modify
         ui.add_panel(|ui| {
-            ui.with_component::<SampleBox>()
+            ui.component::<SampleBox>()
                 .size_px(layout_state.width, layout_state.height)
                 .padding_all_px(layout_state.padding)
                 .margin_all_px(layout_state.margin)

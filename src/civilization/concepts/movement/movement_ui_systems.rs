@@ -7,7 +7,9 @@ use crate::civilization::concepts::movement::movement_ui_components::*;
 use crate::civilization::game_moves::{AvailableMoves, GameMove, MovementMove};
 use crate::stupid_ai::IsHuman;
 use bevy::prelude::*;
+use bevy::ui_widgets::Activate;
 use bevy::window::PrimaryWindow;
+use lava_ui_builder::{UIBuilder, UiTheme};
 
 /// System to detect when human player has movement options and populate the selection state
 pub fn setup_human_movement_options(
@@ -111,7 +113,7 @@ pub fn draw_movement_arrows(
                 // If we have a target selection, only show the selected arrow
                 if selection_state.has_selection()
                     && (selection_state.source_area != Some(*source)
-                        || selection_state.target_area != Some(*target))
+                    || selection_state.target_area != Some(*target))
                 {
                     continue;
                 }
@@ -156,12 +158,6 @@ pub fn handle_movement_target_click(
     if !mouse_button.just_pressed(MouseButton::Left) {
         return;
     }
-
-    // If we already have a selection, don't allow clicking new targets
-    if selection_state.has_selection() {
-        return;
-    }
-
     let Ok(window) = windows.single() else { return };
     let Some(cursor_pos) = window.cursor_position() else {
         return;
@@ -313,6 +309,10 @@ pub fn spawn_movement_controls_ui(
     >,
     existing_ui: Query<Entity, With<MovementUiRoot>>,
     asset_server: Res<AssetServer>,
+    ui_theme: Res<UiTheme>,
+    mut selection_state: ResMut<MovementSelectionState>,
+    mut move_writer: MessageWriter<MoveTokenFromAreaToAreaCommand>,
+    mut end_movement_writer: MessageWriter<PlayerMovementEnded>,
 ) {
     // Don't spawn if UI already exists
     if !existing_ui.is_empty() {
@@ -324,273 +324,86 @@ pub fn spawn_movement_controls_ui(
         let font = asset_server.load("fonts/FiraSans-Bold.ttf");
 
         // Spawn the movement controls panel
-        commands
-            .spawn((
-                MovementUiRoot,
-                Node {
-                    position_type: PositionType::Absolute,
-                    bottom: Val::Px(20.0),
-                    left: Val::Percent(50.0),
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    padding: UiRect::all(Val::Px(10.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.9)),
-            ))
-            .with_children(|parent| {
-                // Source area navigation row
-                parent
-                    .spawn((Node {
-                        flex_direction: FlexDirection::Row,
-                        align_items: AlignItems::Center,
-                        column_gap: Val::Px(8.0),
-                        margin: UiRect::bottom(Val::Px(8.0)),
-                        ..default()
-                    },))
-                    .with_children(|row| {
-                        // Prev source button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::PrevSource,
-                            Node {
-                                width: Val::Px(36.0),
-                                height: Val::Px(36.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                        ))
-                        .with_child((
-                            Text::new("<"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 24.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
+        let mut builder = UIBuilder::new(commands, Some(ui_theme.clone()));
+        builder
+            .component::<MovementUiRoot>()
+            .absolute_position()
+            .bottom(px(20.0))
+            .left(percent(50.0))
+            .flex_column()
+            .padding_all(px(10.0))
+            .background_color(Color::srgba(0.1, 0.1, 0.1, 0.9));
 
-                        // Source area name display
-                        row.spawn((
-                            SourceAreaDisplay,
-                            Text::new("Source: ?"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 20.0,
-                                ..default()
-                            },
-                            TextColor(Color::srgb(1.0, 1.0, 0.0)),
-                            Node {
-                                min_width: Val::Px(200.0),
-                                ..default()
-                            },
-                        ));
-
-                        // Next source button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::NextSource,
-                            Node {
-                                width: Val::Px(36.0),
-                                height: Val::Px(36.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                        ))
-                        .with_child((
-                            Text::new(">"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 24.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-
-                        // Skip source button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::SkipSource,
-                            Node {
-                                width: Val::Px(60.0),
-                                height: Val::Px(36.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                margin: UiRect::left(Val::Px(8.0)),
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.5, 0.3, 0.2)),
-                        ))
-                        .with_child((
-                            Text::new("Skip"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 18.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-                    });
-
-                // Token count display row
-                parent
-                    .spawn((
-                        MovementControlsPanel,
-                        Node {
-                            flex_direction: FlexDirection::Row,
-                            align_items: AlignItems::Center,
-                            column_gap: Val::Px(10.0),
-                            margin: UiRect::bottom(Val::Px(10.0)),
-                            ..default()
-                        },
-                    ))
-                    .with_children(|row| {
-                        // Minus button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::DecrementTokens,
-                            Node {
-                                width: Val::Px(40.0),
-                                height: Val::Px(40.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.6, 0.2, 0.2)),
-                        ))
-                        .with_child((
-                            Text::new("-"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 28.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-
-                        // Token count display
-                        row.spawn((
-                            TokenCountDisplay,
-                            Text::new("Click target"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 24.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                            Node {
-                                min_width: Val::Px(120.0),
-                                justify_content: JustifyContent::Center,
-                                ..default()
-                            },
-                        ));
-
-                        // Plus button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::IncrementTokens,
-                            Node {
-                                width: Val::Px(40.0),
-                                height: Val::Px(40.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.2, 0.6, 0.2)),
-                        ))
-                        .with_child((
-                            Text::new("+"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 28.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-                    });
-
-                // Action buttons row
-                parent
-                    .spawn((Node {
-                        flex_direction: FlexDirection::Row,
-                        column_gap: Val::Px(10.0),
-                        ..default()
-                    },))
-                    .with_children(|row| {
-                        // OK button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::ConfirmMove,
-                            Node {
-                                width: Val::Px(80.0),
-                                height: Val::Px(40.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
-                        ))
-                        .with_child((
-                            Text::new("OK"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 20.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-
-                        // Cancel button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::CancelMove,
-                            Node {
-                                width: Val::Px(80.0),
-                                height: Val::Px(40.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.5, 0.3, 0.2)),
-                        ))
-                        .with_child((
-                            Text::new("Cancel"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 20.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-
-                        // End Movement button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::EndMovement,
-                            Node {
-                                width: Val::Px(120.0),
-                                height: Val::Px(40.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.4, 0.2, 0.4)),
-                        ))
-                        .with_child((
-                            Text::new("End Move"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 20.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-                    });
+        // Source area navigation row
+        builder.add_row(|source_control_row| {
+            source_control_row.align_items_center().column_gap(px(8.0)).margin_btm(px(8.0));
+            source_control_row.feathers_button("Previous Source", |_activate: On<Activate>| {
+                info!("Previous source clicked");
+                selection_state.prev_source();
+            })
+                .with_child(|area_name_display|  {
+                    area_name_display.component::<SourceAreaDisplay>();
+                    area_name_display.with_text(selection_state.current_source().map(|s| s.to_string()), Some(font.clone()), Some(24.0), Some(Color::WHITE), Some(JustifyContent::Center), Some(LineBreak::NoWrap));
+                })
+                .feathers_button("Next Source", |_activate: On<Activate>| {
+                    info!("Next source clicked");
+                    selection_state.next_source();
+                })
+                .feathers_button("Skip Source", |_activate: On<Activate>| {
+                    info!("Skip source clicked");
+                    selection_state.skip_current_source();
+                });
+        });
+        // Token count display row
+        builder.add_row(|token_count_row| {
+            token_count_row.align_items_center().column_gap(px(10.0)).margin_btm(px(10.0));
+            token_count_row.feathers_button("-", |_activate: On<Activate>| {
+                info!("Minus clicked");
+                selection_state.decrement();
             });
+            token_count_row.with_child(|child| {
+                child.component::<TokenCountDisplay>()
+                    .with_text("Click target", Some(font.clone()), Some(24.0), Some(Color::WHITE), Some(JustifyContent::Center), Some(LineBreak::NoWrap))
+                    .width(px(120.));
+            });
+            token_count_row.feathers_button("+", |_activate: On<Activate>| {
+                info!("Plus clicked");
+                selection_state.increment();
+            });
+        });
+        // Action buttons row
+        builder.add_row(|action_row| {
+            action_row.column_gap(px(10.));
+            action_row
+                .feathers_button("OK", |_activate: On<Activate>| {
+                    info!("OK clicked");
+                    if let (Some(player), Some(source), Some(target)) = (
+                        selection_state.player,
+                        selection_state.source_area,
+                        selection_state.target_area,
+                    ) {
+                        if selection_state.token_count > 0 {
+                            move_writer.write(MoveTokenFromAreaToAreaCommand::new(
+                                source,
+                                target,
+                                selection_state.token_count,
+                                player,
+                            ));
+                            selection_state.clear_preserving_skips();
+                        }
+                    }
+                }).feathers_button("Cancel", |_activate: On<Activate>| {
+                info!("Cancel clicked");
+                selection_state.clear_target();
+            })
+                .feathers_button("End Movement", |_activate: On<Activate>| {
+                    info!("End Movement clicked");
+                    if let Some(player) = selection_state.player {
+                        end_movement_writer.write(PlayerMovementEnded::new(player));
+                        selection_state.clear();
+                    }
+                });
+        });
     }
 }
 
