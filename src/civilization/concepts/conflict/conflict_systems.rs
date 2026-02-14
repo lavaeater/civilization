@@ -83,7 +83,7 @@ mod tests {
                 pop.add_token_to_area(player, token);
             }
         }
-        let mut entity_commands = world.spawn((Name::new(name.to_string()), pop));
+        let mut entity_commands = world.spawn((Name::new(name.to_string()), pop, Transform::default()));
         if let Some(city) = built_city {
             entity_commands.insert(city);
         }
