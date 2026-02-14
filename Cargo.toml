@@ -60,6 +60,7 @@ serde_json = { version = "1.0.145" }
 serde = { version = "1.0.228", features = ["derive"] }
 bevy_common_assets = { version = "0.15.0", features = ["ron"] }
 lava_ui_builder = { path = "lava_ui_builder" }
+bevy_enhanced_input = "0.23.2"
 
 [build-dependencies]
 embed-resource = "1"

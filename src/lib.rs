@@ -70,7 +70,6 @@ impl Plugin for GamePlugin {
             LoadingPlugin,
             MenuPlugin,
             SandboxPlugin,
-            ActionsPlugin,
             CivilizationPlugin
         ));
 
