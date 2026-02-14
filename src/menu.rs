@@ -6,7 +6,7 @@ use bevy::feathers::dark_theme::create_dark_theme;
 use bevy::feathers::theme::UiTheme;
 use bevy::feathers::FeathersPlugins;
 use bevy::prelude::*;
-use lava_ui_builder::{UIBuilder, UiTheme};
+use lava_ui_builder::UIBuilder;
 
 pub struct MenuPlugin;
 
