@@ -42,6 +42,7 @@ pub fn setup_human_movement_options(
             selection_state.player = Some(player_entity);
             selection_state.source_areas = source_areas;
             selection_state.current_source_index = 0;
+            selection_state.next_source(); //Advance to first unskipped source
         }
     }
 }
@@ -134,7 +135,7 @@ pub fn draw_movement_arrows(
                 };
 
                 // Draw arrow line
-                gizmos.arrow_2d(source_pos, target_pos, color);
+                gizmos.arrow_2d(source_pos, target_pos, color).with_double_end();
             }
         }
     }
