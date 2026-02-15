@@ -4,15 +4,14 @@ use crate::civilization::concepts::movement::movement_events::{
     MoveTokenFromAreaToAreaCommand, PlayerMovementEnded,
 };
 use crate::civilization::concepts::movement::movement_ui_components::{
-    MovementSelectionState, MovementUiRoot,
-    SourceAreaDisplay, TokenCountDisplay,
+    MovementSelectionState, MovementUiRoot, SourceAreaDisplay, TokenCountDisplay,
 };
 use crate::civilization::game_moves::{AvailableMoves, GameMove, MovementMove};
 use crate::stupid_ai::IsHuman;
 use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
 use bevy::window::PrimaryWindow;
-use lava_ui_builder::{UIBuilder, LavaTheme};
+use lava_ui_builder::{ButtonTheme, LavaTheme, UIBuilder};
 
 /// System to detect when human player has movement options and populate the selection state
 pub fn setup_human_movement_options(
@@ -116,7 +115,7 @@ pub fn draw_movement_arrows(
                 // If we have a target selection, only show the selected arrow
                 if selection_state.has_selection()
                     && (selection_state.source_area != Some(*source)
-                    || selection_state.target_area != Some(*target))
+                        || selection_state.target_area != Some(*target))
                 {
                     continue;
                 }
@@ -140,7 +139,9 @@ pub fn draw_movement_arrows(
                 };
 
                 // Draw arrow line
-                gizmos.arrow_2d(source_pos, target_pos, color).with_double_end();
+                gizmos
+                    .arrow_2d(source_pos, target_pos, color)
+                    .with_double_end();
             }
         }
     }
@@ -150,10 +151,7 @@ pub fn draw_movement_arrows(
 pub fn handle_movement_target_click(
     mouse_button: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
-    camera_query: Query<
-        (&Camera, &GlobalTransform),
-        With<GameCamera>,
-    >,
+    camera_query: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
     human_players: Query<(Entity, &AvailableMoves), (With<IsHuman>, With<PerformingMovement>)>,
     area_query: Query<(Entity, &Transform), With<GameArea>>,
     mut selection_state: ResMut<MovementSelectionState>,
@@ -241,11 +239,28 @@ pub fn spawn_movement_controls_ui(
     }
 
     if let Some(player) = human_players.iter().next() {
-        debug!("Spawning movement controls UI for human player {:?}", player);
+        debug!(
+            "Spawning movement controls UI for human player {:?}",
+            player
+        );
         let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+        let button_theme = ButtonTheme {
+            font: font.clone(),
+            font_size: 20.0,
+            text_color: Color::WHITE,
+            bg: Color::srgba(0.2, 0.2, 0.2, 0.9),
+            bg_hovered: Color::srgba(0.3, 0.3, 0.3, 0.9),
+            bg_pressed: Color::srgba(0.4, 0.4, 0.4, 0.9),
+            ..default()
+        };
+        /*
+        Get a clone of the theme and modify it for this builder
+        */
+        let mut theme = ui_theme.clone();
+        theme.button = button_theme;
 
         // Spawn the movement controls panel
-        let mut builder = UIBuilder::new(commands, Some(ui_theme.clone()));
+        let mut builder = UIBuilder::new(commands, Some(theme));
         builder
             .component::<MovementUiRoot>()
             .absolute_position()
@@ -257,50 +272,89 @@ pub fn spawn_movement_controls_ui(
 
         // Source area navigation row
         builder.add_row(|source_control_row| {
-            source_control_row.align_items_center().column_gap(px(8.0)).margin_btm(px(8.0));
-            source_control_row.feathers_button("Previous Source", |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
-                info!("Previous source clicked");
-                selection_state.prev_source();
-            })
-                .with_child(|area_name_display|  {
-                    area_name_display.component::<SourceAreaDisplay>()
-                        .with_text("Source: ?", Some(font.clone()), Some(20.0), Some(Color::WHITE), Some(Justify::Center), Some(LineBreak::NoWrap))
+            source_control_row
+                .align_items_center()
+                .column_gap(px(8.0))
+                .margin_btm(px(8.0));
+            source_control_row
+                .add_button_observe(
+                    "Previous Source",
+                    |button| {
+                        button
+                            .size(px(36.0), px(36.0))
+                            .justify_content(JustifyContent::Center)
+                            .align_items(AlignItems::Center);
+                    },
+                    |_activate: On<Activate>,
+                     mut selection_state: ResMut<MovementSelectionState>| {
+                        info!("Previous source clicked");
+                        selection_state.prev_source();
+                    },
+                )
+                .with_child(|area_name_display| {
+                    area_name_display
+                        .component::<SourceAreaDisplay>()
+                        .with_text(
+                            "Source: ?",
+                            Some(font.clone()),
+                            Some(20.0),
+                            Some(Color::WHITE),
+                            Some(Justify::Center),
+                            Some(LineBreak::NoWrap),
+                        )
                         .width(px(200.));
                 })
-                .feathers_button("Next Source", |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
-                    info!("Next source clicked");
-                    selection_state.next_source();
-                })
+                .feathers_button(
+                    "Next Source",
+                    |_activate: On<Activate>,
+                     mut selection_state: ResMut<MovementSelectionState>| {
+                        info!("Next source clicked");
+                        selection_state.next_source();
+                    },
+                )
                 .feathers_button(
                     "Skip Source",
-                    |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
+                    |_activate: On<Activate>,
+                     mut selection_state: ResMut<MovementSelectionState>| {
                         info!("Skip source clicked");
                         selection_state.skip_current_source();
-                    }
+                    },
                 );
         });
         // Token count display row
         builder.add_row(|token_count_row| {
-            token_count_row.align_items_center().column_gap(px(10.0)).margin_btm(px(10.0));
+            token_count_row
+                .align_items_center()
+                .column_gap(px(10.0))
+                .margin_btm(px(10.0));
             token_count_row.add_column(|c| {
                 c.feathers_button("-", |_activate: On<Activate>| {
                     info!("Minus clicked");
                     // , mut selection_state: ResMut<MovementSelectionState>
                     // selection_state.decrement();
                 })
-                    .border_all(px(5.0), Color::srgba(0.1, 0.1, 0.1, 0.9));
+                .border_all(px(5.0), Color::srgba(0.1, 0.1, 0.1, 0.9));
             });
-                
-            
+
             token_count_row.with_child(|child| {
-                child.component::<TokenCountDisplay>()
-                    .with_text("Click target", Some(font.clone()), Some(24.0), Some(Color::WHITE), Some(Justify::Center), Some(LineBreak::NoWrap))
+                child
+                    .component::<TokenCountDisplay>()
+                    .with_text(
+                        "Click target",
+                        Some(font.clone()),
+                        Some(24.0),
+                        Some(Color::WHITE),
+                        Some(Justify::Center),
+                        Some(LineBreak::NoWrap),
+                    )
                     .width(px(120.));
             });
-            token_count_row.feathers_button("+", |_activate: On<Activate>| {
-                info!("Plus clicked");
-                // , mut selection_state: ResMut<MovementSelectionState>                selection_state.increment();
-            }).border_all(px(5.0), Color::srgba(0.1, 0.1, 0.1, 0.9));
+            token_count_row
+                .feathers_button("+", |_activate: On<Activate>| {
+                    info!("Plus clicked");
+                    // , mut selection_state: ResMut<MovementSelectionState>                selection_state.increment();
+                })
+                .border_all(px(5.0), Color::srgba(0.1, 0.1, 0.1, 0.9));
         });
         // Action buttons row - OK and End Movement use markers for global observers (need MessageWriter)
         builder.add_row(|action_row| {
@@ -369,7 +423,9 @@ pub fn update_source_area_display(
         return;
     }
 
-    let unskipped_count = selection_state.source_areas.iter()
+    let unskipped_count = selection_state
+        .source_areas
+        .iter()
         .filter(|s| !selection_state.skipped_sources.contains(*s))
         .count();
 
@@ -378,7 +434,11 @@ pub fn update_source_area_display(
             **text = "All sources skipped".to_string();
         } else if let Some(source) = selection_state.current_source() {
             let area_name = area_names.get(source).map(|n| n.as_str()).unwrap_or("?");
-            let skipped = if selection_state.is_current_skipped() { " [SKIPPED]" } else { "" };
+            let skipped = if selection_state.is_current_skipped() {
+                " [SKIPPED]"
+            } else {
+                ""
+            };
             **text = format!(
                 "{}{} ({}/{} active)",
                 area_name,
