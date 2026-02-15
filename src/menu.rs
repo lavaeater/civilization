@@ -304,8 +304,10 @@ fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>, theme: Res<
     
     ui.add_text_child("Advanced Civilization", None, Some(48.0), None);
     
-    ui.feathers_button_primary("PlayF", |_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
+    ui.feathers_button_primary("Play", |_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
         next_state.set(GameState::Playing);
+    }, |btn| {
+        btn.size_px(300.0, 60.0);
     });
     
     ui.add_themed_button(ChangeState(GameState::Playing), |btn| {
