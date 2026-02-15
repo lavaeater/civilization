@@ -28,22 +28,6 @@ impl Plugin for MenuPlugin {
     }
 }
 
-// ============================================================================
-// Shared components
-// ============================================================================
-
-#[derive(Component)]
-struct LoadGameButton;
-
-#[derive(Component)]
-struct SaveGameButton;
-
-#[derive(Component)]
-struct ResumeButton;
-
-#[derive(Component)]
-struct MainMenuButton;
-
 #[derive(Component, Default)]
 struct Menu;
 
