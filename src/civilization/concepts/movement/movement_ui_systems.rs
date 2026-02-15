@@ -264,6 +264,7 @@ pub fn spawn_movement_controls_ui(
         let mut builder = UIBuilder::new(commands, Some(theme));
         builder
             .component::<MovementUiRoot>()
+            .z_index(2)
             .absolute_position()
             .bottom(px(20.0))
             .left(percent(50.0))
