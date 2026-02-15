@@ -39,7 +39,7 @@ use bevy::{
     },
     window::SystemCursorIcon,
 };
-
+use lava_ui_builder::{LavaTheme, UIBuilder};
 
 #[derive(Resource)]
 struct DemoWidgetStates {
@@ -62,6 +62,7 @@ impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app 
             .insert_resource(UiTheme(create_dark_theme()))
+            .init_resource::<LavaTheme>()
             .insert_resource(DemoWidgetStates {
                 rgb_color: palettes::tailwind::EMERALD_800.with_alpha(0.7),
                 hsl_color: palettes::tailwind::AMBER_800.into(),
@@ -280,7 +281,7 @@ fn demo_root() -> impl Bundle {
 //     )
 // }
 
-fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>, theme: Res<UiTheme>) {
+fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>, theme: Res<LavaTheme>) {
     commands.spawn((
         Camera2d,
         IsDefaultUiCamera,
@@ -289,33 +290,37 @@ fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>, theme: Res<
         Msaa::Off,
     ));
 
-    commands.spawn(demo_root());
+    // commands.spawn(demo_root());
 
-    // let mut ui = UIBuilder::new(commands, Some(theme.clone()));
-    //
-    // ui.component::<Menu>()
-    //     .size_percent(100.0, 100.0)
-    //     .display_flex()
-    //     .flex_column()
-    //     .align_items_center()
-    //     .justify_center()
-    //     .gap_px(16.0);
-    //
-    // ui.add_text_child("Advanced Civilization", None, Some(48.0), None);
-    //
-    // ui.add_themed_button(ChangeState(GameState::Playing), |btn| {
-    //     btn.text("Play").size_px(300.0, 60.0);
-    // });
-    //
-    // ui.add_themed_button(ChangeState(GameState::Sandbox), |btn| {
-    //     btn.text("Sandbox").size_px(300.0, 60.0);
-    // });
-    //
-    // ui.add_themed_button(LoadGameButton, |btn| {
-    //     btn.text("Load Game").size_px(300.0, 60.0);
-    // });
-    //
-    // ui.build();
+    let mut ui = UIBuilder::new(commands, Some(theme.clone()));
+    
+    ui.component::<Menu>()
+        .size_percent(100.0, 100.0)
+        .display_flex()
+        .flex_column()
+        .align_items_center()
+        .justify_center()
+        .gap_px(16.0);
+    
+    ui.add_text_child("Advanced Civilization", None, Some(48.0), None);
+    
+    ui.feathers_button_primary("PlayF", |_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
+        next_state.set(GameState::Playing);
+    });
+    
+    ui.add_themed_button(ChangeState(GameState::Playing), |btn| {
+        btn.text("Play").size_px(300.0, 60.0);
+    });
+    
+    ui.add_themed_button(ChangeState(GameState::Sandbox), |btn| {
+        btn.text("Sandbox").size_px(300.0, 60.0);
+    });
+    
+    ui.add_themed_button(LoadGameButton, |btn| {
+        btn.text("Load Game").size_px(300.0, 60.0);
+    });
+    
+    ui.build();
 }
 
 fn handle_menu_buttons(
