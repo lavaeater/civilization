@@ -23,7 +23,6 @@ impl Plugin for MenuPlugin {
                 Update,
                 (
                     toggle_pause.run_if(in_state(GameState::Playing)),
-                    handle_pause_buttons.run_if(resource_exists::<GamePaused>),
                 ),
             );
     }
@@ -211,48 +210,4 @@ fn spawn_pause_menu(commands: Commands, _theme: &UiTheme) {
     );
 
     ui.build();
-}
-
-fn handle_pause_buttons(
-    mut next_state: ResMut<NextState<GameState>>,
-    mut commands: Commands,
-    resume_query: Query<&Interaction, (Changed<Interaction>, With<ResumeButton>, With<Button>)>,
-    save_query: Query<&Interaction, (Changed<Interaction>, With<SaveGameButton>, With<Button>)>,
-    load_query: Query<&Interaction, (Changed<Interaction>, With<LoadGameButton>, With<Button>)>,
-    main_menu_query: Query<
-        &Interaction,
-        (Changed<Interaction>, With<MainMenuButton>, With<Button>),
-    >,
-    pause_menu: Query<Entity, With<PauseMenu>>,
-    mut save_writer: MessageWriter<SaveGameRequest>,
-    mut load_writer: MessageWriter<LoadGameRequest>,
-) {
-    for interaction in &resume_query {
-        if *interaction == Interaction::Pressed {
-            commands.remove_resource::<GamePaused>();
-            for entity in pause_menu.iter() {
-                commands.entity(entity).despawn();
-            }
-            return;
-        }
-    }
-    for interaction in &save_query {
-        if *interaction == Interaction::Pressed {
-            save_writer.write(SaveGameRequest);
-        }
-    }
-    for interaction in &load_query {
-        if *interaction == Interaction::Pressed {
-            load_writer.write(LoadGameRequest);
-        }
-    }
-    for interaction in &main_menu_query {
-        if *interaction == Interaction::Pressed {
-            commands.remove_resource::<GamePaused>();
-            for entity in pause_menu.iter() {
-                commands.entity(entity).despawn();
-            }
-            next_state.set(GameState::Menu);
-        }
-    }
 }
