@@ -139,9 +139,7 @@ pub fn draw_movement_arrows(
                 };
 
                 // Draw arrow line
-                gizmos
-                    .arrow_2d(source_pos, target_pos, color)
-                    .with_double_end();
+                gizmos.arrow_2d(source_pos, target_pos, color);
             }
         }
     }
