@@ -419,7 +419,7 @@ pub fn spawn_movement_controls_ui(
                                     selection_state.token_count,
                                     player,
                                 ));
-                                selection_state.clear_preserving_skips();
+                                selection_state.clear_target();
                             }
                         }
                     },
