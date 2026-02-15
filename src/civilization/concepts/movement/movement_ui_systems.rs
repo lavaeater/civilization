@@ -247,7 +247,7 @@ pub fn spawn_movement_controls_ui(
         let font = asset_server.load("fonts/FiraSans-Bold.ttf");
         let button_theme = ButtonTheme {
             font: font.clone(),
-            font_size: 20.0,
+            font_size: 12.0,
             text_color: Color::WHITE,
             bg: Color::srgba(0.2, 0.2, 0.2, 0.9),
             bg_hovered: Color::srgba(0.3, 0.3, 0.3, 0.9),
@@ -279,7 +279,7 @@ pub fn spawn_movement_controls_ui(
                 .margin_btm(px(8.0));
             source_control_row
                 .add_button_observe(
-                    "Previous Source",
+                    "Prev",
                     |button| {
                         button
                             .size(px(36.0), px(36.0))
@@ -298,7 +298,7 @@ pub fn spawn_movement_controls_ui(
                         .with_text(
                             "Source: ?",
                             Some(font.clone()),
-                            Some(20.0),
+                            Some(12.0),
                             Some(Color::WHITE),
                             Some(Justify::Center),
                             Some(LineBreak::NoWrap),
@@ -306,7 +306,7 @@ pub fn spawn_movement_controls_ui(
                         .width(px(200.));
                 })
                 .add_button_observe(
-                    "Next Source",
+                    "Next",
                     |button| {
                         button
                             .size(px(36.0), px(36.0))
@@ -320,7 +320,7 @@ pub fn spawn_movement_controls_ui(
                     },
                 )
                 .add_button_observe(
-                    "Skip Source",
+                    "Skip",
                     |button| {
                         button
                             .size(px(36.0), px(36.0))
@@ -338,6 +338,7 @@ pub fn spawn_movement_controls_ui(
         builder.add_row(|token_count_row| {
             token_count_row
                 .align_items_center()
+                .justify_space_between()
                 .column_gap(px(10.0))
                 .margin_btm(px(10.0));
             token_count_row.add_button_observe(
@@ -361,7 +362,7 @@ pub fn spawn_movement_controls_ui(
                     .with_text(
                         "Click target",
                         Some(font.clone()),
-                        Some(24.0),
+                        Some(16.0),
                         Some(Color::WHITE),
                         Some(Justify::Center),
                         Some(LineBreak::NoWrap),
@@ -429,7 +430,7 @@ pub fn spawn_movement_controls_ui(
                     selection_state.clear_target();
                 },
             ).add_button_observe(
-                "End Movement",
+                "End",
                 |button| {
                     button
                         .size(px(36.0), px(36.0))
