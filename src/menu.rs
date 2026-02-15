@@ -3,58 +3,19 @@ use crate::civilization::GameCamera;
 use crate::loading::TextureAssets;
 use crate::{GamePaused, GameState};
 use bevy::{
-    color::palettes,
     feathers::{
-        controls::checkbox,
-        controls::button,
-        controls::color_plane,
-        controls::color_slider,
-        controls::color_swatch,
-        controls::radio,
-        controls::slider,
-        controls::toggle_switch,
-        controls::ButtonProps,
-        controls::ButtonVariant,
-        controls::ColorChannel,
-        controls::ColorPlane,
-        controls::ColorPlaneValue,
-        controls::ColorSlider,
-        controls::ColorSliderProps,
-        controls::ColorSwatch,
-        controls::ColorSwatchValue,
-        controls::SliderBaseColor,
-        controls::SliderProps,
-        cursor::{EntityCursor, OverrideCursor},
-        dark_theme::create_dark_theme,
-        rounded_corners::RoundedCorners,
-        theme::{ThemeBackgroundColor, ThemedText, UiTheme},
-        tokens, FeathersPlugins,
-    },
-    input_focus::tab_navigation::TabGroup,
-    prelude::*,
-    ui::{Checked, InteractionDisabled},
-    ui_widgets::{
-        checkbox_self_update, observe, slider_self_update, Activate, RadioButton, RadioGroup,
-        SliderPrecision, SliderStep, SliderValue, ValueChange,
-    },
-    window::SystemCursorIcon,
+        dark_theme::create_dark_theme
+        ,
+        theme::UiTheme
+        ,
+    }
+    ,
+    prelude::*
+    ,
+    ui_widgets::Activate
+    ,
 };
 use lava_ui_builder::{LavaTheme, UIBuilder};
-
-#[derive(Resource)]
-struct DemoWidgetStates {
-    rgb_color: Srgba,
-    hsl_color: Hsla,
-}
-
-#[derive(Component, Clone, Copy, PartialEq)]
-enum SwatchType {
-    Rgb,
-    Hsl,
-}
-
-#[derive(Component, Clone, Copy)]
-struct DemoDisabledButton;
 
 pub struct MenuPlugin;
 
@@ -63,10 +24,6 @@ impl Plugin for MenuPlugin {
         app 
             .insert_resource(UiTheme(create_dark_theme()))
             .init_resource::<LavaTheme>()
-            .insert_resource(DemoWidgetStates {
-                rgb_color: palettes::tailwind::EMERALD_800.with_alpha(0.7),
-                hsl_color: palettes::tailwind::AMBER_800.into(),
-            })
             .add_systems(OnEnter(GameState::Menu), setup_menu)
             .add_systems(
                 Update,
@@ -112,134 +69,134 @@ struct PauseMenu;
 // Main Menu
 // ============================================================================
 
-fn demo_root() -> impl Bundle {
-    (
-        Node {
-            width: percent(100),
-            height: percent(100),
-            align_items: AlignItems::Start,
-            justify_content: JustifyContent::Start,
-            display: Display::Flex,
-            flex_direction: FlexDirection::Column,
-            row_gap: px(10),
-            ..default()
-        },
-        TabGroup::default(),
-        ThemeBackgroundColor(tokens::WINDOW_BG),
-        children![(
-            Node {
-                display: Display::Flex,
-                flex_direction: FlexDirection::Row,
-                align_items: AlignItems::Stretch,
-                justify_content: JustifyContent::Start,
-                padding: UiRect::all(px(8)),
-                row_gap: px(8),
-                width: percent(30),
-                min_width: px(200),
-                ..default()
-            },
-            children![
-                (
-                    Node {
-                        display: Display::Flex,
-                        flex_direction: FlexDirection::Row,
-                        align_items: AlignItems::Center,
-                        justify_content: JustifyContent::Start,
-                        column_gap: px(8),
-                        ..default()
-                    },
-                    children![
-                        (
-                            button(
-                                ButtonProps::default(),
-                                (),
-                                Spawn((Text::new("Play"), ThemedText))
-                            ),
-                            observe(|_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
-                                info!("Normal button clicked!");
-                                next_state.set(GameState::Playing);
-                            })
-                        ),
-                        (
-                            button(
-                                ButtonProps::default(),
-                                (InteractionDisabled, DemoDisabledButton),
-                                Spawn((Text::new("Disabled"), ThemedText))
-                            ),
-                            observe(|_activate: On<Activate>| {
-                                info!("Disabled button clicked!");
-                            })
-                        ),
-                        (
-                            button(
-                                ButtonProps {
-                                    variant: ButtonVariant::Primary,
-                                    ..default()
-                                },
-                                (),
-                                Spawn((Text::new("Primary"), ThemedText))
-                            ),
-                            observe(|_activate: On<Activate>| {
-                                info!("Disabled button clicked!");
-                            })
-                        ),
-                    ]
-                ),
-                (
-                    Node {
-                        display: Display::Flex,
-                        flex_direction: FlexDirection::Row,
-                        align_items: AlignItems::Center,
-                        justify_content: JustifyContent::Start,
-                        column_gap: px(1),
-                        ..default()
-                    },
-                    children![
-                        (
-                            button(
-                                ButtonProps {
-                                    corners: RoundedCorners::Left,
-                                    ..default()
-                                },
-                                (),
-                                Spawn((Text::new("Left"), ThemedText))
-                            ),
-                            observe(|_activate: On<Activate>| {
-                                info!("Left button clicked!");
-                            })
-                        ),
-                        (
-                            button(
-                                ButtonProps {
-                                    corners: RoundedCorners::None,
-                                    ..default()
-                                },
-                                (),
-                                Spawn((Text::new("Center"), ThemedText))
-                            ),
-                            observe(|_activate: On<Activate>| {
-                                info!("Center button clicked!");
-                            })
-                        ),
-                        (
-                            button(
-                                ButtonProps {
-                                    variant: ButtonVariant::Primary,
-                                    corners: RoundedCorners::Right,
-                                },
-                                (),
-                                Spawn((Text::new("Right"), ThemedText))
-                            ),
-                            observe(|_activate: On<Activate>| {
-                                info!("Right button clicked!");
-                            })
-                        ),
-                    ]
-                ),
-            ]
-        ),],
-    )
-}
+// fn demo_root() -> impl Bundle {
+//     (
+//         Node {
+//             width: percent(100),
+//             height: percent(100),
+//             align_items: AlignItems::Start,
+//             justify_content: JustifyContent::Start,
+//             display: Display::Flex,
+//             flex_direction: FlexDirection::Column,
+//             row_gap: px(10),
+//             ..default()
+//         },
+//         TabGroup::default(),
+//         ThemeBackgroundColor(tokens::WINDOW_BG),
+//         children![(
+//             Node {
+//                 display: Display::Flex,
+//                 flex_direction: FlexDirection::Row,
+//                 align_items: AlignItems::Stretch,
+//                 justify_content: JustifyContent::Start,
+//                 padding: UiRect::all(px(8)),
+//                 row_gap: px(8),
+//                 width: percent(30),
+//                 min_width: px(200),
+//                 ..default()
+//             },
+//             children![
+//                 (
+//                     Node {
+//                         display: Display::Flex,
+//                         flex_direction: FlexDirection::Row,
+//                         align_items: AlignItems::Center,
+//                         justify_content: JustifyContent::Start,
+//                         column_gap: px(8),
+//                         ..default()
+//                     },
+//                     children![
+//                         (
+//                             button(
+//                                 ButtonProps::default(),
+//                                 (),
+//                                 Spawn((Text::new("Play"), ThemedText))
+//                             ),
+//                             observe(|_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
+//                                 info!("Normal button clicked!");
+//                                 next_state.set(GameState::Playing);
+//                             })
+//                         ),
+//                         (
+//                             button(
+//                                 ButtonProps::default(),
+//                                 (InteractionDisabled, DemoDisabledButton),
+//                                 Spawn((Text::new("Disabled"), ThemedText))
+//                             ),
+//                             observe(|_activate: On<Activate>| {
+//                                 info!("Disabled button clicked!");
+//                             })
+//                         ),
+//                         (
+//                             button(
+//                                 ButtonProps {
+//                                     variant: ButtonVariant::Primary,
+//                                     ..default()
+//                                 },
+//                                 (),
+//                                 Spawn((Text::new("Primary"), ThemedText))
+//                             ),
+//                             observe(|_activate: On<Activate>| {
+//                                 info!("Disabled button clicked!");
+//                             })
+//                         ),
+//                     ]
+//                 ),
+//                 (
+//                     Node {
+//                         display: Display::Flex,
+//                         flex_direction: FlexDirection::Row,
+//                         align_items: AlignItems::Center,
+//                         justify_content: JustifyContent::Start,
+//                         column_gap: px(1),
+//                         ..default()
+//                     },
+//                     children![
+//                         (
+//                             button(
+//                                 ButtonProps {
+//                                     corners: RoundedCorners::Left,
+//                                     ..default()
+//                                 },
+//                                 (),
+//                                 Spawn((Text::new("Left"), ThemedText))
+//                             ),
+//                             observe(|_activate: On<Activate>| {
+//                                 info!("Left button clicked!");
+//                             })
+//                         ),
+//                         (
+//                             button(
+//                                 ButtonProps {
+//                                     corners: RoundedCorners::None,
+//                                     ..default()
+//                                 },
+//                                 (),
+//                                 Spawn((Text::new("Center"), ThemedText))
+//                             ),
+//                             observe(|_activate: On<Activate>| {
+//                                 info!("Center button clicked!");
+//                             })
+//                         ),
+//                         (
+//                             button(
+//                                 ButtonProps {
+//                                     variant: ButtonVariant::Primary,
+//                                     corners: RoundedCorners::Right,
+//                                 },
+//                                 (),
+//                                 Spawn((Text::new("Right"), ThemedText))
+//                             ),
+//                             observe(|_activate: On<Activate>| {
+//                                 info!("Right button clicked!");
+//                             })
+//                         ),
+//                     ]
+//                 ),
+//             ]
+//         ),],
+//     )
+// }
 
 //
 // fn root() -> impl Bundle {
@@ -303,15 +260,23 @@ fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>, theme: Res<
         .gap_px(16.0);
     
     ui.add_text_child("Advanced Civilization", None, Some(48.0), None);
-    
-    ui.feathers_button_primary("Play", |_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
+    // 
+    // ui.feathers_button_primary("Play", |_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
+    //     next_state.set(GameState::Playing);
+    // }, |btn| {
+    //     btn.size(px(300.0), px(60.0));
+    // });
+
+
+    ui.add_themed_button_observe(|button|{
+        button.size(px(300.0), px(60.0));
+        button.text("Play");
+    }, |_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
         next_state.set(GameState::Playing);
-    }, |btn| {
-        btn.size_px(300.0, 60.0);
     });
     
     ui.add_themed_button(ChangeState(GameState::Playing), |btn| {
-        btn.text("Play").size_px(300.0, 60.0);
+        btn.text("Play").size(px(300.0), px(60.0));
     });
     
     ui.add_themed_button(ChangeState(GameState::Sandbox), |btn| {
@@ -377,36 +342,36 @@ fn toggle_pause(
     }
 }
 
-fn spawn_pause_menu(commands: Commands, theme: &UiTheme) {
-    // let mut ui = UIBuilder::new(commands, None);
-    // ui.component::<PauseMenu>()
-    //     .size_percent(100.0, 100.0)
-    //     .display_flex()
-    //     .flex_column()
-    //     .align_items_center()
-    //     .justify_center()
-    //     .bg_color(Color::srgba(0.0, 0.0, 0.0, 0.7))
-    //     .gap_px(16.0);
-    //
-    // ui.add_text_child("Paused", None, Some(48.0), None);
-    //
-    // ui.add_themed_button(ResumeButton, |btn| {
-    //     btn.text("Resume").size_px(300.0, 60.0);
-    // });
-    //
-    // ui.add_themed_button(SaveGameButton, |btn| {
-    //     btn.text("Save Game").size_px(300.0, 60.0);
-    // });
-    //
-    // ui.add_themed_button(LoadGameButton, |btn| {
-    //     btn.text("Load Game").size_px(300.0, 60.0);
-    // });
-    //
-    // ui.add_themed_button(MainMenuButton, |btn| {
-    //     btn.text("Main Menu").size_px(300.0, 60.0);
-    // });
-    //
-    // ui.build();
+fn spawn_pause_menu(commands: Commands, _theme: &UiTheme) {
+    let mut ui = UIBuilder::new(commands, None);
+    ui.component::<PauseMenu>()
+        .size_percent(100.0, 100.0)
+        .display_flex()
+        .flex_column()
+        .align_items_center()
+        .justify_center()
+        .bg_color(Color::srgba(0.0, 0.0, 0.0, 0.7))
+        .gap_px(16.0);
+    
+    ui.add_text_child("Paused", None, Some(48.0), None);
+    
+    ui.add_themed_button(ResumeButton, |btn| {
+        btn.text("Resume").size_px(300.0, 60.0);
+    });
+    
+    ui.add_themed_button(SaveGameButton, |btn| {
+        btn.text("Save Game").size_px(300.0, 60.0);
+    });
+    
+    ui.add_themed_button(LoadGameButton, |btn| {
+        btn.text("Load Game").size_px(300.0, 60.0);
+    });
+    
+    ui.add_themed_button(MainMenuButton, |btn| {
+        btn.text("Main Menu").size_px(300.0, 60.0);
+    });
+    
+    ui.build();
 }
 
 fn handle_pause_buttons(
