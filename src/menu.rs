@@ -2,6 +2,7 @@ use crate::civilization::save_game::{LoadGameRequest, SaveGameRequest};
 use crate::civilization::GameCamera;
 use crate::loading::TextureAssets;
 use crate::{GamePaused, GameState};
+use bevy::feathers::FeathersPlugins;
 use bevy::{
     feathers::{
         dark_theme::create_dark_theme
@@ -21,14 +22,15 @@ pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
-        app 
+        app
+            .add_plugins(FeathersPlugins)
             .insert_resource(UiTheme(create_dark_theme()))
             .init_resource::<LavaTheme>()
             .add_systems(OnEnter(GameState::Menu), setup_menu)
-            .add_systems(
-                Update,
-                handle_menu_buttons.run_if(in_state(GameState::Menu)),
-            )
+            // .add_systems(
+            //     Update,
+            //     // handle_menu_buttons.run_if(in_state(GameState::Menu)),
+            // )
             .add_systems(OnExit(GameState::Menu), cleanup_menu)
             .add_systems(
                 Update,
@@ -260,24 +262,24 @@ fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>, theme: Res<
         .gap_px(16.0);
     
     ui.add_text_child("Advanced Civilization", None, Some(48.0), None);
-    // 
-    // ui.feathers_button_primary("Play", |_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
-    //     next_state.set(GameState::Playing);
-    // }, |btn| {
-    //     btn.size(px(300.0), px(60.0));
-    // });
+    
+    ui.feathers_button_primary("Play Feathers", |_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
+        next_state.set(GameState::Playing);
+    }, |btn| {
+        btn.size(px(300.0), px(60.0));
+    });
 
 
-    ui.add_themed_button_observe(|button|{
-        button.size(px(300.0), px(60.0));
-        button.text("Play");
+    ui.add_themed_button_observe(|btn| {
+        btn.size(px(300.0), px(60.0));
     }, |_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
+        info!("Play button clicked!");
         next_state.set(GameState::Playing);
     });
     
-    ui.add_themed_button(ChangeState(GameState::Playing), |btn| {
-        btn.text("Play").size(px(300.0), px(60.0));
-    });
+    // ui.add_themed_button(ChangeState(GameState::Playing), |btn| {
+    //     btn.text("Play").size(px(300.0), px(60.0));
+    // });
     
     ui.add_themed_button(ChangeState(GameState::Sandbox), |btn| {
         btn.text("Sandbox").size_px(300.0, 60.0);
@@ -290,23 +292,23 @@ fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>, theme: Res<
     ui.build();
 }
 
-fn handle_menu_buttons(
-    mut next_state: ResMut<NextState<GameState>>,
-    change_query: Query<(&Interaction, &ChangeState), (Changed<Interaction>, With<Button>)>,
-    load_query: Query<&Interaction, (Changed<Interaction>, With<LoadGameButton>, With<Button>)>,
-    mut load_writer: MessageWriter<LoadGameRequest>,
-) {
-    for (interaction, change_state) in &change_query {
-        if *interaction == Interaction::Pressed {
-            next_state.set(change_state.0.clone());
-        }
-    }
-    for interaction in &load_query {
-        if *interaction == Interaction::Pressed {
-            load_writer.write(LoadGameRequest);
-        }
-    }
-}
+// fn handle_menu_buttons(
+//     mut next_state: ResMut<NextState<GameState>>,
+//     change_query: Query<(&Interaction, &ChangeState), (Changed<Interaction>, With<Button>)>,
+//     load_query: Query<&Interaction, (Changed<Interaction>, With<LoadGameButton>, With<Button>)>,
+//     mut load_writer: MessageWriter<LoadGameRequest>,
+// ) {
+//     for (interaction, change_state) in &change_query {
+//         if *interaction == Interaction::Pressed {
+//             next_state.set(change_state.0.clone());
+//         }
+//     }
+//     for interaction in &load_query {
+//         if *interaction == Interaction::Pressed {
+//             load_writer.write(LoadGameRequest);
+//         }
+//     }
+// }
 
 fn cleanup_menu(mut commands: Commands, menu: Query<Entity, With<Menu>>) {
     for entity in menu.iter() {
