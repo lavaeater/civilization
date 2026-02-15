@@ -1,48 +1,32 @@
-use crate::civilization::components::GameCamera;
-use crate::civilization::concepts::save_game::{LoadGameRequest, SaveGameRequest};
+use crate::civilization::save_game::{LoadGameRequest, SaveGameRequest};
+use crate::civilization::GameCamera;
 use crate::loading::TextureAssets;
 use crate::{GamePaused, GameState};
-use bevy::prelude::*;
-use lava_ui_builder::{UIBuilder, UiTheme};
+use bevy::feathers::FeathersPlugins;
+use bevy::{
+    feathers::{dark_theme::create_dark_theme, theme::UiTheme},
+    prelude::*,
+    ui_widgets::Activate,
+};
+use lava_ui_builder::{LavaTheme, UIBuilder};
 
 pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Menu), setup_menu)
-            .add_systems(
-                Update,
-                handle_menu_buttons.run_if(in_state(GameState::Menu)),
-            )
+        app.add_plugins(FeathersPlugins)
+            .insert_resource(UiTheme(create_dark_theme()))
+            .init_resource::<LavaTheme>()
+            .add_systems(OnEnter(GameState::Menu), setup_menu)
             .add_systems(OnExit(GameState::Menu), cleanup_menu)
             .add_systems(
                 Update,
                 (
                     toggle_pause.run_if(in_state(GameState::Playing)),
-                    handle_pause_buttons.run_if(resource_exists::<GamePaused>),
                 ),
             );
     }
 }
-
-// ============================================================================
-// Shared components
-// ============================================================================
-
-#[derive(Component)]
-struct ChangeState(GameState);
-
-#[derive(Component)]
-struct LoadGameButton;
-
-#[derive(Component)]
-struct SaveGameButton;
-
-#[derive(Component)]
-struct ResumeButton;
-
-#[derive(Component)]
-struct MainMenuButton;
 
 #[derive(Component, Default)]
 struct Menu;
@@ -54,11 +38,7 @@ struct PauseMenu;
 // Main Menu
 // ============================================================================
 
-fn setup_menu(
-    mut commands: Commands,
-    _textures: Res<TextureAssets>,
-    theme: Res<UiTheme>,
-) {
+fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>, theme: Res<LavaTheme>) {
     commands.spawn((
         Camera2d,
         IsDefaultUiCamera,
@@ -69,7 +49,7 @@ fn setup_menu(
 
     let mut ui = UIBuilder::new(commands, Some(theme.clone()));
 
-    ui.with_component::<Menu>()
+    ui.component::<Menu>()
         .size_percent(100.0, 100.0)
         .display_flex()
         .flex_column()
@@ -79,37 +59,38 @@ fn setup_menu(
 
     ui.add_text_child("Advanced Civilization", None, Some(48.0), None);
 
-    ui.add_themed_button(ChangeState(GameState::Playing), |btn| {
-        btn.text("Play").size_px(300.0, 60.0);
-    });
+    ui.add_button_observe(
+        "Play",
+        |btn| {
+            btn.size(px(300.0), px(60.0));
+        },
+        |_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
+            info!("Play button clicked!");
+            next_state.set(GameState::Playing);
+        },
+    );
 
-    ui.add_themed_button(ChangeState(GameState::Sandbox), |btn| {
-        btn.text("Sandbox").size_px(300.0, 60.0);
-    });
+    ui.add_button_observe(
+        "Sandbox",
+        |btn| {
+            btn.size(px(300.0), px(60.0));
+        },
+        |_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
+            next_state.set(GameState::Sandbox);
+        },
+    );
 
-    ui.add_themed_button(LoadGameButton, |btn| {
-        btn.text("Load Game").size_px(300.0, 60.0);
-    });
+    ui.add_button_observe(
+        "Load Game",
+        |btn| {
+            btn.size(px(300.0), px(60.0));
+        },
+        |_activate: On<Activate>, mut load_writer: MessageWriter<LoadGameRequest>| {
+            load_writer.write(LoadGameRequest);
+        },
+    );
 
     ui.build();
-}
-
-fn handle_menu_buttons(
-    mut next_state: ResMut<NextState<GameState>>,
-    change_query: Query<(&Interaction, &ChangeState), (Changed<Interaction>, With<Button>)>,
-    load_query: Query<&Interaction, (Changed<Interaction>, With<LoadGameButton>, With<Button>)>,
-    mut load_writer: MessageWriter<LoadGameRequest>,
-) {
-    for (interaction, change_state) in &change_query {
-        if *interaction == Interaction::Pressed {
-            next_state.set(change_state.0.clone());
-        }
-    }
-    for interaction in &load_query {
-        if *interaction == Interaction::Pressed {
-            load_writer.write(LoadGameRequest);
-        }
-    }
 }
 
 fn cleanup_menu(mut commands: Commands, menu: Query<Entity, With<Menu>>) {
@@ -146,76 +127,71 @@ fn toggle_pause(
     }
 }
 
-fn spawn_pause_menu(commands: Commands, theme: &UiTheme) {
-    let mut ui = UIBuilder::new(commands, Some(theme.clone()));
+fn spawn_pause_menu(commands: Commands, _theme: &UiTheme) {
+    let mut ui = UIBuilder::new(commands, None);
 
-    ui.with_component::<PauseMenu>()
+    ui.component::<PauseMenu>()
         .size_percent(100.0, 100.0)
         .display_flex()
         .flex_column()
         .align_items_center()
         .justify_center()
-        .bg_color(Color::srgba(0.0, 0.0, 0.0, 0.7))
         .gap_px(16.0);
 
     ui.add_text_child("Paused", None, Some(48.0), None);
 
-    ui.add_themed_button(ResumeButton, |btn| {
-        btn.text("Resume").size_px(300.0, 60.0);
-    });
-
-    ui.add_themed_button(SaveGameButton, |btn| {
-        btn.text("Save Game").size_px(300.0, 60.0);
-    });
-
-    ui.add_themed_button(LoadGameButton, |btn| {
-        btn.text("Load Game").size_px(300.0, 60.0);
-    });
-
-    ui.add_themed_button(MainMenuButton, |btn| {
-        btn.text("Main Menu").size_px(300.0, 60.0);
-    });
-
-    ui.build();
-}
-
-fn handle_pause_buttons(
-    mut next_state: ResMut<NextState<GameState>>,
-    mut commands: Commands,
-    resume_query: Query<&Interaction, (Changed<Interaction>, With<ResumeButton>, With<Button>)>,
-    save_query: Query<&Interaction, (Changed<Interaction>, With<SaveGameButton>, With<Button>)>,
-    load_query: Query<&Interaction, (Changed<Interaction>, With<LoadGameButton>, With<Button>)>,
-    main_menu_query: Query<&Interaction, (Changed<Interaction>, With<MainMenuButton>, With<Button>)>,
-    pause_menu: Query<Entity, With<PauseMenu>>,
-    mut save_writer: MessageWriter<SaveGameRequest>,
-    mut load_writer: MessageWriter<LoadGameRequest>,
-) {
-    for interaction in &resume_query {
-        if *interaction == Interaction::Pressed {
+    ui.add_button_observe(
+        "Resume",
+        |btn| {
+            btn.size(px(300.0), px(60.0));
+        },
+        |_activate: On<Activate>,
+         mut commands: Commands,
+         pause_menu: Query<Entity, With<PauseMenu>>| {
+            info!("Resume button clicked!");
             commands.remove_resource::<GamePaused>();
             for entity in pause_menu.iter() {
                 commands.entity(entity).despawn();
             }
-            return;
-        }
-    }
-    for interaction in &save_query {
-        if *interaction == Interaction::Pressed {
+        },
+    );
+
+    ui.add_button_observe(
+        "Save Game",
+        |btn| {
+            btn.size(px(300.0), px(60.0));
+        },
+        |_activate: On<Activate>, mut save_writer: MessageWriter<SaveGameRequest>| {
             save_writer.write(SaveGameRequest);
-        }
-    }
-    for interaction in &load_query {
-        if *interaction == Interaction::Pressed {
+        },
+    );
+
+    ui.add_button_observe(
+        "Load Game",
+        |btn| {
+            btn.size(px(300.0), px(60.0));
+        },
+        |_activate: On<Activate>, mut load_writer: MessageWriter<LoadGameRequest>| {
             load_writer.write(LoadGameRequest);
-        }
-    }
-    for interaction in &main_menu_query {
-        if *interaction == Interaction::Pressed {
+        },
+    );
+
+    ui.add_button_observe(
+        "Main Menu",
+        |btn| {
+            btn.size(px(300.0), px(60.0));
+        },
+        |_activate: On<Activate>,
+         mut commands: Commands,
+         mut next_state: ResMut<NextState<GameState>>,
+         pause_menu: Query<Entity, With<PauseMenu>>| {
             commands.remove_resource::<GamePaused>();
             for entity in pause_menu.iter() {
                 commands.entity(entity).despawn();
             }
             next_state.set(GameState::Menu);
-        }
-    }
+        },
+    );
+
+    ui.build();
 }

@@ -1,11 +1,12 @@
 use crate::setup_player;
-use adv_civ::civilization::components::*;
-use adv_civ::civilization::concepts::{find_conflict_zones, on_add_unresolved_city_conflict, on_add_unresolved_conflict, UnresolvedCityConflict, UnresolvedConflict};
-use adv_civ::civilization::enums::GameFaction;
-use adv_civ::civilization::ConflictCounterResource;
+use adv_civ::civilization::{
+    find_conflict_zones, on_add_unresolved_city_conflict, on_add_unresolved_conflict, BuiltCity,
+    CameraFocusQueue, CityTokenStock, ConflictCounterResource, GameArea, GameFaction, LandPassage,
+    PlayerAreas, PlayerCities, Population, TokenStock, UnresolvedCityConflict, UnresolvedConflict,
+};
 use adv_civ::{GameActivity, GameState};
-use bevy::app::Update;
-use bevy::prelude::{App, AppExtStates, Name};
+use bevy::ecs::system::{RunSystemOnce};
+use bevy::prelude::{App, AppExtStates, Name, Transform};
 use bevy::state::app::StatesPlugin;
 /****************************************************
 Test for the find_conflict_zones system
@@ -14,15 +15,20 @@ when the system is run, that area should have a component
 added indicating that it has a conflict.
 *****************************************************/
 
-#[test]
-fn given_an_area_with_a_city_and_some_population() {
-    // Arrange
+fn setup_conflict_test_app() -> App {
     let mut app = App::new();
     app.add_plugins(StatesPlugin)
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
+        .insert_state(GameActivity::Conflict)
         .init_resource::<ConflictCounterResource>()
-        .add_systems(Update, find_conflict_zones);
+        .init_resource::<CameraFocusQueue>();
+    app
+}
+#[test]
+fn given_an_area_with_a_city_and_some_population() {
+    // Arrange
+    let mut app = setup_conflict_test_app();
 
     let (player_one, _, mut p_one_cities) =
         setup_player(&mut app, "player one", GameFaction::Egypt);
@@ -43,11 +49,12 @@ fn given_an_area_with_a_city_and_some_population() {
             LandPassage::default(),
             population,
             BuiltCity::new(player_one, p_one_cities.pop().unwrap()),
+            Transform::default(),
         ))
         .id();
 
     // Act
-    app.update();
+    app.world_mut().run_system_once(find_conflict_zones).unwrap();
     // Assert
     assert!(app.world().get::<UnresolvedCityConflict>(area).is_some());
 }
@@ -55,12 +62,8 @@ fn given_an_area_with_a_city_and_some_population() {
 #[test]
 fn given_a_city_conflict_with_too_few_tokens() {
     // Arrange
-    let mut app = App::new();
-    app.add_plugins(StatesPlugin)
-        .insert_state(GameState::Playing)
-        .add_sub_state::<GameActivity>()
-        .init_resource::<ConflictCounterResource>()
-        .add_observer(on_add_unresolved_conflict)
+    let mut app = setup_conflict_test_app();
+    app.add_observer(on_add_unresolved_conflict)
         .add_observer(on_add_unresolved_city_conflict);
 
     let (player_one, _, mut p_one_cities) =
@@ -84,11 +87,12 @@ fn given_a_city_conflict_with_too_few_tokens() {
             population,
             BuiltCity::new(player_one, p_one_cities.pop().unwrap()),
             UnresolvedCityConflict,
+            Transform::default(),
         ))
         .id();
 
     // Act
-    app.update();
+    app.world_mut().run_system_once(find_conflict_zones).unwrap();
     // Assert
     assert!(app.world().get::<UnresolvedConflict>(area).is_none());
     assert!(app.world().get::<UnresolvedCityConflict>(area).is_none());
@@ -97,12 +101,8 @@ fn given_a_city_conflict_with_too_few_tokens() {
 #[test]
 fn given_a_city_conflict_with_enough_tokens() {
     // Arrange
-    let mut app = App::new();
-    app.add_plugins(StatesPlugin)
-        .insert_state(GameState::Playing)
-        .add_sub_state::<GameActivity>()
-        .init_resource::<ConflictCounterResource>()
-        .add_observer(on_add_unresolved_conflict)
+    let mut app = setup_conflict_test_app();
+    app.add_observer(on_add_unresolved_conflict)
         .add_observer(on_add_unresolved_city_conflict);
 
     let (player_one, _, mut p_one_cities) =
@@ -129,6 +129,7 @@ fn given_a_city_conflict_with_enough_tokens() {
             population,
             BuiltCity::new(city_token, player_one),
             UnresolvedCityConflict,
+            Transform::default(),
         ))
         .id();
     player_one_cities.build_city_in_area(area, city_token);
@@ -143,6 +144,7 @@ fn given_a_city_conflict_with_enough_tokens() {
     assert!(app.world().get::<CityTokenStock>(player_one).is_some());
 
     // Act
+    app.world_mut().run_system_once(find_conflict_zones).unwrap();
     app.update();
     app.update();
     // Assert
@@ -153,12 +155,7 @@ fn given_a_city_conflict_with_enough_tokens() {
 #[test]
 fn given_two_players_in_an_area_with_too_much_population_area_is_marked_as_conflict_zone() {
     // Arrange
-    let mut app = App::new();
-    app.add_plugins(StatesPlugin)
-        .insert_state(GameState::Playing)
-        .add_sub_state::<GameActivity>()
-        .init_resource::<ConflictCounterResource>()
-        .add_systems(Update, find_conflict_zones);
+    let mut app = setup_conflict_test_app();
 
     let (player_one, mut player_one_tokens, _) =
         setup_player(&mut app, "player one", GameFaction::Egypt);
@@ -181,12 +178,13 @@ fn given_two_players_in_an_area_with_too_much_population_area_is_marked_as_confl
             Name::new("egypt"),
             GameArea::new(1),
             LandPassage::default(),
+            Transform::default(),
             population,
         ))
         .id();
 
     // Act
-    app.update();
+    app.world_mut().run_system_once(find_conflict_zones).unwrap();
     // Assert
     assert!(app.world().get::<UnresolvedConflict>(area).is_some());
 }
@@ -260,12 +258,8 @@ impl ThreePlayerTestStruct {
 #[test]
 fn when_resolving_conflicts_the_correct_result_is_obtained() {
     // Arrange
-    let mut app = App::new();
-    app.add_plugins(StatesPlugin)
-        .insert_state(GameState::Playing)
-        .add_sub_state::<GameActivity>()
-        .init_resource::<ConflictCounterResource>()
-        .add_observer(on_add_unresolved_conflict)
+    let mut app = setup_conflict_test_app();
+    app.add_observer(on_add_unresolved_conflict)
         .add_observer(on_add_unresolved_city_conflict);
 
     let test_cases = vec![
@@ -314,11 +308,13 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
                 GameArea::new(1),
                 LandPassage::default(),
                 UnresolvedConflict,
+                Transform::default(),
                 population,
             ))
             .id();
 
         // Act
+        app.world_mut().run_system_once(find_conflict_zones).unwrap();
         app.update();
         // Assert
         let population = app.world().get::<Population>(area).unwrap();
@@ -337,12 +333,8 @@ fn when_resolving_conflicts_the_correct_result_is_obtained() {
 #[test]
 fn given_three_conflicteers_the_correct_result_is_obtained() {
     // Arrange
-    let mut app = App::new();
-    app.add_plugins(StatesPlugin)
-        .insert_state(GameState::Playing)
-        .add_sub_state::<GameActivity>()
-        .init_resource::<ConflictCounterResource>()
-        .add_observer(on_add_unresolved_conflict)
+    let mut app = setup_conflict_test_app();
+    app.add_observer(on_add_unresolved_conflict)
         .add_observer(on_add_unresolved_city_conflict);
 
     let test_cases = vec![
@@ -390,11 +382,13 @@ fn given_three_conflicteers_the_correct_result_is_obtained() {
                 GameArea::new(1),
                 LandPassage::default(),
                 UnresolvedConflict,
+                Transform::default(),
                 population,
             ))
             .id();
 
         // Act
+        app.world_mut().run_system_once(find_conflict_zones).unwrap();
         app.update();
         // Assert
         let population = app.world().get::<Population>(area).unwrap();

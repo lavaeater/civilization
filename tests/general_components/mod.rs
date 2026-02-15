@@ -1,4 +1,4 @@
-use adv_civ::civilization::components::Population;
+use adv_civ::civilization::Population;
 use adv_civ::test_utils::create_test_entity as create_entity;
 
 #[test]

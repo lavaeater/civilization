@@ -3,11 +3,15 @@ use crate::civilization::concepts::movement::movement_components::PerformingMove
 use crate::civilization::concepts::movement::movement_events::{
     MoveTokenFromAreaToAreaCommand, PlayerMovementEnded,
 };
-use crate::civilization::concepts::movement::movement_ui_components::*;
+use crate::civilization::concepts::movement::movement_ui_components::{
+    MovementSelectionState, MovementUiRoot, SourceAreaDisplay, TokenCountDisplay,
+};
 use crate::civilization::game_moves::{AvailableMoves, GameMove, MovementMove};
 use crate::stupid_ai::IsHuman;
 use bevy::prelude::*;
+use bevy::ui_widgets::Activate;
 use bevy::window::PrimaryWindow;
+use lava_ui_builder::{ButtonTheme, LavaTheme, UIBuilder};
 
 /// System to detect when human player has movement options and populate the selection state
 pub fn setup_human_movement_options(
@@ -42,6 +46,7 @@ pub fn setup_human_movement_options(
             selection_state.player = Some(player_entity);
             selection_state.source_areas = source_areas;
             selection_state.current_source_index = 0;
+            selection_state.next_source(); //Advance to first unskipped source
         }
     }
 }
@@ -144,10 +149,7 @@ pub fn draw_movement_arrows(
 pub fn handle_movement_target_click(
     mouse_button: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
-    camera_query: Query<
-        (&Camera, &GlobalTransform),
-        With<crate::civilization::components::GameCamera>,
-    >,
+    camera_query: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
     human_players: Query<(Entity, &AvailableMoves), (With<IsHuman>, With<PerformingMovement>)>,
     area_query: Query<(Entity, &Transform), With<GameArea>>,
     mut selection_state: ResMut<MovementSelectionState>,
@@ -155,12 +157,6 @@ pub fn handle_movement_target_click(
     if !mouse_button.just_pressed(MouseButton::Left) {
         return;
     }
-
-    // If we already have a selection, don't allow clicking new targets
-    if selection_state.has_selection() {
-        return;
-    }
-
     let Ok(window) = windows.single() else { return };
     let Some(cursor_pos) = window.cursor_position() else {
         return;
@@ -220,88 +216,9 @@ pub fn handle_movement_target_click(
     }
 }
 
-/// System to handle movement control button interactions
-pub fn handle_movement_button_clicks(
-    interaction_query: Query<
-        (&Interaction, &MovementButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut selection_state: ResMut<MovementSelectionState>,
-    mut move_writer: MessageWriter<MoveTokenFromAreaToAreaCommand>,
-    mut end_movement_writer: MessageWriter<PlayerMovementEnded>,
-) {
-    for (interaction, action) in interaction_query.iter() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-
-        match action {
-            MovementButtonAction::IncrementTokens => {
-                selection_state.increment();
-            }
-            MovementButtonAction::DecrementTokens => {
-                selection_state.decrement();
-            }
-            MovementButtonAction::ConfirmMove => {
-                if let (Some(player), Some(source), Some(target)) = (
-                    selection_state.player,
-                    selection_state.source_area,
-                    selection_state.target_area,
-                ) {
-                    if selection_state.token_count > 0 {
-                        move_writer.write(MoveTokenFromAreaToAreaCommand::new(
-                            source,
-                            target,
-                            selection_state.token_count,
-                            player,
-                        ));
-                        selection_state.clear_preserving_skips();
-                    }
-                }
-            }
-            MovementButtonAction::CancelMove => {
-                selection_state.clear_target();
-            }
-            MovementButtonAction::PrevSource => {
-                selection_state.prev_source();
-            }
-            MovementButtonAction::NextSource => {
-                selection_state.next_source();
-            }
-            MovementButtonAction::SkipSource => {
-                selection_state.skip_current_source();
-            }
-            MovementButtonAction::EndMovement => {
-                if let Some(player) = selection_state.player {
-                    end_movement_writer.write(PlayerMovementEnded::new(player));
-                    selection_state.clear();
-                }
-            }
-            MovementButtonAction::SelectTarget {
-                source,
-                target,
-                max_tokens,
-                is_attack,
-                is_city_attack,
-            } => {
-                if let Some(player) = selection_state.player {
-                    selection_state.select_target(
-                        player,
-                        *source,
-                        *target,
-                        *max_tokens,
-                        *is_attack,
-                        *is_city_attack,
-                    );
-                }
-            }
-        }
-    }
-}
-
 /// System to spawn the movement controls UI when human player is performing movement
 pub fn spawn_movement_controls_ui(
-    mut commands: Commands,
+    commands: Commands,
     human_players: Query<
         Entity,
         (
@@ -312,6 +229,7 @@ pub fn spawn_movement_controls_ui(
     >,
     existing_ui: Query<Entity, With<MovementUiRoot>>,
     asset_server: Res<AssetServer>,
+    ui_theme: Res<LavaTheme>,
 ) {
     // Don't spawn if UI already exists
     if !existing_ui.is_empty() {
@@ -319,277 +237,221 @@ pub fn spawn_movement_controls_ui(
     }
 
     if let Some(player) = human_players.iter().next() {
-        debug!("Spawning movement controls UI for human player {:?}", player);
+        debug!(
+            "Spawning movement controls UI for human player {:?}",
+            player
+        );
         let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+        let button_theme = ButtonTheme {
+            font: font.clone(),
+            font_size: 12.0,
+            text_color: Color::WHITE,
+            bg: Color::srgba(0.2, 0.2, 0.2, 0.9),
+            bg_hovered: Color::srgba(0.3, 0.3, 0.3, 0.9),
+            bg_pressed: Color::srgba(0.4, 0.4, 0.4, 0.9),
+            border_color: Color::srgba(0.8, 0.8, 0.8, 0.9),
+            border_radius: BorderRadius::ZERO,
+            border_width: px(1.0),
+            ..default()
+        };
+        /*
+        Get a clone of the theme and modify it for this builder
+        */
+        let mut theme = ui_theme.clone();
+        theme.button = button_theme;
 
         // Spawn the movement controls panel
-        commands
-            .spawn((
-                MovementUiRoot,
-                Node {
-                    position_type: PositionType::Absolute,
-                    bottom: Val::Px(20.0),
-                    left: Val::Percent(50.0),
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    padding: UiRect::all(Val::Px(10.0)),
-                    ..default()
+        let mut builder = UIBuilder::new(commands, Some(theme));
+        builder
+            .component::<MovementUiRoot>()
+            .z_index(2)
+            .absolute_position()
+            .bottom(px(20.0))
+            .left(percent(50.0))
+            .flex_column()
+            .padding_all(px(10.0))
+            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.7));
+
+        // Source area navigation row
+        builder.add_row(|source_control_row| {
+            source_control_row
+                .align_items_end()
+                .justify_space_between()
+                .column_gap(px(8.0))
+                .margin_btm(px(8.0));
+            source_control_row
+                .add_button_observe(
+                    "Prev",
+                    |button| {
+                        button
+                            .size(px(36.0), px(36.0))
+                            .justify_content(JustifyContent::Center)
+                            .align_items(AlignItems::Center);
+                    },
+                    |_activate: On<Activate>,
+                     mut selection_state: ResMut<MovementSelectionState>| {
+                        info!("Previous source clicked");
+                        selection_state.prev_source();
+                    },
+                )
+                .with_child(|area_name_display| {
+                    area_name_display
+                        .component::<SourceAreaDisplay>()
+                        .with_text(
+                            "Source: ?",
+                            Some(font.clone()),
+                            Some(12.0),
+                            Some(Color::WHITE),
+                            Some(Justify::Center),
+                            Some(LineBreak::NoWrap),
+                        )
+                        .text_justify_center()
+                        .align_items_center()
+                        .width(px(150.0));
+                })
+                .add_button_observe(
+                    "Next",
+                    |button| {
+                        button
+                            .size(px(36.0), px(36.0))
+                            .justify_content(JustifyContent::Center)
+                            .align_items(AlignItems::Center);
+                    },
+                    |_activate: On<Activate>,
+                     mut selection_state: ResMut<MovementSelectionState>| {
+                        info!("Next source clicked");
+                        selection_state.next_source();
+                    },
+                )
+                .add_button_observe(
+                    "Skip",
+                    |button| {
+                        button
+                            .size(px(36.0), px(36.0))
+                            .justify_content(JustifyContent::Center)
+                            .align_items(AlignItems::Center);
+                    },
+                    |_activate: On<Activate>,
+                     mut selection_state: ResMut<MovementSelectionState>| {
+                        info!("Skip source clicked");
+                        selection_state.skip_current_source();
+                    },
+                );
+        });
+        // Token count display row
+        builder.add_row(|token_count_row| {
+            token_count_row
+                .align_items_center()
+                .justify_space_between()
+                .column_gap(px(10.0))
+                .margin_btm(px(10.0));
+            token_count_row.add_button_observe(
+                "-",
+                |button| {
+                    button
+                        .size(px(36.0), px(36.0))
+                        .justify_content(JustifyContent::Center)
+                        .align_items(AlignItems::Center);
                 },
-                BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.9)),
-            ))
-            .with_children(|parent| {
-                // Source area navigation row
-                parent
-                    .spawn((Node {
-                        flex_direction: FlexDirection::Row,
-                        align_items: AlignItems::Center,
-                        column_gap: Val::Px(8.0),
-                        margin: UiRect::bottom(Val::Px(8.0)),
-                        ..default()
-                    },))
-                    .with_children(|row| {
-                        // Prev source button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::PrevSource,
-                            Node {
-                                width: Val::Px(36.0),
-                                height: Val::Px(36.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                        ))
-                        .with_child((
-                            Text::new("<"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 24.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
+                |_activate: On<Activate>,
+                 mut selection_state: ResMut<MovementSelectionState>| {
+                    info!("Minus clicked");
+                    selection_state.decrement();
+                },
+            );
 
-                        // Source area name display
-                        row.spawn((
-                            SourceAreaDisplay,
-                            Text::new("Source: ?"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 20.0,
-                                ..default()
-                            },
-                            TextColor(Color::srgb(1.0, 1.0, 0.0)),
-                            Node {
-                                min_width: Val::Px(200.0),
-                                ..default()
-                            },
-                        ));
-
-                        // Next source button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::NextSource,
-                            Node {
-                                width: Val::Px(36.0),
-                                height: Val::Px(36.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                        ))
-                        .with_child((
-                            Text::new(">"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 24.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-
-                        // Skip source button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::SkipSource,
-                            Node {
-                                width: Val::Px(60.0),
-                                height: Val::Px(36.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                margin: UiRect::left(Val::Px(8.0)),
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.5, 0.3, 0.2)),
-                        ))
-                        .with_child((
-                            Text::new("Skip"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 18.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-                    });
-
-                // Token count display row
-                parent
-                    .spawn((
-                        MovementControlsPanel,
-                        Node {
-                            flex_direction: FlexDirection::Row,
-                            align_items: AlignItems::Center,
-                            column_gap: Val::Px(10.0),
-                            margin: UiRect::bottom(Val::Px(10.0)),
-                            ..default()
-                        },
-                    ))
-                    .with_children(|row| {
-                        // Minus button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::DecrementTokens,
-                            Node {
-                                width: Val::Px(40.0),
-                                height: Val::Px(40.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.6, 0.2, 0.2)),
-                        ))
-                        .with_child((
-                            Text::new("-"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 28.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-
-                        // Token count display
-                        row.spawn((
-                            TokenCountDisplay,
-                            Text::new("Click target"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 24.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                            Node {
-                                min_width: Val::Px(120.0),
-                                justify_content: JustifyContent::Center,
-                                ..default()
-                            },
-                        ));
-
-                        // Plus button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::IncrementTokens,
-                            Node {
-                                width: Val::Px(40.0),
-                                height: Val::Px(40.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.2, 0.6, 0.2)),
-                        ))
-                        .with_child((
-                            Text::new("+"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 28.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-                    });
-
-                // Action buttons row
-                parent
-                    .spawn((Node {
-                        flex_direction: FlexDirection::Row,
-                        column_gap: Val::Px(10.0),
-                        ..default()
-                    },))
-                    .with_children(|row| {
-                        // OK button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::ConfirmMove,
-                            Node {
-                                width: Val::Px(80.0),
-                                height: Val::Px(40.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
-                        ))
-                        .with_child((
-                            Text::new("OK"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 20.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-
-                        // Cancel button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::CancelMove,
-                            Node {
-                                width: Val::Px(80.0),
-                                height: Val::Px(40.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.5, 0.3, 0.2)),
-                        ))
-                        .with_child((
-                            Text::new("Cancel"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 20.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-
-                        // End Movement button
-                        row.spawn((
-                            Button,
-                            MovementButtonAction::EndMovement,
-                            Node {
-                                width: Val::Px(120.0),
-                                height: Val::Px(40.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.4, 0.2, 0.4)),
-                        ))
-                        .with_child((
-                            Text::new("End Move"),
-                            TextFont {
-                                font: font.clone(),
-                                font_size: 20.0,
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-                    });
+            token_count_row.with_child(|child| {
+                child
+                    .component::<TokenCountDisplay>()
+                    .with_text(
+                        "Click target",
+                        Some(font.clone()),
+                        Some(16.0),
+                        Some(Color::WHITE),
+                        Some(Justify::Center),
+                        Some(LineBreak::NoWrap),
+                    )
+                    .width(px(120.));
             });
+            token_count_row
+                .add_button_observe(
+                    "+",
+                    |button| {
+                        button
+                            .size(px(36.0), px(36.0))
+                            .justify_content(JustifyContent::Center)
+                            .align_items(AlignItems::Center);
+                    },
+                    |_activate: On<Activate>,
+                     mut selection_state: ResMut<MovementSelectionState>| {
+                        info!("Plus clicked");
+                        selection_state.increment();
+                    },
+                );
+        });
+        // Action buttons row - OK and End Movement use markers for global observers (need MessageWriter)
+        builder.add_row(|action_row| {
+            action_row.column_gap(px(10.))
+                .justify_space_between()
+                .align_items_end();
+            action_row
+                .add_button_observe(
+                    "OK",
+                    |button| {
+                        button
+                            .size(px(36.0), px(36.0))
+                            .justify_content(JustifyContent::Center)
+                            .align_items(AlignItems::Center);
+                    },
+                    |_activate: On<Activate>,
+                        mut selection_state: ResMut<MovementSelectionState>,
+                     mut move_writer: MessageWriter<MoveTokenFromAreaToAreaCommand>| {
+                        info!("OK clicked");
+                        if let (Some(player), Some(source), Some(target)) = (
+                            selection_state.player,
+                            selection_state.source_area,
+                            selection_state.target_area,
+                        ) {
+                            if selection_state.token_count > 0 {
+                                move_writer.write(MoveTokenFromAreaToAreaCommand::new(
+                                    source,
+                                    target,
+                                    selection_state.token_count,
+                                    player,
+                                ));
+                                selection_state.clear_target();
+                            }
+                        }
+                    },
+                ).add_button_observe(
+                "Cancel",
+                |button| {
+                    button
+                        .size(px(36.0), px(36.0))
+                        .justify_content(JustifyContent::Center)
+                        .align_items(AlignItems::Center);
+                },
+                |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
+                    info!("Cancel clicked");
+                    selection_state.clear_target();
+                },
+            ).add_button_observe(
+                "End",
+                |button| {
+                    button
+                        .size(px(36.0), px(36.0))
+                        .justify_content(JustifyContent::Center)
+                        .align_items(AlignItems::Center);
+                },
+                |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>, mut end_movement_writer: MessageWriter<PlayerMovementEnded>| {
+                    info!("End Movement clicked");
+                    if let Some(player) = selection_state.player {
+                        end_movement_writer.write(PlayerMovementEnded::new(player));
+                        selection_state.clear();
+                    }
+                });
+        });
+        builder.build();
     }
 }
 
@@ -624,7 +486,9 @@ pub fn update_source_area_display(
         return;
     }
 
-    let unskipped_count = selection_state.source_areas.iter()
+    let unskipped_count = selection_state
+        .source_areas
+        .iter()
         .filter(|s| !selection_state.skipped_sources.contains(*s))
         .count();
 
@@ -633,7 +497,11 @@ pub fn update_source_area_display(
             **text = "All sources skipped".to_string();
         } else if let Some(source) = selection_state.current_source() {
             let area_name = area_names.get(source).map(|n| n.as_str()).unwrap_or("?");
-            let skipped = if selection_state.is_current_skipped() { " [SKIPPED]" } else { "" };
+            let skipped = if selection_state.is_current_skipped() {
+                " [SKIPPED]"
+            } else {
+                ""
+            };
             **text = format!(
                 "{}{} ({}/{} active)",
                 area_name,

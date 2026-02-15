@@ -3,7 +3,7 @@ use crate::civilization::concepts::trade::trade_components::{
     TradeOffer,
 };
 use lava_ui_builder::UIBuilder;
-use lava_ui_builder::UiTheme;
+use lava_ui_builder::LavaTheme;
 use crate::GameActivity;
 use bevy::color::palettes::basic::{GREEN, YELLOW};
 use bevy::log::debug;
@@ -18,7 +18,7 @@ pub fn offer_published(
     trigger: On<Add, PublishedOffer>,
     published_offers_list: Query<Entity, With<PublishedOffersList>>,
     published_offer_query: Query<(Entity, &TradeOffer), With<PublishedOffer>>,
-    ui_theme: Res<UiTheme>,
+    ui_theme: Res<LavaTheme>,
     mut commands: Commands,
 ) {
     let new_commands = commands;

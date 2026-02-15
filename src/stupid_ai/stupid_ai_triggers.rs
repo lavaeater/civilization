@@ -1,5 +1,5 @@
-use crate::civilization::game_moves::AvailableMoves;
-use crate::civilization::plugins::DebugOptions;
+use crate::civilization::AvailableMoves;
+use crate::civilization::DebugOptions;
 use crate::stupid_ai::{AiMoveQueue, SelectStupidMove, StupidAi};
 use bevy::prelude::*;
 

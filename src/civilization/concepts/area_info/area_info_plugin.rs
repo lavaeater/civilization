@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use lava_ui_builder::{UIBuilder, UiTheme};
+use lava_ui_builder::{UIBuilder, LavaTheme};
 
 use crate::civilization::components::{
     BuiltCity, Faction, GameArea, GameCamera, Population,
@@ -39,7 +39,7 @@ fn spawn_area_info_markers(
     commands: Commands,
     area_query: Query<(Entity, &GameArea, &Population, Has<BuiltCity>)>,
     player_query: Query<(Entity, &Faction, &Name), With<Player>>,
-    ui_theme: Res<UiTheme>,
+    ui_theme: Res<LavaTheme>,
 ) {
     let mut ui = UIBuilder::new(commands, Some(ui_theme.clone()));
 

@@ -1,4 +1,4 @@
-use lava_ui_builder::{UIBuilder, UiTheme};
+use lava_ui_builder::{UIBuilder, LavaTheme};
 
 use crate::civilization::{setup_players, AvailableFactions, GameFaction};
 use crate::GameState;
@@ -7,7 +7,7 @@ pub struct SandboxPlugin;
 
 impl Plugin for SandboxPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(UiTheme::default())
+        app.insert_resource(LavaTheme::default())
             .init_resource::<AvailableFactions>()
             .init_resource::<SandboxLayoutState>()
             .add_systems(
@@ -101,7 +101,7 @@ const BORDER_COLOR: Color = Color::srgba(0.2, 0.2, 0.2, 0.25);
 fn setup_sandbox(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut ui_theme: ResMut<UiTheme>,
+    mut ui_theme: ResMut<LavaTheme>,
     layout_state: Res<SandboxLayoutState>,
 ) {
     // Spawn camera for UI rendering
@@ -121,7 +121,7 @@ fn setup_sandbox(
 
     let mut ui = UIBuilder::new(commands, Some(ui_theme.clone()));
 
-    ui.with_component::<SandboxUiRoot>()
+    ui.component::<SandboxUiRoot>()
         .size_percent(98.0, 98.0)
         .display_flex()
         .flex_dir_row();
@@ -137,7 +137,7 @@ fn setup_sandbox(
 
         // The sample box we'll modify
         ui.add_panel(|ui| {
-            ui.with_component::<SampleBox>()
+            ui.component::<SampleBox>()
                 .size_px(layout_state.width, layout_state.height)
                 .padding_all_px(layout_state.padding)
                 .margin_all_px(layout_state.margin)

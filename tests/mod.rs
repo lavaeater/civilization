@@ -1,9 +1,9 @@
 mod concepts;
 mod general_components;
 
-use adv_civ::civilization::components::*;
-use adv_civ::civilization::concepts::Census;
-use adv_civ::civilization::enums::GameFaction;
+use adv_civ::civilization::*;
+use adv_civ::civilization::Census;
+use adv_civ::civilization::GameFaction;
 use adv_civ::player::Player;
 use adv_civ::{GameActivity, GameState};
 use bevy::app::App;

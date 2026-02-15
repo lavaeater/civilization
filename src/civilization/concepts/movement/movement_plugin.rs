@@ -4,7 +4,12 @@ use bevy::prelude::{in_state, IntoScheduleConfigs, OnEnter, OnExit, Plugin, Upda
 use crate::civilization::concepts::movement::movement_events::*;
 use crate::civilization::concepts::movement::movement_systems::*;
 use crate::civilization::concepts::movement::movement_ui_components::MovementSelectionState;
-use crate::civilization::concepts::movement::movement_ui_systems::*;
+use crate::civilization::concepts::movement::movement_ui_systems::{
+    cleanup_movement_ui, cleanup_movement_ui_on_exit, draw_movement_arrows,
+    handle_movement_target_click,
+    pan_camera_to_current_source, setup_human_movement_options, spawn_movement_controls_ui,
+    update_source_area_display, update_token_count_display,
+};
 
 pub struct MovementPlugin;
 
@@ -27,7 +32,6 @@ impl Plugin for MovementPlugin {
                     spawn_movement_controls_ui.run_if(in_state(GameActivity::Movement)),
                     draw_movement_arrows.run_if(in_state(GameActivity::Movement)),
                     handle_movement_target_click.run_if(in_state(GameActivity::Movement)),
-                    handle_movement_button_clicks.run_if(in_state(GameActivity::Movement)),
                     update_token_count_display.run_if(in_state(GameActivity::Movement)),
                     update_source_area_display.run_if(in_state(GameActivity::Movement)),
                     pan_camera_to_current_source.run_if(in_state(GameActivity::Movement)),

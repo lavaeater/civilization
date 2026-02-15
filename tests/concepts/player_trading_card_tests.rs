@@ -1,4 +1,4 @@
-use adv_civ::civilization::concepts::{
+use adv_civ::civilization::{
     PlayerTradeCards, TradeCard, MIN_CARDS_REQUIRED_TO_TRADE
 };
 use pretty_assertions::assert_eq;
