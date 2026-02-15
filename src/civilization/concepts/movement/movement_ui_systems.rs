@@ -249,6 +249,9 @@ pub fn spawn_movement_controls_ui(
             bg: Color::srgba(0.2, 0.2, 0.2, 0.9),
             bg_hovered: Color::srgba(0.3, 0.3, 0.3, 0.9),
             bg_pressed: Color::srgba(0.4, 0.4, 0.4, 0.9),
+            border_color: Color::srgba(0.8, 0.8, 0.8, 0.9),
+            border_radius: BorderRadius::ZERO,
+            border_width: px(1.0),
             ..default()
         };
         /*
@@ -267,12 +270,13 @@ pub fn spawn_movement_controls_ui(
             .left(percent(50.0))
             .flex_column()
             .padding_all(px(10.0))
-            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.9));
+            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.7));
 
         // Source area navigation row
         builder.add_row(|source_control_row| {
             source_control_row
-                .align_items_center()
+                .align_items_end()
+                .justify_space_between()
                 .column_gap(px(8.0))
                 .margin_btm(px(8.0));
             source_control_row
@@ -385,7 +389,9 @@ pub fn spawn_movement_controls_ui(
         });
         // Action buttons row - OK and End Movement use markers for global observers (need MessageWriter)
         builder.add_row(|action_row| {
-            action_row.column_gap(px(10.));
+            action_row.column_gap(px(10.))
+                .justify_space_between()
+                .align_items_end();
             action_row
                 .add_button_observe(
                     "OK",
