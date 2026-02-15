@@ -12,6 +12,7 @@ use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
 use bevy::window::PrimaryWindow;
 use lava_ui_builder::{ButtonTheme, LavaTheme, UIBuilder};
+use crate::GameActivity;
 
 /// System to detect when human player has movement options and populate the selection state
 pub fn setup_human_movement_options(
@@ -304,16 +305,28 @@ pub fn spawn_movement_controls_ui(
                         )
                         .width(px(200.));
                 })
-                .feathers_button(
+                .add_button_observe(
                     "Next Source",
+                    |button| {
+                        button
+                            .size(px(36.0), px(36.0))
+                            .justify_content(JustifyContent::Center)
+                            .align_items(AlignItems::Center);
+                    },
                     |_activate: On<Activate>,
                      mut selection_state: ResMut<MovementSelectionState>| {
                         info!("Next source clicked");
                         selection_state.next_source();
                     },
                 )
-                .feathers_button(
+                .add_button_observe(
                     "Skip Source",
+                    |button| {
+                        button
+                            .size(px(36.0), px(36.0))
+                            .justify_content(JustifyContent::Center)
+                            .align_items(AlignItems::Center);
+                    },
                     |_activate: On<Activate>,
                      mut selection_state: ResMut<MovementSelectionState>| {
                         info!("Skip source clicked");
@@ -327,14 +340,20 @@ pub fn spawn_movement_controls_ui(
                 .align_items_center()
                 .column_gap(px(10.0))
                 .margin_btm(px(10.0));
-            token_count_row.add_column(|c| {
-                c.feathers_button("-", |_activate: On<Activate>| {
+            token_count_row.add_button_observe(
+                "-",
+                |button| {
+                    button
+                        .size(px(36.0), px(36.0))
+                        .justify_content(JustifyContent::Center)
+                        .align_items(AlignItems::Center);
+                },
+                |_activate: On<Activate>,
+                 mut selection_state: ResMut<MovementSelectionState>| {
                     info!("Minus clicked");
-                    // , mut selection_state: ResMut<MovementSelectionState>
-                    // selection_state.decrement();
-                })
-                .border_all(px(5.0), Color::srgba(0.1, 0.1, 0.1, 0.9));
-            });
+                    selection_state.decrement();
+                },
+            );
 
             token_count_row.with_child(|child| {
                 child
@@ -350,37 +369,74 @@ pub fn spawn_movement_controls_ui(
                     .width(px(120.));
             });
             token_count_row
-                .feathers_button("+", |_activate: On<Activate>| {
-                    info!("Plus clicked");
-                    // , mut selection_state: ResMut<MovementSelectionState>                selection_state.increment();
-                })
-                .border_all(px(5.0), Color::srgba(0.1, 0.1, 0.1, 0.9));
+                .add_button_observe(
+                    "+",
+                    |button| {
+                        button
+                            .size(px(36.0), px(36.0))
+                            .justify_content(JustifyContent::Center)
+                            .align_items(AlignItems::Center);
+                    },
+                    |_activate: On<Activate>,
+                     mut selection_state: ResMut<MovementSelectionState>| {
+                        info!("Plus clicked");
+                        selection_state.increment();
+                    },
+                );
         });
         // Action buttons row - OK and End Movement use markers for global observers (need MessageWriter)
         builder.add_row(|action_row| {
             action_row.column_gap(px(10.));
             action_row
-                .feathers_button("OK", |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>, mut move_writer: MessageWriter<MoveTokenFromAreaToAreaCommand>| {
-                    if let (Some(player), Some(source), Some(target)) = (
-                        selection_state.player,
-                        selection_state.source_area,
-                        selection_state.target_area,
-                    ) {
-                        if selection_state.token_count > 0 {
-                            move_writer.write(MoveTokenFromAreaToAreaCommand::new(
-                                source,
-                                target,
-                                selection_state.token_count,
-                                player,
-                            ));
-                            selection_state.clear_preserving_skips();
+                .add_button_observe(
+                    "OK",
+                    |button| {
+                        button
+                            .size(px(36.0), px(36.0))
+                            .justify_content(JustifyContent::Center)
+                            .align_items(AlignItems::Center);
+                    },
+                    |_activate: On<Activate>,
+                        mut selection_state: ResMut<MovementSelectionState>,
+                     mut move_writer: MessageWriter<MoveTokenFromAreaToAreaCommand>| {
+                        info!("OK clicked");
+                        if let (Some(player), Some(source), Some(target)) = (
+                            selection_state.player,
+                            selection_state.source_area,
+                            selection_state.target_area,
+                        ) {
+                            if selection_state.token_count > 0 {
+                                move_writer.write(MoveTokenFromAreaToAreaCommand::new(
+                                    source,
+                                    target,
+                                    selection_state.token_count,
+                                    player,
+                                ));
+                                selection_state.clear_preserving_skips();
+                            }
                         }
-                    }                })
-                .feathers_button("Cancel", |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
+                    },
+                ).add_button_observe(
+                "Cancel",
+                |button| {
+                    button
+                        .size(px(36.0), px(36.0))
+                        .justify_content(JustifyContent::Center)
+                        .align_items(AlignItems::Center);
+                },
+                |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
                     info!("Cancel clicked");
                     selection_state.clear_target();
-                })
-                .feathers_button("End Movement", |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>, mut end_movement_writer: MessageWriter<PlayerMovementEnded>| {
+                },
+            ).add_button_observe(
+                "End Movement",
+                |button| {
+                    button
+                        .size(px(36.0), px(36.0))
+                        .justify_content(JustifyContent::Center)
+                        .align_items(AlignItems::Center);
+                },
+                |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>, mut end_movement_writer: MessageWriter<PlayerMovementEnded>| {
                     info!("End Movement clicked");
                     if let Some(player) = selection_state.player {
                         end_movement_writer.write(PlayerMovementEnded::new(player));
