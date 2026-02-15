@@ -5,12 +5,25 @@ use crate::{GamePaused, GameState};
 use bevy::{
     color::palettes,
     feathers::{
-        controls::{
-            button, checkbox, color_plane, color_slider, color_swatch, radio, slider,
-            toggle_switch, ButtonProps, ButtonVariant, ColorChannel, ColorPlane, ColorPlaneValue,
-            ColorSlider, ColorSliderProps, ColorSwatch, ColorSwatchValue, SliderBaseColor,
-            SliderProps,
-        },
+        controls::checkbox,
+        controls::button,
+        controls::color_plane,
+        controls::color_slider,
+        controls::color_swatch,
+        controls::radio,
+        controls::slider,
+        controls::toggle_switch,
+        controls::ButtonProps,
+        controls::ButtonVariant,
+        controls::ColorChannel,
+        controls::ColorPlane,
+        controls::ColorPlaneValue,
+        controls::ColorSlider,
+        controls::ColorSliderProps,
+        controls::ColorSwatch,
+        controls::ColorSwatchValue,
+        controls::SliderBaseColor,
+        controls::SliderProps,
         cursor::{EntityCursor, OverrideCursor},
         dark_theme::create_dark_theme,
         rounded_corners::RoundedCorners,
@@ -47,7 +60,7 @@ pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
-        app //.add_plugins(FeathersPlugins)
+        app 
             .insert_resource(UiTheme(create_dark_theme()))
             .insert_resource(DemoWidgetStates {
                 rgb_color: palettes::tailwind::EMERALD_800.with_alpha(0.7),

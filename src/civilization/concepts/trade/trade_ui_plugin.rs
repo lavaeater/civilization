@@ -6,7 +6,7 @@ use crate::{GameActivity, GameState};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::state::state::StateTransitionEvent;
-use lava_ui_builder::{UIBuilder, UiTheme};
+use lava_ui_builder::{UIBuilder, LavaTheme};
 
 #[derive(Component, Default)]
 pub struct GameStateDisplay;
@@ -40,7 +40,7 @@ impl Plugin for TradeUiPlugin {
     fn build(&self, app: &mut App) {
         app
             // .insert_resource(WinitSettings::desktop_app())
-            .insert_resource(UiTheme::default())
+            .insert_resource(LavaTheme::default())
             .init_resource::<PlayerActivityLog>()
             .add_systems(OnEnter(GameActivity::StartGame), setup_trade_ui)
             .add_systems(Update, (
@@ -67,7 +67,7 @@ fn _add_commodity_card(
     b: &mut UIBuilder,
     card_type: TradeCard,
     count: usize,
-    theme: &UiTheme,
+    theme: &LavaTheme,
 ) {
     let active_index = count.clamp(1, _commodity_card_max_set_size(card_type));
     let max_set_size = _commodity_card_max_set_size(card_type);
@@ -194,7 +194,7 @@ fn _add_commodity_card(
 fn _setup(
     commands: Commands,
     asset_server: Res<AssetServer>,
-    mut ui_theme: ResMut<UiTheme>,
+    mut ui_theme: ResMut<LavaTheme>,
     human_players: Query<Entity, With<IsHuman>>,
     mut pulled_card_event_writer: MessageWriter<HumanPlayerTradeCardsUpdated>,
 ) {
@@ -222,7 +222,7 @@ fn _setup(
 fn handle_player_draws_cards(
     mut reader: MessageReader<HumanPlayerTradeCardsUpdated>,
     commands: Commands,
-    ui_theme: Res<UiTheme>,
+    ui_theme: Res<LavaTheme>,
     trade_card_list: Query<Entity, With<TradeCardList>>,
     player_trade_cards: Query<&PlayerTradeCards, With<IsHuman>>,
 ) {
@@ -246,7 +246,7 @@ fn handle_player_draws_cards(
 pub fn setup_trade_ui(
     commands: Commands,
     asset_server: Res<AssetServer>,
-    mut ui_theme: ResMut<UiTheme>,
+    mut ui_theme: ResMut<LavaTheme>,
     _player_trade_cards: Query<&PlayerTradeCards, With<IsHuman>>,
 ) {
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
@@ -387,7 +387,7 @@ fn update_game_state_display(
     mut game_state_events: MessageReader<StateTransitionEvent<GameState>>,
     mut game_activity_events: MessageReader<StateTransitionEvent<GameActivity>>,
     display_query: Query<Entity, With<GameStateDisplay>>,
-    ui_theme: Res<UiTheme>,
+    ui_theme: Res<LavaTheme>,
     current_state: Res<State<GameState>>,
     current_activity: Option<Res<State<GameActivity>>>,
     game_info: Res<GameInfoAndStuff>,
@@ -476,7 +476,7 @@ fn track_player_activities(
 fn update_player_activity_display(
     commands: Commands,
     activity_log: Res<PlayerActivityLog>,
-    ui_theme: Res<UiTheme>,
+    ui_theme: Res<LavaTheme>,
     container_query: Query<Entity, With<PlayerActivityListContainer>>,
     players: Query<(Entity, &Name, &Faction, Has<IsHuman>), With<Player>>,
 ) {

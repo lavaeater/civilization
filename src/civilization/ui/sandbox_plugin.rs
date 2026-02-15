@@ -1,4 +1,4 @@
-use lava_ui_builder::{UIBuilder, UiTheme};
+use lava_ui_builder::{UIBuilder, LavaTheme};
 
 use crate::civilization::{setup_players, AvailableFactions, GameFaction};
 use crate::GameState;
@@ -7,7 +7,7 @@ pub struct SandboxPlugin;
 
 impl Plugin for SandboxPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(UiTheme::default())
+        app.insert_resource(LavaTheme::default())
             .init_resource::<AvailableFactions>()
             .init_resource::<SandboxLayoutState>()
             .add_systems(
@@ -101,7 +101,7 @@ const BORDER_COLOR: Color = Color::srgba(0.2, 0.2, 0.2, 0.25);
 fn setup_sandbox(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut ui_theme: ResMut<UiTheme>,
+    mut ui_theme: ResMut<LavaTheme>,
     layout_state: Res<SandboxLayoutState>,
 ) {
     // Spawn camera for UI rendering

@@ -12,7 +12,7 @@ use crate::stupid_ai::IsHuman;
 use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
 use bevy::window::PrimaryWindow;
-use lava_ui_builder::{UIBuilder, UiTheme};
+use lava_ui_builder::{UIBuilder, LavaTheme};
 
 /// System to detect when human player has movement options and populate the selection state
 pub fn setup_human_movement_options(
@@ -233,7 +233,7 @@ pub fn spawn_movement_controls_ui(
     >,
     existing_ui: Query<Entity, With<MovementUiRoot>>,
     asset_server: Res<AssetServer>,
-    ui_theme: Res<UiTheme>,
+    ui_theme: Res<LavaTheme>,
 ) {
     // Don't spawn if UI already exists
     if !existing_ui.is_empty() {

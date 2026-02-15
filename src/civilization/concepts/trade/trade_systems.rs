@@ -14,7 +14,7 @@ use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use lava_ui_builder::{UIBuilder, UiTheme};
+use lava_ui_builder::{UIBuilder, LavaTheme};
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -98,7 +98,7 @@ pub fn button_action(
 pub fn setup_trade(
     mut commands: Commands,
     trading_players_query: Query<(&PlayerTradeCards, Entity, Has<IsHuman>)>,
-    _ui_theme: Res<UiTheme>,
+    _ui_theme: Res<LavaTheme>,
     mut trade_ui_state: ResMut<TradeUiState>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
@@ -1246,7 +1246,7 @@ pub fn spawn_create_offer_modal(
     trade_ui_state: Res<TradeUiState>,
     human_player_query: Query<(&Name, &PlayerTradeCards), With<IsHuman>>,
     mut create_offer_state: ResMut<CreateOfferState>,
-    theme: Res<UiTheme>,
+    theme: Res<LavaTheme>,
 ) {
     // Only spawn if modal should be open and doesn't exist yet
     if !trade_phase_state.create_offer_modal_open || !modal_query.is_empty() {
