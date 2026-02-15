@@ -305,7 +305,9 @@ pub fn spawn_movement_controls_ui(
                             Some(Justify::Center),
                             Some(LineBreak::NoWrap),
                         )
-                        .width(px(200.));
+                        .text_justify_center()
+                        .align_items_center()
+                        .width(px(150.0));
                 })
                 .add_button_observe(
                     "Next",

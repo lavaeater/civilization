@@ -76,7 +76,7 @@
       "census_population": 21,
       "treasury": 0,
       "tokens_in_stock": 26,
-      "city_tokens_in_stock": 8,
+      "city_tokens_in_stock": 7,
       "trade_cards": [
         [
           "Ochre",
@@ -87,66 +87,6 @@
     }
   ],
   "area_populations": [
-    {
-      "area_id": 142,
-      "tokens_by_faction": [
-        [
-          "Egypt",
-          1
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 138,
-      "tokens_by_faction": [
-        [
-          "Egypt",
-          2
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 134,
-      "tokens_by_faction": [
-        [
-          "Egypt",
-          3
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 135,
-      "tokens_by_faction": [
-        [
-          "Egypt",
-          2
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 109,
-      "tokens_by_faction": [
-        [
-          "Crete",
-          5
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 108,
-      "tokens_by_faction": [
-        [
-          "Crete",
-          2
-        ]
-      ],
-      "city_owner": null
-    },
     {
       "area_id": 94,
       "tokens_by_faction": [
@@ -202,7 +142,7 @@
       "city_owner": null
     },
     {
-      "area_id": 23,
+      "area_id": 59,
       "tokens_by_faction": [
         [
           "Babylon",
@@ -212,31 +152,21 @@
       "city_owner": null
     },
     {
+      "area_id": 127,
+      "tokens_by_faction": [
+        [
+          "Egypt",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
       "area_id": 38,
       "tokens_by_faction": [
         [
           "Assyria",
-          5
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 21,
-      "tokens_by_faction": [
-        [
-          "Assyria",
-          2
-        ]
-      ],
-      "city_owner": null
-    },
-    {
-      "area_id": 22,
-      "tokens_by_faction": [
-        [
-          "Assyria",
-          5
+          7
         ]
       ],
       "city_owner": null
@@ -292,21 +222,75 @@
       "city_owner": null
     },
     {
-      "area_id": 59,
+      "area_id": 22,
       "tokens_by_faction": [
         [
-          "Babylon",
+          "Assyria",
           2
         ]
       ],
       "city_owner": null
     },
     {
-      "area_id": 127,
+      "area_id": 23,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          2
+        ],
+        [
+          "Assyria",
+          3
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 142,
       "tokens_by_faction": [
         [
           "Egypt",
           1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 134,
+      "tokens_by_faction": [
+        [
+          "Egypt",
+          3
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 135,
+      "tokens_by_faction": [
+        [
+          "Egypt",
+          2
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 62,
+      "tokens_by_faction": [
+        [
+          "Asia",
+          4
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 64,
+      "tokens_by_faction": [
+        [
+          "Asia",
+          5
         ]
       ],
       "city_owner": null
@@ -345,12 +329,12 @@
       "area_id": 125,
       "tokens_by_faction": [
         [
-          "Africa",
-          2
-        ],
-        [
           "Egypt",
           1
+        ],
+        [
+          "Africa",
+          2
         ]
       ],
       "city_owner": null
@@ -436,21 +420,31 @@
       "city_owner": null
     },
     {
-      "area_id": 62,
+      "area_id": 138,
       "tokens_by_faction": [
         [
-          "Asia",
-          4
+          "Egypt",
+          2
         ]
       ],
       "city_owner": null
     },
     {
-      "area_id": 64,
+      "area_id": 109,
       "tokens_by_faction": [
         [
-          "Asia",
+          "Crete",
           5
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 108,
+      "tokens_by_faction": [
+        [
+          "Crete",
+          2
         ]
       ],
       "city_owner": null
