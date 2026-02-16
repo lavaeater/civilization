@@ -1,0 +1,10 @@
+[
+    (
+        name:Mathematics,
+        description:"Mathematics mainly gives credits to other cards.",
+        card_type:5,
+        cost:230,
+        discounts:[ToType(Arts, 5), ToType(Sciences, 20), ToSpecificCard(Law, 5), ToSpecificCard(Enlightenment, 10), ToSpecificCard(Philosophy, 25), ToSpecificCard(Theology, 25)],
+        prerequisites:[],
+    ),
+]
