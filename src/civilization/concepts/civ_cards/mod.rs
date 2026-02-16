@@ -20,7 +20,7 @@ pub struct CivCardDefinition {
     pub description: String,
     pub card_type: BitFlags<CivCardType>,
     pub cost: u32,
-    pub discounts: Vec<Credits>,
+    pub credits: Vec<Credits>,
     pub prerequisites: Vec<CivCardName>,
 }
 
@@ -95,7 +95,7 @@ pub fn mathematics() -> CivCardDefinition {
         description: "Founded by Pythagoras in the 6th century BC. ".to_string(),
         card_type: CivCardType::Arts | CivCardType::Sciences,
         cost: 230,
-        discounts: vec![
+        credits: vec![
             Credits::ToType(CivCardType::Arts, 5),
             Credits::ToType(CivCardType::Sciences, 20),
             Credits::ToSpecificCard(CivCardName::Law, 5),
@@ -118,5 +118,11 @@ mod tests {
             println!("Mathematics: {maths_ron}");
             assert_eq!(maths[0].name, CivCardName::Mathematics);
         }
+    }
+    
+    #[test]
+    fn load_cards() {
+        let cards = assets.load::<Vec<CivCardDefinition>>("definitions/civilization.cards.ron");
+        assert_eq!(cards.len(), 24);
     }
 }
