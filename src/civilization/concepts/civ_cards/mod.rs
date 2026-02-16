@@ -1,3 +1,5 @@
+mod civ_cards_plugin;
+
 use bevy::prelude::Component;
 use enumflags2::{bitflags, BitFlags};
 use serde::{Deserialize, Serialize};
