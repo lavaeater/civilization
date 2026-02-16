@@ -122,7 +122,10 @@ mod tests {
     
     #[test]
     fn load_cards() {
-        let cards = assets.load::<Vec<CivCardDefinition>>("definitions/civilization.cards.ron");
+        let ron_str = std::fs::read_to_string("assets/definitions/civilization.cards.ron")
+            .expect("Failed to read civilization.cards.ron");
+        let cards: Vec<CivCardDefinition> =
+            ron::from_str(&ron_str).expect("Failed to deserialize RON");
         assert_eq!(cards.len(), 24);
     }
 }
