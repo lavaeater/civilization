@@ -25,3 +25,4 @@ pub use population_expansion::*;
 pub use remove_surplus_population::*;
 pub use save_game::*;
 pub use trade::*;
+pub use civ_cards::*;

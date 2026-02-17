@@ -4,7 +4,7 @@ use bevy::platform::collections::HashSet;
 use bevy::prelude::Component;
 use enumflags2::{bitflags, BitFlags};
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Write};
+use std::fmt::{Display};
 
 #[bitflags]
 #[repr(u8)]
@@ -32,7 +32,7 @@ pub struct CivCardDefinition {
     pub prerequisites: Vec<CivCardName>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CivCardName {
     Pottery = 1,
     ClothMaking = 2,
