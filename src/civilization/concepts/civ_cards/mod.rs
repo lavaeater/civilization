@@ -1,5 +1,6 @@
 mod civ_cards_plugin;
 
+use bevy::platform::collections::HashSet;
 use bevy::prelude::Component;
 use enumflags2::{bitflags, BitFlags};
 use serde::{Deserialize, Serialize};
@@ -14,6 +15,11 @@ pub enum CivCardType {
     Sciences,
     Civics,
     Religion,
+}
+
+#[derive(Component, Debug, Serialize, Deserialize)]
+pub struct PlayerCivilizationCards {
+    pub cards: HashSet<CivCardName>,
 }
 
 #[derive(Component, Debug, Serialize, Deserialize)]
