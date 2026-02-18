@@ -1,13 +1,11 @@
+use crate::civilization::{AvailableCivCards, CardHandle};
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
-use crate::GameActivity;
+use crate::{GameActivity, GameState};
 use bevy::platform::collections::HashSet;
-use bevy::prelude::{Entity, Res};
-use bevy::prelude::Resource;
-use bevy::prelude::{
-    in_state, Add, App, Commands, Component, Has, IntoScheduleConfigs, Message, MessageReader,
-    NextState, On, OnEnter, Plugin, Query, ResMut, Update, With,
-};
+use bevy::prelude::*;
+use bevy_common_assets::ron::RonAssetPlugin;
+
 use lava_ui_builder::{LavaTheme, UIBuilder};
 
 pub struct CivCardsPlugin;
@@ -35,16 +33,39 @@ impl CivCardsAcquisition {
 
 impl Plugin for CivCardsPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<CivCardsAcquisition>()
+        app
+            .add_plugins(RonAssetPlugin::<AvailableCivCards>::new(&["cards.ron"]))
+            .init_resource::<CivCardsAcquisition>()
             .add_observer(on_add_player_acquiring_civilization_cards)
+            .add_systems(OnEnter(GameState::Loading), load_civ_cards)
+            .add_systems(OnEnter(GameState::Playing), init_civ_cards)
             .add_systems(
                 OnEnter(GameActivity::AcquireCivilizationCards),
-                (begin_acquire_civ_cards),
+                (init_civ_cards, begin_acquire_civ_cards).chain(),
             )
             .add_systems(
                 Update,
                 (player_is_done).run_if(in_state(GameActivity::AcquireCivilizationCards)),
             );
+    }
+}
+
+fn load_civ_cards(mut commands: Commands, asset_server: Res<AssetServer>) {
+    //Load the cards here as well, while we're at it
+    let card_handle = asset_server.load("definitions/civilization.cards.ron");
+    let h = CardHandle(card_handle);
+    commands.insert_resource(h);
+}
+
+fn init_civ_cards(
+    mut commands: Commands, 
+    card_handle: Res<CardHandle>,
+    maps: Res<Assets<AvailableCivCards>>,
+) {
+    if let Some(cards) = maps.get(card_handle.0.id()) {
+        commands.insert_resource(AvailableCivCards {
+            cards: cards.cards.clone(),
+        });
     }
 }
 
@@ -54,7 +75,7 @@ fn on_add_player_acquiring_civilization_cards(
     ui_exists_query: Query<(), With<CivTradeUi>>,
     commands: Commands,
     theme: Res<LavaTheme>,
-    cards: Res<V>
+    cards: Res<AvailableCivCards>,
 ) {
     if is_human_player.contains(trigger.entity) && ui_exists_query.is_empty() {
         let mut builder = UIBuilder::new(commands, Some(theme.clone()));

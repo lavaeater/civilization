@@ -1,10 +1,12 @@
 mod civ_cards_plugin;
 
+use crate::player::Player;
+use bevy::asset::Asset;
 use bevy::platform::collections::HashSet;
-use bevy::prelude::Component;
+use bevy::prelude::{Component, Handle, Resource, TypePath};
 use enumflags2::{bitflags, BitFlags};
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display};
+use std::fmt::Display;
 
 #[bitflags]
 #[repr(u8)]
@@ -17,12 +19,20 @@ pub enum CivCardType {
     Religion,
 }
 
+#[derive(Resource)]
+pub struct CardHandle(pub Handle<AvailableCivCards>);
+
 #[derive(Component, Debug, Serialize, Deserialize)]
 pub struct PlayerCivilizationCards {
     pub cards: HashSet<CivCardName>,
 }
 
-#[derive(Component, Debug, Serialize, Deserialize)]
+#[derive(Resource, Asset, Default, Serialize, Deserialize, TypePath, Clone)]
+pub struct AvailableCivCards {
+    pub cards: Vec<CivCardDefinition>
+}
+
+#[derive(Asset, Debug, Serialize, Deserialize, TypePath, Clone)]
 pub struct CivCardDefinition {
     pub name: CivCardName,
     pub description: String,
@@ -134,6 +144,12 @@ mod tests {
             .expect("Failed to read civilization.cards.ron");
         let cards: Vec<CivCardDefinition> =
             ron::from_str(&ron_str).expect("Failed to deserialize RON");
+        
+        
         assert_eq!(cards.len(), 24);
+        
+        let resource = AvailableCivCards { cards };
+        let resource_str = ron::to_string(&resource).expect("Failed to serialize RON");
+        println!("Resource: {resource_str}");
     }
 }

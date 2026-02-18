@@ -4,14 +4,14 @@ use crate::civilization::enums::GameFaction;
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::game_moves::GameMovesPlugin;
 use crate::civilization::general_systems::{connect_areas, fix_token_positions, move_tokens_from_stock_to_area, print_names_of_phases, start_game};
+use crate::civilization::resolve_calamities::resolve_calamities_plugin::ResolveCalamitiesPlugin;
 use crate::civilization::triggers::on_add_return_token_to_stock;
+use crate::civilization::CivilizationInputPlugin;
 use crate::player::Player;
 use crate::stupid_ai::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{in_state, AppExtStates, IntoScheduleConfigs, OnEnter, Resource};
-use crate::civilization::CivilizationInputPlugin;
-use crate::civilization::resolve_calamities::resolve_calamities_plugin::ResolveCalamitiesPlugin;
 
 pub struct CivilizationPlugin;
 
@@ -108,6 +108,7 @@ pub struct DebugOptions {
     pub specific_state_name: Option<String>,
     /// Delay in seconds before AI processes each move (0.0 = instant)
     pub ai_move_delay_secs: f32,
+    pub show_debug_ui: bool,
 }
 
 impl Default for DebugOptions {
@@ -127,6 +128,7 @@ impl Default for DebugOptions {
             human_starting_areas: None,
             specific_state_name: None,
             ai_move_delay_secs: 0.1,
+            show_debug_ui: true,
         }
     }
 }
@@ -152,6 +154,7 @@ impl DebugOptions {
             human_starting_areas: Some(3),
             specific_state_name: None,
             ai_move_delay_secs: 0.1,
+            show_debug_ui: false,
         }
     }
 }
