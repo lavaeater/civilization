@@ -40,18 +40,17 @@ pub fn on_add_player_acquiring_civilization_cards(
             let panel_color = Color::srgba(0.1, 0.1, 0.1, 0.5);
             panel
                 .display_flex()
-                .flex_dir_row()
+                .flex_dir_column()
                 .size(percent(80.), percent(80.))
                 .bg_color(panel_color);
             
             panel.foreach_child(CivCardType::all_types().iter(), |card_type_builder, card_type| {
                 card_type_builder
-                    .flex_column()
                     .height(px(250.0))
                     .add_text_child(card_type.to_string(), None, None,None)
                     .foreach_child(&cards.get_cards(card_type), |child, card| {
                         create_civ_card_panel(child, card)
-                });
+                    });
             });
             
    
@@ -60,7 +59,9 @@ pub fn on_add_player_acquiring_civilization_cards(
 }
 
 fn create_civ_card_panel(card_builder: &mut UIBuilder, card: &CivCardDefinition) {
-    card_builder.add_text_child(card.name.to_string(), None, None, None);
+    card_builder
+        .flex_row()
+        .add_text_child(card.name.to_string(), None, None, None);
 }
 
 pub fn player_is_done(

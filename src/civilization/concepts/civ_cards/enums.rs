@@ -16,10 +16,10 @@ pub enum CivCardType {
 impl CivCardType {
     pub fn all_types() -> Vec<BitFlags<CivCardType>> {
         let arts = make_bitflags!(Self::Arts);
-        let crafts = make_bitflags!(Self::Arts);
-        let sciences = make_bitflags!(Self::Arts);
-        let civics = make_bitflags!(Self::Arts);
-        let religion = make_bitflags!(Self::Arts);
+        let crafts = make_bitflags!(Self::Crafts);
+        let sciences = make_bitflags!(Self::Sciences);
+        let civics = make_bitflags!(Self::Civics);
+        let religion = make_bitflags!(Self::Religion);
         
         let arts_sciences = make_bitflags!(Self::{Arts | Sciences});
         let crafts_sciences = make_bitflags!(Self::{Crafts | Sciences});
