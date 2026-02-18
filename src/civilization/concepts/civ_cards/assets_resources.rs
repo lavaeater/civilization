@@ -1,5 +1,6 @@
 use crate::civilization::{CivCardName, CivCardType, Credits};
 use bevy::asset::{Asset, Handle};
+use bevy::platform::collections::HashMap;
 use bevy::prelude::{Resource, TypePath};
 use enumflags2::BitFlags;
 use serde::{Deserialize, Serialize};

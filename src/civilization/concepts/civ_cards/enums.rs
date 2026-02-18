@@ -1,16 +1,34 @@
+use enumflags2::{bitflags, make_bitflags, BitFlags};
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use enumflags2::bitflags;
 
 #[bitflags]
 #[repr(u8)]
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CivCardType {
     Arts,
     Crafts,
     Sciences,
     Civics,
     Religion,
+}
+
+impl CivCardType {
+    pub fn all_types() -> Vec<BitFlags<CivCardType>> {
+        let arts = make_bitflags!(Self::Arts);
+        let crafts = make_bitflags!(Self::Arts);
+        let sciences = make_bitflags!(Self::Arts);
+        let civics = make_bitflags!(Self::Arts);
+        let religion = make_bitflags!(Self::Arts);
+        
+        let arts_sciences = make_bitflags!(Self::{Arts | Sciences});
+        let crafts_sciences = make_bitflags!(Self::{Crafts | Sciences});
+        let arts_civics = make_bitflags!(Self::{Arts | Civics});
+        let religion_arts = make_bitflags!(Self::{Arts | Religion});
+        
+        
+        vec![arts, crafts, sciences, civics, religion, arts_sciences, crafts_sciences, arts_civics, religion_arts]
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

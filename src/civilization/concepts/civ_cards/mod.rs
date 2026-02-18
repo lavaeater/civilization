@@ -12,11 +12,6 @@ pub use messages::*;
 pub use plugin::*;
 pub use systems::*;
 
-use bevy::asset::Asset;
-use bevy::prelude::{Component, Resource, TypePath};
-use serde::{Deserialize, Serialize};
-use std::fmt::Display;
-
 pub fn mathematics() -> CivCardDefinition {
     CivCardDefinition {
         name: CivCardName::Mathematics,

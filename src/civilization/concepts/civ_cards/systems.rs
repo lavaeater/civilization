@@ -1,11 +1,11 @@
+use crate::civilization::{AvailableCivCards, CardHandle, CivCardDefinition, CivCardType, CivCardsAcquisition, CivTradeUi, PlayerAcquiringCivilizationCards, PlayerDoneAcquiringCivilizationCards};
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
 use bevy::asset::{AssetServer, Assets};
 use bevy::color::Color;
-use bevy::prelude::{percent, Add, Commands, Entity, Has, MessageReader, NextState, On, Query, Res, ResMut, With};
+use bevy::prelude::{percent, px, Add, Commands, Entity, Has, MessageReader, NextState, On, Query, Res, ResMut, With};
 use lava_ui_builder::{LavaTheme, UIBuilder};
-use crate::civilization::{AvailableCivCards, CardHandle, CivCardDefinition, CivCardsAcquisition, CivTradeUi, PlayerAcquiringCivilizationCards, PlayerDoneAcquiringCivilizationCards};
 
 pub fn load_civ_cards(mut commands: Commands, asset_server: Res<AssetServer>) {
     //Load the cards here as well, while we're at it
@@ -15,7 +15,7 @@ pub fn load_civ_cards(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 pub fn init_civ_cards(
-    mut commands: Commands, 
+    mut commands: Commands,
     card_handle: Res<CardHandle>,
     maps: Res<Assets<AvailableCivCards>>,
 ) {
@@ -43,15 +43,23 @@ pub fn on_add_player_acquiring_civilization_cards(
                 .flex_dir_row()
                 .size(percent(80.), percent(80.))
                 .bg_color(panel_color);
-            panel.foreach_child(&cards.cards, |child, card| {
-                child.display_flex().flex_dir_row();
+            
+            panel.foreach_child(CivCardType::all_types().iter(), |card_type_builder, card_type| {
+                card_type_builder.flex_column().height(px(250.0)).add_text_child(card_type.to_string())
+                
+                
+                .foreach_child(&cards.cards, |child, card| {
+                    create_civ_card_panel(child, card)
+                });
             });
+            
+   
         });
     }
 }
 
-fn create_civ_card_panel(builder: &mut UIBuilder, card: &CivCardDefinition) {
-    builder.display_flex().flex_dir_row();
+fn create_civ_card_panel(card_builder: &mut UIBuilder, card: &CivCardDefinition) {
+    
 }
 
 pub fn player_is_done(
@@ -82,7 +90,7 @@ pub fn begin_acquire_civ_cards(
     and as players send the done-message, we remove them from the list. And when the list is
     empty, we move to the next activity.
     */
-    for ((entity, is_human)) in players.iter() {
+    for (entity, is_human) in players.iter() {
         commands
             .entity(entity)
             .insert(PlayerAcquiringCivilizationCards);
