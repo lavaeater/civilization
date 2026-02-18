@@ -2,7 +2,7 @@ use crate::civilization::components::{CityFlood, CitySite, FloodPlain, GameArea,
 use crate::civilization::concepts::map::camera_focus::{process_camera_focus, CameraFocusQueue};
 use crate::civilization::enums::GameFaction;
 use crate::civilization::general_systems::setup_players;
-use crate::civilization::{start_game_after_player_setup, CardHandle};
+use crate::civilization::start_game_after_player_setup;
 use crate::loading::TextureAssets;
 use crate::{GameActivity, GameState};
 use bevy::platform::collections::{HashMap, HashSet};

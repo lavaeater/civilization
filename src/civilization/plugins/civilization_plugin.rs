@@ -57,6 +57,7 @@ impl Plugin for CivilizationPlugin {
             ConflictPlugin,
             TradePlugin,
             CivilizationInputPlugin,
+            CivCardsPlugin,
         ))
         .add_plugins((
             CityConstructionPlugin,

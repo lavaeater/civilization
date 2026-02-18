@@ -1,7 +1,6 @@
 use crate::GameState;
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
-use crate::civilization::CivCardDefinition;
 
 pub struct LoadingPlugin;
 
