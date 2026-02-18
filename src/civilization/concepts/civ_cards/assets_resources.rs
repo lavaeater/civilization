@@ -2,7 +2,7 @@ use crate::civilization::{CivCardName, CivCardType, Credits};
 use bevy::asset::{Asset, Handle};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{Resource, TypePath};
-use enumflags2::BitFlags;
+use enumflags2::{BitFlag, BitFlags};
 use serde::{Deserialize, Serialize};
 
 #[derive(Resource)]
@@ -11,6 +11,12 @@ pub struct CardHandle(pub Handle<AvailableCivCards>);
 #[derive(Resource, Asset, Default, Serialize, Deserialize, TypePath, Clone)]
 pub struct AvailableCivCards {
     pub cards: Vec<CivCardDefinition>
+}
+
+impl AvailableCivCards {
+    pub fn get_cards(&self, card_type: &BitFlags<CivCardType>) -> Vec<&CivCardDefinition> {
+        self.cards.iter().filter(|card| card.card_type.contains(*card_type)).collect()
+    }
 }
 
 #[derive(Asset, Debug, Serialize, Deserialize, TypePath, Clone)]

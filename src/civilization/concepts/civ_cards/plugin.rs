@@ -1,4 +1,4 @@
-use crate::civilization::{begin_acquire_civ_cards, init_civ_cards, load_civ_cards, on_add_player_acquiring_civilization_cards, player_is_done};
+use crate::civilization::{begin_acquire_civ_cards, init_civ_cards, load_civ_cards, on_add_player_acquiring_civilization_cards, player_is_done, PlayerDoneAcquiringCivilizationCards};
 use crate::{GameActivity, GameState};
 use bevy::platform::collections::HashSet;
 use bevy::prelude::*;
@@ -22,6 +22,7 @@ impl CivCardsAcquisition {
 impl Plugin for CivCardsPlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_message::<PlayerDoneAcquiringCivilizationCards>()
             .add_plugins(RonAssetPlugin::<AvailableCivCards>::new(&["cards.ron"]))
             .init_resource::<CivCardsAcquisition>()
             .add_observer(on_add_player_acquiring_civilization_cards)

@@ -72,7 +72,7 @@ pub fn prepare_next_mover(
             commands.entity(to_move).insert(PerformingMovement);
         } else {
             info!("No more players to move, transitioning to Conflict");
-            next_state.set(GameActivity::Conflict);
+            next_state.set(GameActivity::AcquireCivilizationCards);
         }
     }
 }

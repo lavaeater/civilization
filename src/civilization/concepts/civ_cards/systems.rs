@@ -45,11 +45,12 @@ pub fn on_add_player_acquiring_civilization_cards(
                 .bg_color(panel_color);
             
             panel.foreach_child(CivCardType::all_types().iter(), |card_type_builder, card_type| {
-                card_type_builder.flex_column().height(px(250.0)).add_text_child(card_type.to_string())
-                
-                
-                .foreach_child(&cards.cards, |child, card| {
-                    create_civ_card_panel(child, card)
+                card_type_builder
+                    .flex_column()
+                    .height(px(250.0))
+                    .add_text_child(card_type.to_string(), None, None,None)
+                    .foreach_child(&cards.get_cards(card_type), |child, card| {
+                        create_civ_card_panel(child, card)
                 });
             });
             
@@ -59,7 +60,7 @@ pub fn on_add_player_acquiring_civilization_cards(
 }
 
 fn create_civ_card_panel(card_builder: &mut UIBuilder, card: &CivCardDefinition) {
-    
+    card_builder.add_text_child(card.name.to_string(), None, None, None);
 }
 
 pub fn player_is_done(
