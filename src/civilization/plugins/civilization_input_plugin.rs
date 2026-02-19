@@ -22,10 +22,11 @@ impl Plugin for CivilizationInputPlugin {
             // ;
     }
 }
-/// - General input handling
+/// General input handling
 /// This is a context to be used with the input handling
-/// When this context is active we will support Enter for choice
-/// ESC for cancel etc.
+/// When this context is active we will support
+/// - Enter for choice
+/// - ESC for cancel etc.
 #[derive(Component)]
 pub struct MovementInput;
 
