@@ -20,7 +20,7 @@ pub struct CivilizationPlugin;
 impl Plugin for CivilizationPlugin {
     fn build(&self, app: &mut App) {
         // Use DebugOptions::test_manual_pop_exp() to test manual population expansion
-        app.insert_resource(DebugOptions::default())
+        app.insert_resource(DebugOptions::test_civ_cards())
         .register_type::<Player>()
         .register_type::<Token>()
         .register_type::<LandPassage>()
@@ -137,18 +137,18 @@ impl Default for DebugOptions {
 impl DebugOptions {
     /// Create a debug configuration for testing manual population expansion.
     /// This gives the human player limited tokens and multiple populated areas.
-    pub fn test_manual_pop_exp() -> Self {
+    pub fn test_civ_cards() -> Self {
         Self {
             add_human_player: true,
             human_faction: GameFaction::Assyria,
             human_always_pulls_trade_cards: false,
             ai_always_pulls_trade_cards: false,
-            human_starts_with_trade_cards: false,
+            human_starts_with_trade_cards: true,
             auto_trading: false,
             print_selected_moves: true,
             log_selected_moves: false,
             number_of_players: 2,
-            start_at_activity: None,
+            start_at_activity: Some(GameActivity::AcquireCivilizationCards),
             // Give human only 2 tokens so they can't auto-expand all areas
             human_token_count: Some(2),
             // Populate 3 areas so manual choice is required
