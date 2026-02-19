@@ -1,10 +1,10 @@
-use crate::civilization::{AvailableCivCards, CardHandle, CivCardDefinition, CivCardType, CivCardsAcquisition, CivTradeUi, PlayerAcquiringCivilizationCards, PlayerDoneAcquiringCivilizationCards};
+use crate::civilization::{AvailableCivCards, CardHandle, CivCardDefinition, CivCardType, CivCardsAcquisition, CivTradeUi, Credits, PlayerAcquiringCivilizationCards, PlayerDoneAcquiringCivilizationCards};
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
 use bevy::asset::{AssetServer, Assets};
 use bevy::color::Color;
-use bevy::prelude::{percent, px, Add, Commands, Entity, Has, MessageReader, NextState, On, Query, Res, ResMut, With};
+use bevy::prelude::{percent, px, Add, Commands, Entity, Has, MessageReader, NextState, On, Query, Res, ResMut, Val, With};
 use lava_ui_builder::{LavaTheme, UIBuilder};
 
 pub fn load_civ_cards(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -35,33 +35,101 @@ pub fn on_add_player_acquiring_civilization_cards(
     cards: Res<AvailableCivCards>,
 ) {
     if is_human_player.contains(trigger.entity) && ui_exists_query.is_empty() {
-        let mut builder = UIBuilder::new(commands, Some(theme.clone()));
+        let mut theme_to_use = theme.clone();
+        theme_to_use.text.label_size = 12.0;
+        let mut builder = UIBuilder::new(commands, Some(theme_to_use));
         builder.component::<CivTradeUi>().add_panel(|panel| {
-            let panel_color = Color::srgba(0.1, 0.1, 0.1, 0.5);
+            let panel_color = Color::srgba(0.1, 0.1, 0.1, 0.9);
             panel
                 .display_flex()
-                .flex_dir_column()
-                .size(percent(80.), percent(80.))
-                .bg_color(panel_color);
-            
-            panel.foreach_child(CivCardType::all_types().iter(), |card_type_builder, card_type| {
-                card_type_builder
-                    .height(px(250.0))
-                    .add_text_child(card_type.to_string(), None, None,None)
-                    .foreach_child(&cards.get_cards(card_type), |child, card| {
-                        create_civ_card_panel(child, card)
-                    });
+                .flex_row()
+                .size(percent(95.), percent(90.))
+                .bg_color(panel_color)
+                .padding_all_px(16.0)
+                .gap_px(8.0)
+                .overflow_scroll_y();
+
+            panel.foreach_child(CivCardType::all_types().iter(), |col_builder, card_type| {
+                let col_color = Color::srgba(0.15, 0.15, 0.15, 0.8);
+                col_builder
+                    .display_flex()
+                    .flex_column()
+                    .width(px(220.0))
+                    .height(percent(100.))
+                    .bg_color(col_color)
+                    .padding_all_px(8.0)
+                    .row_gap_px(8.0)
+                    .overflow_scroll_y()
+                    .border_radius_all_px(4.0);
+
+                col_builder.with_child(|header| {
+                    header
+                        .display_flex()
+                        .justify_center()
+                        .padding_all_px(4.0)
+                        .margin_btm(Val::Px(8.0))
+                        .default_text(card_type.to_string());
+                });
+
+                col_builder.foreach_child(&cards.get_cards(card_type), |card_builder, card| {
+                    create_civ_card_panel(card_builder, card);
+                });
             });
-            
-   
         });
     }
 }
 
 fn create_civ_card_panel(card_builder: &mut UIBuilder, card: &CivCardDefinition) {
+    let card_bg = Color::srgba(0.2, 0.2, 0.25, 1.0);
     card_builder
-        .flex_row()
-        .add_text_child(card.name.to_string(), None, None, None);
+        .display_flex()
+        .flex_column()
+        .bg_color(card_bg)
+        .padding_all_px(8.0)
+        .border_radius_all_px(4.0)
+        .row_gap_px(4.0);
+
+    card_builder.with_child(|name_row| {
+        name_row
+            .display_flex()
+            .flex_row()
+            .justify_space_between()
+            .with_child(|name| {
+                name.default_text(card.name.to_string());
+            })
+            .with_child(|cost| {
+                cost.default_text(format!("Cost: {}", card.cost));
+            });
+    });
+
+    card_builder.with_child(|desc| {
+        desc.default_text(&card.description);
+    });
+
+    if !card.credits.is_empty() {
+        card_builder.with_child(|credits_section| {
+            credits_section
+                .display_flex()
+                .flex_column()
+                .row_gap_px(2.0);
+
+            credits_section.with_child(|label| {
+                label.default_text("Credits:");
+            });
+
+            credits_section.foreach_child(card.credits.iter(), |credit_row, credit| {
+                credit_row.default_text(format_credit(credit));
+            });
+        });
+    }
+}
+
+fn format_credit(credit: &Credits) -> String {
+    match credit {
+        Credits::ToType(card_type, amount) => format!("  +{} to {:?}", amount, card_type),
+        Credits::ToAll(amount) => format!("  +{} to all", amount),
+        Credits::ToSpecificCard(card_name, amount) => format!("  +{} to {}", amount, card_name),
+    }
 }
 
 pub fn player_is_done(
