@@ -110,6 +110,8 @@ pub struct DebugOptions {
     /// Delay in seconds before AI processes each move (0.0 = instant)
     pub ai_move_delay_secs: f32,
     pub show_debug_ui: bool,
+    pub human_trade_cards: Option<Vec<(TradeCard, usize)>>,
+    pub human_civ_cards: Option<Vec<CivCardName>>,
 }
 
 impl Default for DebugOptions {
@@ -130,6 +132,8 @@ impl Default for DebugOptions {
             specific_state_name: None,
             ai_move_delay_secs: 0.1,
             show_debug_ui: true,
+            human_trade_cards: None,
+            human_civ_cards: None,
         }
     }
 }
@@ -156,6 +160,8 @@ impl DebugOptions {
             specific_state_name: None,
             ai_move_delay_secs: 0.1,
             show_debug_ui: false,
+            human_trade_cards: Some(vec![(TradeCard::Wine, 4), (TradeCard::Salt, 4)]),
+            human_civ_cards: Some(vec![CivCardName::ClothMaking, CivCardName::Mathematics]),
         }
     }
 }

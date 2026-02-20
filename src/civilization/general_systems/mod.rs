@@ -228,6 +228,24 @@ pub fn setup_human_player(
     info!("Added human player");
     commands.entity(player).remove::<StupidAi>();
     commands.entity(player).insert(IsHuman);
+    if let Some(trade_cards) = &debug_options.human_trade_cards {
+        let mut player_trade_cards = PlayerTradeCards::default();
+        trade_cards.iter().for_each(|(card, count)| {
+            for _ in 0..*count {
+                player_trade_cards.add_trade_card(*card);
+            }
+        });
+        commands.entity(player).insert(player_trade_cards);
+    }
+    
+    if let Some(start_cards) = &debug_options.human_civ_cards {
+        let mut player_civ_cards = PlayerCivilizationCards::default();  
+        for card in start_cards {
+            player_civ_cards.cards.insert(*card);
+        }
+        commands.entity(player).insert(player_civ_cards);
+    }
+    
     if debug_options.human_starts_with_trade_cards {
         let mut player_trade_cards = PlayerTradeCards::default();
         (1..=9).for_each(|pile| {
