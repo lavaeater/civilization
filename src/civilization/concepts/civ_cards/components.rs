@@ -3,10 +3,12 @@ use bevy::platform::collections::HashSet;
 use bevy::prelude::Component;
 use serde::{Deserialize, Serialize};
 
-#[derive(Component, Debug, Serialize, Deserialize)]
+#[derive(Component, Debug, Serialize, Deserialize, Default)]
 pub struct PlayerCivilizationCards {
     pub cards: HashSet<CivCardName>,
 }
+
+
 
 #[derive(Component)]
 pub struct PlayerAcquiringCivilizationCards;

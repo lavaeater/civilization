@@ -181,6 +181,7 @@ pub fn setup_players(
                 PlayerCities::default(),
                 StupidAi,
                 PlayerTradeCards::default(),
+                PlayerCivilizationCards::default(),
             ))
             .id();
 
