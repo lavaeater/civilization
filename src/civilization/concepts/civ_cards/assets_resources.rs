@@ -20,6 +20,13 @@ impl AvailableCivCards {
             .filter(|card| card.card_type.contains(*card_type))
             .collect()
     }
+    
+    pub fn cards_for_names(&self, names: &HashSet<CivCardName>) -> Vec<&CivCardDefinition> {
+        self.cards
+            .iter()
+            .filter(|card| names.contains(&card.name))
+            .collect()
+    }
 
     pub fn total_credits(&self, cards: &HashSet<CivCardName>) -> Vec<Credits> {
         self.cards
@@ -41,7 +48,36 @@ pub struct CivCardDefinition {
 }
 
 impl CivCardDefinition {
-    pub fn calculate_cost(&self, credits: &Vec<Credits>) -> u32 {
+    pub fn get_applicable_credits(&self, player_cards: Vec<&CivCardDefinition>) -> Vec<(CivCardName, u32)> {
+        player_cards
+            .iter()
+            .flat_map(|card_def| {
+                card_def.credits.iter().filter_map(|credit| {
+                    let credit_value = match credit {
+                        Credits::ToType(card_type, credit) => {
+                            let card_type = BitFlags::from(*card_type);
+                            if self.card_type.intersects(card_type) {
+                                Some(*credit)
+                            } else {
+                                None
+                            }
+                        }
+                        Credits::ToAll(credit) => Some(*credit),
+                        Credits::ToSpecificCard(card_name, credit) => {
+                            if self.name == *card_name {
+                                Some(*credit)
+                            } else {
+                                None
+                            }
+                        }
+                    };
+                    credit_value.map(|c| (card_def.name.clone(), c))
+                })
+            })
+            .collect()
+    }
+    
+    pub fn calculate_cost(&self, credits: &[Credits]) -> u32 {
         let total_credits = credits
             .iter()
             .map(|credit| match credit {

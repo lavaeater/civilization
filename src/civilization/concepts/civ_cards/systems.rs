@@ -35,55 +35,60 @@ pub fn on_add_player_acquiring_civilization_cards(
     cards: Res<AvailableCivCards>,
 ) {
     if ui_exists_query.is_empty() {
-    if let Some((_, _, player_cards)) = human_player_query.get(trigger.entity) {
-        let mut theme_to_use = theme.clone();
-        theme_to_use.text.label_size = 12.0;
-        let mut builder = UIBuilder::new(commands, Some(theme_to_use));
-        builder.component::<CivTradeUi>().add_panel(|panel| {
-            let panel_color = Color::srgba(0.1, 0.1, 0.1, 0.9);
-            panel
-                .display_flex()
-                .flex_row()
-                .size(percent(95.), percent(90.))
-                .bg_color(panel_color)
-                .padding_all_px(16.0)
-                .gap_px(8.0)
-                .overflow_scroll_y();
-
-            panel.foreach_child(CivCardType::all_types().iter(), |col_builder, card_type| {
-                let col_color = Color::srgba(0.15, 0.15, 0.15, 0.8);
-                col_builder
+        if let Ok((_, _, player_cards)) = human_player_query.get(trigger.entity) {
+            let mut theme_to_use = theme.clone();
+            theme_to_use.text.label_size = 12.0;
+            let mut builder = UIBuilder::new(commands, Some(theme_to_use));
+            builder.component::<CivTradeUi>().add_panel(|panel| {
+                let panel_color = Color::srgba(0.1, 0.1, 0.1, 0.9);
+                panel
                     .display_flex()
-                    .flex_column()
-                    .width(px(220.0))
-                    .height(percent(100.))
-                    .bg_color(col_color)
-                    .padding_all_px(8.0)
-                    .row_gap_px(8.0)
-                    .overflow_scroll_y()
-                    .border_radius_all_px(4.0);
+                    .flex_row()
+                    .size(percent(95.), percent(90.))
+                    .bg_color(panel_color)
+                    .padding_all_px(16.0)
+                    .gap_px(8.0)
+                    .overflow_scroll_y();
 
-                col_builder.with_child(|header| {
-                    header
+                panel.foreach_child(CivCardType::all_types().iter(), |col_builder, card_type| {
+                    let col_color = Color::srgba(0.15, 0.15, 0.15, 0.8);
+                    col_builder
                         .display_flex()
-                        .justify_center()
-                        .padding_all_px(4.0)
-                        .margin_btm(Val::Px(8.0))
-                        .default_text(card_type.to_string());
-                });
+                        .flex_column()
+                        .width(px(220.0))
+                        .height(percent(100.))
+                        .bg_color(col_color)
+                        .padding_all_px(8.0)
+                        .row_gap_px(8.0)
+                        .overflow_scroll_y()
+                        .border_radius_all_px(4.0);
 
-                col_builder.foreach_child(&cards.get_cards(card_type), |card_builder, card| {
-                    create_civ_card_panel(card_builder, card, &player_cards, &cards);
+                    col_builder.with_child(|header| {
+                        header
+                            .display_flex()
+                            .justify_center()
+                            .padding_all_px(4.0)
+                            .margin_btm(Val::Px(8.0))
+                            .default_text(card_type.to_string());
+                    });
+
+                    col_builder.foreach_child(&cards.get_cards(card_type), |card_builder, card| {
+                        create_civ_card_panel(card_builder, card, &player_cards, &cards);
+                    });
                 });
             });
-        });
+        }
     }
 }
 
 fn create_civ_card_panel(card_builder: &mut UIBuilder, card: &CivCardDefinition, player_cards: &PlayerCivilizationCards, cards: &Res<AvailableCivCards>) {
-    let total_credits = cards.total_credits(&player_cards.cards);
-    let actual_cost = card.calculate_cost(&total_credits);
+    
+    let player_defs = cards.cards_for_names(&player_cards.cards);
+    let card_credits = card.get_applicable_credits(player_defs);
+    let total_credits = card_credits.iter().map(|(_, credit)| credit).sum::<u32>();
+    let actual_cost = card.cost - total_credits;
     let owns_card = player_cards.cards.contains(&card.name);
+    let credit_string = card_credits.iter().map(|(card_name, credit)| format!("{}: {}", card_name, credit)).collect::<Vec<String>>().join(",");
     let card_bg = Color::srgba(0.2, 0.2, 0.25, 1.0);
     card_builder
         .display_flex()
@@ -103,7 +108,9 @@ fn create_civ_card_panel(card_builder: &mut UIBuilder, card: &CivCardDefinition,
             })
             .with_child(|cost| {
                 cost.default_text(format!("Cost: {} / {}", actual_cost, card.cost));
-            });
+            })            .with_child(|cost| {
+            cost.default_text(credit_string);
+        });
     });
 
     card_builder.with_child(|desc| {
