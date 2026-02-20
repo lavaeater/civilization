@@ -1,4 +1,4 @@
-use crate::civilization::{AvailableCivCards, CardHandle, CivCardDefinition, CivCardType, CivCardsAcquisition, CivTradeUi, Credits, PlayerAcquiringCivilizationCards, PlayerDoneAcquiringCivilizationCards};
+use crate::civilization::{AvailableCivCards, CardHandle, CivCardDefinition, CivCardType, CivCardsAcquisition, CivTradeUi, Credits, PlayerAcquiringCivilizationCards, PlayerCivilizationCards, PlayerDoneAcquiringCivilizationCards};
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
@@ -28,13 +28,14 @@ pub fn init_civ_cards(
 
 pub fn on_add_player_acquiring_civilization_cards(
     trigger: On<Add, PlayerAcquiringCivilizationCards>,
-    is_human_player: Query<(&Player, &IsHuman)>,
+    human_player_query: Query<(&Player, &IsHuman, &PlayerCivilizationCards)>,
     ui_exists_query: Query<(), With<CivTradeUi>>,
     commands: Commands,
     theme: Res<LavaTheme>,
     cards: Res<AvailableCivCards>,
 ) {
-    if is_human_player.contains(trigger.entity) && ui_exists_query.is_empty() {
+    if ui_exists_query.is_empty() {
+    if let Some((_, _, player_cards)) = human_player_query.get(trigger.entity) {
         let mut theme_to_use = theme.clone();
         theme_to_use.text.label_size = 12.0;
         let mut builder = UIBuilder::new(commands, Some(theme_to_use));
@@ -72,14 +73,17 @@ pub fn on_add_player_acquiring_civilization_cards(
                 });
 
                 col_builder.foreach_child(&cards.get_cards(card_type), |card_builder, card| {
-                    create_civ_card_panel(card_builder, card);
+                    create_civ_card_panel(card_builder, card, &player_cards, &cards);
                 });
             });
         });
     }
 }
 
-fn create_civ_card_panel(card_builder: &mut UIBuilder, card: &CivCardDefinition) {
+fn create_civ_card_panel(card_builder: &mut UIBuilder, card: &CivCardDefinition, player_cards: &PlayerCivilizationCards, cards: &Res<AvailableCivCards>) {
+    let total_credits = cards.total_credits(&player_cards.cards);
+    let actual_cost = card.calculate_cost(&total_credits);
+    let owns_card = player_cards.cards.contains(&card.name);
     let card_bg = Color::srgba(0.2, 0.2, 0.25, 1.0);
     card_builder
         .display_flex()
@@ -95,10 +99,10 @@ fn create_civ_card_panel(card_builder: &mut UIBuilder, card: &CivCardDefinition)
             .flex_row()
             .justify_space_between()
             .with_child(|name| {
-                name.default_text(card.name.to_string());
+                name.default_text(format!("{} {}", card.name.to_string(), if owns_card { "- Owned" } else { "" }));
             })
             .with_child(|cost| {
-                cost.default_text(format!("Cost: {}", card.cost));
+                cost.default_text(format!("Cost: {} / {}", actual_cost, card.cost));
             });
     });
 
