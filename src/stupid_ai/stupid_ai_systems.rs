@@ -282,104 +282,45 @@ fn _debug_trade_move_info(trade_move: &TradeMove, trade_offer: &TradeOffer) {
     );
 }
 
-// fn settle_trade(my_cards: &PlayerTradeCards, player: Entity, trade_offer: &mut TradeOffer) {
-//     let mut trade_valid = true;
-// 
-//     if trade_offer.initiator == player {
-//         debug!("Player initiated this trade, time to pay up!");
-//         if initiator_can_pay_for_offer(&trade_offer, my_cards) {
-//             let mut cards_left = trade_offer.pays_number_of_cards();
-// 
-//             let mut cards_to_use: HashMap<TradeCard, usize> = HashMap::new();
-// 
-//             for (card_type, count) in trade_offer.initiator_pays_guaranteed.iter() {
-//                 cards_to_use.insert(*card_type, *count);
-//                 cards_left -= count;
-//             }
-//             if cards_left > 0 {
-//                 for calamity in my_cards.tradeable_calamity_cards_ranked() {
-//                     if cards_left > 0 {
-//                         cards_left -= 1;
-//                         cards_to_use.insert(calamity, 1);
-//                     }
-//                 }
-//             }
-// 
-//             assign_cards(my_cards, cards_left, &mut cards_to_use);
-// 
-//             /*
-//             This is kind of crazy, but perhaps I added too much here, refactor later
-// 
-//             But what we need to do is now simply add all the cards to the trade offer as well
-//              */
-// 
-//             if trade_valid {
-//                 trade_offer.settle(player, cards_to_use);
-//             }
-//         } else {
-//             debug!("Initiator couldn't pay, trade invalid!");
-//             trade_valid = false;
-//         }
-//     } else if trade_offer.receiver == player {
-//         debug!("Player is receiver of this trade, time to pay up!");
-//         if receiver_can_pay_for_offer(&trade_offer, my_cards) {
-//             let mut cards_left = trade_offer.gets_number_of_cards();
-// 
-//             let mut cards_to_use = HashMap::new();
-// 
-//             for (card_type, count) in trade_offer.initiator_gets_guaranteed.iter() {
-//                 cards_to_use.insert(*card_type, *count);
-//                 cards_left -= count;
-//             }
-//             if cards_left > 0 {
-//                 for calamity in my_cards.tradeable_calamity_cards_ranked() {
-//                     if cards_left > 0 {
-//                         cards_left -= 1;
-//                         cards_to_use.insert(calamity, 1);
-//                     }
-//                 }
-//             }
-//             assign_cards(my_cards, cards_left, &mut cards_to_use);
-// 
-//             if trade_valid {
-//                 trade_offer.settle(player, cards_to_use);
-//             }
-//         } else {
-//             debug!("Receiver couldn't pay, trade invalid!");
-//             trade_valid = false;
-//         }
-//     }
-// 
-//     if !trade_valid {
-//         trade_offer.reject(player);
-//     }
-// }
-// 
-// fn assign_cards(
-//     my_cards: &PlayerTradeCards,
-//     mut cards_left: usize,
-//     cards_to_use: &mut HashMap<TradeCard, usize>,
-// ) {
-//     for (commodity, _suite_value) in my_cards
-//         .commodity_card_suites()
-//         .iter()
-//         .sorted_by_key(|(_commodity, value)| *value)
-//         .rev()
-//     {
-//         if cards_left > 0 {
-//             if my_cards.number_of_cards_for_trade_card(*commodity) > cards_left {
-//                 cards_to_use.insert(*commodity, cards_left);
-//                 cards_left = 0;
-//             } else {
-//                 cards_left -= my_cards.number_of_cards_for_trade_card(*commodity);
-//                 cards_to_use.insert(
-//                     *commodity,
-//                     my_cards.number_of_cards_for_trade_card(*commodity),
-//                 );
-//             }
-//         }
-//     }
-// }
+pub fn select_stupid_civ_card_move(
+    mut event_reader: MessageReader<SelectStupidMove>,
+    player_moves: Query<(&Name, &AvailableMoves)>,
+    mut done_writer: MessageWriter<PlayerDoneAcquiringCivilizationCards>,
+    debug_options: Res<DebugOptions>,
+) {
+    for event in event_reader.read() {
+        if let Ok((player_name, available_moves)) = player_moves.get(event.player) {
+            let civ_moves: Vec<_> = available_moves
+                .moves
+                .values()
+                .filter_map(|m| match m {
+                    GameMove::AcquireCivilizationCards(civ_move) => Some(civ_move),
+                    _ => None,
+                })
+                .collect();
+
+            if civ_moves.is_empty() {
+                return;
+            }
+
+            let mut rng = rand::rng();
+            if let Some(selected_move) = civ_moves.into_iter().choose(&mut rng) {
+                if debug_options.print_selected_moves {
+                    debug!("{} selects {:#?}", player_name, selected_move);
+                }
+                match selected_move {
+                    AcquireCivilizationCardsMove::DoneAcquiringCards => {
+                        done_writer.write(PlayerDoneAcquiringCivilizationCards(event.player));
+                    }
+                    AcquireCivilizationCardsMove::AcquireCard(_)
+                    | AcquireCivilizationCardsMove::AcquireCards(_) => {
+                        done_writer.write(PlayerDoneAcquiringCivilizationCards(event.player));
+                    }
+                }
+            }
+        }
+    }
+}
 
 fn send_movement_move(
     move_tokens_writer: &mut MessageWriter<MoveTokenFromAreaToAreaCommand>,

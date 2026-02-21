@@ -6,7 +6,7 @@ pub struct StupidAi;
 
 #[derive(Component, Debug, Reflect)]
 #[reflect(Component)]
-pub struct IsHuman; //Not really, though
+pub struct IsHuman;
 
 #[derive(Resource, Default)]
 pub struct AiMoveQueue {

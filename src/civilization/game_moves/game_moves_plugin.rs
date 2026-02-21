@@ -4,7 +4,7 @@ use crate::civilization::game_moves::game_moves_systems::*;
 use crate::civilization::game_moves::game_moves_triggers::*;
 use crate::GameActivity;
 use bevy::prelude::{in_state, App, IntoScheduleConfigs, Plugin, Update};
-use crate::civilization::concepts::recalculate_trade_moves_for_player;
+use crate::civilization::concepts::{recalculate_civ_card_moves_for_player, recalculate_trade_moves_for_player};
 
 pub struct GameMovesPlugin;
 
@@ -23,6 +23,8 @@ impl Plugin for GameMovesPlugin {
                     recalculate_city_support_moves_for_player
                         .run_if(in_state(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation)),
                     recalculate_trade_moves_for_player.run_if(in_state(GameActivity::Trade)),
+                    recalculate_civ_card_moves_for_player
+                        .run_if(in_state(GameActivity::AcquireCivilizationCards)),
                 ),
             )
             .add_observer(on_add_manual_expansion)
@@ -30,6 +32,7 @@ impl Plugin for GameMovesPlugin {
             .add_observer(on_add_is_building)
             .add_observer(on_add_has_just_moved)
             .add_observer(on_add_has_too_many_cities)
-            .add_observer(on_add_needs_trade_move);
+            .add_observer(on_add_needs_trade_move)
+            .add_observer(on_add_player_acquiring_civ_cards);
     }
 }

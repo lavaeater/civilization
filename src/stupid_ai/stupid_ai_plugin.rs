@@ -20,6 +20,8 @@ impl Plugin for StupidAiPlugin {
                     select_stupid_city_building.run_if(in_state(GameActivity::CityConstruction)),
                     select_stupid_city_elimination.run_if(in_state(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation)),
                     select_stupid_trade_move.run_if(in_state(GameActivity::Trade)),
+                    select_stupid_civ_card_move
+                        .run_if(in_state(GameActivity::AcquireCivilizationCards)),
                 ),
             )
             .add_observer(on_add_available_moves);

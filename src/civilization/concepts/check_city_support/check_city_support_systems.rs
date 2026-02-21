@@ -69,7 +69,7 @@ pub fn check_status_after_resolve_calamities(
 
     if too_many_cities_count == 0 && needs_check_count == 0 {
         info!("[CITY_SUPPORT] All checks complete, transitioning to AcquireCivilizationCards");
-        next_state.set(GameActivity::PopulationExpansion);
+        next_state.set(GameActivity::AcquireCivilizationCards);
     }
 }
 

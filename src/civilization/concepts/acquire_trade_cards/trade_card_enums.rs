@@ -100,7 +100,8 @@ impl TradeCardTrait for TradeCard {
     }
 
     fn is_commodity(&self) -> bool {
-        !matches!(*self, TradeCard::VolcanoEarthquake |
+        !matches!(*self, 
+            TradeCard::VolcanoEarthquake |
             TradeCard::Treachery |
             TradeCard::Famine |
             TradeCard::Superstition |

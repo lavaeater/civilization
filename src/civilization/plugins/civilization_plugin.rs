@@ -4,14 +4,14 @@ use crate::civilization::enums::GameFaction;
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::game_moves::GameMovesPlugin;
 use crate::civilization::general_systems::{connect_areas, fix_token_positions, move_tokens_from_stock_to_area, print_names_of_phases, start_game};
+use crate::civilization::resolve_calamities::resolve_calamities_plugin::ResolveCalamitiesPlugin;
 use crate::civilization::triggers::on_add_return_token_to_stock;
+use crate::civilization::CivilizationInputPlugin;
 use crate::player::Player;
 use crate::stupid_ai::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{in_state, AppExtStates, IntoScheduleConfigs, OnEnter, Resource};
-use crate::civilization::CivilizationInputPlugin;
-use crate::civilization::resolve_calamities::resolve_calamities_plugin::ResolveCalamitiesPlugin;
 
 pub struct CivilizationPlugin;
 
@@ -57,6 +57,7 @@ impl Plugin for CivilizationPlugin {
             ConflictPlugin,
             TradePlugin,
             CivilizationInputPlugin,
+            CivCardsPlugin,
         ))
         .add_plugins((
             CityConstructionPlugin,
@@ -108,6 +109,9 @@ pub struct DebugOptions {
     pub specific_state_name: Option<String>,
     /// Delay in seconds before AI processes each move (0.0 = instant)
     pub ai_move_delay_secs: f32,
+    pub show_debug_ui: bool,
+    pub human_trade_cards: Option<Vec<(TradeCard, usize)>>,
+    pub human_civ_cards: Option<Vec<CivCardName>>,
 }
 
 impl Default for DebugOptions {
@@ -127,6 +131,9 @@ impl Default for DebugOptions {
             human_starting_areas: None,
             specific_state_name: None,
             ai_move_delay_secs: 0.1,
+            show_debug_ui: true,
+            human_trade_cards: None,
+            human_civ_cards: None,
         }
     }
 }
@@ -134,7 +141,7 @@ impl Default for DebugOptions {
 impl DebugOptions {
     /// Create a debug configuration for testing manual population expansion.
     /// This gives the human player limited tokens and multiple populated areas.
-    pub fn test_manual_pop_exp() -> Self {
+    pub fn test_civ_cards() -> Self {
         Self {
             add_human_player: true,
             human_faction: GameFaction::Assyria,
@@ -144,14 +151,17 @@ impl DebugOptions {
             auto_trading: false,
             print_selected_moves: true,
             log_selected_moves: false,
-            number_of_players: 2,
-            start_at_activity: None,
+            number_of_players: 7,
+            start_at_activity: Some(GameActivity::AcquireCivilizationCards),
             // Give human only 2 tokens so they can't auto-expand all areas
-            human_token_count: Some(2),
+            human_token_count: None,
             // Populate 3 areas so manual choice is required
-            human_starting_areas: Some(3),
+            human_starting_areas: None,
             specific_state_name: None,
             ai_move_delay_secs: 0.1,
+            show_debug_ui: false,
+            human_trade_cards: Some(vec![(TradeCard::Wine, 4), (TradeCard::Salt, 4)]),
+            human_civ_cards: Some(vec![CivCardName::ClothMaking, CivCardName::Mathematics]),
         }
     }
 }

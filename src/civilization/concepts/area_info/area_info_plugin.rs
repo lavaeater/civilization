@@ -83,10 +83,13 @@ fn update_area_info_markers(
     camera_query: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
     mut marker_query: Query<(&AreaInfoMarker, &mut Node)>,
     mut text_query: Query<(&Name, &mut Text)>,
+    ui_scale: Res<UiScale>,
 ) {
     let Ok((camera, camera_gt)) = camera_query.single() else {
         return;
     };
+
+    let scale = ui_scale.0;
 
     for (area_entity, game_area, population, area_gt, has_city) in area_query.iter() {
         let max_pop = population.max_population;
@@ -104,8 +107,8 @@ fn update_area_info_markers(
         if let Ok(viewport_pos) = camera.world_to_viewport(camera_gt, world_pos) {
             for (marker, mut node) in marker_query.iter_mut() {
                 if marker.area_entity == area_entity {
-                    node.left = Val::Px(viewport_pos.x - 20.0);
-                    node.top = Val::Px(viewport_pos.y + 30.0);
+                    node.left = Val::Px(viewport_pos.x / scale - 20.0);
+                    node.top = Val::Px(viewport_pos.y / scale + 30.0);
                 }
             }
         }
