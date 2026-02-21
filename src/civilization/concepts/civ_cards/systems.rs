@@ -63,7 +63,8 @@ fn build_civ_cards_ui(
     selection_state: &CivCardSelectionState,
 ) {
     let mut theme_to_use = theme.clone();
-    theme_to_use.text.label_size = 12.0;
+    theme_to_use.text.label_size = 16.0;
+    theme_to_use.text.header_size = 20.0;
     let mut builder = UIBuilder::new(commands, Some(theme_to_use));
     
     builder.component::<CivTradeUi>().add_panel(|panel| {
@@ -71,7 +72,7 @@ fn build_civ_cards_ui(
         panel
             .display_flex()
             .flex_row()
-            .size_scaled(98., 95.)
+            .size_scaled(90., 90.)
             .bg_color(panel_color)
             .padding_all_px(6.0)
             .gap_px(4.0);
@@ -183,16 +184,16 @@ fn build_civ_cards_ui(
                 buttons
                     .display_flex()
                     .flex_column()
-                    .row_gap_px(8.0)
-                    .margin_top(Val::Auto);
+                    .row_gap_px(8.0);
+                    // .margin_top(Val::Auto);
 
                 // Proceed to payment button
                 if !selection_state.selected_cards.is_empty() {
                     buttons.add_button_observe(
                         "Proceed to Payment",
                         |_btn| {},
-                        |_: On<Activate>, mut proceed_writer: MessageWriter<crate::civilization::ProceedToPayment>| {
-                            proceed_writer.write(crate::civilization::ProceedToPayment);
+                        |_: On<Activate>, mut proceed_writer: MessageWriter<ProceedToPayment>| {
+                            proceed_writer.write(ProceedToPayment);
                         },
                     );
                 }
