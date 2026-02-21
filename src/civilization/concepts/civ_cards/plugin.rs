@@ -1,4 +1,11 @@
-use crate::civilization::{begin_acquire_civ_cards, init_civ_cards, load_civ_cards, on_add_player_acquiring_civilization_cards, player_is_done, PlayerDoneAcquiringCivilizationCards};
+use crate::civilization::{
+    begin_acquire_civ_cards, handle_back_button, handle_back_to_selection, 
+    handle_civ_card_clicks, handle_confirm_purchase_button, handle_done_button, 
+    handle_proceed_to_payment, handle_proceed_to_payment_message, handle_toggle_card_selection, 
+    init_civ_cards, load_civ_cards, on_add_player_acquiring_civilization_cards, 
+    player_is_done, process_civ_card_purchase, refresh_civ_cards_ui, 
+    shuffle_trade_card_piles_on_exit, CivCardSelectionState,
+};
 use crate::{GameActivity, GameState};
 use bevy::platform::collections::HashSet;
 use bevy::prelude::*;
@@ -22,9 +29,9 @@ impl CivCardsAcquisition {
 impl Plugin for CivCardsPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_message::<PlayerDoneAcquiringCivilizationCards>()
             .add_plugins(RonAssetPlugin::<AvailableCivCards>::new(&["cards.ron"]))
             .init_resource::<CivCardsAcquisition>()
+            .init_resource::<CivCardSelectionState>()
             .add_observer(on_add_player_acquiring_civilization_cards)
             .add_systems(OnEnter(GameState::Loading), load_civ_cards)
             .add_systems(OnEnter(GameState::Playing), init_civ_cards)
@@ -33,8 +40,24 @@ impl Plugin for CivCardsPlugin {
                 (init_civ_cards, begin_acquire_civ_cards).chain(),
             )
             .add_systems(
+                OnExit(GameActivity::AcquireCivilizationCards),
+                shuffle_trade_card_piles_on_exit,
+            )
+            .add_systems(
                 Update,
-                (player_is_done).run_if(in_state(GameActivity::AcquireCivilizationCards)),
+                (
+                    handle_civ_card_clicks,
+                    handle_toggle_card_selection,
+                    handle_proceed_to_payment,
+                    handle_proceed_to_payment_message,
+                    handle_done_button,
+                    handle_back_button,
+                    handle_back_to_selection,
+                    handle_confirm_purchase_button,
+                    process_civ_card_purchase,
+                    refresh_civ_cards_ui,
+                    player_is_done,
+                ).run_if(in_state(GameActivity::AcquireCivilizationCards)),
             );
     }
 }
