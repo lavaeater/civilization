@@ -340,7 +340,6 @@ pub fn refresh_civ_cards_ui(
     for _ in refresh_reader.read() {
         // Despawn existing UI
         for entity in ui_query.iter() {
-            info!("Despawn here?");
             commands.entity(entity).despawn();
         }
         
@@ -582,7 +581,6 @@ pub fn process_civ_card_purchase(
             
             // Despawn UI
             for entity in ui_query.iter() {
-                info!("Other despawn!");
                 commands.entity(entity).despawn();
             }
             
