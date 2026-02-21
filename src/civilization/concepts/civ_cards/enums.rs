@@ -22,13 +22,13 @@ impl CivCardType {
         let civics = make_bitflags!(Self::Civics);
         let religion = make_bitflags!(Self::Religion);
         
-        let arts_sciences = make_bitflags!(Self::{Arts | Sciences});
-        let crafts_sciences = make_bitflags!(Self::{Crafts | Sciences});
-        let arts_civics = make_bitflags!(Self::{Arts | Civics});
-        let religion_arts = make_bitflags!(Self::{Arts | Religion});
+        // let arts_sciences = make_bitflags!(Self::{Arts | Sciences});
+        // let crafts_sciences = make_bitflags!(Self::{Crafts | Sciences});
+        // let arts_civics = make_bitflags!(Self::{Arts | Civics});
+        // let religion_arts = make_bitflags!(Self::{Arts | Religion});
         
         
-        vec![arts, crafts, sciences, civics, religion, arts_sciences, crafts_sciences, arts_civics, religion_arts]
+        vec![arts, crafts, sciences, civics, religion]//, arts_sciences, crafts_sciences, arts_civics, religion_arts]
     }
 }
 

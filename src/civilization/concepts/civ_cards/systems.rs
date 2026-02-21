@@ -91,7 +91,7 @@ fn build_civ_cards_ui(
                 col_builder
                     .display_flex()
                     .flex_column()
-                    .width(px(200.0))
+                    .width(px(150.0))
                     .height(percent(100.))
                     .bg_color(col_color)
                     .padding_all_px(6.0)
@@ -263,9 +263,9 @@ fn create_civ_card_panel(
             .display_flex()
             .flex_row()
             .justify_space_between();
-        name_row.default_text(card.name.to_string());
+        name_row.add_text_child(card.name.to_string(), None, None, None);
         if let Some(ref status) = status_text {
-            name_row.default_text(format!("[{}]", status));
+            name_row.add_text_child(format!("[{}]", status), None, None, None);
         }
     });
     card_builder.with_child(|cost_row| {
