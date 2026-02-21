@@ -1,10 +1,9 @@
 use crate::civilization::{
-    AvailableCivCards, BackToCardSelection, BackToSelectionButton, CardHandle, CivCardButton, 
-    CivCardDefinition, CivCardPurchasePhase, CivCardSelectionState, CivCardType, CivCardsAcquisition, 
-    CivTradeUi, ConfirmCivCardPurchase, ConfirmPurchaseButton, Credits, DonePurchasingButton, 
-    PaymentSelectionPanel, PlayerAcquiringCivilizationCards, PlayerCivilizationCards, 
-    PlayerDoneAcquiringCivilizationCards, ProceedToPayment, ProceedToPaymentButton, 
-    RefreshCivCardsUi, SelectedCardsSummary, ToggleCivCardSelection,
+    AvailableCivCards, BackToCardSelection, CardHandle, CivCardDefinition, CivCardPurchasePhase,
+    CivCardSelectionState, CivCardType, CivCardsAcquisition, CivTradeUi, ConfirmCivCardPurchase,
+    Credits, PaymentSelectionPanel, PlayerAcquiringCivilizationCards, PlayerCivilizationCards,
+    PlayerDoneAcquiringCivilizationCards, ProceedToPayment, RefreshCivCardsUi, SelectedCardsSummary,
+    ToggleCivCardSelection,
 };
 use crate::civilization::concepts::acquire_trade_cards::{CivilizationTradeCards, PlayerTradeCards, TradeCard, TradeCardTrait};
 use crate::player::Player;
@@ -13,7 +12,8 @@ use crate::GameActivity;
 use bevy::asset::{AssetServer, Assets};
 use bevy::color::Color;
 use bevy::platform::collections::HashMap;
-use bevy::prelude::{percent, px, Add, Commands, Entity, Has, Interaction, MessageReader, MessageWriter, NextState, On, Query, Res, ResMut, Val, With, Changed, info};
+use bevy::prelude::{percent, px, Add, Commands, Entity, Has, MessageReader, MessageWriter, NextState, On, Query, Res, ResMut, Val, With, info};
+use bevy::ui_widgets::Activate;
 use lava_ui_builder::{LavaTheme, UIBuilder};
 
 pub fn load_civ_cards(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -187,31 +187,26 @@ fn build_civ_cards_ui(
 
                 // Proceed to payment button
                 if !selection_state.selected_cards.is_empty() {
-                    buttons.with_child(|btn| {
-                        btn.component::<ProceedToPaymentButton>()
-                            .insert(Interaction::default())
-                            .display_flex()
-                            .justify_center()
-                            .align_items_center()
-                            .padding_all_px(12.0)
-                            .bg_color(Color::srgba(0.2, 0.4, 0.2, 0.9))
-                            .border_radius_all_px(4.0)
-                            .default_text("Proceed to Payment");
-                    });
+                    buttons.add_button_observe(
+                        "Proceed to Payment",
+                        |_btn| {},
+                        |_: On<Activate>, mut proceed_writer: MessageWriter<crate::civilization::ProceedToPayment>| {
+                            proceed_writer.write(crate::civilization::ProceedToPayment);
+                        },
+                    );
                 }
 
                 // Done button (skip purchasing)
-                buttons.with_child(|btn| {
-                    btn.component::<DonePurchasingButton>()
-                        .insert(Interaction::default())
-                        .display_flex()
-                        .justify_center()
-                        .align_items_center()
-                        .padding_all_px(12.0)
-                        .bg_color(Color::srgba(0.3, 0.3, 0.35, 0.9))
-                        .border_radius_all_px(4.0)
-                        .default_text("Done (Skip)");
-                });
+                let player_entity = selection_state.player_entity;
+                buttons.add_button_observe(
+                    "Done (Skip)",
+                    |_btn| {},
+                    move |_: On<Activate>, mut done_writer: MessageWriter<PlayerDoneAcquiringCivilizationCards>| {
+                        if let Some(player) = player_entity {
+                            done_writer.write(PlayerDoneAcquiringCivilizationCards(player));
+                        }
+                    },
+                );
             });
         });
     });
@@ -253,40 +248,51 @@ fn create_civ_card_panel(
         .border_radius_all_px(4.0)
         .row_gap_px(3.0);
     
+    let card_name = card.name;
     if is_purchasable {
-        card_builder.insert(CivCardButton { card_name: card.name });
-        card_builder.insert(Interaction::default());
-    }
-
-    // Card name and status
-    card_builder.with_child(|name_row| {
-        name_row
-            .display_flex()
-            .flex_row()
-            .justify_space_between();
-        name_row.default_text(card.name.to_string());
-        if let Some(ref status) = status_text {
-            name_row.default_text(status.as_str());
-        }
-    });
-
-    // Cost display
-    card_builder.with_child(|cost_row| {
-        cost_row
-            .display_flex()
-            .flex_row()
-            .justify_space_between();
-        cost_row.default_text(format!("Cost: {}", actual_cost));
-        if actual_cost < card.cost {
-            cost_row.default_text(format!("(was {})", card.cost));
-        }
-    });
-
-    // Credits this card provides (collapsed)
-    if !card.credits.is_empty() {
-        card_builder.with_child(|credits_row| {
-            credits_row.default_text(format!("Gives {} credits", card.credits.len()));
+        let label = if let Some(ref s) = status_text {
+            format!("{}\n{}\nCost: {}{}", card.name, s, actual_cost,
+                if actual_cost < card.cost { format!(" (was {})", card.cost) } else { String::new() })
+        } else {
+            format!("{}\nCost: {}{}", card.name, actual_cost,
+                if actual_cost < card.cost { format!(" (was {})", card.cost) } else { String::new() })
+        };
+        card_builder.add_button_observe(
+            label,
+            move |btn| {
+                btn.bg_color(card_bg);
+            },
+            move |_: On<Activate>, mut toggle_writer: MessageWriter<ToggleCivCardSelection>| {
+                toggle_writer.write(ToggleCivCardSelection(card_name));
+            },
+        );
+    } else {
+        // Non-purchasable: just display as a styled panel
+        card_builder.with_child(|name_row| {
+            name_row
+                .display_flex()
+                .flex_row()
+                .justify_space_between();
+            name_row.default_text(card.name.to_string());
+            if let Some(ref status) = status_text {
+                name_row.default_text(status.as_str());
+            }
         });
+        card_builder.with_child(|cost_row| {
+            cost_row
+                .display_flex()
+                .flex_row()
+                .justify_space_between();
+            cost_row.default_text(format!("Cost: {}", actual_cost));
+            if actual_cost < card.cost {
+                cost_row.default_text(format!("(was {})", card.cost));
+            }
+        });
+        if !card.credits.is_empty() {
+            card_builder.with_child(|credits_row| {
+                credits_row.default_text(format!("Gives {} credits", card.credits.len()));
+            });
+        }
     }
 }
 
@@ -299,17 +305,6 @@ fn format_credit(credit: &Credits) -> String {
     }
 }
 
-pub fn handle_civ_card_clicks(
-    mut card_query: Query<(&CivCardButton, &Interaction), Changed<Interaction>>,
-    mut toggle_writer: MessageWriter<ToggleCivCardSelection>,
-) {
-    for (card_button, interaction) in card_query.iter_mut() {
-        if *interaction == Interaction::Pressed {
-            toggle_writer.write(ToggleCivCardSelection(card_button.card_name));
-        }
-    }
-}
-
 pub fn handle_toggle_card_selection(
     mut toggle_reader: MessageReader<ToggleCivCardSelection>,
     mut selection_state: ResMut<CivCardSelectionState>,
@@ -318,31 +313,6 @@ pub fn handle_toggle_card_selection(
     for toggle in toggle_reader.read() {
         selection_state.toggle_card(toggle.0);
         refresh_writer.write(RefreshCivCardsUi);
-    }
-}
-
-pub fn handle_proceed_to_payment(
-    button_query: Query<&Interaction, (With<ProceedToPaymentButton>, Changed<Interaction>)>,
-    mut proceed_writer: MessageWriter<ProceedToPayment>,
-) {
-    for interaction in button_query.iter() {
-        if *interaction == Interaction::Pressed {
-            proceed_writer.write(ProceedToPayment);
-        }
-    }
-}
-
-pub fn handle_done_button(
-    button_query: Query<&Interaction, (With<DonePurchasingButton>, Changed<Interaction>)>,
-    selection_state: Res<CivCardSelectionState>,
-    mut done_writer: MessageWriter<PlayerDoneAcquiringCivilizationCards>,
-) {
-    for interaction in button_query.iter() {
-        if *interaction == Interaction::Pressed {
-            if let Some(player) = selection_state.player_entity {
-                done_writer.write(PlayerDoneAcquiringCivilizationCards(player));
-            }
-        }
     }
 }
 
@@ -507,75 +477,42 @@ fn build_payment_ui(
                 .flex_row()
                 .gap_px(16.0);
 
-            buttons.with_child(|btn| {
-                btn.component::<BackToSelectionButton>()
-                    .insert(Interaction::default())
-                    .display_flex()
-                    .justify_center()
-                    .align_items_center()
-                    .padding_all_px(12.0)
-                    .bg_color(Color::srgba(0.3, 0.3, 0.35, 0.9))
-                    .border_radius_all_px(4.0)
-                    .default_text("Back");
-            });
+            buttons.add_button_observe(
+                "Back",
+                |_btn| {},
+                |_: On<Activate>, mut back_writer: MessageWriter<crate::civilization::BackToCardSelection>| {
+                    back_writer.write(crate::civilization::BackToCardSelection);
+                },
+            );
 
             if total_value >= total_cost as usize {
-                buttons.with_child(|btn| {
-                    btn.component::<ConfirmPurchaseButton>()
-                        .insert(Interaction::default())
-                        .display_flex()
-                        .justify_center()
-                        .align_items_center()
-                        .padding_all_px(12.0)
-                        .bg_color(Color::srgba(0.2, 0.4, 0.2, 0.9))
-                        .border_radius_all_px(4.0)
-                        .default_text("Confirm Purchase");
-                });
+                let selected: Vec<_> = selection_state.selected_cards.iter().cloned().collect();
+                buttons.add_button_observe(
+                    "Confirm Purchase",
+                    |_btn| {},
+                    move |_: On<Activate>,
+                          mut purchase_writer: MessageWriter<ConfirmCivCardPurchase>,
+                          human_player_query: Query<(Entity, &PlayerTradeCards), With<IsHuman>>,
+                          player_cards_query: Query<&PlayerCivilizationCards, With<IsHuman>>,
+                          cards: Res<AvailableCivCards>| {
+                        if let Ok((player_entity, player_trade_cards)) = human_player_query.single() {
+                            if let Ok(player_cards) = player_cards_query.single() {
+                                let selected_defs = cards.cards_for_names(&selected.iter().cloned().collect());
+                                let credits = cards.total_credits(&player_cards.cards);
+                                let total_cost: u32 = selected_defs.iter().map(|c| c.calculate_cost(&credits)).sum();
+                                let payment = calculate_auto_payment(player_trade_cards, total_cost as usize);
+                                purchase_writer.write(ConfirmCivCardPurchase {
+                                    player: player_entity,
+                                    cards_to_buy: selected.iter().cloned().collect(),
+                                    payment,
+                                });
+                            }
+                        }
+                    },
+                );
             }
         });
     });
-}
-
-pub fn handle_back_button(
-    button_query: Query<&Interaction, (With<BackToSelectionButton>, Changed<Interaction>)>,
-    mut back_writer: MessageWriter<BackToCardSelection>,
-) {
-    for interaction in button_query.iter() {
-        if *interaction == Interaction::Pressed {
-            back_writer.write(BackToCardSelection);
-        }
-    }
-}
-
-pub fn handle_confirm_purchase_button(
-    button_query: Query<&Interaction, (With<ConfirmPurchaseButton>, Changed<Interaction>)>,
-    selection_state: Res<CivCardSelectionState>,
-    human_player_query: Query<(Entity, &PlayerTradeCards), With<IsHuman>>,
-    cards: Res<AvailableCivCards>,
-    player_cards_query: Query<&PlayerCivilizationCards, With<IsHuman>>,
-    mut purchase_writer: MessageWriter<ConfirmCivCardPurchase>,
-) {
-    for interaction in button_query.iter() {
-        if *interaction == Interaction::Pressed {
-            if let Ok((player_entity, player_trade_cards)) = human_player_query.single() {
-                if let Ok(player_cards) = player_cards_query.single() {
-                    // Calculate total cost
-                    let selected_defs = cards.cards_for_names(&selection_state.selected_cards);
-                    let credits = cards.total_credits(&player_cards.cards);
-                    let total_cost: u32 = selected_defs.iter().map(|c| c.calculate_cost(&credits)).sum();
-                    
-                    // Auto-select payment (lowest value cards first)
-                    let payment = calculate_auto_payment(player_trade_cards, total_cost as usize);
-                    
-                    purchase_writer.write(ConfirmCivCardPurchase {
-                        player: player_entity,
-                        cards_to_buy: selection_state.selected_cards.iter().cloned().collect(),
-                        payment,
-                    });
-                }
-            }
-        }
-    }
 }
 
 fn calculate_auto_payment(player_trade_cards: &PlayerTradeCards, target_cost: usize) -> HashMap<TradeCard, usize> {

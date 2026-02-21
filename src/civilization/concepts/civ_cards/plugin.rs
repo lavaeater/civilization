@@ -1,5 +1,5 @@
 use crate::civilization::concepts::civ_cards::assets_resources::AvailableCivCards;
-use crate::civilization::{begin_acquire_civ_cards, handle_back_button, handle_back_to_selection, handle_civ_card_clicks, handle_confirm_purchase_button, handle_done_button, handle_proceed_to_payment, handle_proceed_to_payment_message, handle_toggle_card_selection, init_civ_cards, load_civ_cards, on_add_player_acquiring_civilization_cards, player_is_done, process_civ_card_purchase, refresh_civ_cards_ui, shuffle_trade_card_piles_on_exit, BackToCardSelection, CivCardSelectionState, ConfirmCivCardPurchase, PlayerDoneAcquiringCivilizationCards, ProceedToPayment, RefreshCivCardsUi, ToggleCivCardSelection};
+use crate::civilization::{begin_acquire_civ_cards, handle_back_to_selection, handle_proceed_to_payment_message, handle_toggle_card_selection, init_civ_cards, load_civ_cards, on_add_player_acquiring_civilization_cards, player_is_done, process_civ_card_purchase, refresh_civ_cards_ui, shuffle_trade_card_piles_on_exit, BackToCardSelection, CivCardSelectionState, ConfirmCivCardPurchase, PlayerDoneAcquiringCivilizationCards, ProceedToPayment, RefreshCivCardsUi, ToggleCivCardSelection};
 use crate::{GameActivity, GameState};
 use bevy::platform::collections::HashSet;
 use bevy::prelude::*;
@@ -45,14 +45,9 @@ impl Plugin for CivCardsPlugin {
             .add_systems(
                 Update,
                 (
-                    handle_civ_card_clicks,
                     handle_toggle_card_selection,
-                    handle_proceed_to_payment,
                     handle_proceed_to_payment_message,
-                    handle_done_button,
-                    handle_back_button,
                     handle_back_to_selection,
-                    handle_confirm_purchase_button,
                     process_civ_card_purchase,
                     refresh_civ_cards_ui,
                     player_is_done,
