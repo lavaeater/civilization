@@ -71,7 +71,7 @@ fn build_civ_cards_ui(
         panel
             .display_flex()
             .flex_row()
-            .size(percent(98.), percent(95.))
+            .size_scaled(98., 95.)
             .bg_color(panel_color)
             .padding_all_px(6.0)
             .gap_px(4.0);
@@ -81,7 +81,7 @@ fn build_civ_cards_ui(
             cards_area
                 .display_flex()
                 .flex_row()
-                .width(percent(60.))
+                .width_scaled(60.)
                 .height(percent(100.))
                 .gap_px(2.0)
                 .overflow_scroll_y();
@@ -119,7 +119,7 @@ fn build_civ_cards_ui(
             sidebar
                 .display_flex()
                 .flex_column()
-                .width(percent(40.))
+                .width_scaled(40.)
                 .height(percent(100.))
                 .bg_color(Color::srgba(0.12, 0.12, 0.15, 0.95))
                 .padding_all_px(6.0)
