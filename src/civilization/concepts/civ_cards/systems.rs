@@ -91,7 +91,7 @@ fn build_civ_cards_ui(
                 col_builder
                     .display_flex()
                     .flex_column()
-                    .width(percent(19.0))
+                    .width(percent(20.0))
                     .height(percent(100.))
                     .bg_color(col_color)
                     .padding_all_px(3.0)
