@@ -184,8 +184,9 @@ fn build_civ_cards_ui(
                 buttons
                     .display_flex()
                     .flex_column()
-                    .row_gap_px(8.0);
-                    // .margin_top(Val::Auto);
+                    .row_gap_px(8.0)
+                    .margin_top(Val::Auto)
+                    .margin_btm(percent(5.));
 
                 // Proceed to payment button
                 if !selection_state.selected_cards.is_empty() {
