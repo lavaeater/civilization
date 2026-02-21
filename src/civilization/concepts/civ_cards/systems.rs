@@ -1,18 +1,18 @@
 use crate::civilization::{
     AvailableCivCards, BackToCardSelection, CardHandle, CivCardDefinition, CivCardPurchasePhase,
     CivCardSelectionState, CivCardType, CivCardsAcquisition, CivTradeUi, ConfirmCivCardPurchase,
-    Credits, PaymentSelectionPanel, PlayerAcquiringCivilizationCards, PlayerCivilizationCards,
+    Credits, PaymentAdjustButton, PaymentSelectionPanel, PaymentState, PaymentValueDisplay,
+    PlayerAcquiringCivilizationCards, PlayerCivilizationCards,
     PlayerDoneAcquiringCivilizationCards, ProceedToPayment, RefreshCivCardsUi, SelectedCardsSummary,
     ToggleCivCardSelection,
 };
-use crate::civilization::concepts::acquire_trade_cards::{CivilizationTradeCards, PlayerTradeCards, TradeCard, TradeCardTrait};
+use crate::civilization::concepts::acquire_trade_cards::{CivilizationTradeCards, PlayerTradeCards, TradeCardTrait};
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
 use bevy::asset::{AssetServer, Assets};
 use bevy::color::Color;
-use bevy::platform::collections::HashMap;
-use bevy::prelude::{percent, px, Add, Button, Commands, Entity, Has, MessageReader, MessageWriter, NextState, On, Query, Res, ResMut, Val, With, info};
+use bevy::prelude::{percent, Add, Button, Changed, Commands, Entity, Has, Interaction, MessageReader, MessageWriter, NextState, On, Query, Res, ResMut, Val, With};
 use bevy::ui_widgets::Button as WidgetsButton;
 use bevy::ui_widgets::Activate;
 use lava_ui_builder::{LavaTheme, UIBuilder};
@@ -322,10 +322,12 @@ pub fn handle_proceed_to_payment_message(
 pub fn handle_back_to_selection(
     mut back_reader: MessageReader<BackToCardSelection>,
     mut selection_state: ResMut<CivCardSelectionState>,
+    mut payment_state: ResMut<PaymentState>,
     mut refresh_writer: MessageWriter<RefreshCivCardsUi>,
 ) {
     for _ in back_reader.read() {
         selection_state.phase = CivCardPurchasePhase::SelectingCards;
+        payment_state.reset();
         refresh_writer.write(RefreshCivCardsUi);
     }
 }
@@ -338,6 +340,7 @@ pub fn refresh_civ_cards_ui(
     theme: Res<LavaTheme>,
     cards: Res<AvailableCivCards>,
     selection_state: Res<CivCardSelectionState>,
+    payment_state: Res<PaymentState>,
 ) {
     for _ in refresh_reader.read() {
         // Despawn existing UI
@@ -366,6 +369,7 @@ pub fn refresh_civ_cards_ui(
                         player_cards,
                         player_trade_cards,
                         &selection_state,
+                        &payment_state,
                     );
                 }
             }
@@ -380,17 +384,18 @@ fn build_payment_ui(
     player_cards: &PlayerCivilizationCards,
     player_trade_cards: &PlayerTradeCards,
     selection_state: &CivCardSelectionState,
+    payment_state: &PaymentState,
 ) {
     let mut theme_to_use = theme.clone();
     theme_to_use.text.label_size = 14.0;
     let mut builder = UIBuilder::new(commands, Some(theme_to_use));
-    
-    // Calculate total cost
+
     let selected_defs = cards.cards_for_names(&selection_state.selected_cards);
     let credits = cards.total_credits(&player_cards.cards);
     let total_cost: u32 = selected_defs.iter().map(|c| c.calculate_cost(&credits)).sum();
-    let total_value = player_trade_cards.total_stack_value();
-    
+    let chosen_value = payment_state.total_value();
+    let can_confirm = chosen_value >= total_cost as usize;
+
     builder.component::<CivTradeUi>().add_panel(|panel| {
         let panel_color = Color::srgba(0.1, 0.1, 0.1, 0.95);
         panel
@@ -403,7 +408,7 @@ fn build_payment_ui(
             .align_items_center();
 
         panel.default_text("Select Payment");
-        
+
         // Show what we're buying
         panel.with_child(|buying| {
             buying
@@ -413,7 +418,7 @@ fn build_payment_ui(
                 .padding_all_px(12.0)
                 .bg_color(Color::srgba(0.15, 0.15, 0.2, 0.9))
                 .border_radius_all_px(4.0);
-            
+
             buying.default_text("Purchasing:");
             for card_def in &selected_defs {
                 let cost = card_def.calculate_cost(&credits);
@@ -422,43 +427,94 @@ fn build_payment_ui(
             buying.default_text(format!("Total Cost: {}", total_cost));
         });
 
-        // Show commodity cards
+        // Commodity card picker — one +/- row per stack
         panel.with_child(|commodities| {
             commodities
                 .component::<PaymentSelectionPanel>()
                 .display_flex()
-                .flex_row()
-                .flex_wrap()
-                .gap_px(8.0)
+                .flex_column()
+                .gap_px(6.0)
                 .padding_all_px(12.0)
                 .bg_color(Color::srgba(0.15, 0.15, 0.2, 0.9))
                 .border_radius_all_px(4.0)
                 .width(percent(100.));
-            
-            commodities.default_text("Your Commodity Cards:");
-            
+
+            commodities.default_text("Choose cards to pay with:");
+
             let stacks = player_trade_cards.as_card_stacks_sorted_by_value();
             for stack in stacks.iter().filter(|s| s.is_commodity) {
-                commodities.with_child(|card| {
-                    card.display_flex()
-                        .flex_column()
-                        .padding_all_px(8.0)
-                        .bg_color(Color::srgba(0.25, 0.25, 0.3, 0.9))
-                        .border_radius_all_px(4.0);
-                    card.default_text(format!("{}", stack.card_type));
-                    card.default_text(format!("x{} = {}", stack.count, stack.suite_value));
+                let card_type = stack.card_type;
+                let owned = stack.count;
+                let chosen = payment_state.chosen.get(&card_type).copied().unwrap_or(0);
+                let chosen_value_for_stack = chosen * chosen * card_type.value();
+
+                commodities.add_row(|row| {
+                    row.width(percent(100.0)).align_items_center().margin(bevy::prelude::UiRect::vertical(Val::Px(2.0)));
+
+                    // Decrement button
+                    row.add_button(
+                        "<", 30.0, 24.0,
+                        Color::srgb(0.4, 0.3, 0.3), 14.0, 4.0,
+                        PaymentAdjustButton { card: card_type, delta: -1 },
+                    );
+
+                    // Card name label
+                    row.with_child(|label| {
+                        label.set_node(bevy::prelude::Node {
+                            padding: bevy::prelude::UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
+                            margin: bevy::prelude::UiRect::horizontal(Val::Px(4.0)),
+                            min_width: Val::Px(120.0),
+                            justify_content: bevy::prelude::JustifyContent::Center,
+                            ..Default::default()
+                        });
+                        label.add_text_child(
+                            format!("{}", card_type),
+                            None, Some(12.0), Some(Color::WHITE),
+                        );
+                    });
+
+                    // Chosen / owned count
+                    row.add_text_child(
+                        format!("{}/{}", chosen, owned),
+                        None, Some(13.0), Some(Color::WHITE),
+                    );
+
+                    // Increment button
+                    row.add_button(
+                        ">", 30.0, 24.0,
+                        Color::srgb(0.3, 0.4, 0.3), 14.0, 4.0,
+                        PaymentAdjustButton { card: card_type, delta: 1 },
+                    );
+
+                    // Stack value contribution
+                    row.add_text_child(
+                        format!("  = {}", chosen_value_for_stack),
+                        None, Some(12.0), Some(Color::srgb(0.7, 0.9, 0.7)),
+                    );
                 });
             }
         });
 
-        // Info about auto-payment
-        panel.with_child(|info| {
-            info.default_text(format!("Available value: {} | Need: {}", total_value, total_cost));
-            if total_value >= total_cost as usize {
-                info.default_text("Payment will use lowest-value cards first.");
+        // Running total display
+        panel.with_child(|total_row| {
+            total_row
+                .component::<PaymentValueDisplay>()
+                .display_flex()
+                .flex_row()
+                .gap_px(8.0)
+                .padding_all_px(8.0)
+                .bg_color(Color::srgba(0.12, 0.12, 0.18, 0.95))
+                .border_radius_all_px(4.0);
+
+            let status_color = if can_confirm {
+                Color::srgb(0.3, 0.9, 0.3)
             } else {
-                info.default_text("Not enough value to complete purchase!");
-            }
+                Color::srgb(0.9, 0.4, 0.3)
+            };
+            total_row.add_text_child(
+                format!("Paying: {} / {} required", chosen_value, total_cost),
+                None, Some(14.0), Some(status_color),
+            );
         });
 
         // Buttons
@@ -476,28 +532,21 @@ fn build_payment_ui(
                 },
             );
 
-            if total_value >= total_cost as usize {
+            if can_confirm {
                 let selected: Vec<_> = selection_state.selected_cards.iter().cloned().collect();
+                let payment = payment_state.chosen.clone();
                 buttons.add_button_observe(
                     "Confirm Purchase",
                     |_btn| {},
                     move |_: On<Activate>,
                           mut purchase_writer: MessageWriter<ConfirmCivCardPurchase>,
-                          human_player_query: Query<(Entity, &PlayerTradeCards), With<IsHuman>>,
-                          player_cards_query: Query<&PlayerCivilizationCards, With<IsHuman>>,
-                          cards: Res<AvailableCivCards>| {
-                        if let Ok((player_entity, player_trade_cards)) = human_player_query.single() {
-                            if let Ok(player_cards) = player_cards_query.single() {
-                                let selected_defs = cards.cards_for_names(&selected.iter().cloned().collect());
-                                let credits = cards.total_credits(&player_cards.cards);
-                                let total_cost: u32 = selected_defs.iter().map(|c| c.calculate_cost(&credits)).sum();
-                                let payment = calculate_auto_payment(player_trade_cards, total_cost as usize);
-                                purchase_writer.write(ConfirmCivCardPurchase {
-                                    player: player_entity,
-                                    cards_to_buy: selected.iter().cloned().collect(),
-                                    payment,
-                                });
-                            }
+                          human_player_query: Query<Entity, With<IsHuman>>| {
+                        if let Ok(player_entity) = human_player_query.single() {
+                            purchase_writer.write(ConfirmCivCardPurchase {
+                                player: player_entity,
+                                cards_to_buy: selected.iter().cloned().collect(),
+                                payment: payment.clone(),
+                            });
                         }
                     },
                 );
@@ -506,48 +555,46 @@ fn build_payment_ui(
     });
 }
 
-fn calculate_auto_payment(player_trade_cards: &PlayerTradeCards, target_cost: usize) -> HashMap<TradeCard, usize> {
-    let mut payment = HashMap::default();
-    let mut remaining_cost = target_cost;
-    
-    // Get commodity stacks sorted by value (lowest first)
-    let mut stacks: Vec<_> = player_trade_cards.as_card_stacks()
-        .into_iter()
-        .filter(|s| s.is_commodity)
-        .collect();
-    stacks.sort_by_key(|s| s.card_type.value());
-    
-    // Greedily select cards to meet the cost
-    for stack in stacks {
-        if remaining_cost == 0 {
-            break;
+pub fn handle_payment_adjust(
+    mut interaction_query: Query<
+        (&Interaction, &PaymentAdjustButton),
+        Changed<Interaction>,
+    >,
+    mut payment_state: ResMut<PaymentState>,
+    human_player_query: Query<&PlayerTradeCards, With<IsHuman>>,
+    mut refresh_writer: MessageWriter<RefreshCivCardsUi>,
+) {
+    let Ok(player_trade_cards) = human_player_query.single() else { return; };
+
+    let mut changed = false;
+    for (interaction, btn) in &mut interaction_query {
+        if *interaction != Interaction::Pressed {
+            continue;
         }
-        
-        // Calculate how many cards we need from this stack
-        let mut cards_to_use = 0;
-        let mut value_so_far = 0;
-        
-        for n in 1..=stack.count {
-            let stack_value = n * n * stack.card_type.value();
-            if stack_value >= remaining_cost || n == stack.count {
-                cards_to_use = n;
-                value_so_far = stack_value;
-                break;
+
+        let owned = player_trade_cards.number_of_cards_for_trade_card(btn.card);
+        let current = payment_state.chosen.get(&btn.card).copied().unwrap_or(0);
+
+        if btn.delta > 0 {
+            if current < owned {
+                *payment_state.chosen.entry(btn.card).or_insert(0) += 1;
+                changed = true;
             }
-        }
-        
-        if cards_to_use > 0 {
-            payment.insert(stack.card_type, cards_to_use);
-            if value_so_far >= remaining_cost {
-                remaining_cost = 0;
+        } else if current > 0 {
+            if current > 1 {
+                *payment_state.chosen.get_mut(&btn.card).unwrap() -= 1;
             } else {
-                remaining_cost -= value_so_far;
+                payment_state.chosen.remove(&btn.card);
             }
+            changed = true;
         }
     }
-    
-    payment
+
+    if changed {
+        refresh_writer.write(RefreshCivCardsUi);
+    }
 }
+
 
 pub fn process_civ_card_purchase(
     mut purchase_reader: MessageReader<ConfirmCivCardPurchase>,

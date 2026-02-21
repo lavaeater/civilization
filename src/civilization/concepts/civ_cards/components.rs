@@ -1,5 +1,6 @@
 use crate::civilization::CivCardName;
-use bevy::platform::collections::HashSet;
+use crate::civilization::concepts::acquire_trade_cards::{TradeCard, TradeCardTrait};
+use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{Component, Entity, Resource};
 use serde::{Deserialize, Serialize};
 
@@ -95,3 +96,35 @@ pub struct ProceedToPaymentButton;
 /// Marker for back to selection button
 #[derive(Component, Default)]
 pub struct BackToSelectionButton;
+
+/// Resource tracking the player's manual payment selection during civ card purchase.
+#[derive(Resource, Default)]
+pub struct PaymentState {
+    /// How many cards of each commodity the player has chosen to pay with.
+    pub chosen: HashMap<TradeCard, usize>,
+}
+
+impl PaymentState {
+    pub fn reset(&mut self) {
+        self.chosen.clear();
+    }
+
+    /// Total value contributed by the current selection (count² × face_value per stack).
+    pub fn total_value(&self) -> usize {
+        self.chosen
+            .iter()
+            .map(|(card, &count)| count * count * card.value())
+            .sum()
+    }
+}
+
+/// Button to increment or decrement the chosen count for a commodity in the payment UI.
+#[derive(Component)]
+pub struct PaymentAdjustButton {
+    pub card: TradeCard,
+    pub delta: i32,
+}
+
+/// Marker for the text node that shows the running total value vs required cost.
+#[derive(Component, Default)]
+pub struct PaymentValueDisplay;

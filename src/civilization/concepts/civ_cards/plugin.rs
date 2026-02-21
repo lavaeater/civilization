@@ -1,5 +1,5 @@
 use crate::civilization::concepts::civ_cards::assets_resources::AvailableCivCards;
-use crate::civilization::{begin_acquire_civ_cards, handle_back_to_selection, handle_proceed_to_payment_message, handle_toggle_card_selection, init_civ_cards, load_civ_cards, on_add_player_acquiring_civilization_cards, player_is_done, process_civ_card_purchase, refresh_civ_cards_ui, shuffle_trade_card_piles_on_exit, BackToCardSelection, CivCardSelectionState, ConfirmCivCardPurchase, PlayerDoneAcquiringCivilizationCards, ProceedToPayment, RefreshCivCardsUi, ToggleCivCardSelection};
+use crate::civilization::{begin_acquire_civ_cards, handle_back_to_selection, handle_payment_adjust, handle_proceed_to_payment_message, handle_toggle_card_selection, init_civ_cards, load_civ_cards, on_add_player_acquiring_civilization_cards, player_is_done, process_civ_card_purchase, refresh_civ_cards_ui, shuffle_trade_card_piles_on_exit, BackToCardSelection, CivCardSelectionState, ConfirmCivCardPurchase, PaymentState, PlayerDoneAcquiringCivilizationCards, ProceedToPayment, RefreshCivCardsUi, ToggleCivCardSelection};
 use crate::{GameActivity, GameState};
 use bevy::platform::collections::HashSet;
 use bevy::prelude::*;
@@ -25,6 +25,7 @@ impl Plugin for CivCardsPlugin {
             .add_plugins(RonAssetPlugin::<AvailableCivCards>::new(&["cards.ron"]))
             .init_resource::<CivCardsAcquisition>()
             .init_resource::<CivCardSelectionState>()
+            .init_resource::<PaymentState>()
             .add_observer(on_add_player_acquiring_civilization_cards)
             .add_message::<PlayerDoneAcquiringCivilizationCards>()
             .add_message::<ToggleCivCardSelection>()
@@ -48,6 +49,7 @@ impl Plugin for CivCardsPlugin {
                     handle_toggle_card_selection,
                     handle_proceed_to_payment_message,
                     handle_back_to_selection,
+                    handle_payment_adjust,
                     process_civ_card_purchase,
                     refresh_civ_cards_ui,
                     player_is_done,
