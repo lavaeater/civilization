@@ -73,17 +73,17 @@ fn build_civ_cards_ui(
             .flex_row()
             .size(percent(98.), percent(95.))
             .bg_color(panel_color)
-            .padding_all_px(12.0)
-            .gap_px(8.0);
+            .padding_all_px(6.0)
+            .gap_px(4.0);
 
         // Left side: Card columns
         panel.with_child(|cards_area| {
             cards_area
                 .display_flex()
                 .flex_row()
-                .width(percent(75.))
+                .width(percent(60.))
                 .height(percent(100.))
-                .gap_px(4.0)
+                .gap_px(2.0)
                 .overflow_scroll_y();
 
             cards_area.foreach_child(CivCardType::all_types().iter(), |col_builder, card_type| {
@@ -91,13 +91,13 @@ fn build_civ_cards_ui(
                 col_builder
                     .display_flex()
                     .flex_column()
-                    .width(px(150.0))
+                    .width(percent(19.0))
                     .height(percent(100.))
                     .bg_color(col_color)
-                    .padding_all_px(6.0)
-                    .row_gap_px(6.0)
+                    .padding_all_px(3.0)
+                    .row_gap_px(3.0)
                     .overflow_scroll_y()
-                    .border_radius_all_px(4.0);
+                    .border_radius_all_px(2.0);
 
                 col_builder.with_child(|header| {
                     header
@@ -119,11 +119,11 @@ fn build_civ_cards_ui(
             sidebar
                 .display_flex()
                 .flex_column()
-                .width(percent(25.))
+                .width(percent(40.))
                 .height(percent(100.))
                 .bg_color(Color::srgba(0.12, 0.12, 0.15, 0.95))
-                .padding_all_px(12.0)
-                .row_gap_px(12.0)
+                .padding_all_px(6.0)
+                .row_gap_px(6.0)
                 .border_radius_all_px(6.0);
 
             // Player's buying power
@@ -245,9 +245,9 @@ fn create_civ_card_panel(
         .display_flex()
         .flex_column()
         .bg_color(card_bg)
-        .padding_all_px(6.0)
-        .border_radius_all_px(4.0)
-        .row_gap_px(3.0);
+        .padding_all_px(3.0)
+        .border_radius_all_px(2.0)
+        .row_gap_px(2.0);
     
     let card_name = card.name;
     if is_purchasable {
