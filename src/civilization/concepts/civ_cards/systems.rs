@@ -12,7 +12,8 @@ use crate::GameActivity;
 use bevy::asset::{AssetServer, Assets};
 use bevy::color::Color;
 use bevy::platform::collections::HashMap;
-use bevy::prelude::{percent, px, Add, Button, Commands, Entity, Has, MessageReader, MessageWriter, NextState, Observer, On, Query, Res, ResMut, Val, With, info};
+use bevy::prelude::{percent, px, Add, Button, Commands, Entity, Has, MessageReader, MessageWriter, NextState, On, Query, Res, ResMut, Val, With, info};
+use bevy::ui_widgets::Button as WidgetsButton;
 use bevy::ui_widgets::Activate;
 use lava_ui_builder::{LavaTheme, UIBuilder};
 
@@ -251,11 +252,10 @@ fn create_civ_card_panel(
     let card_name = card.name;
     if is_purchasable {
         card_builder.insert(Button);
-        card_builder.insert(Observer::new(
-            move |_: On<Activate>, mut toggle_writer: MessageWriter<ToggleCivCardSelection>| {
-                toggle_writer.write(ToggleCivCardSelection(card_name));
-            },
-        ));
+        card_builder.insert(WidgetsButton);
+        card_builder.observe(move |_: On<Activate>, mut toggle_writer: MessageWriter<ToggleCivCardSelection>| {
+            toggle_writer.write(ToggleCivCardSelection(card_name));
+        });
     }
 
     card_builder.with_child(|name_row| {
@@ -265,7 +265,7 @@ fn create_civ_card_panel(
             .justify_space_between();
         name_row.default_text(card.name.to_string());
         if let Some(ref status) = status_text {
-            name_row.default_text(status.as_str());
+            name_row.default_text(format!("[{}]", status));
         }
     });
     card_builder.with_child(|cost_row| {
@@ -273,9 +273,10 @@ fn create_civ_card_panel(
             .display_flex()
             .flex_row()
             .justify_space_between();
-        cost_row.default_text(format!("Cost: {}", actual_cost));
         if actual_cost < card.cost {
-            cost_row.default_text(format!("(was {})", card.cost));
+            cost_row.default_text(format!("Cost: {} (was {})", actual_cost, card.cost));
+        } else {
+            cost_row.default_text(format!("Cost: {}", actual_cost));
         }
     });
     if !card.credits.is_empty() {
