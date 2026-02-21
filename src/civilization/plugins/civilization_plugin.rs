@@ -20,7 +20,7 @@ pub struct CivilizationPlugin;
 impl Plugin for CivilizationPlugin {
     fn build(&self, app: &mut App) {
         // Use DebugOptions::test_manual_pop_exp() to test manual population expansion
-        app.insert_resource(DebugOptions::test_civ_cards())
+        app.insert_resource(DebugOptions::default())
         .register_type::<Player>()
         .register_type::<Token>()
         .register_type::<LandPassage>()
