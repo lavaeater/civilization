@@ -1,6 +1,7 @@
 use enumflags2::{bitflags, make_bitflags, BitFlags};
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use bevy::prelude::Reflect;
 
 #[bitflags]
 #[repr(u8)]
@@ -31,7 +32,7 @@ impl CivCardType {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Reflect, Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CivCardName {
     Pottery = 1,
     ClothMaking = 2,

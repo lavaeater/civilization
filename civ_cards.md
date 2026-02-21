@@ -15,3 +15,5 @@ The way purchases of civilization cards work is as follows:
 11. The player is marked as done when it comes to purchasing cards. <- needs doing
 12. When all players are done, the game moves to the next activity. <- needs doing
 13. Before exiting the activity, the commodity cards are shuffled per the rules and inserted into the piles again. <- needs doing
+
+

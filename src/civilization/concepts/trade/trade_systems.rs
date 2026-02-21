@@ -8,8 +8,8 @@ use crate::civilization::concepts::trade::trade_components::{
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::trade_resources::{CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState};
 use crate::civilization::game_moves::RecalculatePlayerMoves;
-use crate::civilization::game_moves::{AvailableMoves, GameMove, TradeMove};
-use crate::civilization::{TradeCardTrait, TradePhaseUiRoot};
+use crate::civilization::game_moves::{AvailableMoves, AcquireCivilizationCardsMove, GameMove, TradeMove};
+use crate::civilization::{AvailableCivCards, CivCardName, PlayerCivilizationCards, TradeCardTrait, TradePhaseUiRoot};
 use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
 use bevy::platform::collections::HashMap;
@@ -253,6 +253,53 @@ pub fn handle_send_trading_cards_command(
     }
 }
 
+pub fn recalculate_civ_card_moves_for_player(
+    mut recalc_player_reader: MessageReader<RecalculatePlayerMoves>,
+    player_query: Query<(&PlayerTradeCards, &PlayerCivilizationCards)>,
+    cards: Res<AvailableCivCards>,
+    mut commands: Commands,
+) {
+    for event in recalc_player_reader.read() {
+        if let Ok((player_trade_cards, player_civ_cards)) = player_query.get(event.player) {
+            commands.entity(event.player).remove::<AvailableMoves>();
+            let mut moves: HashMap<usize, GameMove> = HashMap::default();
+            let mut command_index = 0;
+
+            let credits = cards.total_credits(&player_civ_cards.cards);
+            let buying_power = player_trade_cards.total_stack_value();
+
+            let affordable_cards: Vec<CivCardName> = cards
+                .cards
+                .iter()
+                .filter(|card| {
+                    !player_civ_cards.owns(&card.name)
+                        && player_civ_cards.has_prerequisites(&card.prerequisites)
+                        && card.calculate_cost(&credits) as usize <= buying_power
+                })
+                .map(|card| card.name)
+                .collect();
+
+            for card_name in &affordable_cards {
+                command_index += 1;
+                moves.insert(
+                    command_index,
+                    GameMove::AcquireCivilizationCards(
+                        AcquireCivilizationCardsMove::AcquireCard(*card_name),
+                    ),
+                );
+            }
+
+            command_index += 1;
+            moves.insert(
+                command_index,
+                GameMove::AcquireCivilizationCards(AcquireCivilizationCardsMove::DoneAcquiringCards),
+            );
+
+            commands.entity(event.player).insert(AvailableMoves { moves });
+        }
+    }
+}
+
 pub fn recalculate_trade_moves_for_player(
     mut recalc_player_reader: MessageReader<RecalculatePlayerMoves>,
     player_cards_query: Query<&PlayerTradeCards, With<CanTrade>>,
@@ -310,100 +357,6 @@ pub fn recalculate_trade_moves_for_player(
                             matching_cards.clone(),
                         )),
                     );
-
-                    //     let (_, current_player_wants) = player_wants_query.get(event.player).unwrap();
-                    //     match matching_cards.len() {
-                    //         1 => {
-                    //             /*
-                    //             This means we have ONE card in common with the other player.
-                    //              */
-                    //             let (card, no_of_cards) = matching_cards.iter().next().unwrap();
-                    //             // if this card is NOT our top commodity, we can offer it as a trade.
-                    //             if !trading_cards.is_top_commodity(*card) {
-                    //                 match no_of_cards {
-                    //                     0 => {
-                    //                         //Shouldn't happen, but could happen. We should not trade for a card we don't have.
-                    //                     }
-                    //                     2 => {
-                    //                         // Suggest two of these cards
-                    //                         let lowest_commodity = trading_cards.worst_commodity().unwrap();
-                    //                         command_index += 1;
-                    //                         moves.insert(
-                    //                             command_index,
-                    //                             Move::Trade(TradeMove::propose_trade(
-                    //                                 current_player_wants.get_trade_thing(&mut rng),
-                    //                                 HashMap::from([(*card, 2),(lowest_commodity, 1)]),
-                    //                                 receiver,
-                    //                             )),
-                    //                         );
-                    //                     }
-                    //                     3 => {
-                    //                         // Suggest all three cards
-                    //                         command_index += 1;
-                    //                         moves.insert(
-                    //                             command_index,
-                    //                             Move::Trade(TradeMove::propose_trade(
-                    //                                 current_player_wants.get_trade_thing(&mut rng),
-                    //                                 HashMap::from([(*card, 3)]),
-                    //                                 receiver,
-                    //                             )),
-                    //                         );
-                    //                     }
-                    //                     _ => {
-                    //                         // Suggest one of these and then the lowest commodity
-                    //                         let lowest_commodity = trading_cards.worst_commodity().unwrap();
-                    //
-                    //                         command_index += 1;
-                    //                         moves.insert(
-                    //                             command_index,
-                    //                             Move::Trade(TradeMove::propose_trade(
-                    //                                 current_player_wants.get_trade_thing(&mut rng),
-                    //                                 HashMap::from([(*card, 1),(lowest_commodity, 2)]), // we can always offer two of the lowest commodity - even if we only have one
-                    //                                 receiver,
-                    //                             )),
-                    //                         );
-                    //                     }
-                    //                 }
-                    //             }
-                    //         }
-                    //         2 => {
-                    //             // Suggest one of each of these two
-                    //             let cards: Vec<TradeCard> = matching_cards.keys().copied().collect();
-                    //             if cards.len() == 2 {
-                    //                 command_index += 1;
-                    //                 moves.insert(
-                    //                     command_index,
-                    //                     Move::Trade(TradeMove::propose_trade(
-                    //                         current_player_wants.get_trade_thing(&mut rng),
-                    //                         HashMap::from([(cards[0], 1),(cards[1], 2)]),
-                    //                         receiver,
-                    //                     )),
-                    //                 );
-                    //             }
-                    //         }
-                    //         3 => {
-                    //             // Suggest two random cards from these three and then the lowest commodity
-                    //             let mut cards: Vec<TradeCard> = matching_cards.keys().copied().collect();
-                    //             // Shuffle to get random selection
-                    //             cards.shuffle(&mut rng);
-                    //
-                    //             if cards.len() >= 2 {
-                    //                 command_index += 1;
-                    //                 let lowest_commodity = trading_cards.worst_commodity().unwrap();
-                    //                 moves.insert(
-                    //                     command_index,
-                    //                     Move::Trade(TradeMove::propose_trade(
-                    //                         current_player_wants.get_trade_thing(&mut rng),
-                    //                         HashMap::from([(cards[0], 1),(cards[1], 1), (lowest_commodity, 1)]),
-                    //                         receiver,
-                    //                     )),
-                    //                 );
-                    //
-                    //             }
-                    //         }
-                    //         _ => {}
-                    //     }
-                    // }
 
                     for (trade_offer_entity, trade_offer) in trade_offer_query.iter() {
                         if let Some(offer_actions) =

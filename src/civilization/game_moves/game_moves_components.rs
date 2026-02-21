@@ -2,6 +2,7 @@ use crate::civilization::concepts::TradeCard;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{Component, Entity, Reflect};
 use std::fmt::Display;
+use crate::civilization::CivCardName;
 
 #[derive(Component, Debug, Default, Reflect)]
 pub struct AvailableMoves {
@@ -25,6 +26,7 @@ pub enum GameMove {
     EndCityConstruction,
     EliminateCity(EliminateCityMove),
     Trade(TradeMove),
+    AcquireCivilizationCards(AcquireCivilizationCardsMove),
 }
 
 impl Display for GameMove {
@@ -109,4 +111,11 @@ pub enum TradeMove {
     AutoDeclineTrade(Entity),
     StopTrading,
     SettleTrade(Entity),
+}
+
+#[derive(Clone, Debug, Reflect, PartialEq, Eq)]
+pub enum AcquireCivilizationCardsMove {
+    AcquireCard(CivCardName),
+    AcquireCards(Vec<CivCardName>),
+    DoneAcquiringCards,
 }
