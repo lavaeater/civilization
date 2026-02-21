@@ -12,7 +12,7 @@ use crate::GameActivity;
 use bevy::asset::{AssetServer, Assets};
 use bevy::color::Color;
 use bevy::platform::collections::HashMap;
-use bevy::prelude::{percent, px, Add, Commands, Entity, Has, MessageReader, MessageWriter, NextState, On, Query, Res, ResMut, Val, With, info};
+use bevy::prelude::{percent, px, Add, Button, Commands, Entity, Has, MessageReader, MessageWriter, NextState, Observer, On, Query, Res, ResMut, Val, With, info};
 use bevy::ui_widgets::Activate;
 use lava_ui_builder::{LavaTheme, UIBuilder};
 
@@ -250,49 +250,38 @@ fn create_civ_card_panel(
     
     let card_name = card.name;
     if is_purchasable {
-        let label = if let Some(ref s) = status_text {
-            format!("{}\n{}\nCost: {}{}", card.name, s, actual_cost,
-                if actual_cost < card.cost { format!(" (was {})", card.cost) } else { String::new() })
-        } else {
-            format!("{}\nCost: {}{}", card.name, actual_cost,
-                if actual_cost < card.cost { format!(" (was {})", card.cost) } else { String::new() })
-        };
-        card_builder.add_button_observe(
-            label,
-            move |btn| {
-                btn.bg_color(card_bg);
-            },
+        card_builder.insert(Button);
+        card_builder.insert(Observer::new(
             move |_: On<Activate>, mut toggle_writer: MessageWriter<ToggleCivCardSelection>| {
                 toggle_writer.write(ToggleCivCardSelection(card_name));
             },
-        );
-    } else {
-        // Non-purchasable: just display as a styled panel
-        card_builder.with_child(|name_row| {
-            name_row
-                .display_flex()
-                .flex_row()
-                .justify_space_between();
-            name_row.default_text(card.name.to_string());
-            if let Some(ref status) = status_text {
-                name_row.default_text(status.as_str());
-            }
-        });
-        card_builder.with_child(|cost_row| {
-            cost_row
-                .display_flex()
-                .flex_row()
-                .justify_space_between();
-            cost_row.default_text(format!("Cost: {}", actual_cost));
-            if actual_cost < card.cost {
-                cost_row.default_text(format!("(was {})", card.cost));
-            }
-        });
-        if !card.credits.is_empty() {
-            card_builder.with_child(|credits_row| {
-                credits_row.default_text(format!("Gives {} credits", card.credits.len()));
-            });
+        ));
+    }
+
+    card_builder.with_child(|name_row| {
+        name_row
+            .display_flex()
+            .flex_row()
+            .justify_space_between();
+        name_row.default_text(card.name.to_string());
+        if let Some(ref status) = status_text {
+            name_row.default_text(status.as_str());
         }
+    });
+    card_builder.with_child(|cost_row| {
+        cost_row
+            .display_flex()
+            .flex_row()
+            .justify_space_between();
+        cost_row.default_text(format!("Cost: {}", actual_cost));
+        if actual_cost < card.cost {
+            cost_row.default_text(format!("(was {})", card.cost));
+        }
+    });
+    if !card.credits.is_empty() {
+        card_builder.with_child(|credits_row| {
+            credits_row.default_text(format!("Gives {} credits", card.credits.len()));
+        });
     }
 }
 
