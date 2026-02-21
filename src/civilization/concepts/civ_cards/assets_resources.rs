@@ -71,7 +71,7 @@ impl CivCardDefinition {
                             }
                         }
                     };
-                    credit_value.map(|c| (card_def.name.clone(), c))
+                    credit_value.map(|c| (card_def.name, c))
                 })
             })
             .collect()

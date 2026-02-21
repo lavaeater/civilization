@@ -110,7 +110,7 @@ fn build_civ_cards_ui(
                 });
 
                 col_builder.foreach_child(&cards.get_cards(card_type), |card_builder, card| {
-                    create_civ_card_panel(card_builder, card, player_cards, &cards, selection_state);
+                    create_civ_card_panel(card_builder, card, player_cards, cards, selection_state);
                 });
             });
         });
@@ -544,7 +544,7 @@ fn build_payment_ui(
                         if let Ok(player_entity) = human_player_query.single() {
                             purchase_writer.write(ConfirmCivCardPurchase {
                                 player: player_entity,
-                                cards_to_buy: selected.iter().cloned().collect(),
+                                cards_to_buy: selected.to_vec(),
                                 payment: payment.clone(),
                             });
                         }
