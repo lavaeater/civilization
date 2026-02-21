@@ -13,10 +13,7 @@ use crate::GameActivity;
 use bevy::asset::{AssetServer, Assets};
 use bevy::color::Color;
 use bevy::platform::collections::HashMap;
-use bevy::prelude::{
-    percent, px, Add, Commands, Entity, Has, Interaction, 
-    MessageReader, MessageWriter, NextState, On, Query, Res, ResMut, Val, With, Changed,
-};
+use bevy::prelude::{percent, px, Add, Commands, Entity, Has, Interaction, MessageReader, MessageWriter, NextState, On, Query, Res, ResMut, Val, With, Changed, info};
 use lava_ui_builder::{LavaTheme, UIBuilder};
 
 pub fn load_civ_cards(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -383,6 +380,7 @@ pub fn refresh_civ_cards_ui(
     for _ in refresh_reader.read() {
         // Despawn existing UI
         for entity in ui_query.iter() {
+            info!("Despawn here?");
             commands.entity(entity).despawn();
         }
         
@@ -657,6 +655,7 @@ pub fn process_civ_card_purchase(
             
             // Despawn UI
             for entity in ui_query.iter() {
+                info!("Other despawn!");
                 commands.entity(entity).despawn();
             }
             
@@ -673,14 +672,17 @@ pub fn player_is_done(
     mut next_state: ResMut<NextState<GameActivity>>,
     ui_query: Query<Entity, With<CivTradeUi>>,
 ) {
+    let mut human_done = false;
     for done in done_reader.read() {
         commands
             .entity(done.0)
             .remove::<PlayerAcquiringCivilizationCards>();
+        if civ_cards_acquisition.human_players.remove(&done.0) {
+            human_done = true;
+        }
         civ_cards_acquisition.players.remove(&done.0);
-        civ_cards_acquisition.human_players.remove(&done.0);
-        
-        // Despawn UI when done
+    }
+    if human_done {
         for entity in ui_query.iter() {
             commands.entity(entity).despawn();
         }

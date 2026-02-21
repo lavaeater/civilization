@@ -16,4 +16,14 @@ The way purchases of civilization cards work is as follows:
 12. When all players are done, the game moves to the next activity. <- needs doing
 13. Before exiting the activity, the commodity cards are shuffled per the rules and inserted into the piles again. <- needs doing
 
-
+## Error log
+2026-02-21T13:43:47.581741Z  INFO adv_civ::civilization::general_systems: Added human player
+2026-02-21T13:43:47.581804Z  INFO adv_civ::civilization::general_systems: Done adding players
+2026-02-21T13:43:47.762483Z  INFO adv_civ::civilization::concepts::civ_cards::systems: Another despawn
+2026-02-21T13:43:47.762519Z  INFO adv_civ::civilization::concepts::civ_cards::systems: Another despawn
+2026-02-21T13:43:47.762530Z  INFO adv_civ::civilization::concepts::civ_cards::systems: Another despawn
+2026-02-21T13:43:47.762537Z  INFO adv_civ::civilization::concepts::civ_cards::systems: Another despawn
+2026-02-21T13:43:47.762552Z  INFO adv_civ::civilization::concepts::civ_cards::systems: Another despawn
+2026-02-21T13:43:47.762560Z  INFO adv_civ::civilization::concepts::civ_cards::systems: Another despawn
+2026-02-21T13:43:47.764976Z  WARN bevy_ecs::error::handler: Encountered an error in command `<bevy_ecs::system::commands::entity_command::despawn::{{closure}} as bevy_ecs::error::command_handling::CommandWithEntity<core::result::Result<(), bevy_ecs::world::error::EntityMutableFetchError>>>::with_entity::{{closure}}`: Entity despawned: The entity with ID 995v1 is invalid; its index now has generation 2.
+Note that interacting with a despawned entity is the most common cause of this error but there are others

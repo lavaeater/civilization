@@ -217,6 +217,7 @@ pub fn setup_players(
             CityTokenStock::new(9, city_tokens),
         ));
     }
+    info!("Done adding players");
 }
 
 pub fn setup_human_player(
@@ -225,7 +226,7 @@ pub fn setup_human_player(
     commands: &mut Commands,
     player: Entity,
 ) {
-    info!("Added human player");
+    info!("Adding human player");
     commands.entity(player).remove::<StupidAi>();
     commands.entity(player).insert(IsHuman);
     if let Some(trade_cards) = &debug_options.human_trade_cards {
@@ -256,6 +257,7 @@ pub fn setup_human_player(
         commands.entity(player).insert(player_trade_cards);
         commands.entity(player).insert(player_input_bundle());
     }
+    info!("Added human player");
 }
 
 #[derive(InputAction)]
