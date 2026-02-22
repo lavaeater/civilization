@@ -1,6 +1,8 @@
 use crate::GameActivity;
 use bevy::prelude::{in_state, App, IntoScheduleConfigs, OnEnter, Plugin, Update};
 
+use crate::civilization::concepts::resolve_calamities::calamities::ResolvingCalamity;
+use crate::civilization::concepts::resolve_calamities::context::ActiveCalamityResolution;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::*;
 use crate::civilization::resolve_calamities::resolve_calamities_events::{CalamityResolved, Earthquake, ResolveNextCalamity, ResolveVolcanoEarthquake, VolcanoEruption};
@@ -18,7 +20,8 @@ impl Plugin for ResolveCalamitiesPlugin {
             .register_type::<NeedsCalamityResolution>()
             .register_type::<CalamityVictim>()
             .register_type::<PendingCalamities>()
-            .register_type::<ResolvingVolcanoEarthquake>()
+            .register_type::<ActiveCalamityResolution>()
+            .register_type::<ResolvingCalamity>()
             .register_type::<ClearAllTokens>()
             .register_type::<DestroyCity>()
             .register_type::<ReduceCity>()
@@ -32,6 +35,7 @@ impl Plugin for ResolveCalamitiesPlugin {
                 (
                     process_pending_calamities,
                     resolve_volcano_earthquake,
+                    apply_volcano_earthquake_effects,
                     handle_calamity_resolved,
                     clear_all_tokens_from_area,
                     destroy_city_in_area,

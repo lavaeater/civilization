@@ -38,9 +38,3 @@ impl PendingCalamities {
     }
 }
 
-#[derive(Component, Debug, Reflect, Default)]
-#[reflect(Component)]
-pub struct ResolvingVolcanoEarthquake {
-    pub is_volcano: bool,
-    pub target_areas: Vec<Entity>,
-}

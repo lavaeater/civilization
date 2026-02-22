@@ -14,6 +14,4 @@ Removing a city completely - counts as five points in the context of calamity re
 
 #### Volcano or Earthquake
 Already implemented in the game but needs to be amended with the rules for players holding Engineeering:
-If the primary victim holds Engineering, an earthquake reduces, rather than destroys, his city. A player who holds Engineering may not
-be selected as a secondary victim of an Earthquake. Engineering has no
-effect on Volcanoes.
+If the primary victim holds Engineering, an earthquake reduces, rather than destroys, his city. A player who holds Engineering may not be selected as a secondary victim of an Earthquake. Engineering has no effect on Volcanoes.

@@ -3,7 +3,11 @@ use rand::seq::SliceRandom;
 use rand::rng;
 
 use crate::civilization::components::*;
-use crate::civilization::{PlayerTradeCards, TradeCard, TradeCardTrait};
+use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
+use crate::civilization::concepts::resolve_calamities::calamities::volcano_earthquake::{VolcanoEarthquakePhase, VolcanoEarthquakeState};
+use crate::civilization::concepts::resolve_calamities::calamities::ResolvingCalamity;
+use crate::civilization::concepts::resolve_calamities::context::{ActiveCalamityResolution, CalamityContext, CalamityPhase};
+use crate::civilization::{CivCardName, PlayerTradeCards, TradeCard, TradeCardTrait};
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_events::*;
 use crate::civilization::functions::return_all_tokens_to_stock;
@@ -112,64 +116,33 @@ pub fn resolve_volcano_earthquake(
     mut events: MessageReader<ResolveVolcanoEarthquake>,
     mut commands: Commands,
     player_cities: Query<&PlayerCities>,
+    player_civ_cards: Query<&PlayerCivilizationCards>,
     area_query: Query<(Entity, &Population, Option<&BuiltCity>, Has<Volcano>, &LandPassage)>,
     volcano_areas: Query<Entity, With<Volcano>>,
-    mut calamity_resolved: MessageWriter<CalamityResolved>,
     names: Query<&Name>,
 ) {
-    for event in events.read() {
+    for event in events.read(){
         let primary_victim = event.primary_victim;
         let player_name = names.get(primary_victim).map(|n| n.to_string()).unwrap_or_else(|_| "Unknown".to_string());
         
         info!("[VOLCANO/EARTHQUAKE] Resolving for {}", player_name);
         
+        let has_engineering = player_civ_cards
+            .get(primary_victim)
+            .map(|cards: &PlayerCivilizationCards| cards.owns(&CivCardName::Engineering))
+            .unwrap_or(false);
+        
         let player_cities_component = player_cities.get(primary_victim).ok();
         
-        let mut volcano_candidates: Vec<(Entity, usize, bool)> = Vec::new();
+        let volcano_result = find_best_volcano_eruption(
+            primary_victim,
+            &volcano_areas,
+            &area_query,
+        );
         
-        for volcano_area in volcano_areas.iter() {
-            if let Ok((_area_entity, population, built_city, _, land_passage)) = area_query.get(volcano_area) {
-                let mut total_damage = 0usize;
-                let mut victim_has_city_in_touched_areas = false;
-                
-                if let Some(city) = built_city {
-                    if city.player == primary_victim {
-                        total_damage += 5;
-                        victim_has_city_in_touched_areas = true;
-                    }
-                }
-                
-                if let Some(tokens) = population.tokens_for_player(&primary_victim) {
-                    total_damage += tokens.len();
-                }
-                
-                for adjacent_area in land_passage.to_areas.iter() {
-                    if let Ok((_, adj_pop, adj_city, _, _)) = area_query.get(*adjacent_area) {
-                        if let Some(city) = adj_city {
-                            if city.player == primary_victim {
-                                total_damage += 5;
-                                victim_has_city_in_touched_areas = true;
-                            }
-                        }
-                        if let Some(tokens) = adj_pop.tokens_for_player(&primary_victim) {
-                            total_damage += tokens.len();
-                        }
-                    }
-                }
-                
-                if victim_has_city_in_touched_areas {
-                    volcano_candidates.push((volcano_area, total_damage, true));
-                }
-            }
-        }
-        
-        if !volcano_candidates.is_empty() {
-            volcano_candidates.sort_by_key(|b| std::cmp::Reverse(b.1));
-            let (volcano_area, _, _) = volcano_candidates[0];
-            
+        let state = if let Some((volcano_area, areas_to_clear)) = volcano_result {
             info!("[VOLCANO] Eruption at area {:?}", volcano_area);
-            
-            trigger_volcano_eruption(&mut commands, volcano_area, &area_query);
+            VolcanoEarthquakeState::as_volcano(volcano_area, areas_to_clear)
         } else {
             info!("[EARTHQUAKE] No volcano areas with cities, triggering earthquake");
             
@@ -178,31 +151,147 @@ pub fn resolve_volcano_earthquake(
                 
                 if !city_areas.is_empty() {
                     let city_to_destroy = city_areas[0];
+                    let city_to_reduce = find_adjacent_city_to_reduce(
+                        city_to_destroy,
+                        primary_victim,
+                        &area_query,
+                    );
                     
-                    let mut adjacent_cities: Vec<Entity> = Vec::new();
-                    if let Ok((_, _, _, _, land_passage)) = area_query.get(city_to_destroy) {
-                        for adjacent_area in land_passage.to_areas.iter() {
-                            if let Ok((_, _, Some(adj_city), _, _)) = area_query.get(*adjacent_area) {
-                                if adj_city.player != primary_victim {
-                                    adjacent_cities.push(*adjacent_area);
-                                }
-                            }
+                    info!("[EARTHQUAKE] City to destroy: {:?}, city to reduce: {:?}, has_engineering: {}", 
+                        city_to_destroy, city_to_reduce, has_engineering);
+                    
+                    VolcanoEarthquakeState::as_earthquake(city_to_destroy, city_to_reduce, has_engineering)
+                } else {
+                    VolcanoEarthquakeState::new()
+                }
+            } else {
+                VolcanoEarthquakeState::new()
+            }
+        };
+        
+        let context = CalamityContext::new(
+            TradeCard::VolcanoEarthquake,
+            primary_victim,
+            event.traded_by,
+        );
+        
+        commands.entity(primary_victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::VolcanoEarthquake(state),
+        ));
+    }
+}
+
+fn find_best_volcano_eruption(
+    primary_victim: Entity,
+    volcano_areas: &Query<Entity, With<Volcano>>,
+    area_query: &Query<(Entity, &Population, Option<&BuiltCity>, Has<Volcano>, &LandPassage)>,
+) -> Option<(Entity, Vec<Entity>)> {
+    let mut volcano_candidates: Vec<(Entity, usize, Vec<Entity>)> = Vec::new();
+    
+    for volcano_area in volcano_areas.iter() {
+        if let Ok((_area_entity, population, built_city, _, land_passage)) = area_query.get(volcano_area) {
+            let mut total_damage = 0usize;
+            let mut victim_has_city_in_touched_areas = false;
+            let mut areas_to_clear = vec![volcano_area];
+            
+            if let Some(city) = built_city {
+                if city.player == primary_victim {
+                    total_damage += 5;
+                    victim_has_city_in_touched_areas = true;
+                }
+            }
+            
+            if let Some(tokens) = population.tokens_for_player(&primary_victim) {
+                total_damage += tokens.len();
+            }
+            
+            for adjacent_area in land_passage.to_areas.iter() {
+                areas_to_clear.push(*adjacent_area);
+                if let Ok((_, adj_pop, adj_city, _, _)) = area_query.get(*adjacent_area) {
+                    if let Some(city) = adj_city {
+                        if city.player == primary_victim {
+                            total_damage += 5;
+                            victim_has_city_in_touched_areas = true;
                         }
                     }
-                    
-                    let city_to_reduce = adjacent_cities.first().cloned();
-                    
-                    info!("[EARTHQUAKE] Destroying city at {:?}, reducing city at {:?}", city_to_destroy, city_to_reduce);
-                    
-                    trigger_earthquake(&mut commands, primary_victim, city_to_destroy, city_to_reduce, &area_query);
+                    if let Some(tokens) = adj_pop.tokens_for_player(&primary_victim) {
+                        total_damage += tokens.len();
+                    }
+                }
+            }
+            
+            if victim_has_city_in_touched_areas {
+                volcano_candidates.push((volcano_area, total_damage, areas_to_clear));
+            }
+        }
+    }
+    
+    if volcano_candidates.is_empty() {
+        return None;
+    }
+    
+    volcano_candidates.sort_by_key(|b| std::cmp::Reverse(b.1));
+    let (volcano_area, _, areas_to_clear) = volcano_candidates.remove(0);
+    Some((volcano_area, areas_to_clear))
+}
+
+fn find_adjacent_city_to_reduce(
+    city_area: Entity,
+    primary_victim: Entity,
+    area_query: &Query<(Entity, &Population, Option<&BuiltCity>, Has<Volcano>, &LandPassage)>,
+) -> Option<Entity> {
+    if let Ok((_, _, _, _, land_passage)) = area_query.get(city_area) {
+        for adjacent_area in land_passage.to_areas.iter() {
+            if let Ok((_, _, Some(adj_city), _, _)) = area_query.get(*adjacent_area) {
+                if adj_city.player != primary_victim {
+                    return Some(*adjacent_area);
                 }
             }
         }
+    }
+    None
+}
+
+pub fn apply_volcano_earthquake_effects(
+    mut commands: Commands,
+    mut players_resolving: Query<(Entity, &mut ActiveCalamityResolution, &ResolvingCalamity)>,
+    area_query: Query<(Entity, &Population, Option<&BuiltCity>, Has<Volcano>, &LandPassage)>,
+    mut calamity_resolved: MessageWriter<CalamityResolved>,
+) {
+    for (player_entity, mut resolution, resolving) in players_resolving.iter_mut() {
+        if resolution.phase != CalamityPhase::ComputeEffects {
+            continue;
+        }
         
-        calamity_resolved.write(CalamityResolved {
-            player: primary_victim,
-            calamity: TradeCard::VolcanoEarthquake,
-        });
+        if let ResolvingCalamity::VolcanoEarthquake(state) = resolving {
+            if state.phase != VolcanoEarthquakePhase::ApplyEffects {
+                continue;
+            }
+            
+            if state.is_volcano {
+                if let Some(volcano_area) = state.volcano_area {
+                    trigger_volcano_eruption(&mut commands, volcano_area, &area_query);
+                }
+            } else {
+                if let Some(city_to_destroy) = state.city_to_destroy {
+                    commands.entity(city_to_destroy).insert(DestroyCity);
+                }
+                if let Some(city_to_reduce) = state.city_to_reduce {
+                    commands.entity(city_to_reduce).insert(ReduceCity);
+                }
+            }
+            
+            resolution.mark_resolved();
+            
+            calamity_resolved.write(CalamityResolved {
+                player: player_entity,
+                calamity: TradeCard::VolcanoEarthquake,
+            });
+            
+            commands.entity(player_entity).remove::<ResolvingCalamity>();
+            commands.entity(player_entity).remove::<ActiveCalamityResolution>();
+        }
     }
 }
 
@@ -233,19 +322,6 @@ fn trigger_volcano_eruption(
     }
 }
 
-fn trigger_earthquake(
-    commands: &mut Commands,
-    _primary_victim: Entity,
-    city_to_destroy: Entity,
-    city_to_reduce: Option<Entity>,
-    _area_query: &Query<(Entity, &Population, Option<&BuiltCity>, Has<Volcano>, &LandPassage)>,
-) {
-    commands.entity(city_to_destroy).insert(DestroyCity);
-    
-    if let Some(reduce_area) = city_to_reduce {
-        commands.entity(reduce_area).insert(ReduceCity);
-    }
-}
 
 pub fn handle_calamity_resolved(
     mut events: MessageReader<CalamityResolved>,
