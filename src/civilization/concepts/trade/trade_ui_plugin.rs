@@ -336,9 +336,7 @@ pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
             card.add_text_child(stack.card_type.to_string(), Some(TextStyle::size(medium_font_size)));
             card.add_text_child(
                 if stack.is_tradeable { "Tradeable" } else { "Non-Tradeable" },
-                None,
-                Some(small_font_size),
-                None,
+                Some(TextStyle::size(small_font_size)),
             );
         }
     });

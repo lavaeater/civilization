@@ -469,7 +469,7 @@ fn build_payment_ui(
                         });
                         label.add_text_child(
                             format!("{}", card_type),
-                            None, Some(12.0), Some(Color::WHITE),
+                            Some(TextStyle::size_color(12.0, Color::WHITE)),
                         );
                     });
 

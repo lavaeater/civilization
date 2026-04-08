@@ -53,19 +53,12 @@ pub fn offer_published(
                 // Add status indicators (open/direct/accepted)
                 .child()
                 .with_text(
-                    if trade_offer.trade_accepted() {
-                        "Accepted"
-                    } else {
-                        "Direct Offer"
-                    },
-                    None,
-                    None,
-                    Some(if trade_offer.trade_accepted() {
+                    if trade_offer.trade_accepted() { "Accepted" } else { "Direct Offer" },
+                    Some(TextStyle::color(if trade_offer.trade_accepted() {
                         Color::from(GREEN)
                     } else {
                         Color::from(YELLOW)
-                    }),
-                    None, None
+                    }))
                 )
                 .parent()
                 .parent()

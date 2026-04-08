@@ -1331,7 +1331,7 @@ pub fn spawn_create_offer_modal(
             summary.insert(OfferSummaryDisplay);
             summary.with_text(
                 "Offering: nothing | Wanting: nothing",
-                None, Some(12.0), Some(Color::srgb(0.6, 0.6, 0.6)), None, None,
+                Some(TextStyle::size_color(12.0, Color::srgb(0.6, 0.6, 0.6))),
             );
         });
         

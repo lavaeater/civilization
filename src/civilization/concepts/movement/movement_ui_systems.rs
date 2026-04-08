@@ -299,11 +299,7 @@ pub fn spawn_movement_controls_ui(
                         .component::<SourceAreaDisplay>()
                         .with_text(
                             "Source: ?",
-                            Some(font.clone()),
-                            Some(12.0),
-                            Some(Color::WHITE),
-                            Some(Justify::Center),
-                            Some(LineBreak::NoWrap),
+                            Some(TextStyle { font: Some(font.clone()), font_size: Some(12.0), color: Some(Color::WHITE), justify: Some(Justify::Center), line_break: Some(LineBreak::NoWrap) })
                         )
                         .text_justify_center()
                         .align_items_center()
@@ -365,11 +361,7 @@ pub fn spawn_movement_controls_ui(
                     .component::<TokenCountDisplay>()
                     .with_text(
                         "Click target",
-                        Some(font.clone()),
-                        Some(16.0),
-                        Some(Color::WHITE),
-                        Some(Justify::Center),
-                        Some(LineBreak::NoWrap),
+                        Some(TextStyle { font: Some(font.clone()), font_size: Some(16.0), color: Some(Color::WHITE), justify: Some(Justify::Center), line_break: Some(LineBreak::NoWrap) })
                     )
                     .width(px(120.));
             });
