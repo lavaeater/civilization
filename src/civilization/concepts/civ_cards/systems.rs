@@ -265,9 +265,9 @@ fn create_civ_card_panel(
             .display_flex()
             .flex_row()
             .justify_space_between();
-        name_row.add_text_child(card.name.to_string(), None, None, None);
+        name_row.add_text_child(card.name.to_string(), None);
         if let Some(ref status) = status_text {
-            name_row.add_text_child(format!("[{}]", status), None, None, None);
+            name_row.add_text_child(format!("[{}]", status), None);
         }
     });
     card_builder.with_child(|cost_row| {

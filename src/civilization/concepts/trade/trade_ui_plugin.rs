@@ -285,7 +285,7 @@ pub fn setup_trade_ui(
             .padding_all_px(4.0);
         
         // Game State section
-        info_section.add_text_child("Game State", None, None, None);
+        info_section.add_text_child("Game State", None);
         info_section.with_child(|state| {
             state
                 .component::<GameStateDisplay>()
@@ -295,12 +295,12 @@ pub fn setup_trade_ui(
                 .padding_all_px(4.0)
                 .margin(UiRect::bottom(Val::Px(8.0)));
             
-            state.add_text_child("State: Playing", None, None, None);
-            state.add_text_child("Activity: StartGame", None, None, None);
+            state.add_text_child("State: Playing", None);
+            state.add_text_child("Activity: StartGame", None);
         });
         
         // Player Activity section
-        info_section.add_text_child("Player Activity", None, None, None);
+        info_section.add_text_child("Player Activity", None);
         info_section.with_child(|list| {
             list.component::<PlayerActivityListContainer>()
                 .width_percent(100.0)
