@@ -1268,9 +1268,7 @@ pub fn spawn_create_offer_modal(
     });
     
     // Instructions
-    ui.add_text_child(
-        "Rules: Exactly 2 guaranteed cards each side. Minimum 3 total cards each side.",
-        None, Some(12.0), Some(Color::srgb(0.6, 0.6, 0.6)),
+    ui.add_text_child("Rules: Exactly 2 guaranteed cards each side. Minimum 3 total cards each side.", Some(TextStyle::size_color(12.0, Color::srgb(0.6, 0.6, 0.6))),
     );
     
     // === WHAT YOU OFFER SECTION ===
@@ -1280,13 +1278,9 @@ pub fn spawn_create_offer_modal(
             .padding_all_px(10.0)
             .bg_color(Color::srgba(0.15, 0.2, 0.15, 0.6));
         
-        section.add_text_child(
-            format!("WHAT YOU OFFER (Your Cards - {})", player_name),
-            None, Some(15.0), Some(Color::srgb(0.5, 0.9, 0.5)),
+        section.add_text_child(format!("WHAT YOU OFFER (Your Cards - {})", player_name), Some(TextStyle::size_color(15.0, Color::srgb(0.5, 0.9, 0.5))),
         );
-        section.add_text_child(
-            "Use < > to adjust guaranteed card counts (max 2 total):",
-            None, Some(11.0), Some(Color::srgb(0.6, 0.6, 0.6)),
+        section.add_text_child("Use < > to adjust guaranteed card counts (max 2 total):", Some(TextStyle::size_color(11.0, Color::srgb(0.6, 0.6, 0.6))),
         );
         
         // One row per commodity type the player owns
@@ -1310,13 +1304,9 @@ pub fn spawn_create_offer_modal(
             .padding_all_px(10.0)
             .bg_color(Color::srgba(0.2, 0.15, 0.15, 0.6));
         
-        section.add_text_child(
-            "WHAT YOU WANT (Guaranteed cards you request)",
-            None, Some(15.0), Some(Color::srgb(0.9, 0.6, 0.5)),
+        section.add_text_child("WHAT YOU WANT (Guaranteed cards you request)", Some(TextStyle::size_color(15.0, Color::srgb(0.9, 0.6, 0.5))),
         );
-        section.add_text_child(
-            "Use < > to adjust guaranteed card counts (max 2 total):",
-            None, Some(11.0), Some(Color::srgb(0.6, 0.6, 0.6)),
+        section.add_text_child("Use < > to adjust guaranteed card counts (max 2 total):", Some(TextStyle::size_color(11.0, Color::srgb(0.6, 0.6, 0.6))),
         );
         
         // One row per commodity type

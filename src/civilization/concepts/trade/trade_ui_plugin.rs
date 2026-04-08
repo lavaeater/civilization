@@ -111,10 +111,7 @@ fn _add_commodity_card(
                         // .justify_items(JustifyItems::Center)
                         .with_text(
                             format!("{}", (n * n) * card_type.value()),
-                            Some(font.clone()),
-                            Some(18.0),
-                            Some(text_color),
-                            None, None
+                            Some(TextStyle { font: Some(font.clone()), font_size: Some(18.0), color: Some(text_color), ..Default::default() })
                         );
                 });
         });

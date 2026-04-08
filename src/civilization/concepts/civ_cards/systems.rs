@@ -487,9 +487,7 @@ fn build_payment_ui(
                     );
 
                     // Stack value contribution
-                    row.add_text_child(
-                        format!("  = {}", chosen_value_for_stack),
-                        None, Some(12.0), Some(Color::srgb(0.7, 0.9, 0.7)),
+                    row.add_text_child(format!("  = {}", chosen_value_for_stack), Some(TextStyle::size_color(12.0, Color::srgb(0.7, 0.9, 0.7))),
                     );
                 });
             }
