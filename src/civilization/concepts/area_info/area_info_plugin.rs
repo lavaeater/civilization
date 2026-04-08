@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use lava_ui_builder::{UIBuilder, LavaTheme};
+use lava_ui_builder::{UIBuilder, LavaTheme, TextStyle};
 
 use crate::civilization::components::{
     BuiltCity, Faction, GameArea, GameCamera, Population,

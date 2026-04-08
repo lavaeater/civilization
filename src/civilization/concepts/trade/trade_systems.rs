@@ -1339,7 +1339,7 @@ pub fn spawn_create_offer_modal(
             validation.insert(OfferValidationDisplay);
             validation.with_text(
                 "Invalid: Need 2 guaranteed cards each side, 3+ total each side",
-                None, Some(12.0), Some(Color::srgb(0.8, 0.4, 0.4)), None, None,
+                Some(TextStyle::size_color(12.0, Color::srgb(0.8, 0.4, 0.4))),
             );
         });
     });

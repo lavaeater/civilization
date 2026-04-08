@@ -476,7 +476,7 @@ fn build_payment_ui(
                     // Chosen / owned count
                     row.add_text_child(
                         format!("{}/{}", chosen, owned),
-                        None, Some(13.0), Some(Color::WHITE),
+                        Some(TextStyle::size_color(13.0, Color::WHITE)),
                     );
 
                     // Increment button
@@ -511,7 +511,7 @@ fn build_payment_ui(
             };
             total_row.add_text_child(
                 format!("Paying: {} / {} required", chosen_value, total_cost),
-                None, Some(14.0), Some(status_color),
+                Some(TextStyle::size_color(14.0, status_color)),
             );
         });
 
