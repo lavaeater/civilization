@@ -15,7 +15,7 @@ use bevy::color::Color;
 use bevy::prelude::{percent, Add, Button, Changed, Commands, Entity, Has, Interaction, MessageReader, MessageWriter, NextState, On, Query, Res, ResMut, Val, With};
 use bevy::ui_widgets::Button as WidgetsButton;
 use bevy::ui_widgets::Activate;
-use lava_ui_builder::{LavaTheme, UIBuilder};
+use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
 
 pub fn load_civ_cards(mut commands: Commands, asset_server: Res<AssetServer>) {
     let card_handle = asset_server.load("definitions/civilization.cards.ron");

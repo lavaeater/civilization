@@ -8,7 +8,7 @@ use bevy::{
     prelude::*,
     ui_widgets::Activate,
 };
-use lava_ui_builder::{LavaTheme, UIBuilder};
+use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
 
 pub struct MenuPlugin;
 
@@ -57,7 +57,7 @@ fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>, theme: Res<
         .justify_center()
         .gap_px(16.0);
 
-    ui.add_text_child("Advanced Civilization", None, Some(48.0), None);
+    ui.add_text_child("Advanced Civilization", Some(TextStyle::size(48.0)));
 
     ui.add_button_observe(
         "Play",
@@ -138,7 +138,7 @@ fn spawn_pause_menu(commands: Commands, _theme: &UiTheme) {
         .justify_center()
         .gap_px(16.0);
 
-    ui.add_text_child("Paused", None, Some(48.0), None);
+    ui.add_text_child("Paused", Some(TextStyle::size(48.0)));
 
     ui.add_button_observe(
         "Resume",

@@ -6,7 +6,7 @@ use crate::{GameActivity, GameState};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::state::state::StateTransitionEvent;
-use lava_ui_builder::{UIBuilder, LavaTheme};
+use lava_ui_builder::{UIBuilder, LavaTheme, TextStyle};
 
 #[derive(Component, Default)]
 pub struct GameStateDisplay;
@@ -333,10 +333,10 @@ pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
             .border_radius_all_px(4.0);
         
         if stack.is_commodity {
-            card.add_text_child(stack.card_type.to_string(), None, Some(medium_font_size), None);
-            card.add_text_child(format!("x{} = {}", stack.count, stack.suite_value), None, Some(small_font_size), None);
+            card.add_text_child(stack.card_type.to_string(), Some(TextStyle::size(medium_font_size)));
+            card.add_text_child(format!("x{} = {}", stack.count, stack.suite_value), Some(TextStyle::size(small_font_size)));
         } else {
-            card.add_text_child(stack.card_type.to_string(), None, Some(medium_font_size), None);
+            card.add_text_child(stack.card_type.to_string(), Some(TextStyle::size(medium_font_size)));
             card.add_text_child(
                 if stack.is_tradeable { "Tradeable" } else { "Non-Tradeable" },
                 None,
@@ -371,7 +371,7 @@ pub fn build_trade_card_list(ui: &mut UIBuilder, trade_cards: &PlayerTradeCards)
                     .with_flex_shrink(0.0);
                 
                 // Pile label
-                row.add_text_child(format!("{}:", pile_value), None, Some(24.0), None);
+                row.add_text_child(format!("{}:", pile_value), Some(TextStyle::size(24.0)));
                 
                 // Cards in this pile
                 for stack in sorted_stacks {
@@ -418,12 +418,12 @@ fn update_game_state_display(
         Some(ui_theme.clone()),
     );
     
-    ui.add_text_child(&state_text, None, Some(18.0), None);
-    ui.add_text_child(&activity_text, None, Some(18.0), None);
-    ui.add_text_child(&round_text, None, Some(18.0), None);
+    ui.add_text_child(&state_text, Some(TextStyle::size(18.0)));
+    ui.add_text_child(&activity_text, Some(TextStyle::size(18.0)));
+    ui.add_text_child(&round_text, Some(TextStyle::size(18.0)));
 
     // Census order display
-    ui.add_text_child("Census Order:", None, Some(16.0), Some(Color::srgb(1.0, 0.8, 0.0)));
+    ui.add_text_child("Census Order:", Some(TextStyle::size_color(16.0, Color::srgb(1.0, 0.8, 0.0))));
     for (i, player_entity) in game_info.census_order.iter().enumerate() {
         if let Ok((name, player_areas, player_cities, player_trade_cards, faction, is_human)) = player_query.get(*player_entity) {
             let pop = player_areas.total_population();
@@ -432,7 +432,7 @@ fn update_game_state_display(
             let faction_color = faction_to_color(faction);
             let human_marker = if is_human { " (YOU)" } else { "" };
             let census_line = format!("{}. {}{} - Pop: {} | Cities: {} | Cards: {}", i + 1, name, human_marker, pop, cities, cards);
-            ui.add_text_child(&census_line, None, Some(14.0), Some(faction_color));
+            ui.add_text_child(&census_line, Some(TextStyle::size_color(14.0, faction_color)));
         }
     }
     
@@ -523,8 +523,8 @@ fn update_player_activity_display(
                     .margin_all_px(6.0);
             });
             
-            row.add_text_child(format!("{}: ", display_name), None, Some(18.0), Some(faction_color));
-            row.add_text_child(activity, None, Some(18.0), None);
+            row.add_text_child(format!("{}: ", display_name), Some(TextStyle::size_color(18.0, faction_color)));
+            row.add_text_child(activity, Some(TextStyle::size(18.0)));
         });
     }
     

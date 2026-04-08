@@ -14,7 +14,7 @@ use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use lava_ui_builder::{UIBuilder, LavaTheme};
+use lava_ui_builder::{UIBuilder, LavaTheme, TextStyle};
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -1137,7 +1137,7 @@ fn spawn_card_adjust_row(
                 ..Default::default()
             });
             label.bg_color(color);
-            label.add_text_child(format!("{}", card), None, Some(12.0), Some(Color::WHITE));
+            label.add_text_child(format!("{}", card), Some(TextStyle::size_color(12.0, Color::WHITE)));
         });
 
         // Count display
@@ -1148,7 +1148,7 @@ fn spawn_card_adjust_row(
                 ..Default::default()
             });
             count.insert(CardCountDisplay { card, is_offering });
-            count.with_text("0", None, Some(14.0), Some(Color::WHITE), None, None);
+            count.with_text("0", Some(TextStyle::size_color(14.0, Color::WHITE)));
         });
 
         // > button (increment)
@@ -1160,7 +1160,7 @@ fn spawn_card_adjust_row(
 
         // Suffix label (e.g. "/ 3 owned")
         if !suffix.is_empty() {
-            row.add_text_child(format!("  {}", suffix), None, Some(11.0), Some(Color::srgb(0.5, 0.5, 0.5)));
+            row.add_text_child(format!("  {}", suffix), Some(TextStyle::size_color(11.0, Color::srgb(0.5, 0.5, 0.5))));
         }
     });
 }
@@ -1170,7 +1170,7 @@ fn spawn_hidden_count_row(ui: &mut UIBuilder, label_text: &str, is_offering: boo
     ui.add_row(|row| {
         row.width_percent(100.0).align_items_center().margin(UiRect::top(Val::Px(8.0)));
 
-        row.add_text_child(label_text, None, Some(12.0), Some(Color::srgb(0.7, 0.7, 0.7)));
+        row.add_text_child(label_text, Some(TextStyle::size_color(12.0, Color::srgb(0.7, 0.7, 0.7))));
 
         row.add_button(
             "-", 30.0, 24.0,
@@ -1180,7 +1180,7 @@ fn spawn_hidden_count_row(ui: &mut UIBuilder, label_text: &str, is_offering: boo
 
         row.with_child(|count| {
             count.insert(OfferHiddenCountDisplay { is_offering });
-            count.with_text("0", None, Some(14.0), Some(Color::WHITE), None, None);
+            count.with_text("0", Some(TextStyle::size_color(14.0, Color::WHITE)));
         });
 
         row.add_button(
@@ -1258,7 +1258,7 @@ pub fn spawn_create_offer_modal(
             .justify_space_between().align_items_center()
             .margin_btm_px(12.0);
         
-        header.add_text_child("Create Trade Offer", None, Some(22.0), Some(Color::srgb(0.9, 0.8, 0.3)));
+        header.add_text_child("Create Trade Offer", Some(TextStyle::size_color(22.0, Color::srgb(0.9, 0.8, 0.3))));
         
         header.add_button(
             "X", 40.0, 30.0,
@@ -1335,7 +1335,7 @@ pub fn spawn_create_offer_modal(
             .padding_all_px(10.0)
             .bg_color(Color::srgba(0.1, 0.1, 0.15, 0.8));
         
-        section.add_text_child("OFFER SUMMARY", None, Some(14.0), Some(Color::srgb(0.8, 0.8, 0.8)));
+        section.add_text_child("OFFER SUMMARY", Some(TextStyle::size_color(14.0, Color::srgb(0.8, 0.8, 0.8))));
         
         section.with_child(|summary| {
             summary.insert(OfferSummaryDisplay);

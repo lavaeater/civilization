@@ -2,7 +2,7 @@ use crate::civilization::concepts::trade::trade_components::{
     CanTrade, PublishedOffer, PublishedOffersList, TradeButtonAction,
     TradeOffer,
 };
-use lava_ui_builder::UIBuilder;
+use lava_ui_builder::{UIBuilder, TextStyle};
 use lava_ui_builder::LavaTheme;
 use crate::GameActivity;
 use bevy::color::palettes::basic::{GREEN, YELLOW};

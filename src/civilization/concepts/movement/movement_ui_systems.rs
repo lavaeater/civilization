@@ -11,7 +11,7 @@ use crate::stupid_ai::IsHuman;
 use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
 use bevy::window::PrimaryWindow;
-use lava_ui_builder::{ButtonTheme, LavaTheme, UIBuilder};
+use lava_ui_builder::{ButtonTheme, LavaTheme, TextStyle, UIBuilder};
 
 /// System to detect when human player has movement options and populate the selection state
 pub fn setup_human_movement_options(
