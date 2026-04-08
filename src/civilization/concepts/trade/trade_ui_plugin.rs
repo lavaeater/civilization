@@ -87,7 +87,7 @@ fn _add_commodity_card(
         .with_child(|b| {
             // Top set-value boxes (first half)
             b.display(Display::Flex)
-                .flex_direction_row()
+                .flex_row()
                 .flex_wrap()
                 // .justify_content(JustifyContent::SpaceBetween)
                 // .align_items(AlignItems::Center)
@@ -258,11 +258,11 @@ pub fn setup_trade_ui(
 
     ui.component::<TradeCardUiRoot>()
         .display_flex()
-        .flex_dir_row()
+        .flex_row()
         .padding_all_px(4.0);
 
     // Left side: Collapsible Trade Cards section
-    ui.add_collapsible("Trade Cards", |cards_section| {
+    ui.with_collapsible("Trade Cards", false, |cards_section| {
         cards_section
             .component::<TradeCardList>()
             .width_px(300.0)
@@ -278,7 +278,7 @@ pub fn setup_trade_ui(
     });
 
     // Right side: Collapsible Game Info section
-    ui.add_collapsible("Game Info", |info_section| {
+    ui.with_collapsible("Game Info", false, |info_section| {
         info_section
             .width_px(450.0)
             .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.7))
@@ -291,7 +291,7 @@ pub fn setup_trade_ui(
                 .component::<GameStateDisplay>()
                 .width_percent(100.0)
                 .display_flex()
-                .flex_dir_column()
+                .flex_column()
                 .padding_all_px(4.0)
                 .margin(UiRect::bottom(Val::Px(8.0)));
             
@@ -306,7 +306,7 @@ pub fn setup_trade_ui(
                 .width_percent(100.0)
                 .height_px(300.0)
                 .display_flex()
-                .flex_dir_column()
+                .flex_column()
                 .padding_all_px(4.0)
                 .with_overflow(Overflow::scroll_y())
                 .insert(ScrollPosition::default());
@@ -324,7 +324,7 @@ pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
         card.width_px(120.0)
             .height_px(80.0)
             .display_flex()
-            .flex_dir_column()
+            .flex_column()
             .justify_center()
             .align_items_center()
             .padding_all_px(2.0)
@@ -508,7 +508,7 @@ fn update_player_activity_display(
             row.width_percent(100.0)
                 .height_px(80.0)
                 .display_flex()
-                .flex_dir_row()
+                .flex_row()
                 .align_items_center()
                 .padding_all_px(4.0)
                 .margin_all_px(2.0)
