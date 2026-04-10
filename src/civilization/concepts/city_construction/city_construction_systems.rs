@@ -50,23 +50,22 @@ pub fn build_city(
 
         if let Ok((mut city_stock, _, mut player_cities, _, faction)) =
             player_query.get_mut(build_city.player)
+            && let Ok((_, area_transform)) = city_population.get_mut(build_city.area)
         {
-            if let Ok((_, area_transform)) = city_population.get_mut(build_city.area) {
-                let texture = game_factions
-                    .faction_city_icons
-                    .get(&faction.faction)
-                    .unwrap()
-                    .clone();
-                build_city_in_area(
-                    &mut commands,
-                    texture,
-                    build_city,
-                    &mut city_stock,
-                    &mut player_cities,
-                    area_transform,
-                );
-                recalculate_player_moves.write(RecalculatePlayerMoves::new(build_city.player));
-            }
+            let texture = game_factions
+                .faction_city_icons
+                .get(&faction.faction)
+                .unwrap()
+                .clone();
+            build_city_in_area(
+                &mut commands,
+                texture,
+                build_city,
+                &mut city_stock,
+                &mut player_cities,
+                area_transform,
+            );
+            recalculate_player_moves.write(RecalculatePlayerMoves::new(build_city.player));
         }
     }
 }
@@ -90,12 +89,12 @@ pub fn on_enter_city_construction(
     let mut skipped = 0;
     let mut marked_for_building = 0;
     for (player_entity, faction) in player_query.iter() {
-        if let Some(ref save_state) = loading_from_save {
-            if save_state.completed_factions.contains(&faction.faction) {
-                info!("[CITY_CONSTRUCTION] Skipping {:?} - already completed in save", faction.faction);
-                skipped += 1;
-                continue;
-            }
+        if let Some(ref save_state) = loading_from_save
+            && save_state.completed_factions.contains(&faction.faction)
+        {
+            info!("[CITY_CONSTRUCTION] Skipping {:?} - already completed in save", faction.faction);
+            skipped += 1;
+            continue;
         }
         info!("[CITY_CONSTRUCTION] Marking {:?} for building", faction.faction);
         commands.entity(player_entity).insert(IsBuilding);

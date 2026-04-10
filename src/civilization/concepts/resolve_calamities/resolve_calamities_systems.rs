@@ -295,11 +295,9 @@ fn find_best_volcano_eruption(
             let mut victim_has_city_in_touched_areas = false;
             let mut areas_to_clear = vec![volcano_area];
 
-            if let Some(city) = built_city {
-                if city.player == primary_victim {
-                    total_damage += 5;
-                    victim_has_city_in_touched_areas = true;
-                }
+            if let Some(city) = built_city && city.player == primary_victim {
+                total_damage += 5;
+                victim_has_city_in_touched_areas = true;
             }
 
             if let Some(tokens) = population.tokens_for_player(&primary_victim) {
@@ -309,11 +307,9 @@ fn find_best_volcano_eruption(
             for adjacent_area in land_passage.to_areas.iter() {
                 areas_to_clear.push(*adjacent_area);
                 if let Ok((_, adj_pop, adj_city, _, _)) = area_query.get(*adjacent_area) {
-                    if let Some(city) = adj_city {
-                        if city.player == primary_victim {
-                            total_damage += 5;
-                            victim_has_city_in_touched_areas = true;
-                        }
+                    if let Some(city) = adj_city && city.player == primary_victim {
+                        total_damage += 5;
+                        victim_has_city_in_touched_areas = true;
                     }
                     if let Some(tokens) = adj_pop.tokens_for_player(&primary_victim) {
                         total_damage += tokens.len();
@@ -343,10 +339,10 @@ fn find_adjacent_city_to_reduce(
 ) -> Option<Entity> {
     if let Ok((_, _, _, _, land_passage)) = area_query.get(city_area) {
         for adjacent_area in land_passage.to_areas.iter() {
-            if let Ok((_, _, Some(adj_city), _, _)) = area_query.get(*adjacent_area) {
-                if adj_city.player != primary_victim {
-                    return Some(*adjacent_area);
-                }
+            if let Ok((_, _, Some(adj_city), _, _)) = area_query.get(*adjacent_area)
+                && adj_city.player != primary_victim
+            {
+                return Some(*adjacent_area);
             }
         }
     }
@@ -439,11 +435,9 @@ pub fn advance_flood(
             FloodPhase::FindFloodPlain => {
                 let mut found_area = None;
                 for fp_area in flood_plains.iter() {
-                    if let Ok((Some(city), _)) = area_query.get(fp_area) {
-                        if city.player == player_entity {
-                            found_area = Some(fp_area);
-                            break;
-                        }
+                    if let Ok((Some(city), _)) = area_query.get(fp_area) && city.player == player_entity {
+                        found_area = Some(fp_area);
+                        break;
                     }
                 }
                 if let Some(area) = found_area {
@@ -492,14 +486,14 @@ fn remove_unit_points(
         if remaining <= 0 { break; }
         let to_remove = (remaining as usize).min(count);
         if to_remove == 0 { continue; }
-        if let Ok(mut population) = populations.get_mut(area) {
-            if let Some(removed) = population.remove_tokens_from_area(&player, to_remove) {
-                let n = removed.len() as i32;
-                for token in removed {
-                    commands.entity(token).insert(ReturnTokenToStock);
-                }
-                remaining -= n;
+        if let Ok(mut population) = populations.get_mut(area)
+            && let Some(removed) = population.remove_tokens_from_area(&player, to_remove)
+        {
+            let n = removed.len() as i32;
+            for token in removed {
+                commands.entity(token).insert(ReturnTokenToStock);
             }
+            remaining -= n;
         }
     }
 }
@@ -866,11 +860,11 @@ pub fn handle_calamity_resolved(
         let player_name = names.get(event.player).map(|n| n.to_string()).unwrap_or_else(|_| "Unknown".to_string());
         info!("[CALAMITIES] {} resolved {:?}", player_name, event.calamity);
 
-        if let Ok((player_entity, pending)) = players_with_pending.get(event.player) {
-            if pending.is_empty() {
-                commands.entity(player_entity).remove::<NeedsCalamityResolution>();
-                commands.entity(player_entity).remove::<PendingCalamities>();
-            }
+        if let Ok((player_entity, pending)) = players_with_pending.get(event.player)
+            && pending.is_empty()
+        {
+            commands.entity(player_entity).remove::<NeedsCalamityResolution>();
+            commands.entity(player_entity).remove::<PendingCalamities>();
         }
     }
 }

@@ -44,13 +44,13 @@ pub fn on_add_player_acquiring_civilization_cards(
     theme: Res<LavaTheme>,
     cards: Res<AvailableCivCards>,
 ) {
-    if ui_exists_query.is_empty() {
-        if let Ok((_, _, player_cards, player_trade_cards)) = human_player_query.get(trigger.entity) {
-            selection_state.clear();
-            selection_state.player_entity = Some(trigger.entity);
-            
-            build_civ_cards_ui(commands, &theme, &cards, player_cards, player_trade_cards, &selection_state);
-        }
+    if ui_exists_query.is_empty()
+        && let Ok((_, _, player_cards, player_trade_cards)) = human_player_query.get(trigger.entity)
+    {
+        selection_state.clear();
+        selection_state.player_entity = Some(trigger.entity);
+
+        build_civ_cards_ui(commands, &theme, &cards, player_cards, player_trade_cards, &selection_state);
     }
 }
 

@@ -18,26 +18,24 @@ pub fn eliminate_city(
         commands
             .entity(eliminate.player)
             .remove::<HasTooManyCities>();
-        if let Ok(city_token) = city_token.get(eliminate.city) {
-            if let Ok((mut city_stock, mut player_cities)) =
+        if let Ok(city_token) = city_token.get(eliminate.city)
+            && let Ok((mut city_stock, mut player_cities)) =
                 city_token_stock.get_mut(city_token.player)
-            {
-                if let Ok(population) = area_population.get(eliminate.area_entity) {
-                    //debug!("Eliminating city, conflict: {}, max_pop: {}", eliminate.is_conflict, population.max_population);
-                    move_tokens.write(MoveTokensFromStockToAreaCommand {
-                        player_entity: city_token.player,
-                        area_entity: eliminate.area_entity,
-                        number_of_tokens: if eliminate.is_conflict {
-                            6
-                        } else {
-                            population.max_population
-                        },
-                    });
-                    commands.entity(eliminate.area_entity).remove::<BuiltCity>();
-                    player_cities.remove_city_from_area(eliminate.area_entity);
-                    city_stock.return_token_to_stock(eliminate.city);
-                }
-            }
+            && let Ok(population) = area_population.get(eliminate.area_entity)
+        {
+            //debug!("Eliminating city, conflict: {}, max_pop: {}", eliminate.is_conflict, population.max_population);
+            move_tokens.write(MoveTokensFromStockToAreaCommand {
+                player_entity: city_token.player,
+                area_entity: eliminate.area_entity,
+                number_of_tokens: if eliminate.is_conflict {
+                    6
+                } else {
+                    population.max_population
+                },
+            });
+            commands.entity(eliminate.area_entity).remove::<BuiltCity>();
+            player_cities.remove_city_from_area(eliminate.area_entity);
+            city_stock.return_token_to_stock(eliminate.city);
         }
         commands
             .entity(eliminate.player)

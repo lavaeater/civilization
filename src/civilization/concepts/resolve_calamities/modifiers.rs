@@ -119,11 +119,9 @@ fn apply_slave_revolt_modifiers(
 
 fn apply_flood_modifiers(effects: &mut CalamityEffects, civ_cards: &PlayerCivilizationCards) {
     // Engineering: protects against flood (city reduced instead of destroyed)
-    if civ_cards.owns(&CivCardName::Engineering) {
-        if effects.cities_to_destroy > 0 {
-            effects.cities_to_destroy -= 1;
-            effects.cities_to_reduce += 1;
-        }
+    if civ_cards.owns(&CivCardName::Engineering) && effects.cities_to_destroy > 0 {
+        effects.cities_to_destroy -= 1;
+        effects.cities_to_reduce += 1;
     }
 }
 
