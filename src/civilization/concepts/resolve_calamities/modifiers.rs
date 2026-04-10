@@ -1,5 +1,8 @@
 use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
-use crate::civilization::concepts::resolve_calamities::context::{CalamityEffects, CalamityContext};
+use crate::civilization::concepts::resolve_calamities::context::{
+    CalamityContext, CalamityEffects,
+};
+use crate::civilization::resolve_calamities::context::SpecialEffect;
 use crate::civilization::{CivCardName, TradeCard};
 
 pub fn apply_calamity_modifiers(
@@ -48,12 +51,13 @@ pub fn apply_calamity_modifiers(
     }
 }
 
-fn apply_volcano_earthquake_modifiers(effects: &mut CalamityEffects, civ_cards: &PlayerCivilizationCards) {
-    if civ_cards.owns(&CivCardName::Engineering) {
-        if effects.cities_to_destroy > 0 {
-            effects.cities_to_destroy -= 1;
-            effects.cities_to_reduce += 1;
-        }
+fn apply_volcano_earthquake_modifiers(
+    effects: &mut CalamityEffects,
+    civ_cards: &PlayerCivilizationCards,
+) {
+    if civ_cards.owns(&CivCardName::Engineering) && effects.cities_to_destroy > 0 {
+        effects.cities_to_destroy -= 1;
+        effects.cities_to_reduce += 1;
     }
 }
 
@@ -65,7 +69,10 @@ fn apply_famine_modifiers(_effects: &mut CalamityEffects, civ_cards: &PlayerCivi
     }
 }
 
-fn apply_superstition_modifiers(effects: &mut CalamityEffects, civ_cards: &PlayerCivilizationCards) {
+fn apply_superstition_modifiers(
+    effects: &mut CalamityEffects,
+    civ_cards: &PlayerCivilizationCards,
+) {
     // Mysticism: 2 cities reduced instead of 3
     // Deism: 1 city reduced
     // Enlightenment: no effect
@@ -85,22 +92,25 @@ fn apply_civil_war_modifiers(effects: &mut CalamityEffects, civ_cards: &PlayerCi
     // Drama and Poetry: +5 unit points to victim selection
     // Democracy: +10 unit points to victim selection
     // Effects ARE cumulative
-    if let Some(ref mut special) = effects.special_effect {
-        if let crate::civilization::concepts::resolve_calamities::context::SpecialEffect::CivilWar(ref mut civil_war) = special {
-            if civ_cards.owns(&CivCardName::Music) {
-                civil_war.victim_selection_points += 5;
-            }
-            if civ_cards.owns(&CivCardName::DramaAndPoetry) {
-                civil_war.victim_selection_points += 5;
-            }
-            if civ_cards.owns(&CivCardName::Democracy) {
-                civil_war.victim_selection_points += 10;
-            }
+    if let Some(ref mut special) = effects.special_effect
+        && let SpecialEffect::CivilWar(civil_war) = special
+    {
+        if civ_cards.owns(&CivCardName::Music) {
+            civil_war.victim_selection_points += 5;
+        }
+        if civ_cards.owns(&CivCardName::DramaAndPoetry) {
+            civil_war.victim_selection_points += 5;
+        }
+        if civ_cards.owns(&CivCardName::Democracy) {
+            civil_war.victim_selection_points += 10;
         }
     }
 }
 
-fn apply_slave_revolt_modifiers(effects: &mut CalamityEffects, civ_cards: &PlayerCivilizationCards) {
+fn apply_slave_revolt_modifiers(
+    effects: &mut CalamityEffects,
+    civ_cards: &PlayerCivilizationCards,
+) {
     // Enlightenment: no effect
     if civ_cards.owns(&CivCardName::Enlightenment) {
         effects.cities_to_reduce = 0;
@@ -117,7 +127,10 @@ fn apply_flood_modifiers(effects: &mut CalamityEffects, civ_cards: &PlayerCivili
     }
 }
 
-fn apply_barbarian_hordes_modifiers(effects: &mut CalamityEffects, civ_cards: &PlayerCivilizationCards) {
+fn apply_barbarian_hordes_modifiers(
+    effects: &mut CalamityEffects,
+    civ_cards: &PlayerCivilizationCards,
+) {
     // Military: reduces losses
     if civ_cards.owns(&CivCardName::Military) {
         effects.unit_points_to_lose = (effects.unit_points_to_lose - 5).max(0);
@@ -131,7 +144,10 @@ fn apply_epidemic_modifiers(effects: &mut CalamityEffects, civ_cards: &PlayerCiv
     }
 }
 
-fn apply_civil_disorder_modifiers(effects: &mut CalamityEffects, civ_cards: &PlayerCivilizationCards) {
+fn apply_civil_disorder_modifiers(
+    effects: &mut CalamityEffects,
+    civ_cards: &PlayerCivilizationCards,
+) {
     // Law: reduces cities reduced by 1
     // Democracy: no effect (immune)
     if civ_cards.owns(&CivCardName::Democracy) {
@@ -159,10 +175,7 @@ fn apply_piracy_modifiers(effects: &mut CalamityEffects, civ_cards: &PlayerCivil
     let _ = effects;
 }
 
-pub fn can_be_secondary_victim(
-    calamity: TradeCard,
-    civ_cards: &PlayerCivilizationCards,
-) -> bool {
+pub fn can_be_secondary_victim(calamity: TradeCard, civ_cards: &PlayerCivilizationCards) -> bool {
     match calamity {
         TradeCard::VolcanoEarthquake => {
             // Engineering protects against being secondary victim of Earthquake

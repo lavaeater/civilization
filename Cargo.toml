@@ -6,7 +6,7 @@ name = "adv_civ" # ToDo
 version = "0.1.0"
 publish = false
 authors = ["Tommie Nygren <tommie.nygren@gmail.com>"] 
-edition = "2021"
+edition = "2024"
 exclude = ["dist", "build", "assets", "credits"]
 
 [lib]

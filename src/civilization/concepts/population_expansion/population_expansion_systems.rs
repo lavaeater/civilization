@@ -71,12 +71,10 @@ pub fn enter_population_expansion(
     let mut skipped_count = 0;
     for (player, faction, player_areas, is_human) in player_query.iter() {
         // Skip players that already completed expansion in the saved game
-        if let Some(ref save_state) = loading_from_save {
-            if save_state.completed_factions.contains(&faction.faction) {
+        if let Some(ref save_state) = loading_from_save && save_state.completed_factions.contains(&faction.faction) {
                 info!("[POP_EXP] Skipping {:?} - already completed expansion in save", faction.faction);
                 skipped_count += 1;
                 continue;
-            }
         }
         if is_human {
             human_count += 1;
