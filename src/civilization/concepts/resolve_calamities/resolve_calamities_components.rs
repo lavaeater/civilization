@@ -1,6 +1,12 @@
 use bevy::prelude::{Component, Entity, Reflect, ReflectComponent};
 use crate::civilization::TradeCard;
 
+/// Marks a player that holds Monotheism and must process their conversions
+/// at the end of the Resolve Calamities phase (rule 32.94).
+#[derive(Component, Debug, Reflect, Default)]
+#[reflect(Component)]
+pub struct NeedsMonotheismConversion;
+
 #[derive(Component, Debug, Reflect, Default)]
 #[reflect(Component)]
 pub struct NeedsCalamityResolution;

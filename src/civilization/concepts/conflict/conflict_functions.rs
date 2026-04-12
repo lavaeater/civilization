@@ -3,6 +3,7 @@ use crate::civilization::functions::{
     remove_n_tokens_from_each_player, return_all_but_n_tokens_to_stock_for_player,
     return_all_tokens_from_area_for_player, return_all_tokens_to_stock,
 };
+use bevy::platform::collections::HashSet;
 use bevy::prelude::{Commands, Entity};
 
 pub fn handle_all_lengths_equal(
@@ -103,6 +104,67 @@ pub fn handle_max_pop_is_one_conflicts(
             return_all_tokens_from_area_for_player(population, player, commands);
         }
     }
+}
+
+/// Metalworking-aware conflict resolution (rule 24.24).
+///
+/// Non-Metalworking players lose tokens first (smallest stack first).  Only
+/// after all non-MW stacks have been reduced to zero – or the area is already
+/// at/below capacity – are Metalworking holders required to remove tokens.
+/// If the remaining over-capacity can only be resolved by also reducing MW
+/// players, a second pass runs the normal unequal-lengths algorithm over
+/// everybody.
+pub fn handle_with_metalworking(
+    non_mw: &mut Vec<Entity>,
+    mw: &mut Vec<Entity>,
+    population: &mut Population,
+    commands: &mut Commands,
+) {
+    // Phase 1 – drain non-MW players (smallest stack first) until capacity or
+    // all non-MW tokens are gone.
+    non_mw.sort_by(|a, b| {
+        population
+            .population_for_player(*b)
+            .cmp(&population.population_for_player(*a))
+    });
+
+    while population.total_population() > population.max_population && !non_mw.is_empty() {
+        let current = non_mw.pop().unwrap();
+
+        for token in population
+            .remove_tokens_from_area(&current, 1)
+            .unwrap_or_default()
+        {
+            commands.entity(token).insert(ReturnTokenToStock);
+        }
+
+        if population.population_for_player(current) > 0 {
+            non_mw.insert(0, current);
+        }
+
+        // Stop once only one non-MW player remains (they keep their last token –
+        // the winner survives with at least 1).
+        if non_mw.len() == 1 && population.population_for_player(non_mw[0]) > 0 {
+            break;
+        }
+    }
+
+    // Phase 2 – if still over capacity, run the normal algorithm over everyone.
+    if population.total_population() > population.max_population {
+        let mut all_players: Vec<Entity> = non_mw.iter().chain(mw.iter()).copied().collect();
+        handle_unequal_lengths(&mut all_players, population, commands);
+    }
+}
+
+/// Returns true when the players list contains a mix of Metalworking and
+/// non-Metalworking players (the case where the Metalworking rule applies).
+pub fn has_metalworking_mix(
+    players: &[Entity],
+    metalworking_set: &HashSet<Entity>,
+) -> bool {
+    let any_mw = players.iter().any(|p| metalworking_set.contains(p));
+    let any_non_mw = players.iter().any(|p| !metalworking_set.contains(p));
+    any_mw && any_non_mw
 }
 
 #[cfg(test)]

@@ -2,8 +2,9 @@ use crate::civilization::components::{BuiltCity, PlayerCities, TokenStock, Treas
 use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::ReturnCityToStock;
 use crate::civilization::concepts::taxation::taxation_components::{
-    CityInRevolt, NeedsToPayTaxes,
+    CityInRevolt, CoinageTaxRate, NeedsToPayTaxes,
 };
+use crate::stupid_ai::StupidAi;
 use crate::civilization::CivCardName;
 use crate::player::Player;
 use crate::GameActivity;
@@ -14,11 +15,11 @@ use bevy::prelude::{
 /// Called on entering `CollectTaxes`. Skips the phase entirely if no player has any
 /// cities (this will be the case on the very first turn of the game).
 pub fn enter_collect_taxes(
-    player_query: Query<(Entity, &PlayerCities)>,
+    player_query: Query<(Entity, &PlayerCities, Option<&CoinageTaxRate>)>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    let any_cities = player_query.iter().any(|(_, cities)| cities.has_cities());
+    let any_cities = player_query.iter().any(|(_, cities, _)| cities.has_cities());
 
     if !any_cities {
         info!("[TAXATION] No cities on the board — skipping taxation phase");
@@ -27,16 +28,44 @@ pub fn enter_collect_taxes(
     }
 
     info!("[TAXATION] Entering taxation phase — assigning tax obligations");
-    for (player_entity, cities) in player_query.iter() {
+    for (player_entity, cities, coinage_rate) in player_query.iter() {
         let city_count = cities.number_of_cities();
         if city_count == 0 {
             continue;
         }
-        // Base rate: 2 tokens per city. Coinage (not yet implemented) would allow 1 or 3.
-        let tokens_owed = city_count * 2;
+        // Base rate: 2 tokens/city. Coinage holders may have chosen 1 or 3 (rule 19.2).
+        let rate = coinage_rate.map(|r| r.0.clamp(1, 3)).unwrap_or(2);
+        let tokens_owed = city_count * rate;
         commands
             .entity(player_entity)
             .insert(NeedsToPayTaxes::new(tokens_owed));
+        // Remove the rate override so it doesn't persist to next round
+        commands.entity(player_entity).remove::<CoinageTaxRate>();
+    }
+}
+
+/// Sets the Coinage tax rate for AI players who hold Coinage (rule 19.2).
+/// Human players would set this via UI before taxes are computed.
+/// AI chooses 3/city when stock is ample (≥20), 1/city when stock is low (≤8), else 2.
+pub fn ai_set_coinage_rate(
+    mut player_query: Query<(Entity, &TokenStock, &PlayerCities), (With<Player>, With<StupidAi>)>,
+    civ_cards_query: Query<&PlayerCivilizationCards>,
+    mut commands: Commands,
+) {
+    for (player_entity, stock, cities) in player_query.iter_mut() {
+        let has_coinage = civ_cards_query
+            .get(player_entity)
+            .map(|c| c.owns(&CivCardName::Coinage))
+            .unwrap_or(false);
+
+        if !has_coinage || cities.number_of_cities() == 0 {
+            continue;
+        }
+
+        let rate = if stock.tokens_in_stock() >= 20 { 3 }
+                   else if stock.tokens_in_stock() <= 8 { 1 }
+                   else { 2 };
+        commands.entity(player_entity).insert(CoinageTaxRate(rate));
     }
 }
 

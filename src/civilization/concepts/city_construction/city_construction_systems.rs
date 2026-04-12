@@ -1,10 +1,12 @@
 use crate::civilization::components::*;
 use crate::civilization::concepts::city_construction::city_construction_components::{CityConstructionPhaseActive, IsBuilding};
 use crate::civilization::concepts::city_construction::city_construction_events::*;
+use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
 use crate::civilization::concepts::map::map_plugin::AvailableFactions;
 use crate::civilization::concepts::save_game::LoadingFromSave;
 use crate::civilization::functions::{build_city_in_area, return_all_tokens_from_area_to_players};
 use crate::civilization::game_moves::{AvailableMoves, RecalculatePlayerMoves};
+use crate::civilization::CivCardName;
 use crate::player::Player;
 use crate::GameActivity;
 use bevy::prelude::{
@@ -38,17 +40,46 @@ pub fn build_city(
         &mut PlayerCities,
         &mut TokenStock,
         &Faction,
+        &mut Treasury,
+        Option<&PlayerCivilizationCards>,
     )>,
     mut commands: Commands,
     mut recalculate_player_moves: MessageWriter<RecalculatePlayerMoves>,
     game_factions: Res<AvailableFactions>,
 ) {
     for build_city in command.read() {
+        let has_architecture = player_query
+            .get(build_city.player)
+            .ok()
+            .and_then(|(_, _, _, _, _, _, civ_cards)| civ_cards)
+            .map(|c| c.owns(&CivCardName::Architecture))
+            .unwrap_or(false);
+
+        // Architecture (rule 25.3): save 1 token to treasury before returning the rest.
+        // We must also update PlayerAreas since the token bypasses the normal ReturnTokenToStock path.
+        if has_architecture {
+            let saved_token = city_population
+                .get_mut(build_city.area)
+                .ok()
+                .and_then(|(mut pop, _)| {
+                    pop.remove_tokens_from_area(&build_city.player, 1)
+                        .and_then(|mut t| { t.drain().next() })
+                });
+            if let Some(token) = saved_token {
+                if let Ok((_, mut player_areas, _, _, _, mut treasury, _)) =
+                    player_query.get_mut(build_city.player)
+                {
+                    treasury.add_token_to_treasury(token);
+                    player_areas.remove_token(token);
+                }
+            }
+        }
+
         if let Ok((mut population, _)) = city_population.get_mut(build_city.area) {
             return_all_tokens_from_area_to_players(&mut population, &mut commands);
         }
 
-        if let Ok((mut city_stock, _, mut player_cities, _, faction)) =
+        if let Ok((mut city_stock, _, mut player_cities, _, faction, _, _)) =
             player_query.get_mut(build_city.player)
             && let Ok((_, area_transform)) = city_population.get_mut(build_city.area)
         {
@@ -69,6 +100,7 @@ pub fn build_city(
         }
     }
 }
+
 
 pub fn on_enter_city_construction(
     player_query: Query<(Entity, &Faction), With<Player>>,

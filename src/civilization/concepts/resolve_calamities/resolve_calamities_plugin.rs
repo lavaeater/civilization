@@ -20,6 +20,7 @@ impl Plugin for ResolveCalamitiesPlugin {
             .add_message::<Earthquake>()
             .add_message::<CalamityResolved>()
             .register_type::<NeedsCalamityResolution>()
+            .register_type::<NeedsMonotheismConversion>()
             .register_type::<CalamityVictim>()
             .register_type::<PendingCalamities>()
             .register_type::<ActiveCalamityResolution>()
@@ -27,6 +28,7 @@ impl Plugin for ResolveCalamitiesPlugin {
             .register_type::<ClearAllTokens>()
             .register_type::<DestroyCity>()
             .register_type::<ReduceCity>()
+            .register_type::<TransferCityTo>()
             .register_type::<ReturnCityToStock>()
             .add_systems(
                 OnEnter(GameActivity::ResolveCalamities),
@@ -56,10 +58,12 @@ impl Plugin for ResolveCalamitiesPlugin {
                     advance_treachery,
                     advance_piracy,
                     // Post-resolution
+                    apply_monotheism_conversions,
                     handle_calamity_resolved,
                     clear_all_tokens_from_area,
                     destroy_city_in_area,
                     reduce_city_in_area,
+                    transfer_city_to_new_owner,
                 ).run_if(in_state(GameActivity::ResolveCalamities)),
             );
     }

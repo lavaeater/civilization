@@ -1,27 +1,27 @@
 use crate::civilization::{
-    AvailableMoves, BuildCityMove, BuiltCity, CitySite, CityTokenStock, EliminateCityMove,
-    ExpandAutomatically, ExpandManually, GameMove, HasTooManyCities, IsBuilding, LandPassage,
-    MovementMove, NeedsExpansion, PlayerAreas, PlayerCities, PlayerMovementEnded, PlayerShips,
-    PopExpMove, Population, RecalculatePlayerMoves, SeaPassage, TokenHasMoved, TokenStock,
+    AvailableMoves, BuildCityMove, BuiltCity, CitySite, CityTokenStock, CivCardName,
+    EliminateCityMove, ExpandAutomatically, ExpandManually, GameMove, HasTooManyCities,
+    IsBuilding, LandPassage, MovementMove, NeedsExpansion, OpenSea, PlayerAreas, PlayerCities,
+    PlayerCivilizationCards, PlayerMovementEnded, PlayerShips, PopExpMove, Population,
+    RecalculatePlayerMoves, SeaPassage, TokenHasMoved, TokenStock,
 };
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Name, Query};
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: MessageReader<RecalculatePlayerMoves>,
-    player_move_query: Query<(&PlayerAreas, &TokenStock)>,
+    player_move_query: Query<(&PlayerAreas, &TokenStock, Option<&PlayerCivilizationCards>)>,
     area_population_query: Query<&Population>,
     mut commands: Commands,
 ) {
     for event in recalc_player_reader.read() {
         commands.entity(event.player).remove::<AvailableMoves>();
         let mut moves = HashMap::default();
-        /*
-        OK, we know which areas we have tokens in. Those are areas
-        that
-        */
         let mut command_index = 0;
-        if let Ok((player_areas, stock)) = player_move_query.get(event.player) {
+        if let Ok((player_areas, stock, civ_cards)) = player_move_query.get(event.player) {
+            let has_agriculture = civ_cards
+                .map(|c| c.owns(&CivCardName::Agriculture))
+                .unwrap_or(false);
             for area in player_areas.areas().iter() {
                 if let Ok(pop) = area_population_query.get(*area) {
                     command_index += 1;
@@ -29,7 +29,7 @@ pub fn recalculate_pop_exp_moves_for_player(
                         command_index,
                         GameMove::PopulationExpansion(PopExpMove::new(
                             *area,
-                            pop.max_expansion_for_player(event.player)
+                            pop.max_expansion_for_player_with_agriculture(event.player, has_agriculture)
                                 .min(stock.tokens_in_stock()),
                         )),
                     );
@@ -52,10 +52,11 @@ pub fn recalculate_pop_exp_moves_for_player(
 
 pub fn recalculate_movement_moves_for_player(
     mut recalc_player_reader: MessageReader<RecalculatePlayerMoves>,
-    player_move_query: Query<(&PlayerAreas, &PlayerShips)>,
+    player_move_query: Query<(&PlayerAreas, &PlayerShips, Option<&PlayerCivilizationCards>)>,
     area_connections_query: Query<&LandPassage>,
     sea_connections_query: Query<&SeaPassage>,
     area_pop_and_city_query: Query<(&Population, Option<&BuiltCity>)>,
+    open_sea_query: Query<Has<OpenSea>>,
     token_filter_query: Query<Has<TokenHasMoved>>,
     mut commands: Commands,
     mut end_player_movement: MessageWriter<PlayerMovementEnded>,
@@ -65,7 +66,17 @@ pub fn recalculate_movement_moves_for_player(
         commands.entity(event.player).remove::<AvailableMoves>();
         let mut moves = HashMap::default();
         let mut command_index = 0;
-        if let Ok((player_areas, player_ships)) = player_move_query.get(event.player) {
+        if let Ok((player_areas, player_ships, civ_cards)) = player_move_query.get(event.player) {
+            let has_road_building = civ_cards
+                .map(|c| c.owns(&CivCardName::RoadBuilding))
+                .unwrap_or(false);
+            let has_astronomy = civ_cards
+                .map(|c| c.owns(&CivCardName::Astronomy))
+                .unwrap_or(false);
+            let has_cloth_making = civ_cards
+                .map(|c| c.owns(&CivCardName::ClothMaking))
+                .unwrap_or(false);
+
             for (area, tokens) in player_areas.areas_and_population() {
                 let tokens_that_can_move = tokens
                     .iter()
@@ -79,63 +90,98 @@ pub fn recalculate_movement_moves_for_player(
                             if let Ok((population, optional_city)) =
                                 area_pop_and_city_query.get(*target_area)
                             {
-                                if let Some(has_city) = optional_city {
-                                    if has_city.player != event.player {
-                                        command_index += 1;
-                                        moves.insert(
-                                            command_index,
-                                            GameMove::AttackCity(MovementMove::new(
-                                                area,
-                                                *target_area,
-                                                event.player,
-                                                tokens_that_can_move.len(),
-                                            )),
-                                        );
+                                add_land_move(
+                                    &mut moves,
+                                    &mut command_index,
+                                    area,
+                                    *target_area,
+                                    event.player,
+                                    tokens_that_can_move.len(),
+                                    population,
+                                    optional_city,
+                                );
+                            }
+
+                            // ── Road Building: extend one hop through empty, friendly areas ──
+                            // Rule 23.31: may pass through one area that has no enemies and no cities.
+                            // Cannot use Road Building to then board a ship.
+                            if has_road_building {
+                                if let Ok((pass_pop, None)) = area_pop_and_city_query.get(*target_area) {
+                                    // Through area must be free of enemies and cities
+                                    if !pass_pop.has_other_players(&event.player) {
+                                        if let Ok(connections2) = area_connections_query.get(*target_area) {
+                                            for final_area in connections2.to_areas.iter() {
+                                                if *final_area == area { continue; } // no backtrack
+                                                if let Ok((final_pop, final_city)) = area_pop_and_city_query.get(*final_area) {
+                                                    add_land_move(
+                                                        &mut moves,
+                                                        &mut command_index,
+                                                        area,
+                                                        *final_area,
+                                                        event.player,
+                                                        tokens_that_can_move.len(),
+                                                        final_pop,
+                                                        final_city,
+                                                    );
+                                                }
+                                            }
+                                        }
                                     }
-                                } else if population.has_other_players(&event.player) {
-                                    command_index += 1;
-                                    moves.insert(
-                                        command_index,
-                                        GameMove::AttackArea(MovementMove::new(
-                                            area,
-                                            *target_area,
-                                            event.player,
-                                            tokens_that_can_move.len(),
-                                        )),
-                                    );
-                                } else {
-                                    command_index += 1;
-                                    moves.insert(
-                                        command_index,
-                                        GameMove::Movement(MovementMove::new(
-                                            area,
-                                            *target_area,
-                                            event.player,
-                                            tokens_that_can_move.len(),
-                                        )),
-                                    );
                                 }
                             }
                         }
                     }
 
                     // ── Ship ferry moves ──────────────────────────────────────
-                    // Only available if the player has a ship in this area (rule 23.51).
+                    // Rule: ships ferry up to 5 tokens per move.
+                    // Astronomy (rule 28.23): allows entering Open Sea areas.
+                    // Cloth Making (rule 28.18): extends sea range by 1 hop.
                     if !player_ships.ships_in_area(area).is_empty()
                         && let Ok(sea) = sea_connections_query.get(area)
                     {
-                        let ferry_tokens = tokens_that_can_move.len().min(5); // max 5 per ship (23.51)
-                        for target_area in sea.to_areas.iter() {
+                        let ferry_tokens = tokens_that_can_move.len().min(5);
+                        for &target_area in sea.to_areas.iter() {
+                            // Without Astronomy, skip Open Sea destinations
+                            if !has_astronomy
+                                && open_sea_query.get(target_area).unwrap_or(false)
+                            {
+                                continue;
+                            }
                             command_index += 1;
                             moves.insert(
                                 command_index,
                                 GameMove::ShipFerry(MovementMove::new(
                                     area,
-                                    *target_area,
+                                    target_area,
                                     event.player,
                                     ferry_tokens,
                                 )),
                             );
+
+                            // Cloth Making: generate one additional hop through this target
+                            // (rule 28.18: +1 sea movement range, cannot use open sea without Astronomy)
+                            if has_cloth_making {
+                                if let Ok(sea2) = sea_connections_query.get(target_area) {
+                                    for &final_area in sea2.to_areas.iter() {
+                                        if final_area == area { continue; } // no backtrack
+                                        if !has_astronomy
+                                            && open_sea_query.get(final_area).unwrap_or(false)
+                                        {
+                                            continue;
+                                        }
+                                        command_index += 1;
+                                        moves.insert(
+                                            command_index,
+                                            GameMove::ShipFerry(MovementMove::new(
+                                                area,
+                                                final_area,
+                                                event.player,
+                                                ferry_tokens,
+                                            )),
+                                        );
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -154,9 +200,37 @@ pub fn recalculate_movement_moves_for_player(
     }
 }
 
+/// Classify a land move and insert it into the moves map.
+fn add_land_move(
+    moves: &mut HashMap<usize, GameMove>,
+    command_index: &mut usize,
+    source: bevy::prelude::Entity,
+    target: bevy::prelude::Entity,
+    player: bevy::prelude::Entity,
+    token_count: usize,
+    target_pop: &Population,
+    target_city: Option<&BuiltCity>,
+) {
+    *command_index += 1;
+    let game_move = if let Some(city) = target_city {
+        if city.player != player {
+            GameMove::AttackCity(MovementMove::new(source, target, player, token_count))
+        } else {
+            // Player's own city – don't generate a move into it
+            *command_index -= 1;
+            return;
+        }
+    } else if target_pop.has_other_players(&player) {
+        GameMove::AttackArea(MovementMove::new(source, target, player, token_count))
+    } else {
+        GameMove::Movement(MovementMove::new(source, target, player, token_count))
+    };
+    moves.insert(*command_index, game_move);
+}
+
 pub fn recalculate_city_construction_moves_for_player(
     mut recalc_player_reader: MessageReader<RecalculatePlayerMoves>,
-    player_move_query: Query<(&PlayerAreas, &CityTokenStock)>,
+    player_move_query: Query<(&PlayerAreas, &CityTokenStock, Option<&PlayerCivilizationCards>)>,
     area_property_query: Query<(&Population, Has<CitySite>)>,
     mut commands: Commands,
 ) {
@@ -164,12 +238,20 @@ pub fn recalculate_city_construction_moves_for_player(
         commands.entity(event.player).remove::<AvailableMoves>();
         let mut moves = HashMap::default();
         let mut command_index = 0;
-        if let Ok((player_areas, city_token_stock)) = player_move_query.get(event.player) {
+        if let Ok((player_areas, city_token_stock, civ_cards)) = player_move_query.get(event.player) {
+            // Architecture (rule 25.3): holder can build with 1 fewer population token
+            // (minimum 1); the saved token goes to treasury.
+            let has_architecture = civ_cards
+                .map(|c| c.owns(&CivCardName::Architecture))
+                .unwrap_or(false);
+            let city_site_threshold: usize = if has_architecture { 5 } else { 6 };
+            let no_site_threshold: usize = if has_architecture { 11 } else { 12 };
+
             if city_token_stock.has_tokens() {
                 for (area, population) in player_areas.areas_and_population_count().iter() {
-                    if population >= &6
-                        && let Ok((_area_pop, has_city_site)) = area_property_query.get(*area)
-                        && ((has_city_site && population >= &6) || (population >= &12))
+                    if let Ok((_area_pop, has_city_site)) = area_property_query.get(*area)
+                        && ((has_city_site && *population >= city_site_threshold)
+                            || *population >= no_site_threshold)
                     {
                         command_index += 1;
                         moves.insert(

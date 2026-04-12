@@ -48,6 +48,16 @@ impl CivilWarState {
     pub fn apply_democracy_bonus(&mut self) {
         self.victim_selection_points += 10;
     }
+
+    /// Philosophy (rule 31.74): victim's point loss reduced by 5.
+    pub fn apply_philosophy_protection(&mut self) {
+        self.victim_selection_points = self.victim_selection_points.saturating_sub(5);
+    }
+
+    /// Military (rule 29.1): beneficiary gains 5 extra selection points when attacking.
+    pub fn apply_military_bonus(&mut self) {
+        self.beneficiary_selection_points += 5;
+    }
     
     pub fn victim_points_selected(&self) -> usize {
         self.victim_selected_units.len() + (self.victim_selected_cities.len() * 5)

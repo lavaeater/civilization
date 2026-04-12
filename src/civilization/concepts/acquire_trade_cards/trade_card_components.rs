@@ -212,6 +212,27 @@ impl PlayerTradeCards {
         self.commodity_card_suites().values().sum()
     }
 
+    /// Mining card bonus (rule 28.53): the holder may increase the face value of
+    /// one commodity card set by 1. The best set to boost is the one with the
+    /// highest count, since the bonus = count² × 1.
+    pub fn mining_bonus(&self) -> usize {
+        self.commodity_cards()
+            .values()
+            .map(|&count| count * count)
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// Total stack value, optionally including the Mining bonus.
+    pub fn total_stack_value_with_mining(&self, has_mining: bool) -> usize {
+        let base = self.total_stack_value();
+        if has_mining {
+            base + self.mining_bonus()
+        } else {
+            base
+        }
+    }
+
     /// Returns true if the player has any tradeable calamity cards
     pub fn has_tradeable_calamity(&self) -> bool {
         self.number_of_tradeable_calamity_cards() > 0
