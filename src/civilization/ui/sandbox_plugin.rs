@@ -124,7 +124,7 @@ fn setup_sandbox(
     ui.component::<SandboxUiRoot>()
         .size_percent(98.0, 98.0)
         .display_flex()
-        .flex_dir_row();
+        .flex_row();
 
     // Left side: Sample box display area
     ui.add_panel(|ui| {
@@ -155,7 +155,7 @@ fn setup_sandbox(
         ui.width_auto()
             .height_percent(100.)
             .display_flex()
-            .flex_dir_column()
+            .flex_column()
             .bg_color(CONTROL_PANEL_COLOR)
             .padding_all_px(4.0)
             .row_gap_px(2.0);

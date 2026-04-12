@@ -1,9 +1,13 @@
 use crate::GameActivity;
 use bevy::prelude::{in_state, App, IntoScheduleConfigs, OnEnter, Plugin, Update};
 
+use crate::civilization::concepts::resolve_calamities::calamities::ResolvingCalamity;
+use crate::civilization::concepts::resolve_calamities::context::ActiveCalamityResolution;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::*;
-use crate::civilization::resolve_calamities::resolve_calamities_events::{CalamityResolved, Earthquake, ResolveNextCalamity, ResolveVolcanoEarthquake, VolcanoEruption};
+use crate::civilization::resolve_calamities::resolve_calamities_events::{
+    CalamityResolved, Earthquake, ResolveNextCalamity, ResolveVolcanoEarthquake, VolcanoEruption,
+};
 
 pub struct ResolveCalamitiesPlugin;
 
@@ -18,7 +22,8 @@ impl Plugin for ResolveCalamitiesPlugin {
             .register_type::<NeedsCalamityResolution>()
             .register_type::<CalamityVictim>()
             .register_type::<PendingCalamities>()
-            .register_type::<ResolvingVolcanoEarthquake>()
+            .register_type::<ActiveCalamityResolution>()
+            .register_type::<ResolvingCalamity>()
             .register_type::<ClearAllTokens>()
             .register_type::<DestroyCity>()
             .register_type::<ReduceCity>()
@@ -30,8 +35,27 @@ impl Plugin for ResolveCalamitiesPlugin {
             .add_systems(
                 Update,
                 (
+                    // Dispatch: picks the next pending calamity and sets up its state machine
                     process_pending_calamities,
+                    // VolcanoEarthquake (two-step via message)
                     resolve_volcano_earthquake,
+                    apply_volcano_earthquake_effects,
+                    // Flood
+                    advance_flood,
+                    // Unit-point-loss calamities
+                    advance_famine,
+                    advance_barbarian_hordes,
+                    advance_epidemic,
+                    advance_iconoclasm_heresy,
+                    // City-reduction calamities
+                    advance_superstition,
+                    advance_slave_revolt,
+                    advance_civil_disorder,
+                    // Multi-player / complex calamities
+                    advance_civil_war,
+                    advance_treachery,
+                    advance_piracy,
+                    // Post-resolution
                     handle_calamity_resolved,
                     clear_all_tokens_from_area,
                     destroy_city_in_area,

@@ -23,10 +23,10 @@ pub fn setup_human_city_construction_options(
     for (player_entity, available_moves) in human_players.iter() {
         let mut build_sites: Vec<Entity> = Vec::new();
         for game_move in available_moves.moves.values() {
-            if let GameMove::CityConstruction(build_city_move) = game_move {
-                if !build_sites.contains(&build_city_move.target) {
-                    build_sites.push(build_city_move.target);
-                }
+            if let GameMove::CityConstruction(build_city_move) = game_move
+                && !build_sites.contains(&build_city_move.target)
+            {
+                build_sites.push(build_city_move.target);
             }
         }
 
@@ -50,12 +50,12 @@ pub fn draw_city_construction_highlight(
         return;
     }
 
-    if let Some(site) = selection_state.current_site() {
-        if let Ok(transform) = area_transforms.get(site) {
-            let pos = transform.translation.truncate();
-            gizmos.circle_2d(pos, 35.0, Color::srgb(1.0, 0.8, 0.0));
-            gizmos.circle_2d(pos, 38.0, Color::srgb(1.0, 0.8, 0.0));
-        }
+    if let Some(site) = selection_state.current_site()
+        && let Ok(transform) = area_transforms.get(site)
+    {
+        let pos = transform.translation.truncate();
+        gizmos.circle_2d(pos, 35.0, Color::srgb(1.0, 0.8, 0.0));
+        gizmos.circle_2d(pos, 38.0, Color::srgb(1.0, 0.8, 0.0));
     }
 }
 

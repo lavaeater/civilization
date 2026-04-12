@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use lava_ui_builder::{UIBuilder, LavaTheme};
+use lava_ui_builder::{UIBuilder, LavaTheme, TextStyle};
 
 use crate::civilization::components::{
     BuiltCity, Faction, GameArea, GameCamera, Population,
@@ -69,7 +69,7 @@ fn spawn_area_info_markers(
             marker.with_child(|text_node| {
                 text_node
                     .insert(Name::new(area_info_text_name(game_area.id)))
-                    .with_text(text_content, None, Some(10.0), Some(Color::WHITE), None, None);
+                    .with_text(text_content, Some(TextStyle::size_color(10.0, Color::WHITE)));
             });
         });
     }

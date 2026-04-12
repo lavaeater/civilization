@@ -350,27 +350,26 @@ pub fn move_tokens_from_stock_to_area(
     game_factions: Res<AvailableFactions>,
 ) {
     for ev in move_commands.read() {
-        if let Ok((mut player_areas, mut stock, faction)) = player_query.get_mut(ev.player_entity) {
-            if let Ok((mut population, area_transform)) = population_query.get_mut(ev.area_entity) {
-                if let Some(tokens_to_move) = stock.remove_tokens_from_stock(ev.number_of_tokens) {
-                    tokens_to_move.iter().for_each(|t| {
-                        population.add_token_to_area(ev.player_entity, *t);
-                        player_areas.add_token_to_area(ev.area_entity, *t);
-                        commands.entity(*t).insert((
-                            Sprite {
-                                image: game_factions
-                                    .faction_icons
-                                    .get(&faction.faction)
-                                    .unwrap()
-                                    .clone(),
-                                ..default()
-                            },
-                            Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
-                                .with_translation(area_transform.translation),
-                        ));
-                    });
-                }
-            }
+        if let Ok((mut player_areas, mut stock, faction)) = player_query.get_mut(ev.player_entity)
+            && let Ok((mut population, area_transform)) = population_query.get_mut(ev.area_entity)
+            && let Some(tokens_to_move) = stock.remove_tokens_from_stock(ev.number_of_tokens)
+        {
+            tokens_to_move.iter().for_each(|t| {
+                population.add_token_to_area(ev.player_entity, *t);
+                player_areas.add_token_to_area(ev.area_entity, *t);
+                commands.entity(*t).insert((
+                    Sprite {
+                        image: game_factions
+                            .faction_icons
+                            .get(&faction.faction)
+                            .unwrap()
+                            .clone(),
+                        ..default()
+                    },
+                    Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
+                        .with_translation(area_transform.translation),
+                ));
+            });
         }
         commands.entity(ev.area_entity).insert(FixTokenPositions);
     }

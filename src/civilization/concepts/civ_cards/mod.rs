@@ -47,13 +47,10 @@ mod tests {
     fn load_cards() {
         let ron_str = std::fs::read_to_string("assets/definitions/civilization.cards.ron")
             .expect("Failed to read civilization.cards.ron");
-        let cards: Vec<CivCardDefinition> =
+        let resource: AvailableCivCards =
             ron::from_str(&ron_str).expect("Failed to deserialize RON");
-        
-        
-        assert_eq!(cards.len(), 24);
-        
-        let resource = AvailableCivCards { cards };
+
+        assert_eq!(resource.cards.len(), 24);
         let resource_str = ron::to_string(&resource).expect("Failed to serialize RON");
         println!("Resource: {resource_str}");
     }

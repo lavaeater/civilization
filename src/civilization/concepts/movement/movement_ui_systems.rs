@@ -11,7 +11,7 @@ use crate::stupid_ai::IsHuman;
 use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
 use bevy::window::PrimaryWindow;
-use lava_ui_builder::{ButtonTheme, LavaTheme, UIBuilder};
+use lava_ui_builder::{ButtonTheme, LavaTheme, TextStyle, UIBuilder};
 
 /// System to detect when human player has movement options and populate the selection state
 pub fn setup_human_movement_options(
@@ -35,10 +35,8 @@ pub fn setup_human_movement_options(
                 }
                 _ => None,
             };
-            if let Some(s) = source {
-                if !source_areas.contains(&s) {
-                    source_areas.push(s);
-                }
+            if let Some(s) = source && !source_areas.contains(&s) {
+                source_areas.push(s);
             }
         }
 
@@ -100,10 +98,8 @@ pub fn draw_movement_arrows(
 
         for (source, targets) in source_targets.iter() {
             // Skip sources that aren't the focused one
-            if let Some(focused) = focused_source {
-                if *source != focused {
-                    continue;
-                }
+            if let Some(focused) = focused_source && *source != focused {
+                continue;
             }
 
             let Ok(source_transform) = area_transforms.get(*source) else {
@@ -185,10 +181,8 @@ pub fn handle_movement_target_click(
 
             if let Some(m) = movement_move {
                 // Only allow clicking targets from the focused source
-                if let Some(focused) = focused_source {
-                    if m.source != focused {
-                        continue;
-                    }
+                if let Some(focused) = focused_source && m.source != focused {
+                    continue;
                 }
 
                 if let Ok((_, target_transform)) = area_query.get(m.target) {
@@ -299,11 +293,7 @@ pub fn spawn_movement_controls_ui(
                         .component::<SourceAreaDisplay>()
                         .with_text(
                             "Source: ?",
-                            Some(font.clone()),
-                            Some(12.0),
-                            Some(Color::WHITE),
-                            Some(Justify::Center),
-                            Some(LineBreak::NoWrap),
+                            Some(TextStyle { font: Some(font.clone()), font_size: Some(12.0), color: Some(Color::WHITE), justify: Some(Justify::Center), line_break: Some(LineBreak::NoWrap) })
                         )
                         .text_justify_center()
                         .align_items_center()
@@ -365,11 +355,7 @@ pub fn spawn_movement_controls_ui(
                     .component::<TokenCountDisplay>()
                     .with_text(
                         "Click target",
-                        Some(font.clone()),
-                        Some(16.0),
-                        Some(Color::WHITE),
-                        Some(Justify::Center),
-                        Some(LineBreak::NoWrap),
+                        Some(TextStyle { font: Some(font.clone()), font_size: Some(16.0), color: Some(Color::WHITE), justify: Some(Justify::Center), line_break: Some(LineBreak::NoWrap) })
                     )
                     .width(px(120.));
             });
@@ -411,16 +397,14 @@ pub fn spawn_movement_controls_ui(
                             selection_state.player,
                             selection_state.source_area,
                             selection_state.target_area,
-                        ) {
-                            if selection_state.token_count > 0 {
-                                move_writer.write(MoveTokenFromAreaToAreaCommand::new(
-                                    source,
-                                    target,
-                                    selection_state.token_count,
-                                    player,
-                                ));
-                                selection_state.clear_target();
-                            }
+                        ) && selection_state.token_count > 0 {
+                            move_writer.write(MoveTokenFromAreaToAreaCommand::new(
+                                source,
+                                target,
+                                selection_state.token_count,
+                                player,
+                            ));
+                            selection_state.clear_target();
                         }
                     },
                 ).add_button_observe(

@@ -15,7 +15,7 @@ use bevy::color::Color;
 use bevy::prelude::{percent, Add, Button, Changed, Commands, Entity, Has, Interaction, MessageReader, MessageWriter, NextState, On, Query, Res, ResMut, Val, With};
 use bevy::ui_widgets::Button as WidgetsButton;
 use bevy::ui_widgets::Activate;
-use lava_ui_builder::{LavaTheme, UIBuilder};
+use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
 
 pub fn load_civ_cards(mut commands: Commands, asset_server: Res<AssetServer>) {
     let card_handle = asset_server.load("definitions/civilization.cards.ron");
@@ -44,13 +44,13 @@ pub fn on_add_player_acquiring_civilization_cards(
     theme: Res<LavaTheme>,
     cards: Res<AvailableCivCards>,
 ) {
-    if ui_exists_query.is_empty() {
-        if let Ok((_, _, player_cards, player_trade_cards)) = human_player_query.get(trigger.entity) {
-            selection_state.clear();
-            selection_state.player_entity = Some(trigger.entity);
-            
-            build_civ_cards_ui(commands, &theme, &cards, player_cards, player_trade_cards, &selection_state);
-        }
+    if ui_exists_query.is_empty()
+        && let Ok((_, _, player_cards, player_trade_cards)) = human_player_query.get(trigger.entity)
+    {
+        selection_state.clear();
+        selection_state.player_entity = Some(trigger.entity);
+
+        build_civ_cards_ui(commands, &theme, &cards, player_cards, player_trade_cards, &selection_state);
     }
 }
 
@@ -265,9 +265,9 @@ fn create_civ_card_panel(
             .display_flex()
             .flex_row()
             .justify_space_between();
-        name_row.add_text_child(card.name.to_string(), None, None, None);
+        name_row.add_text_child(card.name.to_string(), None);
         if let Some(ref status) = status_text {
-            name_row.add_text_child(format!("[{}]", status), None, None, None);
+            name_row.add_text_child(format!("[{}]", status), None);
         }
     });
     card_builder.with_child(|cost_row| {
@@ -469,14 +469,14 @@ fn build_payment_ui(
                         });
                         label.add_text_child(
                             format!("{}", card_type),
-                            None, Some(12.0), Some(Color::WHITE),
+                            Some(TextStyle::size_color(12.0, Color::WHITE)),
                         );
                     });
 
                     // Chosen / owned count
                     row.add_text_child(
                         format!("{}/{}", chosen, owned),
-                        None, Some(13.0), Some(Color::WHITE),
+                        Some(TextStyle::size_color(13.0, Color::WHITE)),
                     );
 
                     // Increment button
@@ -487,9 +487,7 @@ fn build_payment_ui(
                     );
 
                     // Stack value contribution
-                    row.add_text_child(
-                        format!("  = {}", chosen_value_for_stack),
-                        None, Some(12.0), Some(Color::srgb(0.7, 0.9, 0.7)),
+                    row.add_text_child(format!("  = {}", chosen_value_for_stack), Some(TextStyle::size_color(12.0, Color::srgb(0.7, 0.9, 0.7))),
                     );
                 });
             }
@@ -513,7 +511,7 @@ fn build_payment_ui(
             };
             total_row.add_text_child(
                 format!("Paying: {} / {} required", chosen_value, total_cost),
-                None, Some(14.0), Some(status_color),
+                Some(TextStyle::size_color(14.0, status_color)),
             );
         });
 

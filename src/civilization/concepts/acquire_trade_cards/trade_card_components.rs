@@ -74,19 +74,15 @@ impl PlayerTradeCards {
     }
 
     pub fn get_what_we_want(&self) -> Option<HashMap<TradeCard, usize>> {
-        if self.can_trade() {
-            if let Some(top_commodity) = self.top_commodity() {
-                return Some(HashMap::from([(top_commodity, 2)]));
-            }
+        if self.can_trade() && let Some(top_commodity) = self.top_commodity() {
+            return Some(HashMap::from([(top_commodity, 2)]));
         }
         None
     }
 
     pub fn get_what_we_can_pay(&self) -> Option<HashMap<TradeCard, usize>> {
-        if self.can_trade() {
-            if let Some(bottom_commodity) = self.worst_commodity() {
-                return Some(HashMap::from([(bottom_commodity, 2)]));
-            }
+        if self.can_trade() && let Some(bottom_commodity) = self.worst_commodity() {
+            return Some(HashMap::from([(bottom_commodity, 2)]));
         }
         None
     }

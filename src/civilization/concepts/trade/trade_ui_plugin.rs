@@ -6,7 +6,7 @@ use crate::{GameActivity, GameState};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::state::state::StateTransitionEvent;
-use lava_ui_builder::{UIBuilder, LavaTheme};
+use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
 
 #[derive(Component, Default)]
 pub struct GameStateDisplay;
@@ -28,9 +28,12 @@ impl PlayerActivityLog {
     pub fn log(&mut self, player: Entity, activity: String) {
         self.activities.insert(player, activity);
     }
-    
+
     pub fn get(&self, player: Entity) -> &str {
-        self.activities.get(&player).map(|s| s.as_str()).unwrap_or("Waiting...")
+        self.activities
+            .get(&player)
+            .map(|s| s.as_str())
+            .unwrap_or("Waiting...")
     }
 }
 
@@ -43,12 +46,15 @@ impl Plugin for TradeUiPlugin {
             .insert_resource(LavaTheme::default())
             .init_resource::<PlayerActivityLog>()
             .add_systems(OnEnter(GameActivity::StartGame), setup_trade_ui)
-            .add_systems(Update, (
-                handle_player_draws_cards,
-                update_game_state_display,
-                track_player_activities,
-                update_player_activity_display,
-            ));
+            .add_systems(
+                Update,
+                (
+                    handle_player_draws_cards,
+                    update_game_state_display,
+                    track_player_activities,
+                    update_player_activity_display,
+                ),
+            );
     }
 }
 
@@ -63,12 +69,7 @@ fn _commodity_card_max_set_size(card: TradeCard) -> usize {
     }
 }
 
-fn _add_commodity_card(
-    b: &mut UIBuilder,
-    card_type: TradeCard,
-    count: usize,
-    theme: &LavaTheme,
-) {
+fn _add_commodity_card(b: &mut UIBuilder, card_type: TradeCard, count: usize, theme: &LavaTheme) {
     let active_index = count.clamp(1, _commodity_card_max_set_size(card_type));
     let max_set_size = _commodity_card_max_set_size(card_type);
     let highlight_bg = Color::srgba(1.0, 1.0, 1.0, 0.25);
@@ -79,7 +80,8 @@ fn _add_commodity_card(
     let text_color = theme.text.label_color;
     let font = theme.text.font.clone();
 
-    b.size_px(160., 240.).bg_color(card_color)
+    b.size_px(160., 240.)
+        .bg_color(card_color)
         .display(Display::Flex)
         .flex_direction(FlexDirection::Column)
         .border_all_px(2.0, border_color)
@@ -87,7 +89,7 @@ fn _add_commodity_card(
         .with_child(|b| {
             // Top set-value boxes (first half)
             b.display(Display::Flex)
-                .flex_direction_row()
+                .flex_row()
                 .flex_wrap()
                 // .justify_content(JustifyContent::SpaceBetween)
                 // .align_items(AlignItems::Center)
@@ -103,7 +105,8 @@ fn _add_commodity_card(
                     } else {
                         border_color
                     };
-                    b.size_px(18., 18.).bg_color(bg)
+                    b.size_px(18., 18.)
+                        .bg_color(bg)
                         .border_all_px(1., bc)
                         // .align_content(AlignContent::Center)
                         // .align_items(AlignItems::Center)
@@ -111,10 +114,12 @@ fn _add_commodity_card(
                         // .justify_items(JustifyItems::Center)
                         .with_text(
                             format!("{}", (n * n) * card_type.value()),
-                            Some(font.clone()),
-                            Some(18.0),
-                            Some(text_color),
-                            None, None
+                            Some(TextStyle {
+                                font: Some(font.clone()),
+                                font_size: Some(18.0),
+                                color: Some(text_color),
+                                ..Default::default()
+                            }),
                         );
                 });
         });
@@ -207,10 +212,14 @@ fn _setup(
 
     root_ui
         .component::<TradeCardUiRoot>()
-        .display_flex().flex_column().size(Val::Percent(25.), Val::Percent(100.))
+        .display_flex()
+        .flex_column()
+        .size(Val::Percent(25.), Val::Percent(100.))
         .text_node("Your trade cards!")
         .child()
-        .display_flex().flex_column().size(Val::Percent(100.), Val::Percent(100.))
+        .display_flex()
+        .flex_column()
+        .size(Val::Percent(100.), Val::Percent(100.))
         .component::<TradeCardList>();
 
     let (_root_entity, _commands) = root_ui.build();
@@ -228,17 +237,17 @@ fn handle_player_draws_cards(
 ) {
     let mut new_commands = commands;
     for event in reader.read() {
-        if let Ok(trade_card_list_entity) = trade_card_list.single() {
-            if let Ok(player_trade_cards) = player_trade_cards.get(event.player_entity) {
-                let mut ui_builder = UIBuilder::start_from_entity(
-                    new_commands,
-                    trade_card_list_entity,
-                    true,
-                    Some(ui_theme.clone()),
-                );
-                build_trade_card_list(&mut ui_builder, player_trade_cards);
-                new_commands = ui_builder.build().1;
-            }
+        if let Ok(trade_card_list_entity) = trade_card_list.single()
+            && let Ok(player_trade_cards) = player_trade_cards.get(event.player_entity)
+        {
+            let mut ui_builder = UIBuilder::start_from_entity(
+                new_commands,
+                trade_card_list_entity,
+                true,
+                Some(ui_theme.clone()),
+            );
+            build_trade_card_list(&mut ui_builder, player_trade_cards);
+            new_commands = ui_builder.build().1;
         }
     }
 }
@@ -258,11 +267,11 @@ pub fn setup_trade_ui(
 
     ui.component::<TradeCardUiRoot>()
         .display_flex()
-        .flex_dir_row()
+        .flex_row()
         .padding_all_px(4.0);
 
     // Left side: Collapsible Trade Cards section
-    ui.add_collapsible("Trade Cards", |cards_section| {
+    ui.with_collapsible("Trade Cards", false, |cards_section| {
         cards_section
             .component::<TradeCardList>()
             .width_px(300.0)
@@ -271,42 +280,42 @@ pub fn setup_trade_ui(
             .with_overflow(Overflow::scroll_y())
             .insert(ScrollPosition::default())
             .padding_all_px(4.0);
-        
+
         if let Ok(trade_cards) = _player_trade_cards.single() {
             build_trade_card_list(cards_section, trade_cards);
         }
     });
 
     // Right side: Collapsible Game Info section
-    ui.add_collapsible("Game Info", |info_section| {
+    ui.with_collapsible("Game Info", false, |info_section| {
         info_section
             .width_px(450.0)
             .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.7))
             .padding_all_px(4.0);
-        
+
         // Game State section
-        info_section.add_text_child("Game State", None, None, None);
+        info_section.add_text_child("Game State", None);
         info_section.with_child(|state| {
             state
                 .component::<GameStateDisplay>()
                 .width_percent(100.0)
                 .display_flex()
-                .flex_dir_column()
+                .flex_column()
                 .padding_all_px(4.0)
                 .margin(UiRect::bottom(Val::Px(8.0)));
-            
-            state.add_text_child("State: Playing", None, None, None);
-            state.add_text_child("Activity: StartGame", None, None, None);
+
+            state.add_text_child("State: Playing", None);
+            state.add_text_child("Activity: StartGame", None);
         });
-        
+
         // Player Activity section
-        info_section.add_text_child("Player Activity", None, None, None);
+        info_section.add_text_child("Player Activity", None);
         info_section.with_child(|list| {
             list.component::<PlayerActivityListContainer>()
                 .width_percent(100.0)
                 .height_px(300.0)
                 .display_flex()
-                .flex_dir_column()
+                .flex_column()
                 .padding_all_px(4.0)
                 .with_overflow(Overflow::scroll_y())
                 .insert(ScrollPosition::default());
@@ -319,29 +328,40 @@ pub fn setup_trade_ui(
 pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
     let small_font_size = 12.0;
     let medium_font_size = 18.0;
-    
+
     ui.with_child(|card| {
         card.width_px(120.0)
             .height_px(80.0)
             .display_flex()
-            .flex_dir_column()
+            .flex_column()
             .justify_center()
             .align_items_center()
             .padding_all_px(2.0)
             .margin_all_px(2.0)
             .bg_color(Color::srgba(0.2, 0.2, 0.3, 0.8))
             .border_radius_all_px(4.0);
-        
+
         if stack.is_commodity {
-            card.add_text_child(stack.card_type.to_string(), None, Some(medium_font_size), None);
-            card.add_text_child(format!("x{} = {}", stack.count, stack.suite_value), None, Some(small_font_size), None);
-        } else {
-            card.add_text_child(stack.card_type.to_string(), None, Some(medium_font_size), None);
             card.add_text_child(
-                if stack.is_tradeable { "Tradeable" } else { "Non-Tradeable" },
-                None,
-                Some(small_font_size),
-                None,
+                stack.card_type.to_string(),
+                Some(TextStyle::size(medium_font_size)),
+            );
+            card.add_text_child(
+                format!("x{} = {}", stack.count, stack.suite_value),
+                Some(TextStyle::size(small_font_size)),
+            );
+        } else {
+            card.add_text_child(
+                stack.card_type.to_string(),
+                Some(TextStyle::size(medium_font_size)),
+            );
+            card.add_text_child(
+                if stack.is_tradeable {
+                    "Tradeable"
+                } else {
+                    "Non-Tradeable"
+                },
+                Some(TextStyle::size(small_font_size)),
             );
         }
     });
@@ -349,19 +369,19 @@ pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
 
 pub fn build_trade_card_list(ui: &mut UIBuilder, trade_cards: &PlayerTradeCards) {
     let stacks = trade_cards.as_card_stacks_sorted_by_value();
-    
+
     // Group stacks by pile value (1-9)
     for pile_value in 1..=9 {
         let pile_stacks: Vec<_> = stacks
             .iter()
             .filter(|s| s.card_type.value() == pile_value)
             .collect();
-        
+
         if !pile_stacks.is_empty() {
             // Sort: commodities first, then calamities
             let mut sorted_stacks = pile_stacks.clone();
             sorted_stacks.sort_by_key(|s| if s.is_commodity { 0 } else { 1 });
-            
+
             // Create a row for this pile
             ui.add_row(|row| {
                 row.width_percent(100.0)
@@ -369,10 +389,10 @@ pub fn build_trade_card_list(ui: &mut UIBuilder, trade_cards: &PlayerTradeCards)
                     .justify_start()
                     .align_items_center()
                     .with_flex_shrink(0.0);
-                
+
                 // Pile label
-                row.add_text_child(format!("{}:", pile_value), None, Some(24.0), None);
-                
+                row.add_text_child(format!("{}:", pile_value), Some(TextStyle::size(24.0)));
+
                 // Cards in this pile
                 for stack in sorted_stacks {
                     build_trade_card(row, stack);
@@ -391,51 +411,73 @@ fn update_game_state_display(
     current_state: Res<State<GameState>>,
     current_activity: Option<Res<State<GameActivity>>>,
     game_info: Res<GameInfoAndStuff>,
-    player_query: Query<(&Name, &PlayerAreas, &PlayerCities, &PlayerTradeCards, &Faction, Has<IsHuman>), With<Player>>,
+    player_query: Query<
+        (
+            &Name,
+            &PlayerAreas,
+            &PlayerCities,
+            &PlayerTradeCards,
+            &Faction,
+            Has<IsHuman>,
+        ),
+        With<Player>,
+    >,
 ) {
     let state_changed = game_state_events.read().count() > 0;
     let activity_changed = game_activity_events.read().count() > 0;
-    
+
     if !state_changed && !activity_changed {
         return;
     }
-    
+
     let Ok(display_entity) = display_query.single() else {
         return;
     };
-    
+
     let state_text = format!("State: {:?}", current_state.get());
     let activity_text = match &current_activity {
         Some(activity) => format!("Activity: {:?}", activity.get()),
         None => "Activity: None".to_string(),
     };
     let round_text = format!("Round: {}", game_info.round);
-    
-    let mut ui = UIBuilder::start_from_entity(
-        commands,
-        display_entity,
-        true,
-        Some(ui_theme.clone()),
-    );
-    
-    ui.add_text_child(&state_text, None, Some(18.0), None);
-    ui.add_text_child(&activity_text, None, Some(18.0), None);
-    ui.add_text_child(&round_text, None, Some(18.0), None);
+
+    let mut ui =
+        UIBuilder::start_from_entity(commands, display_entity, true, Some(ui_theme.clone()));
+
+    ui.add_text_child(&state_text, Some(TextStyle::size(18.0)));
+    ui.add_text_child(&activity_text, Some(TextStyle::size(18.0)));
+    ui.add_text_child(&round_text, Some(TextStyle::size(18.0)));
 
     // Census order display
-    ui.add_text_child("Census Order:", None, Some(16.0), Some(Color::srgb(1.0, 0.8, 0.0)));
+    ui.add_text_child(
+        "Census Order:",
+        Some(TextStyle::size_color(16.0, Color::srgb(1.0, 0.8, 0.0))),
+    );
     for (i, player_entity) in game_info.census_order.iter().enumerate() {
-        if let Ok((name, player_areas, player_cities, player_trade_cards, faction, is_human)) = player_query.get(*player_entity) {
+        if let Ok((name, player_areas, player_cities, player_trade_cards, faction, is_human)) =
+            player_query.get(*player_entity)
+        {
             let pop = player_areas.total_population();
             let cities = player_cities.number_of_cities();
             let cards = player_trade_cards.number_of_trade_cards();
             let faction_color = faction_to_color(faction);
             let human_marker = if is_human { " (YOU)" } else { "" };
-            let census_line = format!("{}. {}{} - Pop: {} | Cities: {} | Cards: {}", i + 1, name, human_marker, pop, cities, cards);
-            ui.add_text_child(&census_line, None, Some(14.0), Some(faction_color));
+            let census_line = format!(
+                "{}. {}{} - Pop: {} | Cities: {} | Cards: {}",
+                i + 1,
+                name,
+                human_marker,
+                pop,
+                cities,
+                cards
+            );
+            ui.add_text_child(
+                &census_line,
+                Some(TextStyle::size_color(14.0, faction_color)),
+            );
         }
     }
-    
+
     ui.build();
 }
 
@@ -448,28 +490,43 @@ fn track_player_activities(
     area_names: Query<&Name>,
 ) {
     for event in pop_exp_events.read() {
-        let area_name = area_names.get(event.area).map(|n| n.as_str()).unwrap_or("?");
+        let area_name = area_names
+            .get(event.area)
+            .map(|n| n.as_str())
+            .unwrap_or("?");
         activity_log.log(
             event.player,
-            format!("🌱 Expanding {} tokens to {}", event.number_of_tokens, area_name),
+            format!(
+                "🌱 Expanding {} tokens to {}",
+                event.number_of_tokens, area_name
+            ),
         );
     }
-    
+
     for event in movement_events.read() {
-        let from = area_names.get(event.source_area).map(|n| n.as_str()).unwrap_or("?");
-        let to = area_names.get(event.target_area).map(|n| n.as_str()).unwrap_or("?");
+        let from = area_names
+            .get(event.source_area)
+            .map(|n| n.as_str())
+            .unwrap_or("?");
+        let to = area_names
+            .get(event.target_area)
+            .map(|n| n.as_str())
+            .unwrap_or("?");
         activity_log.log(
             event.player,
-            format!("🚶 Moving {} from {} to {}", event.number_of_tokens, from, to),
+            format!(
+                "🚶 Moving {} from {} to {}",
+                event.number_of_tokens, from, to
+            ),
         );
     }
-    
+
     for event in city_build_events.read() {
-        let area_name = area_names.get(event.area).map(|n| n.as_str()).unwrap_or("?");
-        activity_log.log(
-            event.player,
-            format!("🏛️ Building city in {}", area_name),
-        );
+        let area_name = area_names
+            .get(event.area)
+            .map(|n| n.as_str())
+            .unwrap_or("?");
+        activity_log.log(event.player, format!("🏛️ Building city in {}", area_name));
     }
 }
 
@@ -483,18 +540,13 @@ fn update_player_activity_display(
     if !activity_log.is_changed() {
         return;
     }
-    
+
     let Ok(container) = container_query.single() else {
         return;
     };
-    
-    let mut ui = UIBuilder::start_from_entity(
-        commands,
-        container,
-        true,
-        Some(ui_theme.clone()),
-    );
-    
+
+    let mut ui = UIBuilder::start_from_entity(commands, container, true, Some(ui_theme.clone()));
+
     for (player_entity, name, faction, is_human) in players.iter() {
         let activity = activity_log.get(player_entity);
         let faction_color = faction_to_color(faction);
@@ -503,31 +555,35 @@ fn update_player_activity_display(
         } else {
             name.to_string()
         };
-        
+
         ui.with_child(|row| {
             row.width_percent(100.0)
                 .height_px(80.0)
                 .display_flex()
-                .flex_dir_row()
+                .flex_row()
                 .align_items_center()
                 .padding_all_px(4.0)
                 .margin_all_px(2.0)
                 .bg_color(Color::srgba(0.15, 0.15, 0.2, 0.8))
                 .border_radius_all_px(4.0);
-            
+
             row.with_child(|badge| {
-                badge.width_px(24.0)
+                badge
+                    .width_px(24.0)
                     .height_px(24.0)
                     .bg_color(faction_color)
                     .border_radius_all_px(6.0)
                     .margin_all_px(6.0);
             });
-            
-            row.add_text_child(format!("{}: ", display_name), None, Some(18.0), Some(faction_color));
-            row.add_text_child(activity, None, Some(18.0), None);
+
+            row.add_text_child(
+                format!("{}: ", display_name),
+                Some(TextStyle::size_color(18.0, faction_color)),
+            );
+            row.add_text_child(activity, Some(TextStyle::size(18.0)));
         });
     }
-    
+
     ui.build();
 }
 

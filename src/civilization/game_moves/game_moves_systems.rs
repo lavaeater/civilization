@@ -66,9 +66,10 @@ pub fn recalculate_movement_moves_for_player(
                     .filter(|t| !token_filter_query.get(**t).unwrap())
                     .collect::<Vec<_>>();
 
-                if !tokens_that_can_move.is_empty() {
-                    if let Ok(connections) = area_connections_query.get(area) {
-                        for target_area in connections.to_areas.iter() {
+                if !tokens_that_can_move.is_empty()
+                    && let Ok(connections) = area_connections_query.get(area)
+                {
+                    for target_area in connections.to_areas.iter() {
                             if let Ok((population, optional_city)) =
                                 area_pop_and_city_query.get(*target_area)
                             {
@@ -109,7 +110,6 @@ pub fn recalculate_movement_moves_for_player(
                                     );
                                 }
                             }
-                        }
                     }
                 }
             }
@@ -140,16 +140,15 @@ pub fn recalculate_city_construction_moves_for_player(
         if let Ok((player_areas, city_token_stock)) = player_move_query.get(event.player) {
             if city_token_stock.has_tokens() {
                 for (area, population) in player_areas.areas_and_population_count().iter() {
-                    if population >= &6 {
-                        if let Ok((_area_pop, has_city_site)) = area_property_query.get(*area) {
-                            if (has_city_site && population >= &6) || (population >= &12) {
-                                command_index += 1;
-                                moves.insert(
-                                    command_index,
-                                    GameMove::CityConstruction(BuildCityMove::new(*area, event.player)),
-                                );
-                            }
-                        }
+                    if population >= &6
+                        && let Ok((_area_pop, has_city_site)) = area_property_query.get(*area)
+                        && ((has_city_site && population >= &6) || (population >= &12))
+                    {
+                        command_index += 1;
+                        moves.insert(
+                            command_index,
+                            GameMove::CityConstruction(BuildCityMove::new(*area, event.player)),
+                        );
                     }
                 }
             }

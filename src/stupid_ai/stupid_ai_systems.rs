@@ -190,10 +190,9 @@ pub fn select_stupid_trade_move(
                     TradeMove::ProposeTrade(receiver, matching_cards) => {
                         if let Ok((player_trade_cards, player_wants)) =
                             player_trade_cards.get(event.player)
-                        {
-                            if let Ok((_receiver_wants, receiver_name)) =
+                            && let Ok((_receiver_wants, receiver_name)) =
                                 player_wants_query.get(*receiver)
-                            {
+                        {
                                 match matching_cards.len() {
                                     1 => {
                                         /*
@@ -258,7 +257,6 @@ pub fn select_stupid_trade_move(
                                     }
                                     _ => {}
                                 }
-                            }
                         }
                     }
                     TradeMove::AcceptOrDeclineTrade(_trade_offer) => {}
