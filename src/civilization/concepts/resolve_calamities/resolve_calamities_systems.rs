@@ -742,8 +742,8 @@ pub fn advance_civil_war(
     mut commands: Commands,
     mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerAreas, &PlayerCities)>,
     all_players_stock: Query<(Entity, &TokenStock), With<Player>>,
-    mut area_populations: Query<&mut Population>,
-    mut beneficiary_areas: Query<(&mut PlayerAreas, &mut PlayerCities, &mut CityTokenStock, &mut TokenStock)>,
+    _area_populations: Query<&mut Population>,
+    _beneficiary_areas: Query<(&mut PlayerAreas, &mut PlayerCities, &mut CityTokenStock, &mut TokenStock)>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
 ) {
     for (player_entity, mut resolving, mut resolution, victim_areas, victim_cities) in player_query.iter_mut() {
@@ -772,7 +772,7 @@ pub fn advance_civil_war(
 
                 // Collect tokens first
                 'outer: for (area, tokens) in victim_areas.areas_and_population() {
-                    for &token in tokens {
+                    for token in tokens {
                         if pts >= target { break 'outer; }
                         state.victim_selected_units.push(token);
                         let _ = area; // area tracked implicitly through token's area membership
@@ -1089,14 +1089,13 @@ pub fn transfer_city_to_new_owner(
         commands.entity(area_entity).remove::<TransferCityTo>();
 
         // Use unsafe multi-get to borrow both entities mutably at once
-        if victim_player != new_owner {
-            if let Ok([(mut v_stock, mut v_cities), (mut b_stock, mut b_cities)]) =
+        if victim_player != new_owner && let Ok([(mut v_stock, mut v_cities), (mut b_stock, mut b_cities)]) =
                 player_data.get_many_mut([victim_player, new_owner])
             {
                 if let Some(old_city) = v_cities.remove_city_from_area(area_entity) {
                     v_stock.return_token_to_stock(old_city);
                 }
-                if let Some(new_city) = b_stock.remove_token_from_stock() {
+                if let Some(new_city) = b_stock.get_token_from_stock() {
                     b_cities.build_city_in_area(area_entity, new_city);
                     commands.entity(area_entity).insert(BuiltCity::new(new_owner, new_city));
                     info!("[CALAMITIES] City transferred to {:?}", new_owner);
@@ -1104,7 +1103,7 @@ pub fn transfer_city_to_new_owner(
                     info!("[CALAMITIES] New owner {:?} has no city tokens; city lost", new_owner);
                 }
             }
-        }
+        
 
         commands.entity(area_entity).insert(FixTokenPositions);
     }

@@ -162,7 +162,7 @@ pub fn resolve_revolts(
             (entity, unit_points)
         })
         .collect();
-    candidates.sort_by(|a, b| b.1.cmp(&a.1));
+    candidates.sort_by_key(|(_,b)|*b);
 
     // Collect (city_entity, area_entity, original_owner) triples so we can
     // update PlayerCities without conflicting borrows.

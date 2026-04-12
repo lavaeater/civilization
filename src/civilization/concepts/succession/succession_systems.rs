@@ -40,7 +40,7 @@ pub fn advance_succession_markers(
         let can_advance = city_count >= target_epoch.min_cities()
             && check_card_requirements(
                 &target_epoch,
-                civ_cards.as_deref(),
+                civ_cards,
                 civ_card_defs.as_deref(),
             );
 

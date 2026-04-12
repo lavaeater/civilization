@@ -1,4 +1,9 @@
-use crate::civilization::{AvailableMoves, BuildCityMove, BuiltCity, CitySite, CityTokenStock, EliminateCityMove, ExpandAutomatically, ExpandManually, GameMove, HasTooManyCities, IsBuilding, LandPassage, MovementMove, NeedsExpansion, PlayerAreas, PlayerCities, PlayerMovementEnded, PlayerShips, PopExpMove, Population, RecalculatePlayerMoves, SeaPassage, TokenHasMoved, TokenStock};
+use crate::civilization::{
+    AvailableMoves, BuildCityMove, BuiltCity, CitySite, CityTokenStock, EliminateCityMove,
+    ExpandAutomatically, ExpandManually, GameMove, HasTooManyCities, IsBuilding, LandPassage,
+    MovementMove, NeedsExpansion, PlayerAreas, PlayerCities, PlayerMovementEnded, PlayerShips,
+    PopExpMove, Population, RecalculatePlayerMoves, SeaPassage, TokenHasMoved, TokenStock,
+};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Name, Query};
 
@@ -116,21 +121,21 @@ pub fn recalculate_movement_moves_for_player(
 
                     // ── Ship ferry moves ──────────────────────────────────────
                     // Only available if the player has a ship in this area (rule 23.51).
-                    if !player_ships.ships_in_area(area).is_empty() {
-                        if let Ok(sea) = sea_connections_query.get(area) {
-                            let ferry_tokens = tokens_that_can_move.len().min(5); // max 5 per ship (23.51)
-                            for target_area in sea.to_areas.iter() {
-                                command_index += 1;
-                                moves.insert(
-                                    command_index,
-                                    GameMove::ShipFerry(MovementMove::new(
-                                        area,
-                                        *target_area,
-                                        event.player,
-                                        ferry_tokens,
-                                    )),
-                                );
-                            }
+                    if !player_ships.ships_in_area(area).is_empty()
+                        && let Ok(sea) = sea_connections_query.get(area)
+                    {
+                        let ferry_tokens = tokens_that_can_move.len().min(5); // max 5 per ship (23.51)
+                        for target_area in sea.to_areas.iter() {
+                            command_index += 1;
+                            moves.insert(
+                                command_index,
+                                GameMove::ShipFerry(MovementMove::new(
+                                    area,
+                                    *target_area,
+                                    event.player,
+                                    ferry_tokens,
+                                )),
+                            );
                         }
                     }
                 }

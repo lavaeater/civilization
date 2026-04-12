@@ -27,7 +27,7 @@ pub fn enter_ship_construction(
     textures: Res<TextureAssets>,
 ) {
     // ── 1. Maintenance ────────────────────────────────────────────────────────
-    for (player_entity, name, mut ship_stock, mut player_ships, mut treasury, mut token_stock, _) in
+    for (_player_entity, name, mut ship_stock, mut player_ships, mut treasury, mut token_stock, _) in
         player_query.iter_mut()
     {
         let areas_with_ships: Vec<Entity> = player_ships.all_areas_with_ships();
@@ -59,7 +59,7 @@ pub fn enter_ship_construction(
     // ── 2. Building ───────────────────────────────────────────────────────────
     // Build in census order (most tokens first). For now just iterate all players.
     // TODO: sort by census order; Military holders go last (rule 22.11).
-    for (player_entity, name, mut ship_stock, mut player_ships, mut treasury, mut token_stock, player_areas) in
+    for (_player_entity, name, mut ship_stock, mut player_ships, mut treasury, mut token_stock, player_areas) in
         player_query.iter_mut()
     {
         let ships_on_board = player_ships.total_ships_on_board();
