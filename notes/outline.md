@@ -22,44 +22,120 @@ What is left to do. Below are the identified areas:
 
 All rules are found in the ./rules folder.
 
+---
+
+### Taxation (Phase 1 — missing entirely)
+
+**What is done:**
+- Nothing. The taxation phase is entirely absent from the game loop.
+
+**TODO:**
+- [ ] Add `Taxation` phase to `GameActivity` and the phase sequence
+- [ ] Each player transfers 2 tokens from stock to treasury per city on the board (19.1)
+- [ ] Implement city revolts: if a player lacks tokens to pay, excess cities revolt (19.31)
+- [ ] Revolt beneficiary: player with most units in stock takes over revolting cities (19.32)
+- [ ] If no one can take over a revolting city, eliminate it (19.33)
+- [ ] Democracy: cities belonging to the holder never revolt (19.34)
+- [ ] Coinage: vary taxation rate 1–3 tokens/city (see Civ Cards section)
+
+---
+
 ### 1. Rules - Civilization Cards and Effects
 
 **What is done:**
-- All 24 civilization cards are defined in `assets/definitions/civilization.cards.ron` with card types, costs, and credit systems.
-- Card acquisition UI and purchasing mechanics are implemented (commodity card payment).
-- Calamity modifier effects are fully implemented in `src/civilization/concepts/resolve_calamities/modifiers.rs`:
-  - Engineering (Volcano/Earthquake, Flood), Pottery (Famine), Mysticism/Deism/Enlightenment (Superstition), Music/Drama and Poetry/Democracy (Civil War), Law/Democracy (Civil Disorder), Theology/Philosophy (Iconoclasm and Heresy), Medicine (Epidemic), Military (Barbarian Hordes).
+- All 24 civilization cards defined in `assets/definitions/civilization.cards.ron` with costs, types, and credit tables.
+- Card acquisition UI and purchasing mechanics implemented (commodity card + treasury payment).
+- Prerequisites enforced (Engineering → RoadBuilding/Mining, Law → Democracy/Philosophy, Enlightenment → Monotheism/Theology).
+- Credits from previously held cards applied to purchases.
+- Calamity modifier effects implemented for: Engineering (Volcano/Earthquake, Flood), Pottery (Famine), Mysticism/Deism/Enlightenment (Superstition), Music/Drama and Poetry/Democracy (Civil War victim selection), Law/Democracy (Civil Disorder), Theology/Philosophy (Iconoclasm — see bug note below), Medicine (Epidemic primary), Military (Barbarian Hordes).
 
-**TODO:**
-- [ ] Agriculture: increase population limit by 1 in areas occupied solely by that player
-- [ ] Road Building: allow tokens to move through one land area into a second in the same phase
-- [ ] Metalworking: in conflicts, player always removes tokens after all others
-- [ ] Mining: increase trade card value of Iron/Bronze/Silver/Gems/Gold by one when acquiring civ cards
-- [ ] Architecture: allow using tokens from the treasury to assist building one city per turn
-- [ ] Coinage: implement taxation rate variation (1–3 tokens per city)
-- [ ] Monotheism: convert occupants of an adjacent area to the player's units
-- [ ] Literacy: verify no missing effect beyond credits (currently treated as credits-only)
-- [ ] Astronomy: prerequisite for ships crossing open seas — defer until ships are implemented
-- [ ] Cloth Making: ships may move an extra area (five instead of four) — defer until ships are implemented
-- [ ] AI: teach the AI to purchase and benefit from civ cards
+**TODO — card effects not yet implemented:**
+- [ ] Agriculture: population limit +1 in areas solely occupied by this player's tokens; also +1 token substituted when cities are reduced (26.11)
+- [ ] Road Building: allow tokens to pass through one land area into a second in the same movement phase (23.31); first area must not contain enemy units, Barbarians, or Pirate cities; cannot be used to then board a ship
+- [ ] Metalworking: in conflicts, the holder removes tokens after all non-Metalworking players (24.24); Metalworking vs Metalworking is normal
+- [ ] Architecture: holder may use treasury tokens to help build one city per turn; at least half of tokens must be on-board; cannot be used in areas with enemy units or Barbarians (25.3)
+- [ ] Coinage: vary taxation rate to 1 or 3 tokens/city per turn (19.2, 32.42)
+- [ ] Mining: increases value of one set of Iron/Bronze/Silver/Gems/Gold by one card when acquiring civ cards or evaluating hand for AST/victory — once per turn, may not exceed card maximum (28.53, 32.26)
+- [ ] Monotheism: at end of calamity phase, convert one adjacent land area's units to own units; cannot target Monotheism/Theology holders, Barbarians, or Pirate cities (32.94)
+- [ ] Theology: not affected by Monotheism (32.952)
+- [ ] Cloth Making and Astronomy: defer until ships are implemented
+- [ ] Credits may not be used in the same turn they are acquired (31.53) — verify this is enforced
+- [ ] AI: teach the AI to select and benefit from civilization cards
+
+**TODO — calamity modifier bugs/gaps in `modifiers.rs`:**
+- [ ] **Iconoclasm and Heresy** is using `unit_points_to_lose` — it should affect `cities_to_reduce` (default 4 cities):
+  - Theology: −3 cities (not −4 unit points)
+  - Philosophy: −1 city (not −2 unit points)
+  - Law: −1 city (30.812) — not in code at all
+  - Monotheism: +1 city (30.815) — not in code
+  - Road Building: +1 city (30.816) — not in code
+- [ ] **Civil Disorder** default is "all but 3 cities reduced"; modifiers missing:
+  - Music: −1 city (30.712) — not in code
+  - Drama and Poetry: −1 city (30.712) — not in code
+  - Military: +1 city (30.713) — not in code
+  - Road Building: +1 city (30.714) — not in code
+- [ ] **Epidemic** missing modifiers:
+  - Road Building: +5 unit points (primary and secondary, 30.614) — not in code
+  - Medicine for secondary victim: −5 unit points (30.613) — not in code (only primary victim covered)
+- [ ] **Slave Revolt** missing modifiers:
+  - Mining: +5 tokens cannot support cities (30.423) — not in code
+  - Enlightenment: −5 tokens that cannot support (30.423) — not in code
+  - Both Mining + Enlightenment: effects cancel — not in code
+- [ ] **Iconoclasm secondary victim** protections (30.819):
+  - Philosophy holder: cannot lose more than 1 city as secondary — not implemented
+  - Theology holder: cannot be named as secondary victim at all — not implemented
+- [ ] **Epidemic secondary victim**: at least 1 token must remain in each affected area (30.612) — verify
+- [ ] **Epidemic**: cities account for a maximum of 4 unit points (not 5) in Epidemic loss calculation (30.612) — verify
+- [ ] **Famine**: Grain cards used for Pottery reduction must be placed face up and cannot be used to acquire civ cards that turn (30.312) — not implemented
+
+**TODO — calamity resolution logic (TODOs in `resolve_calamities_systems.rs`):**
+- [ ] **Civil War**: actual interactive unit selection for victim (chooses 15 + bonuses) — currently just logged
+- [ ] **Civil War**: beneficiary interactive unit selection (20 points) — currently just logged
+- [ ] **Civil War**: faction transfer — replace victim's units with beneficiary's tokens — not implemented
+- [ ] **Civil War**: Philosophy override — first faction = 15 units chosen by beneficiary (30.4124) — not implemented
+- [ ] **Civil War**: Military penalty — remove 5 unit points from each faction after selection (30.414) — not implemented
+- [ ] **Treachery**: transfer city to the trading player (replace with their city token); currently just destroys the city (30.221)
+- [ ] **Treachery** (not traded case): reduce own city, no other player benefits (30.222) — verify this path is correct
+- [ ] **Piracy**: identify coastal cities (requires `Coastal` area marker or tag) — not implemented
+- [ ] **Piracy**: replace two of primary victim's coastal cities with Pirate city tokens (30.911)
+- [ ] **Piracy**: replace one coastal city each of two secondary victims (30.912)
+- [ ] **Barbarian Hordes**: placement logic — choose start area causing greatest damage to primary victim (30.5211)
+- [ ] **Barbarian Hordes**: continued movement — surplus Barbarians move to adjacent area causing greatest damage; repeat until no surplus (30.5231–30.5232)
+- [ ] **Barbarian Hordes**: Crete may not be primary victim (30.527)
+- [ ] **Flood**: primary victim loses max 17 unit points from flood plain (30.511)
+- [ ] **Flood**: secondary victims — 10 unit points from same flood plain; primary victim allocates among others (30.512)
+- [ ] **Flood**: if no units on any flood plain, eliminate one coastal city; if no coastal cities, no effect (30.514)
+- [ ] **Flood**: white city sites are vulnerable; black city sites are safe (30.511)
+- [ ] **Famine secondary**: interactive selection for primary victim to allocate 20 unit points (≤8 per player) — marked TODO in code
+- [ ] **Iconoclasm secondary**: primary victim must order 2 cities from other players to be reduced (30.818) — marked TODO in code
+- [ ] **Epidemic secondary**: primary victim must allocate 25 unit points (≤10 per player) — marked TODO in code
+
+**TODO — Conflict consequences (missing from conflict phase):**
+- [ ] When a player eliminates another's city by direct attack: draw one of victim's trade cards at random (24.51)
+- [ ] Pillage: attacker may transfer up to 3 tokens from stock to treasury per city eliminated (24.52)
+- [ ] Engineering: attacker needs only 6 tokens (city replaced by 5); defending Engineering city needs 8 to attack (replaced by 7); both Engineering = cancel (24.35) — verify this is in the conflict code
 
 ---
 
 ### 2. Rules - Ships
 
 **What is done:**
-- Map data already includes `sea_connections` on areas (`NeedsConnections`), so the topology is present.
-- `ShipConstruction` is stubbed out as a commented-out `GameActivity` variant in `src/lib.rs`.
+- Map data already includes `sea_connections` on areas, so naval topology is present.
+- `ShipConstruction` is stubbed as a commented-out `GameActivity` variant.
 
 **TODO:**
-- [ ] Add `Ship` component and ship token stock per player
-- [ ] Implement ship construction phase (`ShipConstruction` game activity): rules for when/where ships can be built and their cost
-- [ ] Implement ship maintenance: ships not in use revert / sink if not supported
-- [ ] Implement naval movement: ships move up to 4 sea areas (5 with Cloth Making); use `sea_connections`
-- [ ] Implement boarding: tokens embark onto ships in their area; ships carry tokens across sea areas
-- [ ] Implement open sea crossing (requires Astronomy civ card)
-- [ ] Implement combat/piracy interaction with ships
-- [ ] Add ship sprites and UI
+- [ ] Add `Ship` component and ship token stock (max 4 per player, 22.4) per player entity
+- [ ] Implement ship construction phase: census order; costs 2 tokens (from treasury, levy, or both); placed in levy area or any area with own units if treasury-financed (22.1–22.2)
+- [ ] Military holders build ships after non-Military holders (22.11)
+- [ ] Ship maintenance: 1 token/turn from treasury or levy; unmaintained ships return to stock; can rebuild in different area same phase (22.3)
+- [ ] Ships carry up to 5 tokens across water boundaries (23.51)
+- [ ] Only tokens not already moved overland may embark (23.51)
+- [ ] Ships move up to 4 water areas per phase; may not enter open sea without Astronomy (23.52)
+- [ ] Cloth Making: ships move up to 5 areas (23.53)
+- [ ] Astronomy: ships may enter open sea areas (23.54)
+- [ ] Tokens must disembark before end of movement phase; token cannot use more than one ship per phase (23.56)
+- [ ] Greece dual-coastline rule: ships enter/leave from same side (23.57)
+- [ ] Add ship sprites and UI controls
 
 ---
 
@@ -72,83 +148,96 @@ Findings from reading all the rules documents and comparing with game code.
 ### 3. Rules - AST Progress
 
 **What is done:**
-- Nothing. No AST (Advancement of Science and Technology / Age Scale Track) system exists.
+- Nothing. No AST system exists.
 
 **TODO:**
-- [ ] Define `AstPosition` component per player (track their current position on the AST)
-- [ ] Implement end-of-round AST advancement: each player advances one step unless blocked
-- [ ] Implement advancement prerequisites (city count / population / civ card thresholds per AST step)
-- [ ] Gate the `AcquireCivilizationCards` phase so only players at the correct AST level can purchase certain cards
-- [ ] Display AST positions in the UI
+- [ ] Add `AstPosition` component per player (tracks current space)
+- [ ] Add `AstMarker` entity per player on the board/UI
+- [ ] Implement end-of-round AST advancement: each player advances one space (33.1)
+- [ ] Epoch entry requirements (33.2):
+  - Early Bronze: 2 cities in play
+  - Late Bronze: 3 cities + at least 3 civ card groups (colors)
+  - Early Iron: 4 cities + 9 civ cards from all 5 groups
+  - Late Iron: 5 cities + civ card value ≥ printed space value
+- [ ] Frozen marker: if city count < epoch requirement, marker does not advance (33.3)
+- [ ] Backward movement: no cities in play → marker moves back 1 space/turn (except Stone Age, 33.4)
+- [ ] Dual-color cards count as 2 groups for epoch entry (31.551)
+- [ ] Display AST positions in UI
 
 ---
 
 ### 4. Rules - Winning the Game
 
 **What is done:**
-- Nothing. No win condition or game-over state exists.
+- Nothing. No win conditions or game-over state exist.
 
 **TODO:**
-- [ ] Define victory condition: first player to reach the final AST step wins (depends on AST implementation above)
-- [ ] Add a `GameOver` state or event
-- [ ] Implement a victory screen / end-game UI
-- [ ] Handle tie-breaking rules if multiple players reach the final step in the same round
+- [ ] Implement victory point calculation (35.1):
+  - Civilization card total face value
+  - Commodity card set values (28.51) + face value of individual cards
+  - Treasury: 1 point per token
+  - AST position: 100 points per space
+  - Cities on board: 50 points per city
+- [ ] Trigger end-of-game check: at least one player reaches a finish square, OR predetermined time limit reached (34.1)
+- [ ] All players must complete the final turn before determining winner (34.2)
+- [ ] Tiebreaker: furthest along the A.S.T. wins
+- [ ] Add `GameOver` state and victory screen UI
 
 ---
 
 ### 5. Improved AI
 
 **What is done:**
-- `src/stupid_ai/` contains a functioning but simple AI.
-- It picks moves by basic heuristics and random selection for all phases: population expansion, movement, city construction, and trade.
-- Trade AI makes rudimentary decisions based on card overlap with other players, distinguishing top vs. worst commodities.
+- `src/stupid_ai/` implements a rule-based AI with random selection for all phases: pop expansion, movement, city construction, and trade.
+- Trade AI uses basic heuristics (card overlap, top vs. worst commodities).
 
 **TODO:**
-- [ ] Design a board-state evaluation function (score based on: AST position, city count, population, civ card holdings, treasury size)
-- [ ] Weight priorities by personality archetype (aggressive, economic, cultural, etc.) assigned at game start
-- [ ] Trade: give each AI player a trust score per opponent, updated based on trade history (prisoner's dilemma)
-- [ ] Trade: allow AI to deliberately conceal or misrepresent hidden cards based on personality/trust
-- [ ] Trade: AI should seek trades that advance its civ-card purchasing strategy
-- [ ] AI should make civ card purchase decisions (currently not implemented)
-- [ ] AI should make ship construction and movement decisions once ships are implemented
+- [ ] Board-state evaluation function: score based on AST position, city count, population, civ card holdings, treasury
+- [ ] Personality archetypes (aggressive, economic, cultural) assigned at game start with weighted priorities
+- [ ] Trade: per-opponent trust score updated from trade history (prisoner's dilemma)
+- [ ] Trade: AI uses deceptive hidden-card strategies based on personality and trust level
+- [ ] Trade: AI trades strategically toward its civ card purchasing goals
+- [ ] AI civ card purchasing decisions (not yet implemented at all)
+- [ ] AI taxation decisions (once taxation is implemented)
+- [ ] AI ship construction and movement (once ships are implemented)
 
 ---
 
 ### 6. Expand Trade (more than 3 cards)
 
 **What is done:**
-- Trade offers already support more than 3 cards per side structurally — there is a minimum of 3 (2 guaranteed + at least 1 hidden) but no enforced maximum.
-- The negotiation and acceptance flow exists.
+- Structurally supports more than 3 cards per side (minimum 3 enforced, no hard maximum).
+- The trade minimum (3 per side, 2 must be specified) is correctly implemented per rules (28.3).
 
 **TODO:**
-- [ ] Verify and test that trades with 4+ cards per side work end-to-end (UI, validation, resolution)
-- [ ] Add UI affordances that make offering/receiving many-card trades legible (card count indicators, expand/collapse panels)
-- [ ] Implement trust signaling: show trade history between two players so they can make informed decisions about large trades
-- [ ] Consider a "reputation" display per player visible to all, updated after each settled trade
+- [ ] Verify and test that trades with 4+ cards per side work end-to-end
+- [ ] Add UI affordances for many-card trades (card count indicators, expand/collapse)
+- [ ] Trade history display: show past trades between two players to inform trust decisions
+- [ ] Consider a per-player "reputation" display visible to all, updated after each settled trade
 
 ---
 
 ### 7. Multiplayer Support
 
 **What is done:**
-- Nothing specific to multiplayer. The `IsHuman` component distinguishes human from AI players but only drives UI decisions.
+- `IsHuman` component distinguishes human from AI players, used for UI routing.
 
 **TODO:**
-- [ ] Define the multiplayer model: hotseat (multiple humans, same machine) vs. networked (separate machines)
-- [ ] For hotseat: route human UI turns to the correct player based on whose turn it is; hide other players' hands
-- [ ] For networked: see item 8 below
+- [ ] Define multiplayer model: hotseat vs. networked (separate from item 8)
+- [ ] Hotseat: route UI turns to the correct player; hide other players' trade card hands between turns
+- [ ] Hotseat: enforce trade card secrecy — players should not see each other's hands during negotiation
 
 ---
 
 ### 8. Network Play
 
 **What is done:**
-- Nothing. No networking dependencies or infrastructure exist.
+- Nothing. No networking dependencies or infrastructure.
 
 **TODO:**
-- [ ] Choose a networking library (e.g. `lightyear` for Bevy, or a custom client/server via `tokio`/`quinn`)
+- [ ] Choose a networking library (e.g., `lightyear` for Bevy, or `tokio`/`quinn` for custom client-server)
 - [ ] Design authority model: server-authoritative with clients sending move intents
-- [ ] Serialize game state and moves (much of this may reuse the existing `save_game` serde/ron setup)
+- [ ] Serialize game state and moves (reuse `save_game` serde/ron infrastructure)
 - [ ] Implement lobby / game discovery
 - [ ] Handle reconnection and desync detection
 
@@ -157,12 +246,13 @@ Findings from reading all the rules documents and comparing with game code.
 ### 9. Multi-Platform Play
 
 **What is done:**
-- Desktop (Linux, Windows, macOS) fully supported via standard Bevy.
-- iOS and Android build infrastructure exists in `mobile/` (Xcode project for iOS, `cargo-apk` for Android).
+- Desktop (Linux, Windows, macOS) fully supported.
+- iOS and Android build infrastructure exists in `mobile/` (Xcode project, `cargo-apk`).
+- Web (WASM) build via `trunk serve` is configured.
 
 **TODO:**
-- [ ] Resolve version mismatch: `mobile/Cargo.toml` pins Bevy `0.17.2` while the main crate uses `0.18.0` — update mobile to `0.18.0`
-- [ ] Test and fix touch input for mobile: pan, tap-to-select, tap-to-confirm flows
-- [ ] Adapt UI layout for small screens (responsive sizing, larger tap targets)
-- [ ] Web (WASM) build: `trunk serve` is already configured — test and fix any WASM-specific issues
+- [ ] Resolve version mismatch: `mobile/Cargo.toml` pins Bevy `0.17.2` while main crate uses `0.18.0` — update mobile
+- [ ] Test and fix touch input: pan, tap-to-select, tap-to-confirm
+- [ ] Adapt UI for small screens: responsive sizing, larger tap targets
+- [ ] Test and fix WASM-specific issues
 - [ ] CI: add build checks for `wasm32-unknown-unknown`, iOS, and Android targets
