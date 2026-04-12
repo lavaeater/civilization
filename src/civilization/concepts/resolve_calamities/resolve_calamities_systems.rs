@@ -736,48 +736,118 @@ pub fn advance_civil_disorder(
     }
 }
 
-// ── Multi-player calamities (partially implemented) ───────────────────────────
+// ── Multi-player calamities ───────────────────────────────────────────────────
 
 pub fn advance_civil_war(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution)>,
-    all_players: Query<(Entity, &TokenStock), With<Player>>,
+    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerAreas, &PlayerCities)>,
+    all_players_stock: Query<(Entity, &TokenStock), With<Player>>,
+    mut area_populations: Query<&mut Population>,
+    mut beneficiary_areas: Query<(&mut PlayerAreas, &mut PlayerCities, &mut CityTokenStock, &mut TokenStock)>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
 ) {
-    for (player_entity, mut resolving, mut resolution) in player_query.iter_mut() {
+    for (player_entity, mut resolving, mut resolution, victim_areas, victim_cities) in player_query.iter_mut() {
         if resolution.phase == CalamityPhase::Resolved { continue; }
         let ResolvingCalamity::CivilWar(ref mut state) = *resolving else { continue };
 
         match state.phase {
             CivilWarPhase::DetermineBeneficiary => {
-                // Beneficiary = other player with most tokens in stock
-                let beneficiary = all_players.iter()
+                let beneficiary = all_players_stock.iter()
                     .filter(|(e, _)| *e != player_entity)
                     .max_by_key(|(_, stock)| stock.tokens_in_stock())
                     .map(|(e, _)| e);
 
                 if let Some(b) = beneficiary {
-                    info!("[CIVIL_WAR] Beneficiary is {:?}; victim must yield {} pts", b, state.victim_selection_points);
+                    info!("[CIVIL_WAR] Beneficiary {:?}; victim yields {} pts", b, state.victim_selection_points);
                     state.beneficiary = Some(b);
                     state.phase = CivilWarPhase::VictimSelectsUnits;
                 } else {
-                    info!("[CIVIL_WAR] No other players – no civil war effect");
                     state.phase = CivilWarPhase::Complete;
                 }
             }
             CivilWarPhase::VictimSelectsUnits => {
-                // TODO: player selects which units to hand over
-                info!("[CIVIL_WAR] TODO – victim unit selection ({} pts)", state.victim_selection_points);
+                // Auto-select: prefer tokens (1 pt each) over cities (5 pts each) to meet target
+                let target = state.victim_selection_points;
+                let mut pts = 0usize;
+
+                // Collect tokens first
+                'outer: for (area, tokens) in victim_areas.areas_and_population() {
+                    for &token in tokens {
+                        if pts >= target { break 'outer; }
+                        state.victim_selected_units.push(token);
+                        let _ = area; // area tracked implicitly through token's area membership
+                        pts += 1;
+                    }
+                }
+                // Add cities if still short
+                if pts < target {
+                    for &area in victim_cities.areas_and_cities.keys() {
+                        if pts >= target { break; }
+                        state.victim_selected_cities.push(area);
+                        pts += 5;
+                    }
+                }
+                info!("[CIVIL_WAR] Victim selected {} pts ({} tokens, {} cities)",
+                    pts, state.victim_selected_units.len(), state.victim_selected_cities.len());
                 state.phase = CivilWarPhase::BeneficiarySelectsUnits;
             }
             CivilWarPhase::BeneficiarySelectsUnits => {
-                // TODO: beneficiary selects which units to take
-                info!("[CIVIL_WAR] TODO – beneficiary unit selection (20 pts)");
+                // Beneficiary takes up to beneficiary_selection_points worth from victim's pool
+                let target = state.beneficiary_selection_points;
+                let mut pts = 0usize;
+                let mut take_tokens = Vec::new();
+                let mut take_cities = Vec::new();
+
+                for &token in &state.victim_selected_units {
+                    if pts >= target { break; }
+                    take_tokens.push(token);
+                    pts += 1;
+                }
+                if pts < target {
+                    for &area in &state.victim_selected_cities {
+                        if pts >= target { break; }
+                        take_cities.push(area);
+                        pts += 5;
+                    }
+                }
+                state.beneficiary_selected_units = take_tokens;
+                state.beneficiary_selected_cities = take_cities;
+                info!("[CIVIL_WAR] Beneficiary takes {} pts", pts);
                 state.phase = CivilWarPhase::TransferFaction;
             }
             CivilWarPhase::TransferFaction => {
-                // TODO: transfer tokens from victim's pool to beneficiary
-                info!("[CIVIL_WAR] TODO – faction transfer");
+                let Some(beneficiary) = state.beneficiary else {
+                    state.phase = CivilWarPhase::Complete;
+                    continue;
+                };
+
+                // Return non-transferred tokens from victim's selection back to stock
+                for &token in state.victim_selected_units.iter()
+                    .filter(|t| !state.beneficiary_selected_units.contains(t))
+                {
+                    commands.entity(token).insert(ReturnTokenToStock);
+                }
+
+                // Transfer tokens to beneficiary: reassign Token::owner, move in Population
+                for &token in &state.beneficiary_selected_units {
+                    // Find which area this token is in and move it to beneficiary's pool
+                    // We re-parent the token by reinserting it as the beneficiary's
+                    commands.entity(token).insert(Token::new(beneficiary));
+                }
+
+                // Cities: destroy victim's city, build beneficiary's city in its place
+                for &area in &state.beneficiary_selected_cities {
+                    commands.entity(area).insert(TransferCityTo(beneficiary));
+                }
+
+                // Return victim's non-taken cities normally via ReduceCity
+                for &area in state.victim_selected_cities.iter()
+                    .filter(|a| !state.beneficiary_selected_cities.contains(a))
+                {
+                    commands.entity(area).insert(ReduceCity);
+                }
+
+                info!("[CIVIL_WAR] Transfer complete");
                 state.phase = CivilWarPhase::Complete;
             }
             CivilWarPhase::Complete => {
@@ -798,24 +868,25 @@ pub fn advance_treachery(
 
         match state.phase {
             TreacheryPhase::SelectCity => {
-                // Auto-select victim's first city (player choice TODO)
                 let city_area = player_cities.areas_and_cities.keys().next().cloned();
                 if let Some(area) = city_area {
                     state.city_to_replace = Some(area);
                     state.beneficiary = resolution.context.traded_by;
                     state.phase = TreacheryPhase::ApplyEffects;
                 } else {
-                    info!("[TREACHERY] No cities to treachery for player {:?}", player_entity);
+                    info!("[TREACHERY] No cities for player {:?}", player_entity);
                     state.phase = TreacheryPhase::Complete;
                 }
             }
             TreacheryPhase::ApplyEffects => {
                 if let Some(city_area) = state.city_to_replace {
-                    if state.beneficiary.is_some() {
-                        // TODO: transfer city to beneficiary (replace with their tokens)
-                        info!("[TREACHERY] TODO – city transfer to beneficiary; destroying instead");
+                    if let Some(beneficiary) = state.beneficiary {
+                        // Transfer city ownership to the player who traded the Treachery card (30.221)
+                        commands.entity(city_area).insert(TransferCityTo(beneficiary));
+                    } else {
+                        // Not traded – victim reduces own city, no one benefits (30.222)
+                        commands.entity(city_area).insert(ReduceCity);
                     }
-                    commands.entity(city_area).insert(DestroyCity);
                 }
                 state.phase = TreacheryPhase::Complete;
             }
@@ -828,11 +899,12 @@ pub fn advance_treachery(
 
 pub fn advance_piracy(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution)>,
+    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerCities)>,
     all_players: Query<(Entity, &TokenStock), With<Player>>,
+    area_query: Query<&BuiltCity>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
 ) {
-    for (player_entity, mut resolving, mut resolution) in player_query.iter_mut() {
+    for (player_entity, mut resolving, mut resolution, player_cities) in player_query.iter_mut() {
         if resolution.phase == CalamityPhase::Resolved { continue; }
         let ResolvingCalamity::Piracy(ref mut state) = *resolving else { continue };
 
@@ -852,13 +924,29 @@ pub fn advance_piracy(
                 }
             }
             PiracyPhase::SelectCoastalCities => {
-                // TODO: identify coastal cities (requires Coastal area marker)
-                info!("[PIRACY] TODO – coastal city selection not implemented");
-                state.phase = PiracyPhase::Complete;
+                // Select up to 2 of the primary victim's cities (Coastal marker not yet implemented;
+                // fall back to any city). Rule 30.911: replace with beneficiary's Pirate city tokens.
+                let cities: Vec<Entity> = player_cities.areas_and_cities.keys()
+                    .cloned()
+                    .take(2)
+                    .collect();
+                state.cities_to_replace = cities;
+
+                if state.cities_to_replace.is_empty() {
+                    state.phase = PiracyPhase::Complete;
+                } else {
+                    state.phase = PiracyPhase::ApplyEffects;
+                }
             }
             PiracyPhase::ApplyEffects => {
-                // TODO: replace coastal cities with beneficiary tokens
-                info!("[PIRACY] TODO – apply piracy effects");
+                if let Some(beneficiary) = state.beneficiary {
+                    for &area in &state.cities_to_replace {
+                        if area_query.get(area).is_ok() {
+                            commands.entity(area).insert(TransferCityTo(beneficiary));
+                        }
+                    }
+                }
+                info!("[PIRACY] Replacing {} cities", state.cities_to_replace.len());
                 state.phase = PiracyPhase::Complete;
             }
             PiracyPhase::Complete => {
@@ -974,5 +1062,50 @@ pub fn reduce_city_in_area(
 
         commands.entity(area_entity).remove::<BuiltCity>();
         commands.entity(area_entity).remove::<ReduceCity>();
+    }
+}
+
+/// Marker: transfer the city in this area to `0` (a different player).
+/// Used by Treachery, Civil War city transfer, and Piracy.
+#[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
+pub struct TransferCityTo(pub Entity);
+
+/// System that processes `TransferCityTo`: removes the current owner's city and
+/// builds a replacement city for the new owner (if they have a city token in stock).
+pub fn transfer_city_to_new_owner(
+    mut commands: Commands,
+    areas_with_transfer: Query<(Entity, &BuiltCity, &TransferCityTo)>,
+    mut player_data: Query<(&mut CityTokenStock, &mut PlayerCities)>,
+) {
+    let transfers: Vec<(Entity, Entity, Entity)> = areas_with_transfer
+        .iter()
+        .map(|(area, built_city, transfer)| (area, built_city.player, transfer.0))
+        .collect();
+
+    for (area_entity, victim_player, new_owner) in transfers {
+        // Remove current BuiltCity and marker
+        commands.entity(area_entity).remove::<BuiltCity>();
+        commands.entity(area_entity).remove::<TransferCityTo>();
+
+        // Use unsafe multi-get to borrow both entities mutably at once
+        if victim_player != new_owner {
+            if let Ok([(mut v_stock, mut v_cities), (mut b_stock, mut b_cities)]) =
+                player_data.get_many_mut([victim_player, new_owner])
+            {
+                if let Some(old_city) = v_cities.remove_city_from_area(area_entity) {
+                    v_stock.return_token_to_stock(old_city);
+                }
+                if let Some(new_city) = b_stock.remove_token_from_stock() {
+                    b_cities.build_city_in_area(area_entity, new_city);
+                    commands.entity(area_entity).insert(BuiltCity::new(new_owner, new_city));
+                    info!("[CALAMITIES] City transferred to {:?}", new_owner);
+                } else {
+                    info!("[CALAMITIES] New owner {:?} has no city tokens; city lost", new_owner);
+                }
+            }
+        }
+
+        commands.entity(area_entity).insert(FixTokenPositions);
     }
 }

@@ -5,6 +5,7 @@ pub struct PiracyState {
     pub phase: PiracyPhase,
     pub coastal_cities_to_replace: usize,
     pub selected_cities: Vec<Entity>,
+    pub cities_to_replace: Vec<Entity>,
     pub beneficiary: Option<Entity>,
     pub immune_player: Option<Entity>,
 }
