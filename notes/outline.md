@@ -125,22 +125,26 @@ All rules are found in the ./rules folder.
 ### 2. Rules - Ships
 
 **What is done:**
-- Map data already includes `sea_connections` on areas, so naval topology is present.
-- `ShipConstruction` is stubbed as a commented-out `GameActivity` variant.
+- `SeaPassage` component added to area entities; `connect_areas` now wires sea connections alongside land connections.
+- `OpenSea` marker component available for deep-water areas that require Astronomy.
+- `Ship` component (owner entity), `ShipStock` (4 ships per player, initially in stock), and `PlayerShips` (area → ships on board) components implemented.
+- `ShipConstruction` `GameActivity` variant added and wired into the phase sequence after `Census`, before `Movement`.
+- `ShipsPlugin` registered; ship entities created for each player during `setup_players`.
+- `enter_ship_construction` system handles maintenance (rule 22.3) and basic AI building (rules 22.1–22.4) in a single OnEnter pass.
+- Simple 20×16 pixel ship sprite created (`assets/textures/ship.png`).
 
 **TODO:**
-- [ ] Add `Ship` component and ship token stock (max 4 per player, 22.4) per player entity
-- [ ] Implement ship construction phase: census order; costs 2 tokens (from treasury, levy, or both); placed in levy area or any area with own units if treasury-financed (22.1–22.2)
-- [ ] Military holders build ships after non-Military holders (22.11)
-- [ ] Ship maintenance: 1 token/turn from treasury or levy; unmaintained ships return to stock; can rebuild in different area same phase (22.3)
-- [ ] Ships carry up to 5 tokens across water boundaries (23.51)
-- [ ] Only tokens not already moved overland may embark (23.51)
-- [ ] Ships move up to 4 water areas per phase; may not enter open sea without Astronomy (23.52)
-- [ ] Cloth Making: ships move up to 5 areas (23.53)
+- [ ] Military holders build ships after non-Military holders (22.11) — currently unordered
+- [ ] Construction cost: allow levy (tokens from the area) in addition to treasury; currently only treasury or stock, not split between them per-area
+- [ ] Ship movement during Movement phase: ships move up to 4 water areas along `SeaPassage` connections (23.52)
+- [ ] Tokens embarking onto ships — only tokens not yet moved overland (23.51); up to 5 per ship
+- [ ] Tokens must disembark before end of Movement phase (23.56); one-ship-per-token rule
+- [ ] Open sea enforcement: ships may not cross to `OpenSea`-marked areas without Astronomy (23.52)
+- [ ] Cloth Making: ship range +1 area (23.53)
 - [ ] Astronomy: ships may enter open sea areas (23.54)
-- [ ] Tokens must disembark before end of movement phase; token cannot use more than one ship per phase (23.56)
 - [ ] Greece dual-coastline rule: ships enter/leave from same side (23.57)
-- [ ] Add ship sprites and UI controls
+- [ ] Human UI for ship construction (current implementation auto-builds for all players)
+- [ ] Human UI for ship movement and embarkation/disembarkation
 
 ---
 

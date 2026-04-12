@@ -36,6 +36,24 @@ impl LandPassage {
     }
 }
 
+/// Sea connections to other coastal areas — ships move along these routes.
+#[derive(Component, Debug, Reflect, Default)]
+#[reflect(Component)]
+pub struct SeaPassage {
+    pub to_areas: Vec<Entity>,
+}
+
+impl SeaPassage {
+    pub fn add_passage(&mut self, to_area: Entity) {
+        self.to_areas.push(to_area);
+    }
+}
+
+/// Marks an area as open sea — ships may not enter without Astronomy (rule 23.52).
+#[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
+pub struct OpenSea;
+
 #[derive(Component, Debug, Reflect, Default)]
 #[reflect(Component)]
 pub struct NeedsConnections {

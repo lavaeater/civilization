@@ -36,5 +36,5 @@ pub fn perform_census(
     ordered.sort_by_key(|b| std::cmp::Reverse(b.1));
 
     census_order.census_order = ordered.into_iter().map(|(entity, _)| entity).collect();
-    next_state.set(GameActivity::Movement);
+    next_state.set(GameActivity::ShipConstruction);
 }

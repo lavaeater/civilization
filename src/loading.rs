@@ -72,4 +72,6 @@ pub struct TextureAssets {
     pub illyria_city: Handle<Image>,
     #[asset(path = "textures/thrace-city.png")]
     pub thrace_city: Handle<Image>,
+    #[asset(path = "textures/ship.png")]
+    pub ship: Handle<Image>,
 }

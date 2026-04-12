@@ -44,7 +44,7 @@ pub enum GameActivity {
     CollectTaxes,
     PopulationExpansion,
     Census,
-    // ShipConstruction,
+    ShipConstruction,
     Movement,
     Conflict,
     CityConstruction,
