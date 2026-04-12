@@ -1,4 +1,4 @@
-use crate::civilization::{AvailableMoves, BuildCityMove, BuiltCity, CitySite, CityTokenStock, EliminateCityMove, ExpandAutomatically, ExpandManually, GameMove, HasTooManyCities, IsBuilding, LandPassage, MovementMove, NeedsExpansion, PlayerAreas, PlayerCities, PlayerMovementEnded, PopExpMove, Population, RecalculatePlayerMoves, TokenHasMoved, TokenStock};
+use crate::civilization::{AvailableMoves, BuildCityMove, BuiltCity, CitySite, CityTokenStock, EliminateCityMove, ExpandAutomatically, ExpandManually, GameMove, HasTooManyCities, IsBuilding, LandPassage, MovementMove, NeedsExpansion, PlayerAreas, PlayerCities, PlayerMovementEnded, PlayerShips, PopExpMove, Population, RecalculatePlayerMoves, SeaPassage, TokenHasMoved, TokenStock};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Name, Query};
 
@@ -47,8 +47,9 @@ pub fn recalculate_pop_exp_moves_for_player(
 
 pub fn recalculate_movement_moves_for_player(
     mut recalc_player_reader: MessageReader<RecalculatePlayerMoves>,
-    player_move_query: Query<&PlayerAreas>,
+    player_move_query: Query<(&PlayerAreas, &PlayerShips)>,
     area_connections_query: Query<&LandPassage>,
+    sea_connections_query: Query<&SeaPassage>,
     area_pop_and_city_query: Query<(&Population, Option<&BuiltCity>)>,
     token_filter_query: Query<Has<TokenHasMoved>>,
     mut commands: Commands,
@@ -59,17 +60,17 @@ pub fn recalculate_movement_moves_for_player(
         commands.entity(event.player).remove::<AvailableMoves>();
         let mut moves = HashMap::default();
         let mut command_index = 0;
-        if let Ok(player_areas) = player_move_query.get(event.player) {
+        if let Ok((player_areas, player_ships)) = player_move_query.get(event.player) {
             for (area, tokens) in player_areas.areas_and_population() {
                 let tokens_that_can_move = tokens
                     .iter()
                     .filter(|t| !token_filter_query.get(**t).unwrap())
                     .collect::<Vec<_>>();
 
-                if !tokens_that_can_move.is_empty()
-                    && let Ok(connections) = area_connections_query.get(area)
-                {
-                    for target_area in connections.to_areas.iter() {
+                if !tokens_that_can_move.is_empty() {
+                    // ── Land movement ─────────────────────────────────────────
+                    if let Ok(connections) = area_connections_query.get(area) {
+                        for target_area in connections.to_areas.iter() {
                             if let Ok((population, optional_city)) =
                                 area_pop_and_city_query.get(*target_area)
                             {
@@ -110,6 +111,27 @@ pub fn recalculate_movement_moves_for_player(
                                     );
                                 }
                             }
+                        }
+                    }
+
+                    // ── Ship ferry moves ──────────────────────────────────────
+                    // Only available if the player has a ship in this area (rule 23.51).
+                    if !player_ships.ships_in_area(area).is_empty() {
+                        if let Ok(sea) = sea_connections_query.get(area) {
+                            let ferry_tokens = tokens_that_can_move.len().min(5); // max 5 per ship (23.51)
+                            for target_area in sea.to_areas.iter() {
+                                command_index += 1;
+                                moves.insert(
+                                    command_index,
+                                    GameMove::ShipFerry(MovementMove::new(
+                                        area,
+                                        *target_area,
+                                        event.player,
+                                        ferry_tokens,
+                                    )),
+                                );
+                            }
+                        }
                     }
                 }
             }

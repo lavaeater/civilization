@@ -48,6 +48,7 @@ pub fn select_stupid_movement(
     mut event_reader: MessageReader<SelectStupidMove>,
     player_moves: Query<(&Name, &AvailableMoves, &PlayerAreas)>,
     mut move_tokens_writer: MessageWriter<MoveTokenFromAreaToAreaCommand>,
+    mut ship_ferry_writer: MessageWriter<ShipFerryCommand>,
     mut end_movement_writer: MessageWriter<PlayerMovementEnded>,
     target_area_info_query: Query<(&Population, Has<BuiltCity>)>,
     debug_options: Res<DebugOptions>,
@@ -77,6 +78,16 @@ pub fn select_stupid_movement(
                     GameMove::Movement(movement_move) => {
                         //A little complexity here: If possible, leave two, but also, always make a move
                         send_movement_move(&mut move_tokens_writer, event, movement_move, false);
+                    }
+                    GameMove::ShipFerry(ferry_move) => {
+                        // Ferry up to max_tokens (≤5) tokens by ship. Keep 1 back if possible.
+                        let n = if ferry_move.max_tokens > 1 { ferry_move.max_tokens - 1 } else { 1 };
+                        ship_ferry_writer.write(ShipFerryCommand::new(
+                            ferry_move.source,
+                            ferry_move.target,
+                            n,
+                            event.player,
+                        ));
                     }
                     GameMove::EndMovement => {
                         end_movement_writer.write(PlayerMovementEnded::new(event.player));

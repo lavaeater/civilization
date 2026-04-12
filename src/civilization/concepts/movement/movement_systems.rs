@@ -4,6 +4,7 @@ use crate::civilization::concepts::map::CameraFocusQueue;
 use crate::civilization::concepts::movement::movement_components::*;
 use crate::civilization::concepts::movement::movement_events::*;
 use crate::civilization::concepts::save_game::LoadingFromSave;
+use crate::civilization::PlayerShips;
 use crate::civilization::game_moves::{AvailableMoves, RecalculatePlayerMoves};
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
@@ -185,6 +186,96 @@ pub fn move_tokens_from_area_to_area(
                 }
             }
         }
+        commands.entity(ev.player).insert(HasJustMoved);
+        commands.entity(ev.source_area).insert(FixTokenPositions);
+        commands.entity(ev.target_area).insert(FixTokenPositions);
+    }
+}
+
+/// Executes a ship ferry: moves up to 5 unmoved tokens from `source_area` to
+/// `target_area` via sea passage, and advances the ship to the target area.
+///
+/// The ship moves one sea hop per command (rule 23.52 — up to 4 hops total per phase).
+/// Tokens are marked `TokenHasMoved` so they cannot move again this phase (rule 23.51).
+pub fn execute_ship_ferry(
+    mut ferry_events: MessageReader<ShipFerryCommand>,
+    mut pop_query: Query<(&mut Population, &Transform), Without<Token>>,
+    mut player_ships_query: Query<&mut PlayerShips>,
+    mut player_areas_query: Query<&mut PlayerAreas>,
+    tokens_that_can_move: Query<&Token, Without<TokenHasMoved>>,
+    token_transform: Query<&Transform, With<Token>>,
+    mut recalculate_player_moves: MessageWriter<RecalculatePlayerMoves>,
+    mut commands: Commands,
+) {
+    for ev in ferry_events.read() {
+        // Collect tokens to move (unmoved, belonging to this player, in source area).
+        let tokens_to_ferry: Vec<Entity> = {
+            let Ok((pop, _)) = pop_query.get(ev.source_area) else { continue };
+            let Some(player_tokens) = pop.player_tokens().get(&ev.player) else { continue };
+            player_tokens
+                .iter()
+                .filter(|&&t| tokens_that_can_move.get(t).is_ok())
+                .take(ev.number_of_tokens)
+                .copied()
+                .collect()
+        };
+
+        if tokens_to_ferry.is_empty() {
+            recalculate_player_moves.write(RecalculatePlayerMoves::new(ev.player));
+            continue;
+        }
+
+        // Remove tokens from source population.
+        if let Ok((mut from_pop, _)) = pop_query.get_mut(ev.source_area) {
+            for &token in &tokens_to_ferry {
+                from_pop.remove_token_from_area(ev.player, token);
+            }
+        }
+
+        // Get target area transform for animation end-point.
+        let target_pos = pop_query.get(ev.target_area)
+            .map(|(_, t)| t.translation)
+            .unwrap_or_default();
+
+        // Add tokens to target population and mark as moved.
+        if let Ok((mut to_pop, _)) = pop_query.get_mut(ev.target_area) {
+            for &token in &tokens_to_ferry {
+                to_pop.add_token_to_area(ev.player, token);
+            }
+        }
+
+        // Update PlayerAreas and animate tokens.
+        if let Ok(mut player_areas) = player_areas_query.get_mut(ev.player) {
+            for &token in &tokens_to_ferry {
+                player_areas.remove_token_from_area(&ev.source_area, token);
+                player_areas.add_token_to_area(ev.target_area, token);
+
+                commands.entity(token).insert(TokenHasMoved);
+                if let Ok(start) = token_transform.get(token) {
+                    commands.entity(token).insert(TokenMoveAnimation::new(
+                        start.translation,
+                        target_pos,
+                        0.25, // slightly longer than land movement to feel different
+                    ));
+                }
+            }
+        }
+
+        // Move the ship from source to target in PlayerShips.
+        if let Ok(mut ships) = player_ships_query.get_mut(ev.player) {
+            if let Some(ship_entity) = ships.remove_ship_from_area(ev.source_area) {
+                ships.place_ship(ev.target_area, ship_entity);
+                // Move the ship sprite to the target area position.
+                commands.entity(ship_entity).insert(Transform::from_translation(
+                    target_pos + bevy::math::Vec3::new(8.0, 8.0, 2.0),
+                ));
+                info!(
+                    "[SHIPS] Ferry: {} token(s) moved {:?} → {:?}; ship follows",
+                    tokens_to_ferry.len(), ev.source_area, ev.target_area
+                );
+            }
+        }
+
         commands.entity(ev.player).insert(HasJustMoved);
         commands.entity(ev.source_area).insert(FixTokenPositions);
         commands.entity(ev.target_area).insert(FixTokenPositions);

@@ -41,6 +41,7 @@ impl Plugin for CivilizationPlugin {
         .register_type::<NeedsConnections>()
         .register_type::<SeaPassage>()
         .register_type::<OpenSea>()
+        .register_type::<AstPosition>()
         .register_type::<StartArea>()
         .register_type::<Census>()
         .register_type::<PlayerTradeCards>()
@@ -55,6 +56,7 @@ impl Plugin for CivilizationPlugin {
         .add_plugins((
             TaxationPlugin,
             ShipsPlugin,
+            SuccessionPlugin,
             PopulationExpansionPlugin,
             CensusPlugin,
             MovementPlugin,

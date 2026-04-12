@@ -182,6 +182,7 @@ pub fn setup_players(
                 StupidAi,
                 PlayerTradeCards::default(),
                 PlayerCivilizationCards::default(),
+                AstPosition::new(1),
             ))
             .id();
 

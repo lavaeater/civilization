@@ -136,8 +136,8 @@ All rules are found in the ./rules folder.
 **TODO:**
 - [ ] Military holders build ships after non-Military holders (22.11) — currently unordered
 - [ ] Construction cost: allow levy (tokens from the area) in addition to treasury; currently only treasury or stock, not split between them per-area
-- [ ] Ship movement during Movement phase: ships move up to 4 water areas along `SeaPassage` connections (23.52)
-- [ ] Tokens embarking onto ships — only tokens not yet moved overland (23.51); up to 5 per ship
+- [x] Ship movement during Movement phase: `ShipFerryCommand` event, `execute_ship_ferry` system, `GameMove::ShipFerry` move generation, AI handling (23.52)
+- [x] Tokens embarking onto ships — only tokens not yet moved overland via `TokenHasMoved` filter (23.51); up to 5 per ship
 - [ ] Tokens must disembark before end of Movement phase (23.56); one-ship-per-token rule
 - [ ] Open sea enforcement: ships may not cross to `OpenSea`-marked areas without Astronomy (23.52)
 - [ ] Cloth Making: ship range +1 area (23.53)
@@ -157,21 +157,18 @@ Findings from reading all the rules documents and comparing with game code.
 ### 3. Rules - AST Progress
 
 **What is done:**
-- Nothing. No AST system exists.
+- `AstPosition { space: u32 }` component on each player; starts at 1.
+- `MoveSuccessionMarkers` `GameActivity` variant wired between `AcquireCivilizationCards` and `CollectTaxes`.
+- `SuccessionPlugin` + `advance_succession_markers` system: advances marker +1 if epoch requirements met, retreats −1 if no cities (not below space 1), stays if frozen.
+- Epoch boundaries: Stone Age 1–3, Early Bronze 4–6 (≥2 cities), Late Bronze 7–9 (≥3 cities + ≥3 card groups), Early Iron 10–12 (≥4 cities + all 5 groups + ≥9 cards), Late Iron 13+ (≥5 cities).
+- Dual-color cards counted for multiple groups (bitflag union).
+- Save/load: `ast_space` field in `SavedPlayer` (backward-compatible default = 1).
+- 6 unit tests covering all advancement/retreat/freeze cases.
 
 **TODO:**
-- [ ] Add `AstPosition` component per player (tracks current space)
-- [ ] Add `AstMarker` entity per player on the board/UI
-- [ ] Implement end-of-round AST advancement: each player advances one space (33.1)
-- [ ] Epoch entry requirements (33.2):
-  - Early Bronze: 2 cities in play
-  - Late Bronze: 3 cities + at least 3 civ card groups (colors)
-  - Early Iron: 4 cities + 9 civ cards from all 5 groups
-  - Late Iron: 5 cities + civ card value ≥ printed space value
-- [ ] Frozen marker: if city count < epoch requirement, marker does not advance (33.3)
-- [ ] Backward movement: no cities in play → marker moves back 1 space/turn (except Stone Age, 33.4)
-- [ ] Dual-color cards count as 2 groups for epoch entry (31.551)
-- [ ] Display AST positions in UI
+- [ ] Per-faction starting positions (different factions begin at different spaces on the actual board)
+- [ ] Late Iron space-specific card value thresholds (the card total value requirement varies per space)
+- [ ] Add `AstMarker` entity per player on the board/UI — display current position visually
 
 ---
 

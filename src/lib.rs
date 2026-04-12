@@ -55,7 +55,7 @@ pub enum GameActivity {
     ResolveCalamities,
     CheckCitySupportAfterResolveCalamities,
     AcquireCivilizationCards,
-    // MoveSuccessionMarkers,
+    MoveSuccessionMarkers,
 }
 
 pub struct GamePlugin;

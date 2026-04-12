@@ -660,7 +660,7 @@ pub fn player_is_done(
         }
     }
     if civ_cards_acquisition.is_empty() {
-        next_state.set(GameActivity::CollectTaxes);
+        next_state.set(GameActivity::MoveSuccessionMarkers);
     }
 }
 

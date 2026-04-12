@@ -1,6 +1,7 @@
 mod census;
 mod map;
 mod ships;
+mod succession;
 mod taxation;
 mod population_expansion;
 mod trade;
@@ -29,4 +30,5 @@ pub use save_game::*;
 pub use trade::*;
 pub use civ_cards::*;
 pub use ships::*;
+pub use succession::*;
 pub use taxation::*;

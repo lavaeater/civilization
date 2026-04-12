@@ -19,6 +19,8 @@ impl AvailableMoves {
 pub enum GameMove {
     PopulationExpansion(PopExpMove),
     Movement(MovementMove),
+    /// Move tokens from one coastal area to another via a ship (sea passage hop).
+    ShipFerry(MovementMove),
     AttackArea(MovementMove),
     AttackCity(MovementMove),
     EndMovement,

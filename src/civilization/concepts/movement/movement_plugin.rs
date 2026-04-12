@@ -2,7 +2,10 @@ use crate::GameActivity;
 use bevy::app::App;
 use bevy::prelude::{in_state, IntoScheduleConfigs, OnEnter, OnExit, Plugin, Update};
 use crate::civilization::concepts::movement::movement_events::*;
-use crate::civilization::concepts::movement::movement_systems::*;
+use crate::civilization::concepts::movement::movement_systems::{
+    animate_token_movement, execute_ship_ferry, move_tokens_from_area_to_area,
+    on_exit_movement, player_end_movement, prepare_next_mover, start_movement_activity,
+};
 use crate::civilization::concepts::movement::movement_ui_components::MovementSelectionState;
 use crate::civilization::concepts::movement::movement_ui_systems::{
     cleanup_movement_ui, cleanup_movement_ui_on_exit, draw_movement_arrows,
@@ -16,6 +19,7 @@ pub struct MovementPlugin;
 impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<MoveTokenFromAreaToAreaCommand>()
+            .add_message::<ShipFerryCommand>()
             .add_message::<PlayerMovementEnded>()
             .add_message::<NextPlayerStarted>()
             .init_resource::<MovementSelectionState>()
@@ -26,6 +30,7 @@ impl Plugin for MovementPlugin {
                     prepare_next_mover.run_if(in_state(GameActivity::Movement)),
                     player_end_movement.run_if(in_state(GameActivity::Movement)),
                     move_tokens_from_area_to_area.run_if(in_state(GameActivity::Movement)),
+                    execute_ship_ferry.run_if(in_state(GameActivity::Movement)),
                     animate_token_movement.run_if(in_state(GameActivity::Movement)),
                     // Human player movement UI systems
                     setup_human_movement_options.run_if(in_state(GameActivity::Movement)),
