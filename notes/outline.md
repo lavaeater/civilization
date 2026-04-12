@@ -16,3 +16,11 @@ What is left to do. Below are the identified areas:
 - Multiplayer support
 - Network play
 - Multi-platform play
+
+## Rules
+
+All rules are found in the ./rules folder.
+
+### Civilization Cards and Effects
+
+### Ships
