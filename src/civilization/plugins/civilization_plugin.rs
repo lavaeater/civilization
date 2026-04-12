@@ -51,6 +51,7 @@ impl Plugin for CivilizationPlugin {
             (print_names_of_phases.run_if(in_state(GameState::Playing)),),
         )
         .add_plugins((
+            TaxationPlugin,
             PopulationExpansionPlugin,
             CensusPlugin,
             MovementPlugin,

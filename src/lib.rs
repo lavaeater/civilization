@@ -41,7 +41,7 @@ pub enum GameActivity {
     #[default]
     PrepareGame,
     StartGame,
-    // CollectTaxes,
+    CollectTaxes,
     PopulationExpansion,
     Census,
     // ShipConstruction,

@@ -154,9 +154,15 @@ pub fn process_pending_calamities(
                     commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::CivilWar(state)));
                 }
                 TradeCard::SlaveRevolt => {
-                    // Default: reduce 2 cities; Enlightenment = 0
+                    // 15 tokens can't support cities (30.421); Mining +5, Enlightenment -5, both cancel (30.423).
+                    let has_mining = civ_cards.map(|c| c.owns(&CivCardName::Mining)).unwrap_or(false);
                     let has_enlightenment = civ_cards.map(|c| c.owns(&CivCardName::Enlightenment)).unwrap_or(false);
-                    let state = if has_enlightenment { SlaveRevoltState::new(2).with_enlightenment() } else { SlaveRevoltState::new(2) };
+                    let state = match (has_mining, has_enlightenment) {
+                        (true, true) => SlaveRevoltState::new().with_mining_and_enlightenment(),
+                        (true, false) => SlaveRevoltState::new().with_mining(),
+                        (false, true) => SlaveRevoltState::new().with_enlightenment(),
+                        (false, false) => SlaveRevoltState::new(),
+                    };
                     commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::SlaveRevolt(state)));
                 }
                 TradeCard::Flood => {
@@ -172,24 +178,35 @@ pub fn process_pending_calamities(
                 }
                 TradeCard::Epidemic => {
                     let has_medicine = civ_cards.map(|c| c.owns(&CivCardName::Medicine)).unwrap_or(false);
-                    let mut state = if has_medicine { EpidemicState::new().with_medicine() } else { EpidemicState::new() };
+                    let has_road_building = civ_cards.map(|c| c.owns(&CivCardName::RoadBuilding)).unwrap_or(false);
+                    let mut state = EpidemicState::new();
+                    if has_medicine { state = state.with_medicine(); }
+                    if has_road_building { state = state.with_road_building(); }
                     if let Some(immune) = *traded_by { state = state.with_immune_player(immune); }
                     commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::Epidemic(state)));
                 }
                 TradeCard::CivilDisorder => {
-                    // Default: reduce 2 cities; Democracy = 0, Law = 1
-                    let mut state = CivilDisorderState::new(2);
+                    // Default: all but 3 cities reduced (30.711); modifiers cumulative (30.715).
+                    let mut state = CivilDisorderState::new();
                     if let Some(c) = civ_cards {
+                        if c.owns(&CivCardName::Music) { state = state.with_music(); }
+                        if c.owns(&CivCardName::DramaAndPoetry) { state = state.with_drama_and_poetry(); }
+                        if c.owns(&CivCardName::Law) { state = state.with_law(); }
                         if c.owns(&CivCardName::Democracy) { state = state.with_democracy(); }
-                        else if c.owns(&CivCardName::Law) { state = state.with_law(); }
+                        if c.owns(&CivCardName::Military) { state = state.with_military(); }
+                        if c.owns(&CivCardName::RoadBuilding) { state = state.with_road_building(); }
                     }
                     commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::CivilDisorder(state)));
                 }
                 TradeCard::IconoclasmAndHeresy => {
+                    // 4 cities reduced by default (30.811); all modifiers cumulative (30.817).
                     let mut state = IconoclasmHeresyState::new();
                     if let Some(c) = civ_cards {
-                        if c.owns(&CivCardName::Theology) { state = state.with_theology(); }
+                        if c.owns(&CivCardName::Law) { state = state.with_law(); }
                         if c.owns(&CivCardName::Philosophy) { state = state.with_philosophy(); }
+                        if c.owns(&CivCardName::Theology) { state = state.with_theology(); }
+                        if c.owns(&CivCardName::Monotheism) { state = state.with_monotheism(); }
+                        if c.owns(&CivCardName::RoadBuilding) { state = state.with_road_building(); }
                     }
                     if let Some(immune) = *traded_by { state = state.with_immune_player(immune); }
                     commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::IconoclasmAndHeresy(state)));
@@ -581,23 +598,31 @@ pub fn advance_epidemic(
 
 pub fn advance_iconoclasm_heresy(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerAreas)>,
-    mut populations: Query<&mut Population>,
+    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerCities)>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
 ) {
-    for (player_entity, mut resolving, mut resolution, player_areas) in player_query.iter_mut() {
+    for (player_entity, mut resolving, mut resolution, player_cities) in player_query.iter_mut() {
         if resolution.phase == CalamityPhase::Resolved { continue; }
         let ResolvingCalamity::IconoclasmAndHeresy(ref mut state) = *resolving else { continue };
 
         match state.phase {
             IconoclasmHeresyPhase::ComputeEffects => {
-                let loss = state.primary_loss;
-                remove_unit_points(player_entity, loss, player_areas, &mut populations, &mut commands);
+                // Primary victim reduces `cities_to_reduce` of their own cities (30.811–30.816).
+                let areas: Vec<Entity> = player_cities.areas_and_cities.keys()
+                    .cloned()
+                    .take(state.cities_to_reduce)
+                    .collect();
+                for area in areas {
+                    state.select_city(area);
+                    commands.entity(area).insert(ReduceCity);
+                }
+                info!("[ICONOCLASM] Primary victim reducing {} cities", state.selected_cities.len());
                 state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
             }
             IconoclasmHeresyPhase::ApplySecondaryLosses => {
-                // TODO: secondary losses to non-immune players
-                info!("[ICONOCLASM] Secondary losses not yet implemented");
+                // TODO: primary victim orders 2 other players' cities reduced (30.818)
+                // Philosophy secondary: max 1 city; Theology secondary: immune (30.819)
+                info!("[ICONOCLASM] Secondary city reductions not yet implemented");
                 state.phase = IconoclasmHeresyPhase::Complete;
             }
             IconoclasmHeresyPhase::Complete => {
@@ -643,15 +668,20 @@ pub fn advance_superstition(
 
 pub fn advance_slave_revolt(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerCities)>,
+    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerCities, &PlayerAreas)>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
 ) {
-    for (player_entity, mut resolving, mut resolution, player_cities) in player_query.iter_mut() {
+    for (player_entity, mut resolving, mut resolution, player_cities, player_areas) in player_query.iter_mut() {
         if resolution.phase == CalamityPhase::Resolved { continue; }
         let ResolvingCalamity::SlaveRevolt(ref mut state) = *resolving else { continue };
 
         match state.phase {
             SlaveRevoltPhase::ComputeEffects => {
+                // Derive city count from token-based calculation (30.421–30.423).
+                let on_board_tokens = player_areas.total_population();
+                let city_count = player_cities.number_of_cities();
+                state.compute_cities_to_reduce(on_board_tokens, city_count);
+
                 let areas: Vec<Entity> = player_cities.areas_and_cities.keys()
                     .cloned()
                     .take(state.cities_to_reduce)
@@ -660,7 +690,8 @@ pub fn advance_slave_revolt(
                     state.select_city(area);
                     commands.entity(area).insert(ReduceCity);
                 }
-                info!("[SLAVE_REVOLT] Reducing {} cities", state.selected_cities.len());
+                info!("[SLAVE_REVOLT] {} tokens cannot support cities; reducing {} cities",
+                    state.tokens_cannot_support, state.selected_cities.len());
                 state.phase = SlaveRevoltPhase::Complete;
             }
             SlaveRevoltPhase::Complete => {
@@ -682,6 +713,10 @@ pub fn advance_civil_disorder(
 
         match state.phase {
             CivilDisorderPhase::ComputeEffects => {
+                // Compute actual cities to reduce: (total - 3) adjusted by civ card modifiers (30.711–30.715).
+                let total_cities = player_cities.number_of_cities();
+                state.compute_cities_to_reduce(total_cities);
+
                 let areas: Vec<Entity> = player_cities.areas_and_cities.keys()
                     .cloned()
                     .take(state.cities_to_reduce)

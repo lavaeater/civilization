@@ -24,19 +24,20 @@ All rules are found in the ./rules folder.
 
 ---
 
-### Taxation (Phase 1 — missing entirely)
+### Taxation (Phase 1)
 
 **What is done:**
-- Nothing. The taxation phase is entirely absent from the game loop.
+- `CollectTaxes` phase added to `GameActivity` enum and wired into the phase sequence (after `AcquireCivilizationCards`, before `PopulationExpansion`).
+- Phase skips automatically if no cities exist on the board (first turn of the game).
+- Each player transfers 2 tokens from stock to treasury per city (19.1).
+- Shortfall detection: players who cannot pay in full have excess cities marked as revolting (19.31).
+- Democracy holders pay what they can but never revolt (19.34).
+- Revolt resolution: player with most unit points in stock (tokens=1, cities=5) takes over revolting cities; if no one can, city is eliminated (19.32–19.33).
+- Unit tests cover full payment, shortfall revolt count, Democracy immunity, revolt beneficiary selection, and Coinage rate calculations.
 
 **TODO:**
-- [ ] Add `Taxation` phase to `GameActivity` and the phase sequence
-- [ ] Each player transfers 2 tokens from stock to treasury per city on the board (19.1)
-- [ ] Implement city revolts: if a player lacks tokens to pay, excess cities revolt (19.31)
-- [ ] Revolt beneficiary: player with most units in stock takes over revolting cities (19.32)
-- [ ] If no one can take over a revolting city, eliminate it (19.33)
-- [ ] Democracy: cities belonging to the holder never revolt (19.34)
-- [ ] Coinage: vary taxation rate 1–3 tokens/city (see Civ Cards section)
+- [ ] Coinage: allow players holding Coinage to set rate to 1 or 3 tokens/city before taxes are collected (19.2) — currently hard-coded to 2
+- [ ] Revolt visual: replace the revolted city's sprite with the beneficiary's city token and update `CityTokenStock` for both players
 
 ---
 
@@ -62,25 +63,29 @@ All rules are found in the ./rules folder.
 - [ ] Credits may not be used in the same turn they are acquired (31.53) — verify this is enforced
 - [ ] AI: teach the AI to select and benefit from civilization cards
 
-**TODO — calamity modifier bugs/gaps in `modifiers.rs`:**
-- [ ] **Iconoclasm and Heresy** is using `unit_points_to_lose` — it should affect `cities_to_reduce` (default 4 cities):
-  - Theology: −3 cities (not −4 unit points)
-  - Philosophy: −1 city (not −2 unit points)
-  - Law: −1 city (30.812) — not in code at all
-  - Monotheism: +1 city (30.815) — not in code
-  - Road Building: +1 city (30.816) — not in code
-- [ ] **Civil Disorder** default is "all but 3 cities reduced"; modifiers missing:
-  - Music: −1 city (30.712) — not in code
-  - Drama and Poetry: −1 city (30.712) — not in code
-  - Military: +1 city (30.713) — not in code
-  - Road Building: +1 city (30.714) — not in code
-- [ ] **Epidemic** missing modifiers:
-  - Road Building: +5 unit points (primary and secondary, 30.614) — not in code
-  - Medicine for secondary victim: −5 unit points (30.613) — not in code (only primary victim covered)
-- [ ] **Slave Revolt** missing modifiers:
-  - Mining: +5 tokens cannot support cities (30.423) — not in code
-  - Enlightenment: −5 tokens that cannot support (30.423) — not in code
-  - Both Mining + Enlightenment: effects cancel — not in code
+**TODO — calamity modifier bugs/gaps:**
+- [x] **Iconoclasm and Heresy** now correctly affects `cities_to_reduce` (default 4 cities), with all modifiers:
+  - Theology: −3 cities (30.814) ✓
+  - Philosophy: −1 city (30.813) ✓
+  - Law: −1 city (30.812) ✓
+  - Monotheism: +1 city (30.815) ✓
+  - Road Building: +1 city (30.816) ✓
+  - `advance_iconoclasm_heresy` refactored to use `ReduceCity` pattern
+- [x] **Civil Disorder** now uses "all but 3 cities" default with all modifiers cumulative (30.715):
+  - Music: −1 city (30.712) ✓
+  - Drama and Poetry: −1 city (30.712) ✓
+  - Law: −1 city (30.712) ✓
+  - Democracy: −1 city (30.712) ✓ (was wrongly setting to 0)
+  - Military: +1 city (30.713) ✓
+  - Road Building: +1 city (30.714) ✓
+- [x] **Epidemic** Road Building primary modifier added (+5 unit points, 30.614); Medicine now subtracts 8 (not halves):
+  - Road Building: +5 unit points for primary victim ✓
+  - Medicine for secondary victim: −5 unit points (30.613) — still TODO (needs secondary resolution)
+- [x] **Slave Revolt** modifiers now correctly applied (30.423); base changed from 2 to token-based (15 tokens):
+  - Mining: +5 tokens cannot support ✓
+  - Enlightenment: −5 tokens cannot support ✓
+  - Both Mining + Enlightenment: effects cancel ✓
+  - `advance_slave_revolt` now queries `PlayerAreas.total_population()` and derives city count
 - [ ] **Iconoclasm secondary victim** protections (30.819):
   - Philosophy holder: cannot lose more than 1 city as secondary — not implemented
   - Theology holder: cannot be named as secondary victim at all — not implemented

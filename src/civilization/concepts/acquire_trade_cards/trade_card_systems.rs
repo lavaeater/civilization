@@ -102,8 +102,8 @@ pub fn transition_to_trade(
             info!("[TRADE_CARDS] Transitioning to Trade phase");
             next_state.set(GameActivity::Trade);
         } else {
-            info!("[TRADE_CARDS] Not enough traders, transitioning to PopulationExpansion");
-            next_state.set(GameActivity::PopulationExpansion);
+            info!("[TRADE_CARDS] Not enough traders, transitioning to CollectTaxes");
+            next_state.set(GameActivity::CollectTaxes);
         }
     }
 }

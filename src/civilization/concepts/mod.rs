@@ -1,5 +1,6 @@
 mod census;
 mod map;
+mod taxation;
 mod population_expansion;
 mod trade;
 mod acquire_trade_cards;
@@ -26,3 +27,4 @@ pub use remove_surplus_population::*;
 pub use save_game::*;
 pub use trade::*;
 pub use civ_cards::*;
+pub use taxation::*;
