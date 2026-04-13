@@ -53,6 +53,7 @@ use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_com
 };
 use crate::civilization::functions::return_all_tokens_to_stock;
 use crate::civilization::{CivCardName, PlayerTradeCards, TradeCard, TradeCardTrait};
+use crate::loading::TextureAssets;
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
 
@@ -927,7 +928,9 @@ pub fn advance_barbarian_hordes(
         &Faction,
     )>,
     start_areas: Query<(Entity, &StartArea, &LandPassage)>,
+    area_transforms: Query<&Transform, With<GameArea>>,
     mut populations: Query<&mut Population>,
+    textures: Res<TextureAssets>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
 ) {
     for (player_entity, mut resolving, mut resolution, faction) in player_query.iter_mut() {
@@ -962,8 +965,48 @@ pub fn advance_barbarian_hordes(
 
                 state.landing_area = best_area;
                 info!(
-                    "[BARBARIAN_HORDES] {:?} landing in {:?} ({}  victim units there)",
+                    "[BARBARIAN_HORDES] {:?} landing in {:?} ({} victim units there)",
                     victim_faction, best_area, best_pts
+                );
+                state.phase = BarbarianHordesPhase::PlaceBarbarians;
+            }
+            BarbarianHordesPhase::PlaceBarbarians => {
+                // Spawn visual barbarian tokens at the landing area.
+                // We show up to 5 tokens in a fixed grid offset from the area centre.
+                const VISUAL_COUNT: usize = 5;
+                const COLS: usize = 3;
+                const SPACING: f32 = 12.0;
+
+                let base = state.landing_area
+                    .and_then(|a| area_transforms.get(a).ok())
+                    .map(|t| t.translation)
+                    .unwrap_or_default();
+
+                for i in 0..VISUAL_COUNT {
+                    let col = (i % COLS) as f32;
+                    let row = (i / COLS) as f32;
+                    let offset = bevy::math::Vec3::new(
+                        col * SPACING - SPACING,
+                        row * -SPACING + SPACING * 1.5,
+                        3.0,   // above player tokens (z = 0) and ships (z = 2)
+                    );
+                    let token = commands.spawn((
+                        BarbarianToken,
+                        Name::new("Barbarian"),
+                        Sprite {
+                            image: textures.dot.clone(),
+                            color: bevy::prelude::Color::srgb(0.6, 0.1, 0.05),
+                            ..Default::default()
+                        },
+                        Transform::from_scale(bevy::math::Vec3::splat(0.3))
+                            .with_translation(base + offset),
+                    )).id();
+                    state.barbarian_tokens.push(token);
+                }
+
+                info!(
+                    "[BARBARIAN_HORDES] Spawned {} barbarian tokens at {:?}",
+                    VISUAL_COUNT, state.landing_area
                 );
                 state.phase = BarbarianHordesPhase::ApplyEffects;
             }
@@ -1018,6 +1061,10 @@ pub fn advance_barbarian_hordes(
                 state.phase = BarbarianHordesPhase::Complete;
             }
             BarbarianHordesPhase::Complete => {
+                // Despawn visual barbarian tokens before finishing.
+                for token in state.barbarian_tokens.drain(..) {
+                    commands.entity(token).despawn();
+                }
                 finish_calamity(&mut resolution, &mut calamity_resolved, &mut commands, player_entity, TradeCard::BarbarianHordes);
             }
         }

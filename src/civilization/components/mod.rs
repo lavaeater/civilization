@@ -61,6 +61,12 @@ pub struct NeedsConnections {
     pub sea_connections: Vec<i32>,
 }
 
+/// Marker on a visual-only barbarian token entity spawned during Barbarian Hordes resolution.
+/// The entity is despawned when the calamity finishes.
+#[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
+pub struct BarbarianToken;
+
 #[derive(Component, Debug, Reflect)]
 pub struct FixTokenPositions;
 

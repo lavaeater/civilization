@@ -2,10 +2,8 @@ use bevy::prelude::{Entity, Reflect};
 
 /// State for Barbarian Hordes (rule 30.52).
 ///
-/// Implementation: instead of persistent Barbarian entities, we find the primary
-/// victim's start area causing the greatest damage and remove tokens from there
-/// outward (area + adjacent areas). This correctly captures geographic targeting
-/// without requiring a separate Barbarian faction entity.
+/// Visual barbarian token entities are spawned in the landing area during
+/// `PlaceBarbarians` and despawned in `Complete`.
 #[derive(Debug, Clone, Default, Reflect)]
 pub struct BarbarianHordesState {
     pub phase: BarbarianHordesPhase,
@@ -14,12 +12,16 @@ pub struct BarbarianHordesState {
     /// Start area where Barbarians land (the one with most victim units).
     pub landing_area: Option<Entity>,
     pub has_military: bool,
+    /// Visual barbarian token entities currently on the map.
+    pub barbarian_tokens: Vec<Entity>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Reflect)]
 pub enum BarbarianHordesPhase {
     #[default]
     FindLandingArea,
+    /// Spawn visual barbarian token entities in the landing area.
+    PlaceBarbarians,
     ApplyEffects,
     Complete,
 }

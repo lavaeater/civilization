@@ -22,6 +22,7 @@ impl Plugin for CivilizationPlugin {
         // Use DebugOptions::test_manual_pop_exp() to test manual population expansion
         app.insert_resource(DebugOptions::default())
         .register_type::<Player>()
+        .register_type::<BarbarianToken>()
         .register_type::<Token>()
         .register_type::<LandPassage>()
         .register_type::<TokenStock>()
