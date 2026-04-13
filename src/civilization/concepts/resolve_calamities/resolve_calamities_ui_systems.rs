@@ -185,7 +185,7 @@ pub fn update_calamity_selection_ui(
     }
 
     // Update title
-    if let Ok(mut text) = title_text.get_single_mut() {
+    if let Ok(mut text) = title_text.single_mut() {
         **text = format!(
             "{} — Select {} cit{}",
             calamity_selection.calamity_name,
@@ -195,7 +195,7 @@ pub fn update_calamity_selection_ui(
     }
 
     // Update city name
-    if let Ok(mut text) = city_name_text.get_single_mut() {
+    if let Ok(mut text) = city_name_text.single_mut() {
         if let Some(city) = calamity_selection.current_city() {
             let name = area_names.get(city).map(|n| n.as_str()).unwrap_or("?");
             let selected_marker = if calamity_selection.is_current_selected() { " [X]" } else { "" };
@@ -212,7 +212,7 @@ pub fn update_calamity_selection_ui(
     }
 
     // Update progress
-    if let Ok(mut text) = progress_text.get_single_mut() {
+    if let Ok(mut text) = progress_text.single_mut() {
         **text = format!(
             "{} / {} selected",
             calamity_selection.selected_cities.len(),
@@ -222,13 +222,13 @@ pub fn update_calamity_selection_ui(
 
     // Update toggle button label and color
     let is_selected = calamity_selection.is_current_selected();
-    if let Ok((mut bg, children)) = toggle_button.get_single_mut() {
+    if let Ok((mut bg, children)) = toggle_button.single_mut() {
         *bg = if is_selected {
             BackgroundColor(Color::srgb(0.5, 0.2, 0.2))
         } else {
             BackgroundColor(Color::srgb(0.2, 0.4, 0.2))
         };
-        for &child in children.iter() {
+        for child in children.iter() {
             if let Ok(mut text) = child_texts.get_mut(child) {
                 **text = if is_selected { "Deselect".to_string() } else { "Select".to_string() };
             }
@@ -237,7 +237,7 @@ pub fn update_calamity_selection_ui(
 
     // Update confirm button color based on selection completion
     let complete = calamity_selection.selection_complete();
-    if let Ok((mut bg, _)) = confirm_button.get_single_mut() {
+    if let Ok((mut bg, _)) = confirm_button.single_mut() {
         *bg = if complete {
             BackgroundColor(Color::srgb(0.2, 0.5, 0.2))
         } else {
@@ -274,7 +274,7 @@ pub fn handle_calamity_selection_buttons(
             CalamitySelectionButtonAction::Confirm => {
                 if calamity_selection.selection_complete() {
                     // Signal the advance system by removing the waiting marker
-                    if let Ok(player) = human_waiting.get_single() {
+                    if let Ok(player) = human_waiting.single() {
                         info!("[CALAMITY UI] Human confirmed {} city selection(s)",
                             calamity_selection.selected_cities.len());
                         commands.entity(player).remove::<AwaitingHumanCalamitySelection>();

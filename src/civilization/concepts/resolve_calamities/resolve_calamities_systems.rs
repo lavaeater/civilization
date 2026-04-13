@@ -680,31 +680,48 @@ pub fn advance_epidemic(
 
 pub fn advance_iconoclasm_heresy(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerCities)>,
+    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerCities, Has<IsHuman>, Has<AwaitingHumanCalamitySelection>)>,
     all_players: Query<(Entity, &PlayerCities, Option<&PlayerCivilizationCards>), With<Player>>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
+    mut calamity_selection: ResMut<CalamitySelectionState>,
 ) {
-    for (player_entity, mut resolving, mut resolution, player_cities) in player_query.iter_mut() {
+    for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in player_query.iter_mut() {
         if resolution.phase == CalamityPhase::Resolved { continue; }
         let ResolvingCalamity::IconoclasmAndHeresy(ref mut state) = *resolving else { continue };
 
         match state.phase {
             IconoclasmHeresyPhase::ComputeEffects => {
-                let areas: Vec<Entity> = player_cities.areas_and_cities.keys()
-                    .cloned()
-                    .take(state.cities_to_reduce)
-                    .collect();
-                for area in areas {
-                    state.select_city(area);
-                    commands.entity(area).insert(ReduceCity);
+                info!("[ICONOCLASM] Primary victim reducing {} cities", state.cities_to_reduce);
+                if state.cities_to_reduce == 0 {
+                    state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
+                } else if is_human {
+                    let available: Vec<Entity> = player_cities.areas_and_cities.keys().cloned().collect();
+                    calamity_selection.populate(player_entity, available, state.cities_to_reduce, "Iconoclasm & Heresy");
+                    commands.entity(player_entity).insert(AwaitingHumanCalamitySelection);
+                    state.phase = IconoclasmHeresyPhase::SelectCities;
+                } else {
+                    let areas: Vec<Entity> = player_cities.areas_and_cities.keys().cloned().take(state.cities_to_reduce).collect();
+                    for area in &areas { state.select_city(*area); }
+                    state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
                 }
-                info!("[ICONOCLASM] Primary victim reducing {} cities", state.selected_cities.len());
-                state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
+            }
+            IconoclasmHeresyPhase::SelectCities => {
+                if !awaiting_human {
+                    for area in calamity_selection.take_selected_cities() {
+                        state.select_city(area);
+                    }
+                    state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
+                }
             }
             IconoclasmHeresyPhase::ApplySecondaryLosses => {
+                // Apply primary reductions
+                for &area in &state.selected_cities {
+                    commands.entity(area).insert(ReduceCity);
+                }
+
                 // Primary victim orders 2 secondary cities reduced from other players (30.818).
                 // Auto-select: Theology holders are immune; Philosophy holders lose max 1.
-                let mut secondary_cities_left = state.secondary_cities; // typically 2
+                let mut secondary_cities_left = state.secondary_cities;
 
                 let candidates: Vec<(Entity, Vec<Entity>, bool)> = all_players.iter()
                     .filter(|(e, cities, _)| {
