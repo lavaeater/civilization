@@ -7,8 +7,7 @@ use crate::civilization::concepts::ships::ship_ui_components::{
     AwaitingShipPlacement, ShipConstructionState,
 };
 use crate::civilization::concepts::ships::ship_ui_systems::{
-    despawn_ship_construction_ui, handle_ship_construction_buttons, spawn_ship_construction_ui,
-    update_ship_construction_ui,
+    despawn_ship_construction_ui, spawn_ship_construction_ui, update_ship_construction_ui,
 };
 use crate::GameActivity;
 use bevy::app::{App, Plugin};
@@ -31,7 +30,6 @@ impl Plugin for ShipsPlugin {
                 (
                     spawn_ship_construction_ui,
                     update_ship_construction_ui,
-                    handle_ship_construction_buttons,
                     despawn_ship_construction_ui,
                     advance_ship_construction,
                 )

@@ -371,28 +371,17 @@ impl MonotheismSelectionState {
 
 // ── Monotheism UI markers ─────────────────────────────────────────────────────
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct MonotheismSelectionUiRoot;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct MonotheismTargetText;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct MonotheismProgressText;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct MonotheismToggleButton;
-
-#[derive(Component)]
-pub struct MonotheismConfirmButton;
-
-#[derive(Component, Debug, Clone)]
-pub enum MonotheismButtonAction {
-    Prev,
-    Next,
-    Toggle,
-    Confirm,
-}
 
 // ── Civil War UI markers ──────────────────────────────────────────────────────
 

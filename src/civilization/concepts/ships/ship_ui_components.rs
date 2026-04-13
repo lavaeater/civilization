@@ -143,28 +143,15 @@ impl ShipConstructionState {
 
 // ── UI marker components ──────────────────────────────────────────────────────
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct ShipConstructionUiRoot;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct ShipCountText;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct ShipSlotText;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct ShipAreaText;
 
-#[derive(Component)]
-pub struct ShipConfirmButton;
-
-#[derive(Component, Debug, Clone)]
-pub enum ShipConstructionButtonAction {
-    Increment,
-    Decrement,
-    PrevArea,
-    NextArea,
-    PrevSlot,
-    NextSlot,
-    Confirm,
-}

@@ -1,4 +1,6 @@
 use bevy::prelude::*;
+use bevy::ui_widgets::Activate;
+use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
 
 use crate::civilization::components::GameArea;
 use crate::civilization::concepts::ships::ship_ui_components::*;
@@ -9,230 +11,124 @@ pub fn spawn_ship_construction_ui(
     human_waiting: Query<Entity, (With<IsHuman>, Added<AwaitingShipPlacement>)>,
     existing_ui: Query<Entity, With<ShipConstructionUiRoot>>,
     ship_state: Res<ShipConstructionState>,
-    asset_server: Res<AssetServer>,
-    mut commands: Commands,
+    commands: Commands,
+    theme: Res<LavaTheme>,
 ) {
-    if !existing_ui.is_empty() {
-        return;
-    }
-    if human_waiting.iter().next().is_none() {
+    if !existing_ui.is_empty() || human_waiting.iter().next().is_none() {
         return;
     }
 
-    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    let mut ui = UIBuilder::new(commands, Some(theme.clone()));
 
-    commands
-        .spawn((
-            ShipConstructionUiRoot,
-            Node {
-                position_type: PositionType::Absolute,
-                bottom: Val::Px(20.0),
-                left: Val::Percent(50.0),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                padding: UiRect::all(Val::Px(12.0)),
-                row_gap: Val::Px(8.0),
-                ..default()
-            },
-            BackgroundColor(Color::srgba(0.05, 0.1, 0.2, 0.93)),
-        ))
-        .with_children(|parent| {
-            // Title
-            parent.spawn((
-                Text::new("Ship Construction"),
-                TextFont { font: font.clone(), font_size: 22.0, ..default() },
-                TextColor(Color::srgb(0.4, 0.8, 1.0)),
-            ));
+    ui.component::<ShipConstructionUiRoot>()
+        .absolute_position()
+        .bottom(Val::Px(20.0))
+        .left(Val::Percent(50.0))
+        .display_flex()
+        .flex_column()
+        .align_items_center()
+        .padding_all_px(12.0)
+        .gap_px(8.0)
+        .bg_color(Color::srgba(0.05, 0.1, 0.2, 0.93));
 
-            // Count row: "─  N ships  +"
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(12.0),
-                    ..default()
-                })
-                .with_children(|row| {
-                    // Decrement button
-                    row.spawn((
-                        Button,
-                        ShipConstructionButtonAction::Decrement,
-                        Node {
-                            width: Val::Px(36.0),
-                            height: Val::Px(36.0),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    ))
-                    .with_child((
-                        Text::new("−"),
-                        TextFont { font: font.clone(), font_size: 22.0, ..default() },
-                        TextColor(Color::WHITE),
-                    ));
+    // Title
+    ui.add_text_child(
+        "Ship Construction",
+        Some(TextStyle::size_color(22.0, Color::srgb(0.4, 0.8, 1.0))),
+    );
 
-                    // Count display
-                    row.spawn((
-                        ShipCountText,
-                        Text::new(format!(
-                            "0 ships  (max {})",
-                            ship_state.max_buildable
-                        )),
-                        TextFont { font: font.clone(), font_size: 18.0, ..default() },
-                        TextColor(Color::srgb(0.9, 0.9, 0.9)),
-                        Node { min_width: Val::Px(160.0), ..default() },
-                    ));
+    // Count row: [−] N ships (max N) [+]
+    let initial_count = format!(
+        "0 ships  (max {})",
+        ship_state.max_buildable
+    );
+    ui.add_row(|row| {
+        row.align_items_center().gap_px(12.0);
 
-                    // Increment button
-                    row.spawn((
-                        Button,
-                        ShipConstructionButtonAction::Increment,
-                        Node {
-                            width: Val::Px(36.0),
-                            height: Val::Px(36.0),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    ))
-                    .with_child((
-                        Text::new("+"),
-                        TextFont { font: font.clone(), font_size: 22.0, ..default() },
-                        TextColor(Color::WHITE),
-                    ));
-                });
+        row.add_button_observe(
+            "−",
+            |btn| { btn.size_px(36.0, 36.0); },
+            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.decrement(); },
+        );
 
-            // Slot navigation row (only shown when ships_to_build > 0)
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(8.0),
-                    ..default()
-                })
-                .with_children(|row| {
-                    row.spawn((
-                        Button,
-                        ShipConstructionButtonAction::PrevSlot,
-                        Node {
-                            width: Val::Px(28.0),
-                            height: Val::Px(28.0),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgb(0.25, 0.25, 0.4)),
-                    ))
-                    .with_child((
-                        Text::new("◄"),
-                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
-                        TextColor(Color::WHITE),
-                    ));
-
-                    row.spawn((
-                        ShipSlotText,
-                        Text::new("—"),
-                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
-                        TextColor(Color::srgb(0.7, 0.7, 1.0)),
-                        Node { min_width: Val::Px(80.0), ..default() },
-                    ));
-
-                    row.spawn((
-                        Button,
-                        ShipConstructionButtonAction::NextSlot,
-                        Node {
-                            width: Val::Px(28.0),
-                            height: Val::Px(28.0),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgb(0.25, 0.25, 0.4)),
-                    ))
-                    .with_child((
-                        Text::new("►"),
-                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
-                        TextColor(Color::WHITE),
-                    ));
-                });
-
-            // Area navigation row
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(8.0),
-                    ..default()
-                })
-                .with_children(|row| {
-                    row.spawn((
-                        Button,
-                        ShipConstructionButtonAction::PrevArea,
-                        Node {
-                            width: Val::Px(32.0),
-                            height: Val::Px(32.0),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    ))
-                    .with_child((
-                        Text::new("<"),
-                        TextFont { font: font.clone(), font_size: 20.0, ..default() },
-                        TextColor(Color::WHITE),
-                    ));
-
-                    row.spawn((
-                        ShipAreaText,
-                        Text::new("no area"),
-                        TextFont { font: font.clone(), font_size: 18.0, ..default() },
-                        TextColor(Color::srgb(1.0, 1.0, 0.7)),
-                        Node { min_width: Val::Px(180.0), ..default() },
-                    ));
-
-                    row.spawn((
-                        Button,
-                        ShipConstructionButtonAction::NextArea,
-                        Node {
-                            width: Val::Px(32.0),
-                            height: Val::Px(32.0),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    ))
-                    .with_child((
-                        Text::new(">"),
-                        TextFont { font: font.clone(), font_size: 20.0, ..default() },
-                        TextColor(Color::WHITE),
-                    ));
-                });
-
-            // Confirm button
-            parent
-                .spawn((
-                    Button,
-                    ShipConstructionButtonAction::Confirm,
-                    ShipConfirmButton,
-                    Node {
-                        width: Val::Px(160.0),
-                        height: Val::Px(40.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
-                ))
-                .with_child((
-                    Text::new("Confirm"),
-                    TextFont { font: font.clone(), font_size: 20.0, ..default() },
-                    TextColor(Color::WHITE),
-                ));
+        row.with_child(|c| {
+            c.component::<ShipCountText>()
+                .with_text(initial_count, Some(TextStyle::size(18.0)))
+                .width_px(160.0);
         });
+
+        row.add_button_observe(
+            "+",
+            |btn| { btn.size_px(36.0, 36.0); },
+            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.increment(); },
+        );
+    });
+
+    // Slot row: [◄] Ship N/N [►]
+    ui.add_row(|row| {
+        row.align_items_center().gap_px(8.0);
+
+        row.add_button_observe(
+            "◄",
+            |btn| { btn.size_px(28.0, 28.0); },
+            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.prev_slot(); },
+        );
+
+        row.with_child(|c| {
+            c.component::<ShipSlotText>()
+                .with_text("—", Some(TextStyle::size(16.0)))
+                .width_px(80.0);
+        });
+
+        row.add_button_observe(
+            "►",
+            |btn| { btn.size_px(28.0, 28.0); },
+            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.next_slot(); },
+        );
+    });
+
+    // Area row: [<] area name [>]
+    ui.add_row(|row| {
+        row.align_items_center().gap_px(8.0);
+
+        row.add_button_observe(
+            "<",
+            |btn| { btn.size_px(32.0, 32.0); },
+            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.prev_area(); },
+        );
+
+        row.with_child(|c| {
+            c.component::<ShipAreaText>()
+                .with_text("no area", Some(TextStyle::size(18.0)))
+                .width_px(180.0);
+        });
+
+        row.add_button_observe(
+            ">",
+            |btn| { btn.size_px(32.0, 32.0); },
+            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.next_area(); },
+        );
+    });
+
+    // Confirm button — removes the waiting marker to unblock the advance system
+    ui.add_button_observe(
+        "Confirm",
+        |btn| { btn.size_px(160.0, 40.0); },
+        |_: On<Activate>,
+         mut commands: Commands,
+         ship_state: Res<ShipConstructionState>,
+         human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingShipPlacement>)>| {
+            if let Ok(player) = human_waiting.single() {
+                info!(
+                    "[SHIPS UI] Human confirmed: build {} ships",
+                    ship_state.ships_to_build
+                );
+                commands.entity(player).remove::<AwaitingShipPlacement>();
+            }
+        },
+    );
+
+    ui.build();
 }
 
 /// Keep the panel text in sync with `ShipConstructionState`.
@@ -290,53 +186,6 @@ pub fn update_ship_construction_ui(
             );
         } else {
             **t = "No areas available".to_string();
-        }
-    }
-}
-
-/// Handle button presses in the ship construction panel.
-pub fn handle_ship_construction_buttons(
-    interaction_query: Query<
-        (&Interaction, &ShipConstructionButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut ship_state: ResMut<ShipConstructionState>,
-    mut commands: Commands,
-    human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingShipPlacement>)>,
-) {
-    for (interaction, action) in interaction_query.iter() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-
-        match action {
-            ShipConstructionButtonAction::Increment => {
-                ship_state.increment();
-            }
-            ShipConstructionButtonAction::Decrement => {
-                ship_state.decrement();
-            }
-            ShipConstructionButtonAction::PrevArea => {
-                ship_state.prev_area();
-            }
-            ShipConstructionButtonAction::NextArea => {
-                ship_state.next_area();
-            }
-            ShipConstructionButtonAction::PrevSlot => {
-                ship_state.prev_slot();
-            }
-            ShipConstructionButtonAction::NextSlot => {
-                ship_state.next_slot();
-            }
-            ShipConstructionButtonAction::Confirm => {
-                if let Ok(player) = human_waiting.single() {
-                    info!(
-                        "[SHIPS UI] Human confirmed: build {} ships",
-                        ship_state.ships_to_build
-                    );
-                    commands.entity(player).remove::<AwaitingShipPlacement>();
-                }
-            }
         }
     }
 }

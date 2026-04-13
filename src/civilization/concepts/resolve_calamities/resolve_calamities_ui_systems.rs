@@ -1,4 +1,6 @@
 use bevy::prelude::*;
+use bevy::ui_widgets::Activate;
+use lava_ui_builder::{InteractionPalette, LavaTheme, TextStyle, UIBuilder};
 
 use crate::civilization::components::GameArea;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::*;
@@ -659,8 +661,8 @@ pub fn spawn_monotheism_selection_ui(
     human_waiting: Query<Entity, (With<IsHuman>, Added<AwaitingMonotheismSelection>)>,
     existing_ui: Query<Entity, With<MonotheismSelectionUiRoot>>,
     mono_state: Res<MonotheismSelectionState>,
-    asset_server: Res<AssetServer>,
-    mut commands: Commands,
+    commands: Commands,
+    theme: Res<LavaTheme>,
 ) {
     if !existing_ui.is_empty() || mono_state.player.is_none() {
         return;
@@ -669,128 +671,101 @@ pub fn spawn_monotheism_selection_ui(
         return;
     }
 
-    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
     let max = mono_state.candidates.len().min(2);
 
-    commands
-        .spawn((
-            MonotheismSelectionUiRoot,
-            Node {
-                position_type: PositionType::Absolute,
-                bottom: Val::Px(20.0),
-                left: Val::Percent(50.0),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                padding: UiRect::all(Val::Px(10.0)),
-                row_gap: Val::Px(8.0),
-                ..default()
-            },
-            BackgroundColor(Color::srgba(0.05, 0.1, 0.15, 0.93)),
-        ))
-        .with_children(|parent| {
-            // Title
-            parent.spawn((
-                Text::new("Monotheism"),
-                TextFont { font: font.clone(), font_size: 22.0, ..default() },
-                TextColor(Color::srgb(0.4, 0.8, 1.0)),
-            ));
-            parent.spawn((
-                Text::new(format!("Select up to {} enemy token{} to eliminate", max,
-                    if max == 1 { "" } else { "s" })),
-                TextFont { font: font.clone(), font_size: 14.0, ..default() },
-                TextColor(Color::srgb(0.7, 0.7, 0.7)),
-            ));
+    let mut ui = UIBuilder::new(commands, Some(theme.clone()));
 
-            // Target navigation row
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(8.0),
-                    ..default()
-                })
-                .with_children(|row| {
-                    row.spawn((
-                        Button,
-                        MonotheismButtonAction::Prev,
-                        Node {
-                            width: Val::Px(32.0), height: Val::Px(32.0),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    ))
-                    .with_child((Text::new("<"), TextFont { font: font.clone(), font_size: 20.0, ..default() }, TextColor(Color::WHITE)));
+    ui.component::<MonotheismSelectionUiRoot>()
+        .absolute_position()
+        .bottom(Val::Px(20.0))
+        .left(Val::Percent(50.0))
+        .display_flex()
+        .flex_column()
+        .align_items_center()
+        .padding_all_px(10.0)
+        .gap_px(8.0)
+        .bg_color(Color::srgba(0.05, 0.1, 0.15, 0.93));
 
-                    row.spawn((
-                        MonotheismTargetText,
-                        Text::new("?"),
-                        TextFont { font: font.clone(), font_size: 18.0, ..default() },
-                        TextColor(Color::srgb(1.0, 1.0, 0.7)),
-                        Node { min_width: Val::Px(200.0), ..default() },
-                    ));
+    // Title
+    ui.add_text_child(
+        "Monotheism",
+        Some(TextStyle::size_color(22.0, Color::srgb(0.4, 0.8, 1.0))),
+    );
+    ui.add_text_child(
+        format!(
+            "Select up to {} enemy token{} to eliminate",
+            max,
+            if max == 1 { "" } else { "s" }
+        ),
+        Some(TextStyle::size_color(14.0, Color::srgb(0.7, 0.7, 0.7))),
+    );
 
-                    row.spawn((
-                        Button,
-                        MonotheismButtonAction::Next,
-                        Node {
-                            width: Val::Px(32.0), height: Val::Px(32.0),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    ))
-                    .with_child((Text::new(">"), TextFont { font: font.clone(), font_size: 20.0, ..default() }, TextColor(Color::WHITE)));
-                });
+    // Target navigation row: [<] target text [>]
+    ui.add_row(|row| {
+        row.align_items_center().gap_px(8.0);
 
-            // Toggle + progress row
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(12.0),
-                    ..default()
-                })
-                .with_children(|row| {
-                    row.spawn((
-                        Button,
-                        MonotheismButtonAction::Toggle,
-                        MonotheismToggleButton,
-                        Node {
-                            width: Val::Px(110.0), height: Val::Px(36.0),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgb(0.2, 0.4, 0.2)),
-                    ))
-                    .with_child((Text::new("Eliminate"), TextFont { font: font.clone(), font_size: 16.0, ..default() }, TextColor(Color::WHITE)));
+        row.add_button_observe(
+            "<",
+            |btn| { btn.size_px(32.0, 32.0); },
+            |_: On<Activate>, mut s: ResMut<MonotheismSelectionState>| { s.prev(); },
+        );
 
-                    row.spawn((
-                        MonotheismProgressText,
-                        Text::new(format!("0 / {}", max)),
-                        TextFont { font: font.clone(), font_size: 18.0, ..default() },
-                        TextColor(Color::srgb(0.8, 0.8, 0.8)),
-                    ));
-                });
-
-            // Confirm button (always enabled — 0 is valid: "do nothing")
-            parent.spawn((
-                Button,
-                MonotheismButtonAction::Confirm,
-                MonotheismConfirmButton,
-                Node {
-                    width: Val::Px(160.0), height: Val::Px(40.0),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
-                BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
-            ))
-            .with_child((Text::new("Confirm"), TextFont { font: font.clone(), font_size: 20.0, ..default() }, TextColor(Color::WHITE)));
+        row.with_child(|c| {
+            c.component::<MonotheismTargetText>()
+                .with_text("?", Some(TextStyle::size_color(18.0, Color::srgb(1.0, 1.0, 0.7))))
+                .width_px(200.0);
         });
+
+        row.add_button_observe(
+            ">",
+            |btn| { btn.size_px(32.0, 32.0); },
+            |_: On<Activate>, mut s: ResMut<MonotheismSelectionState>| { s.next(); },
+        );
+    });
+
+    // Toggle + progress row
+    let toggle_color = Color::srgb(0.2, 0.4, 0.2);
+    ui.add_row(|row| {
+        row.align_items_center().gap_px(12.0);
+
+        row.add_button_observe(
+            "Eliminate",
+            |btn| {
+                btn.size_px(110.0, 36.0)
+                    .insert(MonotheismToggleButton)
+                    .bg_color(toggle_color);
+            },
+            |_: On<Activate>, mut s: ResMut<MonotheismSelectionState>| { s.toggle_current(); },
+        );
+
+        row.with_child(|c| {
+            c.component::<MonotheismProgressText>()
+                .with_text(
+                    format!("0 / {}", max),
+                    Some(TextStyle::size_color(18.0, Color::srgb(0.8, 0.8, 0.8))),
+                );
+        });
+    });
+
+    // Confirm button (0 selections is valid — "do nothing")
+    ui.add_button_observe(
+        "Confirm",
+        |btn| { btn.size_px(160.0, 40.0); },
+        |_: On<Activate>,
+         mut commands: Commands,
+         human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingMonotheismSelection>)>,
+         mono_state: Res<MonotheismSelectionState>| {
+            if let Ok(player) = human_waiting.single() {
+                info!(
+                    "[MONOTHEISM UI] Human confirmed: {} token(s) eliminated",
+                    mono_state.selected.len()
+                );
+                commands.entity(player).remove::<AwaitingMonotheismSelection>();
+            }
+        },
+    );
+
+    ui.build();
 }
 
 /// Keep the Monotheism panel text in sync with `MonotheismSelectionState`.
@@ -805,8 +780,14 @@ pub fn update_monotheism_selection_ui(
         &mut Text,
         (With<MonotheismProgressText>, Without<MonotheismTargetText>),
     >,
-    mut toggle_button: Query<(&mut BackgroundColor, &Children), With<MonotheismToggleButton>>,
-    mut child_texts: Query<&mut Text, (Without<MonotheismTargetText>, Without<MonotheismProgressText>)>,
+    mut toggle_button: Query<
+        (&mut BackgroundColor, &mut InteractionPalette, &Children),
+        With<MonotheismToggleButton>,
+    >,
+    mut child_texts: Query<
+        &mut Text,
+        (Without<MonotheismTargetText>, Without<MonotheismProgressText>),
+    >,
 ) {
     if !mono_state.is_changed() {
         return;
@@ -818,7 +799,8 @@ pub fn update_monotheism_selection_ui(
             let sel = if mono_state.is_current_selected() { " [✓]" } else { "" };
             **t = format!(
                 "{}{} ({}/{})",
-                area_name, sel,
+                area_name,
+                sel,
                 mono_state.current_index + 1,
                 mono_state.candidates.len()
             );
@@ -833,46 +815,18 @@ pub fn update_monotheism_selection_ui(
     }
 
     let is_sel = mono_state.is_current_selected();
-    if let Ok((mut bg, children)) = toggle_button.single_mut() {
-        *bg = if is_sel {
-            BackgroundColor(Color::srgb(0.5, 0.2, 0.2))
-        } else {
-            BackgroundColor(Color::srgb(0.2, 0.4, 0.2))
-        };
+    let toggle_color = if is_sel {
+        Color::srgb(0.5, 0.2, 0.2)
+    } else {
+        Color::srgb(0.2, 0.4, 0.2)
+    };
+    if let Ok((mut bg, mut palette, children)) = toggle_button.single_mut() {
+        *bg = BackgroundColor(toggle_color);
+        // Also update the palette's none-state so the color sticks when not hovered
+        palette.none = toggle_color;
         for child in children.iter() {
             if let Ok(mut text) = child_texts.get_mut(child) {
                 **text = if is_sel { "Spare".to_string() } else { "Eliminate".to_string() };
-            }
-        }
-    }
-}
-
-/// Handle button presses in the Monotheism selection panel.
-pub fn handle_monotheism_selection_buttons(
-    interaction_query: Query<
-        (&Interaction, &MonotheismButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut mono_state: ResMut<MonotheismSelectionState>,
-    mut commands: Commands,
-    human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingMonotheismSelection>)>,
-) {
-    for (interaction, action) in interaction_query.iter() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-        match action {
-            MonotheismButtonAction::Prev => { mono_state.prev(); }
-            MonotheismButtonAction::Next => { mono_state.next(); }
-            MonotheismButtonAction::Toggle => { mono_state.toggle_current(); }
-            MonotheismButtonAction::Confirm => {
-                if let Ok(player) = human_waiting.single() {
-                    info!(
-                        "[MONOTHEISM UI] Human confirmed: {} token(s) eliminated",
-                        mono_state.selected.len()
-                    );
-                    commands.entity(player).remove::<AwaitingMonotheismSelection>();
-                }
             }
         }
     }

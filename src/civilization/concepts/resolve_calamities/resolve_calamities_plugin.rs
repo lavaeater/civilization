@@ -101,7 +101,6 @@ impl Plugin for ResolveCalamitiesPlugin {
                     // Monotheism human target-selection UI
                     spawn_monotheism_selection_ui,
                     update_monotheism_selection_ui,
-                    handle_monotheism_selection_buttons,
                     cleanup_monotheism_selection_ui,
                 ).run_if(in_state(GameActivity::ResolveCalamities)),
             );
