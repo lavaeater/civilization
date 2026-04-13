@@ -659,12 +659,15 @@ pub fn advance_flood(
         Entity,
         &mut ResolvingCalamity,
         &mut ActiveCalamityResolution,
+        &PlayerCities,
     )>,
     flood_plains: Query<Entity, With<FloodPlain>>,
     area_query: Query<(Option<&BuiltCity>, &LandPassage)>,
+    mut populations: Query<&mut Population>,
+    sea_passage_query: Query<Has<SeaPassage>>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
 ) {
-    for (player_entity, mut resolving, mut resolution) in player_query.iter_mut() {
+    for (player_entity, mut resolving, mut resolution, player_cities) in player_query.iter_mut() {
         if resolution.phase == CalamityPhase::Resolved {
             continue;
         }
@@ -674,27 +677,35 @@ pub fn advance_flood(
 
         match state.phase {
             FloodPhase::FindFloodPlain => {
-                let mut found_area = None;
+                // Rule 30.51: pick the flood plain where the victim has the most unit points.
+                let mut best_area: Option<Entity> = None;
+                let mut best_pts = 0usize;
                 for fp_area in flood_plains.iter() {
-                    if let Ok((Some(city), _)) = area_query.get(fp_area)
-                        && city.player == player_entity
-                    {
-                        found_area = Some(fp_area);
-                        break;
+                    let pts = populations
+                        .get(fp_area)
+                        .map(|pop| pop.population_for_player(player_entity))
+                        .unwrap_or(0);
+                    if pts > best_pts {
+                        best_pts = pts;
+                        best_area = Some(fp_area);
                     }
                 }
-                if let Some(area) = found_area {
+                if let Some(area) = best_area {
                     state.flood_plain_area = Some(area);
-                    state.phase = FloodPhase::ApplyEffects;
+                    info!(
+                        "[FLOOD] Flood plain chosen for {:?}: {:?} ({} victim pts)",
+                        player_entity, area, best_pts
+                    );
+                    state.phase = FloodPhase::ApplyPrimaryLoss;
                 } else {
                     info!(
-                        "[FLOOD] No flood-plain city found for player {:?}",
+                        "[FLOOD] No flood-plain units found for player {:?}, using fallback",
                         player_entity
                     );
-                    state.phase = FloodPhase::Complete;
+                    state.phase = FloodPhase::FallbackCoastalCity;
                 }
             }
-            FloodPhase::ApplyEffects => {
+            FloodPhase::ApplyPrimaryLoss => {
                 if let Some(fp_area) = state.flood_plain_area {
                     if state.has_engineering {
                         commands.entity(fp_area).insert(ReduceCity);
@@ -707,6 +718,55 @@ pub fn advance_flood(
                             }
                         }
                     }
+                }
+                state.phase = FloodPhase::ApplySecondaryLoss;
+            }
+            FloodPhase::ApplySecondaryLoss => {
+                // Rule 30.51: secondary victims on the same flood plain collectively lose 10 pts.
+                // Distribute evenly across secondary victims present, removing from the flood area.
+                if let Some(fp_area) = state.flood_plain_area {
+                    if let Ok(mut pop) = populations.get_mut(fp_area) {
+                        let secondary_players: Vec<Entity> = pop
+                            .player_tokens()
+                            .keys()
+                            .filter(|&&e| e != player_entity)
+                            .cloned()
+                            .collect();
+                        let n = secondary_players.len();
+                        if n > 0 {
+                            let total_loss = 10usize;
+                            let per_player = total_loss.div_ceil(n);
+                            for sec in secondary_players {
+                                let available = pop.population_for_player(sec);
+                                let to_remove = per_player.min(available);
+                                if let Some(removed) = pop.remove_tokens_from_area(&sec, to_remove) {
+                                    for token in removed {
+                                        commands.entity(token).insert(ReturnTokenToStock);
+                                    }
+                                }
+                            }
+                            info!("[FLOOD] Applied secondary loss of {} pts ({} secondary victims)", total_loss, n);
+                        }
+                    }
+                }
+                state.phase = FloodPhase::Complete;
+            }
+            FloodPhase::FallbackCoastalCity => {
+                // Rule 30.51: if no flood plain had victim units, eliminate one coastal city.
+                // With Engineering: reduce instead of destroy.
+                let coastal_city_area = player_cities
+                    .areas_and_cities
+                    .keys()
+                    .find(|&&area| sea_passage_query.get(area).unwrap_or(false))
+                    .or_else(|| player_cities.areas_and_cities.keys().next())
+                    .cloned();
+                if let Some(area) = coastal_city_area {
+                    if state.has_engineering {
+                        commands.entity(area).insert(ReduceCity);
+                    } else {
+                        commands.entity(area).insert(DestroyCity);
+                    }
+                    info!("[FLOOD] Fallback: eliminated coastal city in area {:?}", area);
                 }
                 state.phase = FloodPhase::Complete;
             }
