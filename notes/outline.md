@@ -36,7 +36,7 @@ All rules are found in the ./rules folder.
 - Unit tests cover full payment, shortfall revolt count, Democracy immunity, revolt beneficiary selection, and Coinage rate calculations.
 
 **TODO:**
-- [ ] Coinage: allow players holding Coinage to set rate to 1 or 3 tokens/city before taxes are collected (19.2) — currently hard-coded to 2
+- [ ] Coinage: human player UI to choose rate (1 or 3 tokens/city) before taxes collected — AI sets rate via `ai_set_coinage_rate`; human always uses default 2 (19.2)
 - [ ] Revolt visual: replace the revolted city's sprite with the beneficiary's city token and update `CityTokenStock` for both players
 
 ---
@@ -50,16 +50,22 @@ All rules are found in the ./rules folder.
 - Credits from previously held cards applied to purchases.
 - Calamity modifier effects implemented for: Engineering (Volcano/Earthquake, Flood), Pottery (Famine), Mysticism/Deism/Enlightenment (Superstition), Music/Drama and Poetry/Democracy (Civil War victim selection), Law/Democracy (Civil Disorder), Theology/Philosophy (Iconoclasm — see bug note below), Medicine (Epidemic primary), Military (Barbarian Hordes).
 
+**Card effects implemented:**
+- [x] Agriculture: +1 expansion in solely-occupied areas (`max_expansion_for_player_with_agriculture` in `population.rs`; `game_moves_systems.rs` uses it) — *+1 token substituted when cities are reduced still TODO (26.11b)*
+- [x] Road Building: 2-hop land movement through empty friendly areas (`game_moves_systems.rs`)
+- [x] Metalworking: non-MW players removed first in conflicts (`handle_with_metalworking` in `conflict_functions.rs`)
+- [x] Architecture: city construction threshold −1 (5/11 vs 6/12); one saved token goes to treasury (`build_city` + `game_moves_systems.rs`)
+- [x] Mining: best commodity stack +1 face value = +count² bonus to total buying power (`total_stack_value_with_mining`)
+- [x] Monotheism: post-calamity elimination of up to 2 adjacent enemy tokens; auto-selected for AI; human UI not yet interactive (32.94)
+- [x] Theology: immune to Monotheism conversions (32.952)
+- [x] Cloth Making: ships get +1 hop (2-hop ferry moves generated in `game_moves_systems.rs`)
+- [x] Astronomy: ships may enter `OpenSea`-marked areas (`game_moves_systems.rs`)
+- [x] Engineering: +3 effective tokens in city conflicts (`conflict_triggers.rs`)
+- [x] Coinage: `CoinageTaxRate` component; AI auto-sets rate; rate respected in `collect_taxes`
+
 **TODO — card effects not yet implemented:**
-- [ ] Agriculture: population limit +1 in areas solely occupied by this player's tokens; also +1 token substituted when cities are reduced (26.11)
-- [ ] Road Building: allow tokens to pass through one land area into a second in the same movement phase (23.31); first area must not contain enemy units, Barbarians, or Pirate cities; cannot be used to then board a ship
-- [ ] Metalworking: in conflicts, the holder removes tokens after all non-Metalworking players (24.24); Metalworking vs Metalworking is normal
-- [ ] Architecture: holder may use treasury tokens to help build one city per turn; at least half of tokens must be on-board; cannot be used in areas with enemy units or Barbarians (25.3)
-- [ ] Coinage: vary taxation rate to 1 or 3 tokens/city per turn (19.2, 32.42)
-- [ ] Mining: increases value of one set of Iron/Bronze/Silver/Gems/Gold by one card when acquiring civ cards or evaluating hand for AST/victory — once per turn, may not exceed card maximum (28.53, 32.26)
-- [ ] Monotheism: at end of calamity phase, convert one adjacent land area's units to own units; cannot target Monotheism/Theology holders, Barbarians, or Pirate cities (32.94)
-- [ ] Theology: not affected by Monotheism (32.952)
-- [ ] Cloth Making and Astronomy: defer until ships are implemented
+- [ ] Agriculture: +1 token substituted when a city is reduced (26.11b) — the expansion bonus is done, this part is not
+- [ ] Coinage: human player UI to choose rate (1 or 3) before taxes collected each turn (19.2) — currently AI-only
 - [ ] Credits may not be used in the same turn they are acquired (31.53) — verify this is enforced
 - [ ] AI: teach the AI to select and benefit from civilization cards
 
@@ -86,39 +92,38 @@ All rules are found in the ./rules folder.
   - Enlightenment: −5 tokens cannot support ✓
   - Both Mining + Enlightenment: effects cancel ✓
   - `advance_slave_revolt` now queries `PlayerAreas.total_population()` and derives city count
-- [ ] **Iconoclasm secondary victim** protections (30.819):
-  - Philosophy holder: cannot lose more than 1 city as secondary — not implemented
-  - Theology holder: cannot be named as secondary victim at all — not implemented
-- [ ] **Epidemic secondary victim**: at least 1 token must remain in each affected area (30.612) — verify
-- [ ] **Epidemic**: cities account for a maximum of 4 unit points (not 5) in Epidemic loss calculation (30.612) — verify
+- [x] **Iconoclasm secondary victim** protections (30.819):
+  - Theology holder: cannot be named as secondary victim ✓ (`advance_iconoclasm_heresy`)
+  - Philosophy holder: cannot lose more than 1 city as secondary ✓ (`advance_iconoclasm_heresy`)
+- [ ] **Epidemic secondary victim**: at least 1 token must remain in each affected area (30.612) — not enforced
+- [ ] **Epidemic**: cities account for a maximum of 4 unit points (not 5) in Epidemic loss calculation (30.612) — not implemented
 - [ ] **Famine**: Grain cards used for Pottery reduction must be placed face up and cannot be used to acquire civ cards that turn (30.312) — not implemented
 
-**TODO — calamity resolution logic (TODOs in `resolve_calamities_systems.rs`):**
-- [ ] **Civil War**: actual interactive unit selection for victim (chooses 15 + bonuses) — currently just logged
-- [ ] **Civil War**: beneficiary interactive unit selection (20 points) — currently just logged
-- [ ] **Civil War**: faction transfer — replace victim's units with beneficiary's tokens — not implemented
-- [ ] **Civil War**: Philosophy override — first faction = 15 units chosen by beneficiary (30.4124) — not implemented
-- [ ] **Civil War**: Military penalty — remove 5 unit points from each faction after selection (30.414) — not implemented
-- [ ] **Treachery**: transfer city to the trading player (replace with their city token); currently just destroys the city (30.221)
-- [ ] **Treachery** (not traded case): reduce own city, no other player benefits (30.222) — verify this path is correct
-- [ ] **Piracy**: identify coastal cities (requires `Coastal` area marker or tag) — not implemented
-- [ ] **Piracy**: replace two of primary victim's coastal cities with Pirate city tokens (30.911)
-- [ ] **Piracy**: replace one coastal city each of two secondary victims (30.912)
-- [ ] **Barbarian Hordes**: placement logic — choose start area causing greatest damage to primary victim (30.5211)
-- [ ] **Barbarian Hordes**: continued movement — surplus Barbarians move to adjacent area causing greatest damage; repeat until no surplus (30.5231–30.5232)
+**TODO — calamity resolution logic:**
+- [ ] **Civil War**: human player interactive unit/city selection (victim selects 15+ pts, beneficiary selects 20+ pts) — currently auto-resolved for all players
+- [ ] **Civil War**: Philosophy override — victim selects 15 units chosen by beneficiary instead (30.4124)
+- [ ] **Civil War**: Military penalty — remove 5 unit points from each faction after selection (30.414)
+- [x] **Civil War**: faction transfer — tokens re-owned via `Token::new(beneficiary)`, cities via `TransferCityTo` (`advance_civil_war` `TransferFaction` phase)
+- [x] **Civil War**: Philosophy victim protection (−5 pts) and Military beneficiary bonus (+5 pts) ✓
+- [x] **Treachery**: transfer city to trading player via `TransferCityTo`; non-traded case reduces own city (30.221–222) ✓
+- [x] **Treachery**: human player UI — picks which city to hand over ✓ (`resolve_calamities_ui_systems.rs`)
+- [x] **Piracy**: targets coastal cities first (`SeaPassage`-marked areas) (30.911) ✓
+- [ ] **Piracy**: replace one coastal city each of two secondary victims (30.912) — not implemented
+- [x] **Human calamity selection UI**: Superstition, Slave Revolt, Civil Disorder, Treachery, Iconoclasm & Heresy all pause for human input ✓
+- [ ] **Barbarian Hordes**: placement logic — choose start area causing greatest damage (30.5211)
+- [ ] **Barbarian Hordes**: continued movement — surplus Barbarians move to adjacent area with greatest damage; repeat until no surplus (30.5231–30.5232)
 - [ ] **Barbarian Hordes**: Crete may not be primary victim (30.527)
-- [ ] **Flood**: primary victim loses max 17 unit points from flood plain (30.511)
-- [ ] **Flood**: secondary victims — 10 unit points from same flood plain; primary victim allocates among others (30.512)
-- [ ] **Flood**: if no units on any flood plain, eliminate one coastal city; if no coastal cities, no effect (30.514)
-- [ ] **Flood**: white city sites are vulnerable; black city sites are safe (30.511)
-- [ ] **Famine secondary**: interactive selection for primary victim to allocate 20 unit points (≤8 per player) — marked TODO in code
-- [ ] **Iconoclasm secondary**: primary victim must order 2 cities from other players to be reduced (30.818) — marked TODO in code
-- [ ] **Epidemic secondary**: primary victim must allocate 25 unit points (≤10 per player) — marked TODO in code
+- [ ] **Flood**: primary victim loses max 17 unit points from flood plain (30.511) — currently no unit-point cap
+- [ ] **Flood**: secondary victims — 10 unit points from same flood plain, allocated by primary victim (30.512)
+- [ ] **Flood**: if no units on any flood plain, eliminate one coastal city; if none, no effect (30.514)
+- [ ] **Flood**: `CityFlood` component exists but is not consulted — white/black city site safety not enforced (30.511)
+- [ ] **Famine secondary**: primary victim allocates 20 unit points (≤8 per player) — currently auto-distributed
+- [ ] **Epidemic secondary**: primary victim allocates 25 unit points (≤10 per player) — currently auto-distributed
 
 **TODO — Conflict consequences (missing from conflict phase):**
 - [ ] When a player eliminates another's city by direct attack: draw one of victim's trade cards at random (24.51)
 - [ ] Pillage: attacker may transfer up to 3 tokens from stock to treasury per city eliminated (24.52)
-- [ ] Engineering: attacker needs only 6 tokens (city replaced by 5); defending Engineering city needs 8 to attack (replaced by 7); both Engineering = cancel (24.35) — verify this is in the conflict code
+- [ ] Engineering exact city-conflict thresholds (24.35): attacker with Engineering needs only 6 tokens (vs 7); defending Engineering city requires 8 to attack (vs 7); both Engineering = cancel — current impl uses +3 effective tokens which approximates but may not be exact
 
 ---
 
@@ -138,10 +143,10 @@ All rules are found in the ./rules folder.
 - [ ] Construction cost: allow levy (tokens from the area) in addition to treasury; currently only treasury or stock, not split between them per-area
 - [x] Ship movement during Movement phase: `ShipFerryCommand` event, `execute_ship_ferry` system, `GameMove::ShipFerry` move generation, AI handling (23.52)
 - [x] Tokens embarking onto ships — only tokens not yet moved overland via `TokenHasMoved` filter (23.51); up to 5 per ship
+- [x] Open sea enforcement: ships may not enter `OpenSea`-marked areas without Astronomy (`game_moves_systems.rs`)
+- [x] Cloth Making: ship range +1 area — 2-hop ferry moves generated (`game_moves_systems.rs`)
+- [x] Astronomy: ships may enter open sea areas (`game_moves_systems.rs`)
 - [ ] Tokens must disembark before end of Movement phase (23.56); one-ship-per-token rule
-- [ ] Open sea enforcement: ships may not cross to `OpenSea`-marked areas without Astronomy (23.52)
-- [ ] Cloth Making: ship range +1 area (23.53)
-- [ ] Astronomy: ships may enter open sea areas (23.54)
 - [ ] Greece dual-coastline rule: ships enter/leave from same side (23.57)
 - [ ] Human UI for ship construction (current implementation auto-builds for all players)
 - [ ] Human UI for ship movement and embarkation/disembarkation
