@@ -302,10 +302,346 @@ pub fn cleanup_calamity_selection_ui(
 pub fn cleanup_calamity_selection_ui_on_exit(
     mut commands: Commands,
     ui_root: Query<Entity, With<CalamitySelectionUiRoot>>,
+    cw_ui_root: Query<Entity, With<CivilWarSelectionUiRoot>>,
     mut calamity_selection: ResMut<CalamitySelectionState>,
+    mut cw_selection: ResMut<CivilWarSelectionState>,
 ) {
     for entity in ui_root.iter() {
         commands.entity(entity).despawn();
     }
+    for entity in cw_ui_root.iter() {
+        commands.entity(entity).despawn();
+    }
     calamity_selection.clear();
+    cw_selection.clear();
+}
+
+// ── Civil War selection UI ────────────────────────────────────────────────────
+
+/// Spawn the Civil War selection panel when a human has `AwaitingHumanCalamitySelection`
+/// and the `CivilWarSelectionState` resource has an acting player set.
+pub fn spawn_civil_war_selection_ui(
+    human_waiting: Query<Entity, (With<IsHuman>, Added<AwaitingHumanCalamitySelection>)>,
+    existing_ui: Query<Entity, With<CivilWarSelectionUiRoot>>,
+    cw_selection: Res<CivilWarSelectionState>,
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+) {
+    // Only spawn if this is a civil war selection (acting_player set by CW system)
+    if !existing_ui.is_empty() || cw_selection.acting_player.is_none() {
+        return;
+    }
+    if human_waiting.iter().next().is_none() {
+        return;
+    }
+
+    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    let role_label = match cw_selection.role {
+        CivilWarUiRole::Victim => "Civil War — Victim Selection",
+        CivilWarUiRole::Beneficiary => "Civil War — Beneficiary Selection",
+    };
+    let hint = match cw_selection.role {
+        CivilWarUiRole::Victim => format!("Select at least {} pts to yield", cw_selection.target_points),
+        CivilWarUiRole::Beneficiary => format!("Take up to {} pts from the pool", cw_selection.target_points),
+    };
+
+    commands
+        .spawn((
+            CivilWarSelectionUiRoot,
+            Node {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(20.0),
+                left: Val::Percent(50.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                padding: UiRect::all(Val::Px(12.0)),
+                row_gap: Val::Px(8.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.1, 0.05, 0.05, 0.93)),
+        ))
+        .with_children(|parent| {
+            // Title
+            parent.spawn((
+                CivilWarTitleText,
+                Text::new(role_label),
+                TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                TextColor(Color::srgb(1.0, 0.5, 0.3)),
+            ));
+
+            // Hint
+            parent.spawn((
+                Text::new(hint),
+                TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                TextColor(Color::srgb(0.7, 0.7, 0.7)),
+            ));
+
+            // Points display
+            parent.spawn((
+                CivilWarPointsText,
+                Text::new("Points: 0 / ?"),
+                TextFont { font: font.clone(), font_size: 18.0, ..default() },
+                TextColor(Color::srgb(1.0, 1.0, 0.5)),
+            ));
+
+            // Tab row: Tokens | Cities
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(8.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn((
+                        Button,
+                        CivilWarButtonAction::TokensTab,
+                        Node {
+                            width: Val::Px(90.0),
+                            height: Val::Px(30.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.4, 0.2, 0.1)),
+                    ))
+                    .with_child((
+                        Text::new("Tokens"),
+                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        TextColor(Color::WHITE),
+                    ));
+                    row.spawn((
+                        Button,
+                        CivilWarButtonAction::CitiesTab,
+                        Node {
+                            width: Val::Px(90.0),
+                            height: Val::Px(30.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.2, 0.2, 0.4)),
+                    ))
+                    .with_child((
+                        Text::new("Cities"),
+                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        TextColor(Color::WHITE),
+                    ));
+                });
+
+            // Token row: [−] N tokens [+] (of M)
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(8.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn((
+                        Button,
+                        CivilWarButtonAction::DecrementTokens,
+                        Node {
+                            width: Val::Px(32.0), height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.3, 0.1, 0.1)),
+                    ))
+                    .with_child((Text::new("−"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+
+                    row.spawn((
+                        CivilWarTokenCountText,
+                        Text::new(format!("0 tokens  (of {})", cw_selection.total_available_tokens)),
+                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                        Node { min_width: Val::Px(160.0), ..default() },
+                    ));
+
+                    row.spawn((
+                        Button,
+                        CivilWarButtonAction::IncrementTokens,
+                        Node {
+                            width: Val::Px(32.0), height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.1, 0.3, 0.1)),
+                    ))
+                    .with_child((Text::new("+"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+                });
+
+            // City navigation row (only shown when cities exist)
+            if !cw_selection.available_cities.is_empty() {
+                parent
+                    .spawn(Node {
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        column_gap: Val::Px(6.0),
+                        ..default()
+                    })
+                    .with_children(|row| {
+                        row.spawn((
+                            Button, CivilWarButtonAction::PrevCity,
+                            Node { width: Val::Px(28.0), height: Val::Px(28.0),
+                                justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                            BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
+                        )).with_child((Text::new("<"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+
+                        row.spawn((
+                            CivilWarCityNameText,
+                            Text::new("City: ?"),
+                            TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                            TextColor(Color::srgb(1.0, 1.0, 0.7)),
+                            Node { min_width: Val::Px(160.0), ..default() },
+                        ));
+
+                        row.spawn((
+                            Button, CivilWarButtonAction::NextCity,
+                            Node { width: Val::Px(28.0), height: Val::Px(28.0),
+                                justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                            BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
+                        )).with_child((Text::new(">"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+
+                        row.spawn((
+                            Button, CivilWarButtonAction::ToggleCity,
+                            CivilWarToggleCityButton,
+                            Node { width: Val::Px(80.0), height: Val::Px(28.0),
+                                justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                            BackgroundColor(Color::srgb(0.2, 0.4, 0.2)),
+                        )).with_child((Text::new("Select"), TextFont { font: font.clone(), font_size: 14.0, ..default() }, TextColor(Color::WHITE)));
+                    });
+            }
+
+            // Confirm button
+            parent.spawn((
+                Button,
+                CivilWarButtonAction::Confirm,
+                CivilWarConfirmButton,
+                Node {
+                    width: Val::Px(160.0), height: Val::Px(40.0),
+                    justify_content: JustifyContent::Center, align_items: AlignItems::Center,
+                    margin: UiRect::top(Val::Px(4.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
+            ))
+            .with_child((Text::new("Confirm"), TextFont { font: font.clone(), font_size: 20.0, ..default() }, TextColor(Color::WHITE)));
+        });
+}
+
+/// Update Civil War UI text each frame the state changes.
+pub fn update_civil_war_selection_ui(
+    cw_selection: Res<CivilWarSelectionState>,
+    area_names: Query<&Name, With<GameArea>>,
+    mut points_text: Query<&mut Text, (With<CivilWarPointsText>, Without<CivilWarTokenCountText>, Without<CivilWarCityNameText>)>,
+    mut token_text: Query<&mut Text, (With<CivilWarTokenCountText>, Without<CivilWarPointsText>, Without<CivilWarCityNameText>)>,
+    mut city_text: Query<&mut Text, (With<CivilWarCityNameText>, Without<CivilWarPointsText>, Without<CivilWarTokenCountText>)>,
+    mut toggle_button: Query<(&mut BackgroundColor, &Children), With<CivilWarToggleCityButton>>,
+    mut confirm_button: Query<(&mut BackgroundColor, &Children), (With<CivilWarConfirmButton>, Without<CivilWarToggleCityButton>)>,
+    mut child_texts: Query<&mut Text, (Without<CivilWarPointsText>, Without<CivilWarTokenCountText>, Without<CivilWarCityNameText>)>,
+) {
+    if !cw_selection.is_changed() { return; }
+
+    if let Ok(mut text) = points_text.single_mut() {
+        let pts = cw_selection.current_points();
+        let target = cw_selection.target_points;
+        let label = match cw_selection.role {
+            CivilWarUiRole::Victim => format!("Points: {} / {} (need ≥{})", pts, target, target),
+            CivilWarUiRole::Beneficiary => format!("Points: {} / {} (take up to {})", pts, target, target),
+        };
+        **text = label;
+    }
+
+    if let Ok(mut text) = token_text.single_mut() {
+        **text = format!(
+            "{} tokens  (of {})",
+            cw_selection.selected_token_count,
+            cw_selection.total_available_tokens
+        );
+    }
+
+    if let Ok(mut text) = city_text.single_mut() {
+        if let Some(city) = cw_selection.current_city() {
+            let name = area_names.get(city).map(|n| n.as_str()).unwrap_or("?");
+            let sel = if cw_selection.is_current_city_selected() { " [✓]" } else { "" };
+            **text = format!(
+                "{}{} ({}/{})",
+                name, sel,
+                cw_selection.current_city_index + 1,
+                cw_selection.available_cities.len()
+            );
+        }
+    }
+
+    let is_selected = cw_selection.is_current_city_selected();
+    if let Ok((mut bg, children)) = toggle_button.single_mut() {
+        *bg = if is_selected {
+            BackgroundColor(Color::srgb(0.5, 0.2, 0.2))
+        } else {
+            BackgroundColor(Color::srgb(0.2, 0.4, 0.2))
+        };
+        for child in children.iter() {
+            if let Ok(mut text) = child_texts.get_mut(child) {
+                **text = if is_selected { "Deselect".to_string() } else { "Select".to_string() };
+            }
+        }
+    }
+
+    let valid = cw_selection.selection_valid();
+    if let Ok((mut bg, _)) = confirm_button.single_mut() {
+        *bg = if valid {
+            BackgroundColor(Color::srgb(0.2, 0.5, 0.2))
+        } else {
+            BackgroundColor(Color::srgb(0.25, 0.25, 0.25))
+        };
+    }
+}
+
+/// Handle Civil War UI button presses.
+pub fn handle_civil_war_selection_buttons(
+    interaction_query: Query<
+        (&Interaction, &CivilWarButtonAction),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut cw_selection: ResMut<CivilWarSelectionState>,
+    mut commands: Commands,
+    human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
+) {
+    for (interaction, action) in interaction_query.iter() {
+        if *interaction != Interaction::Pressed { continue; }
+        match action {
+            CivilWarButtonAction::TokensTab => { cw_selection.showing_cities = false; }
+            CivilWarButtonAction::CitiesTab => { cw_selection.showing_cities = true; }
+            CivilWarButtonAction::IncrementTokens => { cw_selection.increment_tokens(); }
+            CivilWarButtonAction::DecrementTokens => { cw_selection.decrement_tokens(); }
+            CivilWarButtonAction::PrevCity => { cw_selection.prev_city(); }
+            CivilWarButtonAction::NextCity => { cw_selection.next_city(); }
+            CivilWarButtonAction::ToggleCity => { cw_selection.toggle_current_city(); }
+            CivilWarButtonAction::Confirm => {
+                if cw_selection.selection_valid() {
+                    if let Ok(player) = human_waiting.single() {
+                        info!("[CIVIL WAR UI] Human confirmed: {} tokens, {} cities",
+                            cw_selection.selected_token_count, cw_selection.selected_cities.len());
+                        commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Despawn Civil War UI when no human player is waiting and acting_player is cleared.
+pub fn cleanup_civil_war_selection_ui(
+    mut commands: Commands,
+    ui_root: Query<Entity, With<CivilWarSelectionUiRoot>>,
+    human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
+    cw_selection: Res<CivilWarSelectionState>,
+) {
+    if !ui_root.is_empty() && human_waiting.is_empty() && cw_selection.acting_player.is_none() {
+        for entity in ui_root.iter() {
+            commands.entity(entity).despawn();
+        }
+    }
 }

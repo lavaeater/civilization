@@ -6,7 +6,7 @@ use crate::civilization::concepts::resolve_calamities::context::ActiveCalamityRe
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
-    AwaitingHumanCalamitySelection, CalamitySelectionState,
+    AwaitingHumanCalamitySelection, CalamitySelectionState, CivilWarSelectionState,
 };
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_systems::*;
 use crate::civilization::resolve_calamities::resolve_calamities_events::{
@@ -36,6 +36,7 @@ impl Plugin for ResolveCalamitiesPlugin {
             .register_type::<TransferCityTo>()
             .register_type::<ReturnCityToStock>()
             .init_resource::<CalamitySelectionState>()
+            .init_resource::<CivilWarSelectionState>()
             .add_systems(
                 OnEnter(GameActivity::ResolveCalamities),
                 start_calamity_resolution,
@@ -84,6 +85,11 @@ impl Plugin for ResolveCalamitiesPlugin {
                     update_calamity_selection_ui,
                     handle_calamity_selection_buttons,
                     cleanup_calamity_selection_ui,
+                    // Civil War human selection UI
+                    spawn_civil_war_selection_ui,
+                    update_civil_war_selection_ui,
+                    handle_civil_war_selection_buttons,
+                    cleanup_civil_war_selection_ui,
                 ).run_if(in_state(GameActivity::ResolveCalamities)),
             );
     }
