@@ -164,28 +164,28 @@ pub fn recalculate_movement_moves_for_player(
 
                             // Cloth Making: generate one additional hop through this target
                             // (rule 28.18: +1 sea movement range, cannot use open sea without Astronomy)
-                            if has_cloth_making {
-                                if let Ok(sea2) = sea_connections_query.get(target_area) {
-                                    for &final_area in sea2.to_areas.iter() {
-                                        if final_area == area {
-                                            continue;
-                                        } // no backtrack
-                                        if !has_astronomy
-                                            && open_sea_query.get(final_area).unwrap_or(false)
-                                        {
-                                            continue;
-                                        }
-                                        command_index += 1;
-                                        moves.insert(
-                                            command_index,
-                                            GameMove::ShipFerry(MovementMove::new(
-                                                area,
-                                                final_area,
-                                                event.player,
-                                                ferry_tokens,
-                                            )),
-                                        );
+                            if has_cloth_making
+                                && let Ok(sea2) = sea_connections_query.get(target_area)
+                            {
+                                for &final_area in sea2.to_areas.iter() {
+                                    if final_area == area {
+                                        continue;
+                                    } // no backtrack
+                                    if !has_astronomy
+                                        && open_sea_query.get(final_area).unwrap_or(false)
+                                    {
+                                        continue;
                                     }
+                                    command_index += 1;
+                                    moves.insert(
+                                        command_index,
+                                        GameMove::ShipFerry(MovementMove::new(
+                                            area,
+                                            final_area,
+                                            event.player,
+                                            ferry_tokens,
+                                        )),
+                                    );
                                 }
                             }
                         }
