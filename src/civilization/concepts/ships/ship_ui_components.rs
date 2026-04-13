@@ -116,10 +116,10 @@ impl ShipConstructionState {
     }
 
     fn sync_area_to_slot(&mut self) {
-        if let Some(area) = self.available_areas.get(self.area_cursor).copied() {
-            if let Some(slot) = self.selected_areas.get_mut(self.current_slot) {
-                *slot = area;
-            }
+        if let Some(area) = self.available_areas.get(self.area_cursor).copied()
+            && let Some(slot) = self.selected_areas.get_mut(self.current_slot)
+        {
+            *slot = area;
         }
     }
 

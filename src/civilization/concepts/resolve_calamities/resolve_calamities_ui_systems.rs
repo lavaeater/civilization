@@ -570,17 +570,17 @@ pub fn update_civil_war_selection_ui(
         );
     }
 
-    if let Ok(mut text) = city_text.single_mut() {
-        if let Some(city) = cw_selection.current_city() {
-            let name = area_names.get(city).map(|n| n.as_str()).unwrap_or("?");
-            let sel = if cw_selection.is_current_city_selected() { " [✓]" } else { "" };
-            **text = format!(
-                "{}{} ({}/{})",
-                name, sel,
-                cw_selection.current_city_index + 1,
-                cw_selection.available_cities.len()
-            );
-        }
+    if let Ok(mut text) = city_text.single_mut()
+        && let Some(city) = cw_selection.current_city()
+    {
+        let name = area_names.get(city).map(|n| n.as_str()).unwrap_or("?");
+        let sel = if cw_selection.is_current_city_selected() { " [✓]" } else { "" };
+        **text = format!(
+            "{}{} ({}/{})",
+            name, sel,
+            cw_selection.current_city_index + 1,
+            cw_selection.available_cities.len()
+        );
     }
 
     let is_selected = cw_selection.is_current_city_selected();
@@ -628,12 +628,12 @@ pub fn handle_civil_war_selection_buttons(
             CivilWarButtonAction::NextCity => { cw_selection.next_city(); }
             CivilWarButtonAction::ToggleCity => { cw_selection.toggle_current_city(); }
             CivilWarButtonAction::Confirm => {
-                if cw_selection.selection_valid() {
-                    if let Ok(player) = human_waiting.single() {
-                        info!("[CIVIL WAR UI] Human confirmed: {} tokens, {} cities",
-                            cw_selection.selected_token_count, cw_selection.selected_cities.len());
-                        commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
-                    }
+                if cw_selection.selection_valid()
+                    && let Ok(player) = human_waiting.single()
+                {
+                    info!("[CIVIL WAR UI] Human confirmed: {} tokens, {} cities",
+                        cw_selection.selected_token_count, cw_selection.selected_cities.len());
+                    commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
                 }
             }
         }

@@ -741,29 +741,29 @@ pub fn advance_flood(
             FloodPhase::ApplySecondaryLoss => {
                 // Rule 30.51: secondary victims on the same flood plain collectively lose 10 pts.
                 // Distribute evenly across secondary victims present, removing from the flood area.
-                if let Some(fp_area) = state.flood_plain_area {
-                    if let Ok(mut pop) = populations.get_mut(fp_area) {
-                        let secondary_players: Vec<Entity> = pop
-                            .player_tokens()
-                            .keys()
-                            .filter(|&&e| e != player_entity)
-                            .cloned()
-                            .collect();
-                        let n = secondary_players.len();
-                        if n > 0 {
-                            let total_loss = 10usize;
-                            let per_player = total_loss.div_ceil(n);
-                            for sec in secondary_players {
-                                let available = pop.population_for_player(sec);
-                                let to_remove = per_player.min(available);
-                                if let Some(removed) = pop.remove_tokens_from_area(&sec, to_remove) {
-                                    for token in removed {
-                                        commands.entity(token).insert(ReturnTokenToStock);
-                                    }
+                if let Some(fp_area) = state.flood_plain_area
+                    && let Ok(mut pop) = populations.get_mut(fp_area)
+                {
+                    let secondary_players: Vec<Entity> = pop
+                        .player_tokens()
+                        .keys()
+                        .filter(|&&e| e != player_entity)
+                        .cloned()
+                        .collect();
+                    let n = secondary_players.len();
+                    if n > 0 {
+                        let total_loss = 10usize;
+                        let per_player = total_loss.div_ceil(n);
+                        for sec in secondary_players {
+                            let available = pop.population_for_player(sec);
+                            let to_remove = per_player.min(available);
+                            if let Some(removed) = pop.remove_tokens_from_area(&sec, to_remove) {
+                                for token in removed {
+                                    commands.entity(token).insert(ReturnTokenToStock);
                                 }
                             }
-                            info!("[FLOOD] Applied secondary loss of {} pts ({} secondary victims)", total_loss, n);
                         }
+                        info!("[FLOOD] Applied secondary loss of {} pts ({} secondary victims)", total_loss, n);
                     }
                 }
                 state.phase = FloodPhase::Complete;
@@ -1022,11 +1022,11 @@ pub fn advance_barbarian_hordes(
                     if let Ok(mut pop) = populations.get_mut(landing) {
                         let available = pop.population_for_player(player_entity) as i32;
                         let to_remove = available.min(remaining);
-                        if to_remove > 0 {
-                            if let Some(removed) = pop.remove_tokens_from_area(&player_entity, to_remove as usize) {
-                                for token in removed { commands.entity(token).insert(ReturnTokenToStock); }
-                                remaining -= to_remove;
-                            }
+                        if to_remove > 0
+                            && let Some(removed) = pop.remove_tokens_from_area(&player_entity, to_remove as usize)
+                        {
+                            for token in removed { commands.entity(token).insert(ReturnTokenToStock); }
+                            remaining -= to_remove;
                         }
                     }
 
@@ -1041,11 +1041,11 @@ pub fn advance_barbarian_hordes(
                             if let Ok(mut pop) = populations.get_mut(adj_area) {
                                 let available = pop.population_for_player(player_entity) as i32;
                                 let to_remove = available.min(remaining);
-                                if to_remove > 0 {
-                                    if let Some(removed) = pop.remove_tokens_from_area(&player_entity, to_remove as usize) {
-                                        for token in removed { commands.entity(token).insert(ReturnTokenToStock); }
-                                        remaining -= to_remove;
-                                    }
+                                if to_remove > 0
+                                    && let Some(removed) = pop.remove_tokens_from_area(&player_entity, to_remove as usize)
+                                {
+                                    for token in removed { commands.entity(token).insert(ReturnTokenToStock); }
+                                    remaining -= to_remove;
                                 }
                             }
                         }
@@ -1226,13 +1226,13 @@ pub fn advance_iconoclasm_heresy(
                     state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
                 }
             }
-            IconoclasmHeresyPhase::SelectCities => if !awaiting_human {
-                    for area in calamity_selection.take_selected_cities() {
-                        state.select_city(area);
-                    }
-                    state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
+            IconoclasmHeresyPhase::SelectCities if !awaiting_human => {
+                for area in calamity_selection.take_selected_cities() {
+                    state.select_city(area);
                 }
-            
+                state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
+            }
+
 
             IconoclasmHeresyPhase::ApplySecondaryLosses => {
                 // Apply primary reductions

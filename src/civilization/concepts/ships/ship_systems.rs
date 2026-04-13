@@ -57,14 +57,14 @@ pub fn enter_ship_construction(
                 false
             };
 
-            if !paid {
-                if let Some(ship_entity) = player_ships.remove_ship_from_area(area) {
-                    ship_stock.return_ship(ship_entity);
-                    info!(
-                        "[SHIPS] {} cannot maintain ship at {:?} — returned to stock",
-                        name, area
-                    );
-                }
+            if !paid
+                && let Some(ship_entity) = player_ships.remove_ship_from_area(area)
+            {
+                ship_stock.return_ship(ship_entity);
+                info!(
+                    "[SHIPS] {} cannot maintain ship at {:?} — returned to stock",
+                    name, area
+                );
             }
         }
     }
