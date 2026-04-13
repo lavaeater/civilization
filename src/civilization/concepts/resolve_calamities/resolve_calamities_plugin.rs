@@ -6,7 +6,8 @@ use crate::civilization::concepts::resolve_calamities::context::ActiveCalamityRe
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
-    AwaitingHumanCalamitySelection, CalamitySelectionState, CivilWarSelectionState,
+    AwaitingHumanCalamitySelection, AwaitingMonotheismSelection, CalamitySelectionState,
+    CivilWarSelectionState, MonotheismSelectionState,
 };
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_systems::*;
 use crate::civilization::resolve_calamities::resolve_calamities_events::{
@@ -26,6 +27,7 @@ impl Plugin for ResolveCalamitiesPlugin {
             .register_type::<NeedsCalamityResolution>()
             .register_type::<NeedsMonotheismConversion>()
             .register_type::<AwaitingHumanCalamitySelection>()
+            .register_type::<AwaitingMonotheismSelection>()
             .register_type::<CalamityVictim>()
             .register_type::<PendingCalamities>()
             .register_type::<ActiveCalamityResolution>()
@@ -37,6 +39,7 @@ impl Plugin for ResolveCalamitiesPlugin {
             .register_type::<ReturnCityToStock>()
             .init_resource::<CalamitySelectionState>()
             .init_resource::<CivilWarSelectionState>()
+            .init_resource::<MonotheismSelectionState>()
             .add_systems(
                 OnEnter(GameActivity::ResolveCalamities),
                 start_calamity_resolution,
@@ -90,6 +93,16 @@ impl Plugin for ResolveCalamitiesPlugin {
                     update_civil_war_selection_ui,
                     handle_civil_war_selection_buttons,
                     cleanup_civil_war_selection_ui,
+                ).run_if(in_state(GameActivity::ResolveCalamities)),
+            )
+            .add_systems(
+                Update,
+                (
+                    // Monotheism human target-selection UI
+                    spawn_monotheism_selection_ui,
+                    update_monotheism_selection_ui,
+                    handle_monotheism_selection_buttons,
+                    cleanup_monotheism_selection_ui,
                 ).run_if(in_state(GameActivity::ResolveCalamities)),
             );
     }

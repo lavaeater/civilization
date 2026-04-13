@@ -287,6 +287,113 @@ pub enum CalamitySelectionButtonAction {
     Confirm,
 }
 
+// ── Monotheism selection state ───────────────────────────────────────────────
+
+/// Inserted on the Monotheism holder (human player) while they are choosing which
+/// enemy tokens to eliminate. `apply_monotheism_conversions` waits until this is gone.
+#[derive(Component, Debug, Default, Reflect)]
+#[reflect(Component)]
+pub struct AwaitingMonotheismSelection;
+
+/// Resource driving the human Monotheism target-selection UI.
+///
+/// Each candidate is a `(token_entity, area_entity)` pair; `area_entity` is used
+/// for display (area name). The human picks up to 2 token entities to eliminate.
+#[derive(Resource, Default, Debug)]
+pub struct MonotheismSelectionState {
+    /// The Monotheism holder (human player entity).
+    pub player: Option<Entity>,
+    /// Candidate targets: (token_entity, area_entity).
+    pub candidates: Vec<(Entity, Entity)>,
+    /// Token entities the human has chosen to eliminate (max 2).
+    pub selected: Vec<Entity>,
+    /// Navigation cursor into `candidates`.
+    pub current_index: usize,
+}
+
+impl MonotheismSelectionState {
+    pub fn populate(
+        &mut self,
+        player: Entity,
+        candidates: Vec<(Entity, Entity)>,
+    ) {
+        self.player = Some(player);
+        self.candidates = candidates;
+        self.selected.clear();
+        self.current_index = 0;
+    }
+
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+
+    pub fn current_candidate(&self) -> Option<(Entity, Entity)> {
+        self.candidates.get(self.current_index).copied()
+    }
+
+    pub fn next(&mut self) {
+        if !self.candidates.is_empty() {
+            self.current_index = (self.current_index + 1) % self.candidates.len();
+        }
+    }
+
+    pub fn prev(&mut self) {
+        if !self.candidates.is_empty() {
+            if self.current_index == 0 {
+                self.current_index = self.candidates.len() - 1;
+            } else {
+                self.current_index -= 1;
+            }
+        }
+    }
+
+    pub fn toggle_current(&mut self) {
+        let Some((token, _)) = self.current_candidate() else { return };
+        if let Some(pos) = self.selected.iter().position(|&t| t == token) {
+            self.selected.remove(pos);
+        } else if self.selected.len() < 2 {
+            self.selected.push(token);
+        }
+    }
+
+    pub fn is_current_selected(&self) -> bool {
+        let Some((token, _)) = self.current_candidate() else { return false };
+        self.selected.contains(&token)
+    }
+
+    /// Drain and return the selected tokens, clearing state.
+    pub fn take_result(&mut self) -> Vec<Entity> {
+        let tokens = std::mem::take(&mut self.selected);
+        self.clear();
+        tokens
+    }
+}
+
+// ── Monotheism UI markers ─────────────────────────────────────────────────────
+
+#[derive(Component)]
+pub struct MonotheismSelectionUiRoot;
+
+#[derive(Component)]
+pub struct MonotheismTargetText;
+
+#[derive(Component)]
+pub struct MonotheismProgressText;
+
+#[derive(Component)]
+pub struct MonotheismToggleButton;
+
+#[derive(Component)]
+pub struct MonotheismConfirmButton;
+
+#[derive(Component, Debug, Clone)]
+pub enum MonotheismButtonAction {
+    Prev,
+    Next,
+    Toggle,
+    Confirm,
+}
+
 // ── Civil War UI markers ──────────────────────────────────────────────────────
 
 #[derive(Component)]

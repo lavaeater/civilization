@@ -48,7 +48,8 @@ use crate::civilization::concepts::resolve_calamities::context::{
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_events::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
-    AwaitingHumanCalamitySelection, CalamitySelectionState, CivilWarSelectionState,
+    AwaitingHumanCalamitySelection, AwaitingMonotheismSelection, CalamitySelectionState,
+    CivilWarSelectionState, MonotheismSelectionState,
 };
 use crate::civilization::functions::return_all_tokens_to_stock;
 use crate::civilization::{CivCardName, PlayerTradeCards, TradeCard, TradeCardTrait};
@@ -1978,44 +1979,53 @@ fn finish_calamity(
 
 /// After all calamities are resolved, Monotheism holders eliminate up to 2 enemy
 /// tokens from areas adjacent to any of their occupied areas. Theology holders
-/// are immune (rule 32.952). This system auto-processes for AI players; a human
-/// UI hook can be added later. Once all holders are processed the system
-/// transitions to CheckCitySupportAfterResolveCalamities.
+/// are immune (rule 32.952).
+///
+/// AI holders are auto-processed immediately. Human holders pause: `MonotheismSelectionState`
+/// is populated and `AwaitingMonotheismSelection` is inserted; the UI lets the human choose.
+/// Once all holders are done the system transitions to `CheckCitySupportAfterResolveCalamities`.
 pub fn apply_monotheism_conversions(
     mut commands: Commands,
     monotheism_holders: Query<(Entity, &PlayerAreas), With<NeedsMonotheismConversion>>,
+    awaiting_query: Query<Entity, With<AwaitingMonotheismSelection>>,
+    human_query: Query<(), With<IsHuman>>,
     all_players_civ: Query<(Entity, &PlayerCivilizationCards)>,
     land_passage_query: Query<&LandPassage>,
     population_query: Query<&Population>,
+    mut mono_state: ResMut<MonotheismSelectionState>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    // Theology holders are immune to Monotheism (rule 32.952)
+    // All done → transition.
+    if monotheism_holders.is_empty() && awaiting_query.is_empty() {
+        info!("[MONOTHEISM] All conversions done, transitioning to CheckCitySupport");
+        next_state.set(GameActivity::CheckCitySupportAfterResolveCalamities);
+        return;
+    }
+
+    // Theology holders are immune (rule 32.952).
     let theology_immune: bevy::platform::collections::HashSet<Entity> = all_players_civ
         .iter()
         .filter(|(_, c)| c.owns(&CivCardName::Theology))
         .map(|(e, _)| e)
         .collect();
 
-    let mut any_processed = false;
     for (holder_entity, holder_areas) in monotheism_holders.iter() {
-        any_processed = true;
+        let is_human = human_query.get(holder_entity).is_ok();
+        let is_waiting = awaiting_query.get(holder_entity).is_ok();
 
-        // Find all enemy tokens in areas adjacent to any of this holder's areas
-        let mut candidate_tokens: Vec<Entity> = Vec::new();
+        // Collect (token, area) candidates for this holder.
+        let mut candidates: Vec<(Entity, Entity)> = Vec::new();
         'outer: for &held_area in holder_areas.areas().iter() {
             if let Ok(passages) = land_passage_query.get(held_area) {
                 for &adj_area in &passages.to_areas {
                     if let Ok(pop) = population_query.get(adj_area) {
                         for (&enemy_player, tokens) in pop.player_tokens().iter() {
-                            if enemy_player == holder_entity {
-                                continue;
-                            }
-                            if theology_immune.contains(&enemy_player) {
+                            if enemy_player == holder_entity || theology_immune.contains(&enemy_player) {
                                 continue;
                             }
                             for &token in tokens {
-                                candidate_tokens.push(token);
-                                if candidate_tokens.len() >= 2 {
+                                candidates.push((token, adj_area));
+                                if candidates.len() >= 2 {
                                     break 'outer;
                                 }
                             }
@@ -2025,23 +2035,33 @@ pub fn apply_monotheism_conversions(
             }
         }
 
-        // Mark the chosen tokens for return to stock (deferred, handled by existing system)
-        for token in candidate_tokens {
-            commands.entity(token).insert(ReturnTokenToStock);
-            info!(
-                "[MONOTHEISM] {:?} eliminates token {:?}",
-                holder_entity, token
-            );
+        if is_human {
+            if is_waiting {
+                // Still waiting for the human to confirm.
+                continue;
+            }
+            if mono_state.player == Some(holder_entity) {
+                // Human just confirmed (AwaitingMonotheismSelection removed by button handler).
+                let selected = mono_state.take_result();
+                for token in selected {
+                    commands.entity(token).insert(ReturnTokenToStock);
+                    info!("[MONOTHEISM] Human eliminated token {:?}", token);
+                }
+                commands.entity(holder_entity).remove::<NeedsMonotheismConversion>();
+            } else if mono_state.player.is_none() {
+                // First time for this human holder: set up UI.
+                mono_state.populate(holder_entity, candidates);
+                commands.entity(holder_entity).insert(AwaitingMonotheismSelection);
+                info!("[MONOTHEISM] Human player {:?} selecting targets", holder_entity);
+            }
+        } else {
+            // AI: auto-select up to 2 candidates.
+            for (token, _) in candidates.into_iter().take(2) {
+                commands.entity(token).insert(ReturnTokenToStock);
+                info!("[MONOTHEISM] {:?} eliminates token {:?}", holder_entity, token);
+            }
+            commands.entity(holder_entity).remove::<NeedsMonotheismConversion>();
         }
-
-        commands
-            .entity(holder_entity)
-            .remove::<NeedsMonotheismConversion>();
-    }
-
-    if any_processed {
-        info!("[MONOTHEISM] All conversions applied, transitioning to CheckCitySupport");
-        next_state.set(GameActivity::CheckCitySupportAfterResolveCalamities);
     }
 }
 
