@@ -451,7 +451,7 @@ pub fn resolve_volcano_earthquake(
                 if !city_areas.is_empty() {
                     let city_to_destroy = city_areas[0];
                     let city_to_reduce =
-                        find_adjacent_city_to_reduce(city_to_destroy, primary_victim, &area_query);
+                        find_adjacent_city_to_reduce(city_to_destroy, primary_victim, &area_query, &player_civ_cards);
 
                     info!(
                         "[EARTHQUAKE] City to destroy: {:?}, city to reduce: {:?}, has_engineering: {}",
@@ -546,6 +546,8 @@ fn find_best_volcano_eruption(
     Some((volcano_area, areas_to_clear))
 }
 
+/// Rule 30.612: find an adjacent enemy city to reduce as the earthquake secondary victim.
+/// Players holding Engineering are immune (rule 30.612 modifier — cannot be secondary).
 fn find_adjacent_city_to_reduce(
     city_area: Entity,
     primary_victim: Entity,
@@ -556,12 +558,25 @@ fn find_adjacent_city_to_reduce(
         Has<Volcano>,
         &LandPassage,
     )>,
+    player_civ_cards: &Query<&PlayerCivilizationCards>,
 ) -> Option<Entity> {
     if let Ok((_, _, _, _, land_passage)) = area_query.get(city_area) {
         for adjacent_area in land_passage.to_areas.iter() {
             if let Ok((_, _, Some(adj_city), _, _)) = area_query.get(*adjacent_area)
                 && adj_city.player != primary_victim
             {
+                // Engineering holders are immune to being Earthquake secondary victims.
+                let secondary_has_engineering = player_civ_cards
+                    .get(adj_city.player)
+                    .map(|c| c.owns(&CivCardName::Engineering))
+                    .unwrap_or(false);
+                if secondary_has_engineering {
+                    info!(
+                        "[EARTHQUAKE] Player {:?} holds Engineering — immune to secondary",
+                        adj_city.player
+                    );
+                    continue;
+                }
                 return Some(*adjacent_area);
             }
         }
