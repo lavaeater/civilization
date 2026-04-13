@@ -180,7 +180,7 @@ pub fn update_calamity_selection_ui(
     mut progress_text: Query<&mut Text, (With<CalamitySelectionProgressText>, Without<CalamitySelectionTitleText>, Without<CalamitySelectionCityNameText>)>,
     mut toggle_button: Query<(&mut BackgroundColor, &Children), With<CalamitySelectionToggleButton>>,
     mut confirm_button: Query<(&mut BackgroundColor, &Children), (With<CalamitySelectionConfirmButton>, Without<CalamitySelectionToggleButton>)>,
-    mut child_texts: Query<&mut Text, Without<CalamitySelectionTitleText>>,
+    mut child_texts: Query<&mut Text, (Without<CalamitySelectionTitleText>, Without<CalamitySelectionCityNameText>, Without<CalamitySelectionProgressText>)>,
 ) {
     if !calamity_selection.is_changed() {
         return;
