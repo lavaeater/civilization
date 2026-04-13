@@ -1,33 +1,59 @@
 use bevy::prelude::*;
-use rand::seq::SliceRandom;
 use rand::rng;
+use rand::seq::SliceRandom;
 
+use crate::GameActivity;
 use crate::civilization::components::*;
 use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
-use crate::civilization::concepts::resolve_calamities::calamities::barbarian_hordes::{BarbarianHordesPhase, BarbarianHordesState};
-use crate::civilization::concepts::resolve_calamities::calamities::civil_disorder::{CivilDisorderPhase, CivilDisorderState};
-use crate::civilization::concepts::resolve_calamities::calamities::civil_war::{CivilWarPhase, CivilWarState};
-use crate::civilization::concepts::resolve_calamities::calamities::epidemic::{EpidemicPhase, EpidemicState};
-use crate::civilization::concepts::resolve_calamities::calamities::famine::{FaminePhase, FamineState};
-use crate::civilization::concepts::resolve_calamities::calamities::flood::{FloodPhase, FloodState};
-use crate::civilization::concepts::resolve_calamities::calamities::iconoclasm_heresy::{IconoclasmHeresyPhase, IconoclasmHeresyState};
-use crate::civilization::concepts::resolve_calamities::calamities::piracy::{PiracyPhase, PiracyState};
-use crate::civilization::concepts::resolve_calamities::calamities::slave_revolt::{SlaveRevoltPhase, SlaveRevoltState};
-use crate::civilization::concepts::resolve_calamities::calamities::superstition::{SuperstitionPhase, SuperstitionState};
-use crate::civilization::concepts::resolve_calamities::calamities::treachery::{TreacheryPhase, TreacheryState};
-use crate::civilization::concepts::resolve_calamities::calamities::volcano_earthquake::{VolcanoEarthquakePhase, VolcanoEarthquakeState};
 use crate::civilization::concepts::resolve_calamities::calamities::ResolvingCalamity;
-use crate::civilization::concepts::resolve_calamities::context::{ActiveCalamityResolution, CalamityContext, CalamityPhase};
-use crate::civilization::{CivCardName, PlayerTradeCards, TradeCard, TradeCardTrait};
+use crate::civilization::concepts::resolve_calamities::calamities::barbarian_hordes::{
+    BarbarianHordesPhase, BarbarianHordesState,
+};
+use crate::civilization::concepts::resolve_calamities::calamities::civil_disorder::{
+    CivilDisorderPhase, CivilDisorderState,
+};
+use crate::civilization::concepts::resolve_calamities::calamities::civil_war::{
+    CivilWarPhase, CivilWarState,
+};
+use crate::civilization::concepts::resolve_calamities::calamities::epidemic::{
+    EpidemicPhase, EpidemicState,
+};
+use crate::civilization::concepts::resolve_calamities::calamities::famine::{
+    FaminePhase, FamineState,
+};
+use crate::civilization::concepts::resolve_calamities::calamities::flood::{
+    FloodPhase, FloodState,
+};
+use crate::civilization::concepts::resolve_calamities::calamities::iconoclasm_heresy::{
+    IconoclasmHeresyPhase, IconoclasmHeresyState,
+};
+use crate::civilization::concepts::resolve_calamities::calamities::piracy::{
+    PiracyPhase, PiracyState,
+};
+use crate::civilization::concepts::resolve_calamities::calamities::slave_revolt::{
+    SlaveRevoltPhase, SlaveRevoltState,
+};
+use crate::civilization::concepts::resolve_calamities::calamities::superstition::{
+    SuperstitionPhase, SuperstitionState,
+};
+use crate::civilization::concepts::resolve_calamities::calamities::treachery::{
+    TreacheryPhase, TreacheryState,
+};
+use crate::civilization::concepts::resolve_calamities::calamities::volcano_earthquake::{
+    VolcanoEarthquakePhase, VolcanoEarthquakeState,
+};
+use crate::civilization::concepts::resolve_calamities::context::{
+    ActiveCalamityResolution, CalamityContext, CalamityPhase,
+};
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_events::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
     AwaitingHumanCalamitySelection, CalamitySelectionState,
 };
 use crate::civilization::functions::return_all_tokens_to_stock;
+use crate::civilization::{CivCardName, PlayerTradeCards, TradeCard, TradeCardTrait};
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
-use crate::GameActivity;
 
 pub fn start_calamity_resolution(
     mut commands: Commands,
@@ -46,7 +72,11 @@ pub fn start_calamity_resolution(
         }
 
         any_calamities = true;
-        info!("[CALAMITIES] Player {:?} has {} calamities", player_entity, calamity_cards.len());
+        info!(
+            "[CALAMITIES] Player {:?} has {} calamities",
+            player_entity,
+            calamity_cards.len()
+        );
 
         let calamities_to_resolve = if calamity_cards.len() > 2 {
             select_random_calamities(&calamity_cards, 2)
@@ -54,8 +84,12 @@ pub fn start_calamity_resolution(
             calamity_cards.iter().map(|c| (*c, None)).collect()
         };
 
-        commands.entity(player_entity).insert(PendingCalamities::new(calamities_to_resolve));
-        commands.entity(player_entity).insert(NeedsCalamityResolution);
+        commands
+            .entity(player_entity)
+            .insert(PendingCalamities::new(calamities_to_resolve));
+        commands
+            .entity(player_entity)
+            .insert(NeedsCalamityResolution);
     }
 
     if !any_calamities {
@@ -64,11 +98,18 @@ pub fn start_calamity_resolution(
     }
 }
 
-fn select_random_calamities(calamities: &[TradeCard], count: usize) -> Vec<(TradeCard, Option<Entity>)> {
+fn select_random_calamities(
+    calamities: &[TradeCard],
+    count: usize,
+) -> Vec<(TradeCard, Option<Entity>)> {
     let mut rng = rng();
     let mut shuffled: Vec<TradeCard> = calamities.to_vec();
     shuffled.shuffle(&mut rng);
-    shuffled.into_iter().take(count).map(|c| (c, None)).collect()
+    shuffled
+        .into_iter()
+        .take(count)
+        .map(|c| (c, None))
+        .collect()
 }
 
 /// Picks the next calamity to resolve (globally lowest value, non-tradeable first) and dispatches
@@ -76,7 +117,10 @@ fn select_random_calamities(calamities: &[TradeCard], count: usize) -> Vec<(Trad
 /// Only runs when no calamity is currently being resolved.
 pub fn process_pending_calamities(
     mut commands: Commands,
-    mut players_with_pending: Query<(Entity, &mut PendingCalamities, &mut PlayerTradeCards), With<NeedsCalamityResolution>>,
+    mut players_with_pending: Query<
+        (Entity, &mut PendingCalamities, &mut PlayerTradeCards),
+        With<NeedsCalamityResolution>,
+    >,
     player_civ_cards: Query<&PlayerCivilizationCards>,
     all_players_civ: Query<(Entity, &PlayerCivilizationCards), With<Player>>,
     existing_resolutions: Query<Entity, With<ResolvingCalamity>>,
@@ -98,7 +142,9 @@ pub fn process_pending_calamities(
 
     if all_calamities.is_empty() {
         for (player_entity, _, _) in players_with_pending.iter() {
-            commands.entity(player_entity).remove::<NeedsCalamityResolution>();
+            commands
+                .entity(player_entity)
+                .remove::<NeedsCalamityResolution>();
             commands.entity(player_entity).remove::<PendingCalamities>();
         }
         // Rule 32.94: Monotheism holders convert adjacent enemy units at end of phase.
@@ -113,7 +159,10 @@ pub fn process_pending_calamities(
             info!("[CALAMITIES] All calamities resolved, transitioning to CheckCitySupport");
             next_state.set(GameActivity::CheckCitySupportAfterResolveCalamities);
         } else {
-            info!("[MONOTHEISM] {} Monotheism holder(s) pending conversion", monotheism_holders.len());
+            info!(
+                "[MONOTHEISM] {} Monotheism holder(s) pending conversion",
+                monotheism_holders.len()
+            );
             for e in monotheism_holders {
                 commands.entity(e).insert(NeedsMonotheismConversion);
             }
@@ -131,11 +180,15 @@ pub fn process_pending_calamities(
     });
 
     if let Some((player_entity, calamity, traded_by)) = all_calamities.first() {
-        info!("[CALAMITIES] Resolving {:?} for player {:?}", calamity, player_entity);
+        info!(
+            "[CALAMITIES] Resolving {:?} for player {:?}",
+            calamity, player_entity
+        );
 
         let civ_cards = player_civ_cards.get(*player_entity).ok();
 
-        if let Ok((_, mut pending, mut trade_cards)) = players_with_pending.get_mut(*player_entity) {
+        if let Ok((_, mut pending, mut trade_cards)) = players_with_pending.get_mut(*player_entity)
+        {
             pending.calamities.retain(|(c, _)| c != calamity);
             let _ = trade_cards.remove_n_trade_cards(1, *calamity);
 
@@ -151,95 +204,195 @@ pub fn process_pending_calamities(
                 }
                 TradeCard::Famine => {
                     let grain_count = trade_cards.number_of_cards_for_trade_card(TradeCard::Grain);
-                    let has_pottery = civ_cards.map(|c| c.owns(&CivCardName::Pottery)).unwrap_or(false);
+                    let has_pottery = civ_cards
+                        .map(|c| c.owns(&CivCardName::Pottery))
+                        .unwrap_or(false);
                     let state = FamineState::new().with_grain_reduction(grain_count, has_pottery);
-                    commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::Famine(state)));
+                    commands.entity(*player_entity).insert((
+                        ActiveCalamityResolution::new(context),
+                        ResolvingCalamity::Famine(state),
+                    ));
                 }
                 TradeCard::Superstition => {
                     let state = if let Some(c) = civ_cards {
-                        if c.owns(&CivCardName::Enlightenment) { SuperstitionState::new().with_enlightenment() }
-                        else if c.owns(&CivCardName::Deism) { SuperstitionState::new().with_deism() }
-                        else if c.owns(&CivCardName::Mysticism) { SuperstitionState::new().with_mysticism() }
-                        else { SuperstitionState::new() }
-                    } else { SuperstitionState::new() };
-                    commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::Superstition(state)));
+                        if c.owns(&CivCardName::Enlightenment) {
+                            SuperstitionState::new().with_enlightenment()
+                        } else if c.owns(&CivCardName::Deism) {
+                            SuperstitionState::new().with_deism()
+                        } else if c.owns(&CivCardName::Mysticism) {
+                            SuperstitionState::new().with_mysticism()
+                        } else {
+                            SuperstitionState::new()
+                        }
+                    } else {
+                        SuperstitionState::new()
+                    };
+                    commands.entity(*player_entity).insert((
+                        ActiveCalamityResolution::new(context),
+                        ResolvingCalamity::Superstition(state),
+                    ));
                 }
                 TradeCard::CivilWar => {
                     let mut state = CivilWarState::new();
                     if let Some(c) = civ_cards {
-                        if c.owns(&CivCardName::Music) { state.apply_music_bonus(); }
-                        if c.owns(&CivCardName::DramaAndPoetry) { state.apply_drama_poetry_bonus(); }
-                        if c.owns(&CivCardName::Democracy) { state.apply_democracy_bonus(); }
+                        if c.owns(&CivCardName::Music) {
+                            state.apply_music_bonus();
+                        }
+                        if c.owns(&CivCardName::DramaAndPoetry) {
+                            state.apply_drama_poetry_bonus();
+                        }
+                        if c.owns(&CivCardName::Democracy) {
+                            state.apply_democracy_bonus();
+                        }
                         // Rule 31.74: Philosophy reduces the victim's point loss by 5.
-                        if c.owns(&CivCardName::Philosophy) { state.apply_philosophy_protection(); }
+                        if c.owns(&CivCardName::Philosophy) {
+                            state.apply_philosophy_protection();
+                        }
                     }
-                    commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::CivilWar(state)));
+                    commands.entity(*player_entity).insert((
+                        ActiveCalamityResolution::new(context),
+                        ResolvingCalamity::CivilWar(state),
+                    ));
                 }
                 TradeCard::SlaveRevolt => {
                     // 15 tokens can't support cities (30.421); Mining +5, Enlightenment -5, both cancel (30.423).
-                    let has_mining = civ_cards.map(|c| c.owns(&CivCardName::Mining)).unwrap_or(false);
-                    let has_enlightenment = civ_cards.map(|c| c.owns(&CivCardName::Enlightenment)).unwrap_or(false);
+                    let has_mining = civ_cards
+                        .map(|c| c.owns(&CivCardName::Mining))
+                        .unwrap_or(false);
+                    let has_enlightenment = civ_cards
+                        .map(|c| c.owns(&CivCardName::Enlightenment))
+                        .unwrap_or(false);
                     let state = match (has_mining, has_enlightenment) {
                         (true, true) => SlaveRevoltState::new().with_mining_and_enlightenment(),
                         (true, false) => SlaveRevoltState::new().with_mining(),
                         (false, true) => SlaveRevoltState::new().with_enlightenment(),
                         (false, false) => SlaveRevoltState::new(),
                     };
-                    commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::SlaveRevolt(state)));
+                    commands.entity(*player_entity).insert((
+                        ActiveCalamityResolution::new(context),
+                        ResolvingCalamity::SlaveRevolt(state),
+                    ));
                 }
                 TradeCard::Flood => {
-                    let has_engineering = civ_cards.map(|c| c.owns(&CivCardName::Engineering)).unwrap_or(false);
+                    let has_engineering = civ_cards
+                        .map(|c| c.owns(&CivCardName::Engineering))
+                        .unwrap_or(false);
                     let mut state = FloodState::new();
-                    if has_engineering { state = state.with_engineering(); }
-                    commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::Flood(state)));
+                    if has_engineering {
+                        state = state.with_engineering();
+                    }
+                    commands.entity(*player_entity).insert((
+                        ActiveCalamityResolution::new(context),
+                        ResolvingCalamity::Flood(state),
+                    ));
                 }
                 TradeCard::BarbarianHordes => {
-                    let has_military = civ_cards.map(|c| c.owns(&CivCardName::Military)).unwrap_or(false);
-                    let state = if has_military { BarbarianHordesState::new().with_military() } else { BarbarianHordesState::new() };
-                    commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::BarbarianHordes(state)));
+                    let has_military = civ_cards
+                        .map(|c| c.owns(&CivCardName::Military))
+                        .unwrap_or(false);
+                    let state = if has_military {
+                        BarbarianHordesState::new().with_military()
+                    } else {
+                        BarbarianHordesState::new()
+                    };
+                    commands.entity(*player_entity).insert((
+                        ActiveCalamityResolution::new(context),
+                        ResolvingCalamity::BarbarianHordes(state),
+                    ));
                 }
                 TradeCard::Epidemic => {
-                    let has_medicine = civ_cards.map(|c| c.owns(&CivCardName::Medicine)).unwrap_or(false);
-                    let has_road_building = civ_cards.map(|c| c.owns(&CivCardName::RoadBuilding)).unwrap_or(false);
+                    let has_medicine = civ_cards
+                        .map(|c| c.owns(&CivCardName::Medicine))
+                        .unwrap_or(false);
+                    let has_road_building = civ_cards
+                        .map(|c| c.owns(&CivCardName::RoadBuilding))
+                        .unwrap_or(false);
                     let mut state = EpidemicState::new();
-                    if has_medicine { state = state.with_medicine(); }
-                    if has_road_building { state = state.with_road_building(); }
-                    if let Some(immune) = *traded_by { state = state.with_immune_player(immune); }
-                    commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::Epidemic(state)));
+                    if has_medicine {
+                        state = state.with_medicine();
+                    }
+                    if has_road_building {
+                        state = state.with_road_building();
+                    }
+                    if let Some(immune) = *traded_by {
+                        state = state.with_immune_player(immune);
+                    }
+                    commands.entity(*player_entity).insert((
+                        ActiveCalamityResolution::new(context),
+                        ResolvingCalamity::Epidemic(state),
+                    ));
                 }
                 TradeCard::CivilDisorder => {
                     // Default: all but 3 cities reduced (30.711); modifiers cumulative (30.715).
                     let mut state = CivilDisorderState::new();
                     if let Some(c) = civ_cards {
-                        if c.owns(&CivCardName::Music) { state = state.with_music(); }
-                        if c.owns(&CivCardName::DramaAndPoetry) { state = state.with_drama_and_poetry(); }
-                        if c.owns(&CivCardName::Law) { state = state.with_law(); }
-                        if c.owns(&CivCardName::Democracy) { state = state.with_democracy(); }
-                        if c.owns(&CivCardName::Military) { state = state.with_military(); }
-                        if c.owns(&CivCardName::RoadBuilding) { state = state.with_road_building(); }
+                        if c.owns(&CivCardName::Music) {
+                            state = state.with_music();
+                        }
+                        if c.owns(&CivCardName::DramaAndPoetry) {
+                            state = state.with_drama_and_poetry();
+                        }
+                        if c.owns(&CivCardName::Law) {
+                            state = state.with_law();
+                        }
+                        if c.owns(&CivCardName::Democracy) {
+                            state = state.with_democracy();
+                        }
+                        if c.owns(&CivCardName::Military) {
+                            state = state.with_military();
+                        }
+                        if c.owns(&CivCardName::RoadBuilding) {
+                            state = state.with_road_building();
+                        }
                     }
-                    commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::CivilDisorder(state)));
+                    commands.entity(*player_entity).insert((
+                        ActiveCalamityResolution::new(context),
+                        ResolvingCalamity::CivilDisorder(state),
+                    ));
                 }
                 TradeCard::IconoclasmAndHeresy => {
                     // 4 cities reduced by default (30.811); all modifiers cumulative (30.817).
                     let mut state = IconoclasmHeresyState::new();
                     if let Some(c) = civ_cards {
-                        if c.owns(&CivCardName::Law) { state = state.with_law(); }
-                        if c.owns(&CivCardName::Philosophy) { state = state.with_philosophy(); }
-                        if c.owns(&CivCardName::Theology) { state = state.with_theology(); }
-                        if c.owns(&CivCardName::Monotheism) { state = state.with_monotheism(); }
-                        if c.owns(&CivCardName::RoadBuilding) { state = state.with_road_building(); }
+                        if c.owns(&CivCardName::Law) {
+                            state = state.with_law();
+                        }
+                        if c.owns(&CivCardName::Philosophy) {
+                            state = state.with_philosophy();
+                        }
+                        if c.owns(&CivCardName::Theology) {
+                            state = state.with_theology();
+                        }
+                        if c.owns(&CivCardName::Monotheism) {
+                            state = state.with_monotheism();
+                        }
+                        if c.owns(&CivCardName::RoadBuilding) {
+                            state = state.with_road_building();
+                        }
                     }
-                    if let Some(immune) = *traded_by { state = state.with_immune_player(immune); }
-                    commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::IconoclasmAndHeresy(state)));
+                    if let Some(immune) = *traded_by {
+                        state = state.with_immune_player(immune);
+                    }
+                    commands.entity(*player_entity).insert((
+                        ActiveCalamityResolution::new(context),
+                        ResolvingCalamity::IconoclasmAndHeresy(state),
+                    ));
                 }
                 TradeCard::Treachery => {
-                    commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::Treachery(TreacheryState::new())));
+                    commands.entity(*player_entity).insert((
+                        ActiveCalamityResolution::new(context),
+                        ResolvingCalamity::Treachery(TreacheryState::new()),
+                    ));
                 }
                 TradeCard::Piracy => {
                     let mut state = PiracyState::new();
-                    if let Some(immune) = *traded_by { state = state.with_immune_player(immune); }
-                    commands.entity(*player_entity).insert((ActiveCalamityResolution::new(context), ResolvingCalamity::Piracy(state)));
+                    if let Some(immune) = *traded_by {
+                        state = state.with_immune_player(immune);
+                    }
+                    commands.entity(*player_entity).insert((
+                        ActiveCalamityResolution::new(context),
+                        ResolvingCalamity::Piracy(state),
+                    ));
                 }
                 _ => {
                     info!("[CALAMITIES] Unknown calamity {:?}", calamity);
@@ -256,13 +409,22 @@ pub fn resolve_volcano_earthquake(
     mut commands: Commands,
     player_cities: Query<&PlayerCities>,
     player_civ_cards: Query<&PlayerCivilizationCards>,
-    area_query: Query<(Entity, &Population, Option<&BuiltCity>, Has<Volcano>, &LandPassage)>,
+    area_query: Query<(
+        Entity,
+        &Population,
+        Option<&BuiltCity>,
+        Has<Volcano>,
+        &LandPassage,
+    )>,
     volcano_areas: Query<Entity, With<Volcano>>,
     names: Query<&Name>,
 ) {
     for event in events.read() {
         let primary_victim = event.primary_victim;
-        let player_name = names.get(primary_victim).map(|n| n.to_string()).unwrap_or_else(|_| "Unknown".to_string());
+        let player_name = names
+            .get(primary_victim)
+            .map(|n| n.to_string())
+            .unwrap_or_else(|_| "Unknown".to_string());
 
         info!("[VOLCANO/EARTHQUAKE] Resolving for {}", player_name);
 
@@ -273,11 +435,8 @@ pub fn resolve_volcano_earthquake(
 
         let player_cities_component = player_cities.get(primary_victim).ok();
 
-        let volcano_result = find_best_volcano_eruption(
-            primary_victim,
-            &volcano_areas,
-            &area_query,
-        );
+        let volcano_result =
+            find_best_volcano_eruption(primary_victim, &volcano_areas, &area_query);
 
         let state = if let Some((volcano_area, areas_to_clear)) = volcano_result {
             info!("[VOLCANO] Eruption at area {:?}", volcano_area);
@@ -290,16 +449,19 @@ pub fn resolve_volcano_earthquake(
 
                 if !city_areas.is_empty() {
                     let city_to_destroy = city_areas[0];
-                    let city_to_reduce = find_adjacent_city_to_reduce(
-                        city_to_destroy,
-                        primary_victim,
-                        &area_query,
+                    let city_to_reduce =
+                        find_adjacent_city_to_reduce(city_to_destroy, primary_victim, &area_query);
+
+                    info!(
+                        "[EARTHQUAKE] City to destroy: {:?}, city to reduce: {:?}, has_engineering: {}",
+                        city_to_destroy, city_to_reduce, has_engineering
                     );
 
-                    info!("[EARTHQUAKE] City to destroy: {:?}, city to reduce: {:?}, has_engineering: {}",
-                        city_to_destroy, city_to_reduce, has_engineering);
-
-                    VolcanoEarthquakeState::as_earthquake(city_to_destroy, city_to_reduce, has_engineering)
+                    VolcanoEarthquakeState::as_earthquake(
+                        city_to_destroy,
+                        city_to_reduce,
+                        has_engineering,
+                    )
                 } else {
                     VolcanoEarthquakeState::new()
                 }
@@ -324,17 +486,27 @@ pub fn resolve_volcano_earthquake(
 fn find_best_volcano_eruption(
     primary_victim: Entity,
     volcano_areas: &Query<Entity, With<Volcano>>,
-    area_query: &Query<(Entity, &Population, Option<&BuiltCity>, Has<Volcano>, &LandPassage)>,
+    area_query: &Query<(
+        Entity,
+        &Population,
+        Option<&BuiltCity>,
+        Has<Volcano>,
+        &LandPassage,
+    )>,
 ) -> Option<(Entity, Vec<Entity>)> {
     let mut volcano_candidates: Vec<(Entity, usize, Vec<Entity>)> = Vec::new();
 
     for volcano_area in volcano_areas.iter() {
-        if let Ok((_area_entity, population, built_city, _, land_passage)) = area_query.get(volcano_area) {
+        if let Ok((_area_entity, population, built_city, _, land_passage)) =
+            area_query.get(volcano_area)
+        {
             let mut total_damage = 0usize;
             let mut victim_has_city_in_touched_areas = false;
             let mut areas_to_clear = vec![volcano_area];
 
-            if let Some(city) = built_city && city.player == primary_victim {
+            if let Some(city) = built_city
+                && city.player == primary_victim
+            {
                 total_damage += 5;
                 victim_has_city_in_touched_areas = true;
             }
@@ -346,7 +518,9 @@ fn find_best_volcano_eruption(
             for adjacent_area in land_passage.to_areas.iter() {
                 areas_to_clear.push(*adjacent_area);
                 if let Ok((_, adj_pop, adj_city, _, _)) = area_query.get(*adjacent_area) {
-                    if let Some(city) = adj_city && city.player == primary_victim {
+                    if let Some(city) = adj_city
+                        && city.player == primary_victim
+                    {
                         total_damage += 5;
                         victim_has_city_in_touched_areas = true;
                     }
@@ -374,7 +548,13 @@ fn find_best_volcano_eruption(
 fn find_adjacent_city_to_reduce(
     city_area: Entity,
     primary_victim: Entity,
-    area_query: &Query<(Entity, &Population, Option<&BuiltCity>, Has<Volcano>, &LandPassage)>,
+    area_query: &Query<(
+        Entity,
+        &Population,
+        Option<&BuiltCity>,
+        Has<Volcano>,
+        &LandPassage,
+    )>,
 ) -> Option<Entity> {
     if let Ok((_, _, _, _, land_passage)) = area_query.get(city_area) {
         for adjacent_area in land_passage.to_areas.iter() {
@@ -391,7 +571,13 @@ fn find_adjacent_city_to_reduce(
 pub fn apply_volcano_earthquake_effects(
     mut commands: Commands,
     mut players_resolving: Query<(Entity, &mut ActiveCalamityResolution, &ResolvingCalamity)>,
-    area_query: Query<(Entity, &Population, Option<&BuiltCity>, Has<Volcano>, &LandPassage)>,
+    area_query: Query<(
+        Entity,
+        &Population,
+        Option<&BuiltCity>,
+        Has<Volcano>,
+        &LandPassage,
+    )>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
 ) {
     for (player_entity, mut resolution, resolving) in players_resolving.iter_mut() {
@@ -425,7 +611,9 @@ pub fn apply_volcano_earthquake_effects(
             });
 
             commands.entity(player_entity).remove::<ResolvingCalamity>();
-            commands.entity(player_entity).remove::<ActiveCalamityResolution>();
+            commands
+                .entity(player_entity)
+                .remove::<ActiveCalamityResolution>();
         }
     }
 }
@@ -433,7 +621,13 @@ pub fn apply_volcano_earthquake_effects(
 fn trigger_volcano_eruption(
     commands: &mut Commands,
     volcano_area: Entity,
-    area_query: &Query<(Entity, &Population, Option<&BuiltCity>, Has<Volcano>, &LandPassage)>,
+    area_query: &Query<(
+        Entity,
+        &Population,
+        Option<&BuiltCity>,
+        Has<Volcano>,
+        &LandPassage,
+    )>,
 ) {
     let mut areas_to_clear: Vec<Entity> = vec![volcano_area];
 
@@ -461,20 +655,30 @@ fn trigger_volcano_eruption(
 
 pub fn advance_flood(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution)>,
+    mut player_query: Query<(
+        Entity,
+        &mut ResolvingCalamity,
+        &mut ActiveCalamityResolution,
+    )>,
     flood_plains: Query<Entity, With<FloodPlain>>,
     area_query: Query<(Option<&BuiltCity>, &LandPassage)>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
 ) {
     for (player_entity, mut resolving, mut resolution) in player_query.iter_mut() {
-        if resolution.phase == CalamityPhase::Resolved { continue; }
-        let ResolvingCalamity::Flood(ref mut state) = *resolving else { continue };
+        if resolution.phase == CalamityPhase::Resolved {
+            continue;
+        }
+        let ResolvingCalamity::Flood(ref mut state) = *resolving else {
+            continue;
+        };
 
         match state.phase {
             FloodPhase::FindFloodPlain => {
                 let mut found_area = None;
                 for fp_area in flood_plains.iter() {
-                    if let Ok((Some(city), _)) = area_query.get(fp_area) && city.player == player_entity {
+                    if let Ok((Some(city), _)) = area_query.get(fp_area)
+                        && city.player == player_entity
+                    {
                         found_area = Some(fp_area);
                         break;
                     }
@@ -483,7 +687,10 @@ pub fn advance_flood(
                     state.flood_plain_area = Some(area);
                     state.phase = FloodPhase::ApplyEffects;
                 } else {
-                    info!("[FLOOD] No flood-plain city found for player {:?}", player_entity);
+                    info!(
+                        "[FLOOD] No flood-plain city found for player {:?}",
+                        player_entity
+                    );
                     state.phase = FloodPhase::Complete;
                 }
             }
@@ -504,7 +711,13 @@ pub fn advance_flood(
                 state.phase = FloodPhase::Complete;
             }
             FloodPhase::Complete => {
-                finish_calamity(&mut resolution, &mut calamity_resolved, &mut commands, player_entity, TradeCard::Flood);
+                finish_calamity(
+                    &mut resolution,
+                    &mut calamity_resolved,
+                    &mut commands,
+                    player_entity,
+                    TradeCard::Flood,
+                );
             }
         }
     }
@@ -522,9 +735,13 @@ fn remove_unit_points(
 ) {
     let mut remaining = points;
     for (area, count) in player_areas.areas_and_population_count() {
-        if remaining <= 0 { break; }
+        if remaining <= 0 {
+            break;
+        }
         let to_remove = (remaining as usize).min(count);
-        if to_remove == 0 { continue; }
+        if to_remove == 0 {
+            continue;
+        }
         if let Ok(mut population) = populations.get_mut(area)
             && let Some(removed) = population.remove_tokens_from_area(&player, to_remove)
         {
@@ -539,19 +756,34 @@ fn remove_unit_points(
 
 pub fn advance_famine(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerAreas)>,
+    mut player_query: Query<(
+        Entity,
+        &mut ResolvingCalamity,
+        &mut ActiveCalamityResolution,
+        &PlayerAreas,
+    )>,
     mut populations: Query<&mut Population>,
     all_players: Query<(Entity, &PlayerAreas), With<Player>>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
 ) {
     for (player_entity, mut resolving, mut resolution, player_areas) in player_query.iter_mut() {
-        if resolution.phase == CalamityPhase::Resolved { continue; }
-        let ResolvingCalamity::Famine(ref mut state) = *resolving else { continue };
+        if resolution.phase == CalamityPhase::Resolved {
+            continue;
+        }
+        let ResolvingCalamity::Famine(ref mut state) = *resolving else {
+            continue;
+        };
 
         match state.phase {
             FaminePhase::ComputeLosses => {
                 let loss = state.primary_loss;
-                remove_unit_points(player_entity, loss, player_areas, &mut populations, &mut commands);
+                remove_unit_points(
+                    player_entity,
+                    loss,
+                    player_areas,
+                    &mut populations,
+                    &mut commands,
+                );
                 info!("[FAMINE] Primary loss of {} applied", loss);
                 state.phase = FaminePhase::ApplySecondaryLosses;
             }
@@ -564,7 +796,8 @@ pub fn advance_famine(
                 let max_per_player = 8i32;
                 let mut remaining = 20i32;
 
-                let secondary: Vec<Entity> = all_players.iter()
+                let secondary: Vec<Entity> = all_players
+                    .iter()
                     .filter(|(e, areas)| {
                         *e != player_entity
                             && areas.areas().iter().any(|a| primary_areas.contains(a))
@@ -573,19 +806,36 @@ pub fn advance_famine(
                     .collect();
 
                 for secondary_entity in secondary {
-                    if remaining <= 0 { break; }
+                    if remaining <= 0 {
+                        break;
+                    }
                     let loss = max_per_player.min(remaining);
                     if let Ok((_, sec_areas)) = all_players.get(secondary_entity) {
-                        remove_unit_points(secondary_entity, loss, sec_areas, &mut populations, &mut commands);
+                        remove_unit_points(
+                            secondary_entity,
+                            loss,
+                            sec_areas,
+                            &mut populations,
+                            &mut commands,
+                        );
                         remaining -= loss;
-                        info!("[FAMINE] Secondary player {:?} loses {} pts", secondary_entity, loss);
+                        info!(
+                            "[FAMINE] Secondary player {:?} loses {} pts",
+                            secondary_entity, loss
+                        );
                     }
                 }
 
                 state.phase = FaminePhase::Complete;
             }
             FaminePhase::Complete => {
-                finish_calamity(&mut resolution, &mut calamity_resolved, &mut commands, player_entity, TradeCard::Famine);
+                finish_calamity(
+                    &mut resolution,
+                    &mut calamity_resolved,
+                    &mut commands,
+                    player_entity,
+                    TradeCard::Famine,
+                );
             }
             _ => {}
         }
@@ -594,24 +844,48 @@ pub fn advance_famine(
 
 pub fn advance_barbarian_hordes(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerAreas)>,
+    mut player_query: Query<(
+        Entity,
+        &mut ResolvingCalamity,
+        &mut ActiveCalamityResolution,
+        &PlayerAreas,
+    )>,
     mut populations: Query<&mut Population>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
 ) {
     for (player_entity, mut resolving, mut resolution, player_areas) in player_query.iter_mut() {
-        if resolution.phase == CalamityPhase::Resolved { continue; }
-        let ResolvingCalamity::BarbarianHordes(ref mut state) = *resolving else { continue };
+        if resolution.phase == CalamityPhase::Resolved {
+            continue;
+        }
+        let ResolvingCalamity::BarbarianHordes(ref mut state) = *resolving else {
+            continue;
+        };
 
         match state.phase {
             BarbarianHordesPhase::ComputeEffects => {
                 let loss = state.unit_points_to_lose;
-                remove_unit_points(player_entity, loss, player_areas, &mut populations, &mut commands);
+                remove_unit_points(
+                    player_entity,
+                    loss,
+                    player_areas,
+                    &mut populations,
+                    &mut commands,
+                );
                 // Area selection (TODO: interactive)
-                info!("[BARBARIAN_HORDES] Loss of {} applied; area selection not yet implemented", loss);
+                info!(
+                    "[BARBARIAN_HORDES] Loss of {} applied; area selection not yet implemented",
+                    loss
+                );
                 state.phase = BarbarianHordesPhase::Complete;
             }
             BarbarianHordesPhase::Complete => {
-                finish_calamity(&mut resolution, &mut calamity_resolved, &mut commands, player_entity, TradeCard::BarbarianHordes);
+                finish_calamity(
+                    &mut resolution,
+                    &mut calamity_resolved,
+                    &mut commands,
+                    player_entity,
+                    TradeCard::BarbarianHordes,
+                );
             }
             _ => {}
         }
@@ -620,19 +894,34 @@ pub fn advance_barbarian_hordes(
 
 pub fn advance_epidemic(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerAreas)>,
+    mut player_query: Query<(
+        Entity,
+        &mut ResolvingCalamity,
+        &mut ActiveCalamityResolution,
+        &PlayerAreas,
+    )>,
     mut populations: Query<&mut Population>,
     all_players: Query<(Entity, &PlayerAreas, Option<&PlayerCivilizationCards>), With<Player>>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
 ) {
     for (player_entity, mut resolving, mut resolution, player_areas) in player_query.iter_mut() {
-        if resolution.phase == CalamityPhase::Resolved { continue; }
-        let ResolvingCalamity::Epidemic(ref mut state) = *resolving else { continue };
+        if resolution.phase == CalamityPhase::Resolved {
+            continue;
+        }
+        let ResolvingCalamity::Epidemic(ref mut state) = *resolving else {
+            continue;
+        };
 
         match state.phase {
             EpidemicPhase::ComputeEffects => {
                 let loss = state.primary_loss;
-                remove_unit_points(player_entity, loss, player_areas, &mut populations, &mut commands);
+                remove_unit_points(
+                    player_entity,
+                    loss,
+                    player_areas,
+                    &mut populations,
+                    &mut commands,
+                );
                 state.phase = EpidemicPhase::ApplySecondaryLosses;
             }
             EpidemicPhase::ApplySecondaryLosses => {
@@ -645,33 +934,55 @@ pub fn advance_epidemic(
                 let max_per_player = 10i32;
                 let mut remaining = secondary_total;
 
-                let secondary_players: Vec<(Entity, bool)> = all_players.iter()
+                let secondary_players: Vec<(Entity, bool)> = all_players
+                    .iter()
                     .filter(|(e, areas, _)| {
                         *e != player_entity
                             && Some(*e) != state.immune_player
                             && areas.areas().iter().any(|a| primary_areas.contains(a))
                     })
                     .map(|(e, _, cards)| {
-                        let has_medicine = cards.map(|c| c.owns(&CivCardName::Medicine)).unwrap_or(false);
+                        let has_medicine = cards
+                            .map(|c| c.owns(&CivCardName::Medicine))
+                            .unwrap_or(false);
                         (e, has_medicine)
                     })
                     .collect();
 
                 for (secondary_entity, has_medicine) in &secondary_players {
-                    if remaining <= 0 { break; }
+                    if remaining <= 0 {
+                        break;
+                    }
                     let mut loss = max_per_player.min(remaining);
-                    if *has_medicine { loss = (loss - 5).max(0); }
+                    if *has_medicine {
+                        loss = (loss - 5).max(0);
+                    }
                     if let Ok((_, sec_areas, _)) = all_players.get(*secondary_entity) {
-                        remove_unit_points(*secondary_entity, loss, sec_areas, &mut populations, &mut commands);
+                        remove_unit_points(
+                            *secondary_entity,
+                            loss,
+                            sec_areas,
+                            &mut populations,
+                            &mut commands,
+                        );
                         remaining -= loss;
-                        info!("[EPIDEMIC] Secondary player {:?} loses {} pts", secondary_entity, loss);
+                        info!(
+                            "[EPIDEMIC] Secondary player {:?} loses {} pts",
+                            secondary_entity, loss
+                        );
                     }
                 }
 
                 state.phase = EpidemicPhase::Complete;
             }
             EpidemicPhase::Complete => {
-                finish_calamity(&mut resolution, &mut calamity_resolved, &mut commands, player_entity, TradeCard::Epidemic);
+                finish_calamity(
+                    &mut resolution,
+                    &mut calamity_resolved,
+                    &mut commands,
+                    player_entity,
+                    TradeCard::Epidemic,
+                );
             }
             _ => {}
         }
@@ -680,28 +991,59 @@ pub fn advance_epidemic(
 
 pub fn advance_iconoclasm_heresy(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerCities, Has<IsHuman>, Has<AwaitingHumanCalamitySelection>)>,
+    mut player_query: Query<(
+        Entity,
+        &mut ResolvingCalamity,
+        &mut ActiveCalamityResolution,
+        &PlayerCities,
+        Has<IsHuman>,
+        Has<AwaitingHumanCalamitySelection>,
+    )>,
     all_players: Query<(Entity, &PlayerCities, Option<&PlayerCivilizationCards>), With<Player>>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut calamity_selection: ResMut<CalamitySelectionState>,
 ) {
-    for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in player_query.iter_mut() {
-        if resolution.phase == CalamityPhase::Resolved { continue; }
-        let ResolvingCalamity::IconoclasmAndHeresy(ref mut state) = *resolving else { continue };
+    for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in
+        player_query.iter_mut()
+    {
+        if resolution.phase == CalamityPhase::Resolved {
+            continue;
+        }
+        let ResolvingCalamity::IconoclasmAndHeresy(ref mut state) = *resolving else {
+            continue;
+        };
 
         match state.phase {
             IconoclasmHeresyPhase::ComputeEffects => {
-                info!("[ICONOCLASM] Primary victim reducing {} cities", state.cities_to_reduce);
+                info!(
+                    "[ICONOCLASM] Primary victim reducing {} cities",
+                    state.cities_to_reduce
+                );
                 if state.cities_to_reduce == 0 {
                     state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
                 } else if is_human {
-                    let available: Vec<Entity> = player_cities.areas_and_cities.keys().cloned().collect();
-                    calamity_selection.populate(player_entity, available, state.cities_to_reduce, "Iconoclasm & Heresy");
-                    commands.entity(player_entity).insert(AwaitingHumanCalamitySelection);
+                    let available: Vec<Entity> =
+                        player_cities.areas_and_cities.keys().cloned().collect();
+                    calamity_selection.populate(
+                        player_entity,
+                        available,
+                        state.cities_to_reduce,
+                        "Iconoclasm & Heresy",
+                    );
+                    commands
+                        .entity(player_entity)
+                        .insert(AwaitingHumanCalamitySelection);
                     state.phase = IconoclasmHeresyPhase::SelectCities;
                 } else {
-                    let areas: Vec<Entity> = player_cities.areas_and_cities.keys().cloned().take(state.cities_to_reduce).collect();
-                    for area in &areas { state.select_city(*area); }
+                    let areas: Vec<Entity> = player_cities
+                        .areas_and_cities
+                        .keys()
+                        .cloned()
+                        .take(state.cities_to_reduce)
+                        .collect();
+                    for area in &areas {
+                        state.select_city(*area);
+                    }
                     state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
                 }
             }
@@ -713,6 +1055,7 @@ pub fn advance_iconoclasm_heresy(
                     state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
                 }
             }
+
             IconoclasmHeresyPhase::ApplySecondaryLosses => {
                 // Apply primary reductions
                 for &area in &state.selected_cities {
@@ -723,24 +1066,38 @@ pub fn advance_iconoclasm_heresy(
                 // Auto-select: Theology holders are immune; Philosophy holders lose max 1.
                 let mut secondary_cities_left = state.secondary_cities;
 
-                let candidates: Vec<(Entity, Vec<Entity>, bool)> = all_players.iter()
+                let candidates: Vec<(Entity, Vec<Entity>, bool)> = all_players
+                    .iter()
                     .filter(|(e, cities, _)| {
                         *e != player_entity
                             && Some(*e) != state.immune_player
                             && !cities.areas_and_cities.is_empty()
                     })
                     .filter_map(|(e, cities, cards)| {
-                        let has_theology = cards.map(|c| c.owns(&CivCardName::Theology)).unwrap_or(false);
-                        if has_theology { return None; } // Theology immune (30.819)
-                        let has_philosophy = cards.map(|c| c.owns(&CivCardName::Philosophy)).unwrap_or(false);
-                        let city_areas: Vec<Entity> = cities.areas_and_cities.keys().cloned().collect();
+                        let has_theology = cards
+                            .map(|c| c.owns(&CivCardName::Theology))
+                            .unwrap_or(false);
+                        if has_theology {
+                            return None;
+                        } // Theology immune (30.819)
+                        let has_philosophy = cards
+                            .map(|c| c.owns(&CivCardName::Philosophy))
+                            .unwrap_or(false);
+                        let city_areas: Vec<Entity> =
+                            cities.areas_and_cities.keys().cloned().collect();
                         Some((e, city_areas, has_philosophy))
                     })
                     .collect();
 
                 for (_secondary_entity, city_areas, has_philosophy) in &candidates {
-                    if secondary_cities_left == 0 { break; }
-                    let max_from_this = if *has_philosophy { 1 } else { secondary_cities_left };
+                    if secondary_cities_left == 0 {
+                        break;
+                    }
+                    let max_from_this = if *has_philosophy {
+                        1
+                    } else {
+                        secondary_cities_left
+                    };
                     let to_take = max_from_this.min(secondary_cities_left);
                     for &area in city_areas.iter().take(to_take) {
                         commands.entity(area).insert(ReduceCity);
@@ -752,7 +1109,13 @@ pub fn advance_iconoclasm_heresy(
                 state.phase = IconoclasmHeresyPhase::Complete;
             }
             IconoclasmHeresyPhase::Complete => {
-                finish_calamity(&mut resolution, &mut calamity_resolved, &mut commands, player_entity, TradeCard::IconoclasmAndHeresy);
+                finish_calamity(
+                    &mut resolution,
+                    &mut calamity_resolved,
+                    &mut commands,
+                    player_entity,
+                    TradeCard::IconoclasmAndHeresy,
+                );
             }
             _ => {}
         }
@@ -763,26 +1126,54 @@ pub fn advance_iconoclasm_heresy(
 
 pub fn advance_superstition(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerCities, Has<IsHuman>, Has<AwaitingHumanCalamitySelection>)>,
+    mut player_query: Query<(
+        Entity,
+        &mut ResolvingCalamity,
+        &mut ActiveCalamityResolution,
+        &PlayerCities,
+        Has<IsHuman>,
+        Has<AwaitingHumanCalamitySelection>,
+    )>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut calamity_selection: ResMut<CalamitySelectionState>,
 ) {
-    for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in player_query.iter_mut() {
-        if resolution.phase == CalamityPhase::Resolved { continue; }
-        let ResolvingCalamity::Superstition(ref mut state) = *resolving else { continue };
+    for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in
+        player_query.iter_mut()
+    {
+        if resolution.phase == CalamityPhase::Resolved {
+            continue;
+        }
+        let ResolvingCalamity::Superstition(ref mut state) = *resolving else {
+            continue;
+        };
 
         match state.phase {
             SuperstitionPhase::ComputeEffects => {
                 if state.cities_to_reduce == 0 {
                     state.phase = SuperstitionPhase::Complete;
                 } else if is_human {
-                    let available: Vec<Entity> = player_cities.areas_and_cities.keys().cloned().collect();
-                    calamity_selection.populate(player_entity, available, state.cities_to_reduce, "Superstition");
-                    commands.entity(player_entity).insert(AwaitingHumanCalamitySelection);
+                    let available: Vec<Entity> =
+                        player_cities.areas_and_cities.keys().cloned().collect();
+                    calamity_selection.populate(
+                        player_entity,
+                        available,
+                        state.cities_to_reduce,
+                        "Superstition",
+                    );
+                    commands
+                        .entity(player_entity)
+                        .insert(AwaitingHumanCalamitySelection);
                     state.phase = SuperstitionPhase::SelectCities;
                 } else {
-                    let areas: Vec<Entity> = player_cities.areas_and_cities.keys().cloned().take(state.cities_to_reduce).collect();
-                    for area in &areas { state.select_city(*area); }
+                    let areas: Vec<Entity> = player_cities
+                        .areas_and_cities
+                        .keys()
+                        .cloned()
+                        .take(state.cities_to_reduce)
+                        .collect();
+                    for area in &areas {
+                        state.select_city(*area);
+                    }
                     state.phase = SuperstitionPhase::ApplyEffects;
                 }
             }
@@ -800,11 +1191,20 @@ pub fn advance_superstition(
                 for &area in &state.selected_cities {
                     commands.entity(area).insert(ReduceCity);
                 }
-                info!("[SUPERSTITION] Reducing {} cities", state.selected_cities.len());
+                info!(
+                    "[SUPERSTITION] Reducing {} cities",
+                    state.selected_cities.len()
+                );
                 state.phase = SuperstitionPhase::Complete;
             }
             SuperstitionPhase::Complete => {
-                finish_calamity(&mut resolution, &mut calamity_resolved, &mut commands, player_entity, TradeCard::Superstition);
+                finish_calamity(
+                    &mut resolution,
+                    &mut calamity_resolved,
+                    &mut commands,
+                    player_entity,
+                    TradeCard::Superstition,
+                );
             }
         }
     }
@@ -812,32 +1212,70 @@ pub fn advance_superstition(
 
 pub fn advance_slave_revolt(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerCities, &PlayerAreas, Has<IsHuman>, Has<AwaitingHumanCalamitySelection>)>,
+    mut player_query: Query<(
+        Entity,
+        &mut ResolvingCalamity,
+        &mut ActiveCalamityResolution,
+        &PlayerCities,
+        &PlayerAreas,
+        Has<IsHuman>,
+        Has<AwaitingHumanCalamitySelection>,
+    )>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut calamity_selection: ResMut<CalamitySelectionState>,
 ) {
-    for (player_entity, mut resolving, mut resolution, player_cities, player_areas, is_human, awaiting_human) in player_query.iter_mut() {
-        if resolution.phase == CalamityPhase::Resolved { continue; }
-        let ResolvingCalamity::SlaveRevolt(ref mut state) = *resolving else { continue };
+    for (
+        player_entity,
+        mut resolving,
+        mut resolution,
+        player_cities,
+        player_areas,
+        is_human,
+        awaiting_human,
+    ) in player_query.iter_mut()
+    {
+        if resolution.phase == CalamityPhase::Resolved {
+            continue;
+        }
+        let ResolvingCalamity::SlaveRevolt(ref mut state) = *resolving else {
+            continue;
+        };
 
         match state.phase {
             SlaveRevoltPhase::ComputeEffects => {
                 let on_board_tokens = player_areas.total_population();
                 let city_count = player_cities.number_of_cities();
                 state.compute_cities_to_reduce(on_board_tokens, city_count);
-                info!("[SLAVE_REVOLT] {} tokens cannot support cities; need to reduce {} cities",
-                    state.tokens_cannot_support, state.cities_to_reduce);
+                info!(
+                    "[SLAVE_REVOLT] {} tokens cannot support cities; need to reduce {} cities",
+                    state.tokens_cannot_support, state.cities_to_reduce
+                );
 
                 if state.cities_to_reduce == 0 {
                     state.phase = SlaveRevoltPhase::Complete;
                 } else if is_human {
-                    let available: Vec<Entity> = player_cities.areas_and_cities.keys().cloned().collect();
-                    calamity_selection.populate(player_entity, available, state.cities_to_reduce, "Slave Revolt");
-                    commands.entity(player_entity).insert(AwaitingHumanCalamitySelection);
+                    let available: Vec<Entity> =
+                        player_cities.areas_and_cities.keys().cloned().collect();
+                    calamity_selection.populate(
+                        player_entity,
+                        available,
+                        state.cities_to_reduce,
+                        "Slave Revolt",
+                    );
+                    commands
+                        .entity(player_entity)
+                        .insert(AwaitingHumanCalamitySelection);
                     state.phase = SlaveRevoltPhase::SelectCities;
                 } else {
-                    let areas: Vec<Entity> = player_cities.areas_and_cities.keys().cloned().take(state.cities_to_reduce).collect();
-                    for area in &areas { state.select_city(*area); }
+                    let areas: Vec<Entity> = player_cities
+                        .areas_and_cities
+                        .keys()
+                        .cloned()
+                        .take(state.cities_to_reduce)
+                        .collect();
+                    for area in &areas {
+                        state.select_city(*area);
+                    }
                     state.phase = SlaveRevoltPhase::ApplyEffects;
                 }
             }
@@ -853,11 +1291,20 @@ pub fn advance_slave_revolt(
                 for &area in &state.selected_cities {
                     commands.entity(area).insert(ReduceCity);
                 }
-                info!("[SLAVE_REVOLT] Reducing {} cities", state.selected_cities.len());
+                info!(
+                    "[SLAVE_REVOLT] Reducing {} cities",
+                    state.selected_cities.len()
+                );
                 state.phase = SlaveRevoltPhase::Complete;
             }
             SlaveRevoltPhase::Complete => {
-                finish_calamity(&mut resolution, &mut calamity_resolved, &mut commands, player_entity, TradeCard::SlaveRevolt);
+                finish_calamity(
+                    &mut resolution,
+                    &mut calamity_resolved,
+                    &mut commands,
+                    player_entity,
+                    TradeCard::SlaveRevolt,
+                );
             }
         }
     }
@@ -865,30 +1312,61 @@ pub fn advance_slave_revolt(
 
 pub fn advance_civil_disorder(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerCities, Has<IsHuman>, Has<AwaitingHumanCalamitySelection>)>,
+    mut player_query: Query<(
+        Entity,
+        &mut ResolvingCalamity,
+        &mut ActiveCalamityResolution,
+        &PlayerCities,
+        Has<IsHuman>,
+        Has<AwaitingHumanCalamitySelection>,
+    )>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut calamity_selection: ResMut<CalamitySelectionState>,
 ) {
-    for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in player_query.iter_mut() {
-        if resolution.phase == CalamityPhase::Resolved { continue; }
-        let ResolvingCalamity::CivilDisorder(ref mut state) = *resolving else { continue };
+    for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in
+        player_query.iter_mut()
+    {
+        if resolution.phase == CalamityPhase::Resolved {
+            continue;
+        }
+        let ResolvingCalamity::CivilDisorder(ref mut state) = *resolving else {
+            continue;
+        };
 
         match state.phase {
             CivilDisorderPhase::ComputeEffects => {
                 let total_cities = player_cities.number_of_cities();
                 state.compute_cities_to_reduce(total_cities);
-                info!("[CIVIL_DISORDER] Need to reduce {} cities", state.cities_to_reduce);
+                info!(
+                    "[CIVIL_DISORDER] Need to reduce {} cities",
+                    state.cities_to_reduce
+                );
 
                 if state.cities_to_reduce == 0 {
                     state.phase = CivilDisorderPhase::Complete;
                 } else if is_human {
-                    let available: Vec<Entity> = player_cities.areas_and_cities.keys().cloned().collect();
-                    calamity_selection.populate(player_entity, available, state.cities_to_reduce, "Civil Disorder");
-                    commands.entity(player_entity).insert(AwaitingHumanCalamitySelection);
+                    let available: Vec<Entity> =
+                        player_cities.areas_and_cities.keys().cloned().collect();
+                    calamity_selection.populate(
+                        player_entity,
+                        available,
+                        state.cities_to_reduce,
+                        "Civil Disorder",
+                    );
+                    commands
+                        .entity(player_entity)
+                        .insert(AwaitingHumanCalamitySelection);
                     state.phase = CivilDisorderPhase::SelectCities;
                 } else {
-                    let areas: Vec<Entity> = player_cities.areas_and_cities.keys().cloned().take(state.cities_to_reduce).collect();
-                    for area in &areas { state.select_city(*area); }
+                    let areas: Vec<Entity> = player_cities
+                        .areas_and_cities
+                        .keys()
+                        .cloned()
+                        .take(state.cities_to_reduce)
+                        .collect();
+                    for area in &areas {
+                        state.select_city(*area);
+                    }
                     state.phase = CivilDisorderPhase::ApplyEffects;
                 }
             }
@@ -904,11 +1382,20 @@ pub fn advance_civil_disorder(
                 for &area in &state.selected_cities {
                     commands.entity(area).insert(ReduceCity);
                 }
-                info!("[CIVIL_DISORDER] Reducing {} cities", state.selected_cities.len());
+                info!(
+                    "[CIVIL_DISORDER] Reducing {} cities",
+                    state.selected_cities.len()
+                );
                 state.phase = CivilDisorderPhase::Complete;
             }
             CivilDisorderPhase::Complete => {
-                finish_calamity(&mut resolution, &mut calamity_resolved, &mut commands, player_entity, TradeCard::CivilDisorder);
+                finish_calamity(
+                    &mut resolution,
+                    &mut calamity_resolved,
+                    &mut commands,
+                    player_entity,
+                    TradeCard::CivilDisorder,
+                );
             }
         }
     }
@@ -918,20 +1405,38 @@ pub fn advance_civil_disorder(
 
 pub fn advance_civil_war(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerAreas, &PlayerCities)>,
+    mut player_query: Query<(
+        Entity,
+        &mut ResolvingCalamity,
+        &mut ActiveCalamityResolution,
+        &PlayerAreas,
+        &PlayerCities,
+    )>,
     all_players_stock: Query<(Entity, &TokenStock), With<Player>>,
     all_players_civ_cards: Query<(Entity, &PlayerCivilizationCards), With<Player>>,
     _area_populations: Query<&mut Population>,
-    _beneficiary_areas: Query<(&mut PlayerAreas, &mut PlayerCities, &mut CityTokenStock, &mut TokenStock)>,
+    _beneficiary_areas: Query<(
+        &mut PlayerAreas,
+        &mut PlayerCities,
+        &mut CityTokenStock,
+        &mut TokenStock,
+    )>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
 ) {
-    for (player_entity, mut resolving, mut resolution, victim_areas, victim_cities) in player_query.iter_mut() {
-        if resolution.phase == CalamityPhase::Resolved { continue; }
-        let ResolvingCalamity::CivilWar(ref mut state) = *resolving else { continue };
+    for (player_entity, mut resolving, mut resolution, victim_areas, victim_cities) in
+        player_query.iter_mut()
+    {
+        if resolution.phase == CalamityPhase::Resolved {
+            continue;
+        }
+        let ResolvingCalamity::CivilWar(ref mut state) = *resolving else {
+            continue;
+        };
 
         match state.phase {
             CivilWarPhase::DetermineBeneficiary => {
-                let beneficiary = all_players_stock.iter()
+                let beneficiary = all_players_stock
+                    .iter()
                     .filter(|(e, _)| *e != player_entity)
                     .max_by_key(|(_, stock)| stock.tokens_in_stock())
                     .map(|(e, _)| e);
@@ -946,8 +1451,10 @@ pub fn advance_civil_war(
                         state.apply_military_bonus();
                         info!("[CIVIL_WAR] Beneficiary has Military (+5 pts)");
                     }
-                    info!("[CIVIL_WAR] Beneficiary {:?}; victim yields {} pts, beneficiary takes up to {} pts",
-                        b, state.victim_selection_points, state.beneficiary_selection_points);
+                    info!(
+                        "[CIVIL_WAR] Beneficiary {:?}; victim yields {} pts, beneficiary takes up to {} pts",
+                        b, state.victim_selection_points, state.beneficiary_selection_points
+                    );
                     state.beneficiary = Some(b);
                     state.phase = CivilWarPhase::VictimSelectsUnits;
                 } else {
@@ -962,7 +1469,9 @@ pub fn advance_civil_war(
                 // Collect tokens first
                 'outer: for (area, tokens) in victim_areas.areas_and_population() {
                     for token in tokens {
-                        if pts >= target { break 'outer; }
+                        if pts >= target {
+                            break 'outer;
+                        }
                         state.victim_selected_units.push(token);
                         let _ = area; // area tracked implicitly through token's area membership
                         pts += 1;
@@ -971,13 +1480,19 @@ pub fn advance_civil_war(
                 // Add cities if still short
                 if pts < target {
                     for &area in victim_cities.areas_and_cities.keys() {
-                        if pts >= target { break; }
+                        if pts >= target {
+                            break;
+                        }
                         state.victim_selected_cities.push(area);
                         pts += 5;
                     }
                 }
-                info!("[CIVIL_WAR] Victim selected {} pts ({} tokens, {} cities)",
-                    pts, state.victim_selected_units.len(), state.victim_selected_cities.len());
+                info!(
+                    "[CIVIL_WAR] Victim selected {} pts ({} tokens, {} cities)",
+                    pts,
+                    state.victim_selected_units.len(),
+                    state.victim_selected_cities.len()
+                );
                 state.phase = CivilWarPhase::BeneficiarySelectsUnits;
             }
             CivilWarPhase::BeneficiarySelectsUnits => {
@@ -988,13 +1503,17 @@ pub fn advance_civil_war(
                 let mut take_cities = Vec::new();
 
                 for &token in &state.victim_selected_units {
-                    if pts >= target { break; }
+                    if pts >= target {
+                        break;
+                    }
                     take_tokens.push(token);
                     pts += 1;
                 }
                 if pts < target {
                     for &area in &state.victim_selected_cities {
-                        if pts >= target { break; }
+                        if pts >= target {
+                            break;
+                        }
                         take_cities.push(area);
                         pts += 5;
                     }
@@ -1011,7 +1530,9 @@ pub fn advance_civil_war(
                 };
 
                 // Return non-transferred tokens from victim's selection back to stock
-                for &token in state.victim_selected_units.iter()
+                for &token in state
+                    .victim_selected_units
+                    .iter()
                     .filter(|t| !state.beneficiary_selected_units.contains(t))
                 {
                     commands.entity(token).insert(ReturnTokenToStock);
@@ -1030,7 +1551,9 @@ pub fn advance_civil_war(
                 }
 
                 // Return victim's non-taken cities normally via ReduceCity
-                for &area in state.victim_selected_cities.iter()
+                for &area in state
+                    .victim_selected_cities
+                    .iter()
                     .filter(|a| !state.beneficiary_selected_cities.contains(a))
                 {
                     commands.entity(area).insert(ReduceCity);
@@ -1040,7 +1563,13 @@ pub fn advance_civil_war(
                 state.phase = CivilWarPhase::Complete;
             }
             CivilWarPhase::Complete => {
-                finish_calamity(&mut resolution, &mut calamity_resolved, &mut commands, player_entity, TradeCard::CivilWar);
+                finish_calamity(
+                    &mut resolution,
+                    &mut calamity_resolved,
+                    &mut commands,
+                    player_entity,
+                    TradeCard::CivilWar,
+                );
             }
         }
     }
@@ -1048,13 +1577,26 @@ pub fn advance_civil_war(
 
 pub fn advance_treachery(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerCities, Has<IsHuman>, Has<AwaitingHumanCalamitySelection>)>,
+    mut player_query: Query<(
+        Entity,
+        &mut ResolvingCalamity,
+        &mut ActiveCalamityResolution,
+        &PlayerCities,
+        Has<IsHuman>,
+        Has<AwaitingHumanCalamitySelection>,
+    )>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut calamity_selection: ResMut<CalamitySelectionState>,
 ) {
-    for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in player_query.iter_mut() {
-        if resolution.phase == CalamityPhase::Resolved { continue; }
-        let ResolvingCalamity::Treachery(ref mut state) = *resolving else { continue };
+    for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in
+        player_query.iter_mut()
+    {
+        if resolution.phase == CalamityPhase::Resolved {
+            continue;
+        }
+        let ResolvingCalamity::Treachery(ref mut state) = *resolving else {
+            continue;
+        };
 
         match state.phase {
             TreacheryPhase::SelectCity => {
@@ -1081,13 +1623,16 @@ pub fn advance_treachery(
                     state.phase = TreacheryPhase::ApplyEffects;
                 } else {
                     // First time: set up human UI
-                    let available: Vec<Entity> = player_cities.areas_and_cities.keys().cloned().collect();
+                    let available: Vec<Entity> =
+                        player_cities.areas_and_cities.keys().cloned().collect();
                     if available.is_empty() {
                         info!("[TREACHERY] No cities for human player {:?}", player_entity);
                         state.phase = TreacheryPhase::Complete;
                     } else {
                         calamity_selection.populate(player_entity, available, 1, "Treachery");
-                        commands.entity(player_entity).insert(AwaitingHumanCalamitySelection);
+                        commands
+                            .entity(player_entity)
+                            .insert(AwaitingHumanCalamitySelection);
                     }
                 }
             }
@@ -1095,7 +1640,9 @@ pub fn advance_treachery(
                 if let Some(city_area) = state.city_to_replace {
                     if let Some(beneficiary) = state.beneficiary {
                         // Transfer city ownership to the player who traded the Treachery card (30.221)
-                        commands.entity(city_area).insert(TransferCityTo(beneficiary));
+                        commands
+                            .entity(city_area)
+                            .insert(TransferCityTo(beneficiary));
                     } else {
                         // Not traded – victim reduces own city, no one benefits (30.222)
                         commands.entity(city_area).insert(ReduceCity);
@@ -1104,7 +1651,13 @@ pub fn advance_treachery(
                 state.phase = TreacheryPhase::Complete;
             }
             TreacheryPhase::Complete => {
-                finish_calamity(&mut resolution, &mut calamity_resolved, &mut commands, player_entity, TradeCard::Treachery);
+                finish_calamity(
+                    &mut resolution,
+                    &mut calamity_resolved,
+                    &mut commands,
+                    player_entity,
+                    TradeCard::Treachery,
+                );
             }
         }
     }
@@ -1112,20 +1665,30 @@ pub fn advance_treachery(
 
 pub fn advance_piracy(
     mut commands: Commands,
-    mut player_query: Query<(Entity, &mut ResolvingCalamity, &mut ActiveCalamityResolution, &PlayerCities)>,
+    mut player_query: Query<(
+        Entity,
+        &mut ResolvingCalamity,
+        &mut ActiveCalamityResolution,
+        &PlayerCities,
+    )>,
     all_players: Query<(Entity, &TokenStock), With<Player>>,
     area_query: Query<&BuiltCity>,
     sea_passage_query: Query<Has<SeaPassage>>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
 ) {
     for (player_entity, mut resolving, mut resolution, player_cities) in player_query.iter_mut() {
-        if resolution.phase == CalamityPhase::Resolved { continue; }
-        let ResolvingCalamity::Piracy(ref mut state) = *resolving else { continue };
+        if resolution.phase == CalamityPhase::Resolved {
+            continue;
+        }
+        let ResolvingCalamity::Piracy(ref mut state) = *resolving else {
+            continue;
+        };
 
         match state.phase {
             PiracyPhase::DetermineBeneficiary => {
                 let immune = resolution.context.traded_by;
-                let beneficiary = all_players.iter()
+                let beneficiary = all_players
+                    .iter()
                     .filter(|(e, _)| *e != player_entity && Some(*e) != immune)
                     .max_by_key(|(_, stock)| stock.tokens_in_stock())
                     .map(|(e, _)| e);
@@ -1140,14 +1703,18 @@ pub fn advance_piracy(
             PiracyPhase::SelectCoastalCities => {
                 // Rule 30.911: target coastal cities first (areas with SeaPassage).
                 // Fall back to any city if no coastal ones exist.
-                let coastal_cities: Vec<Entity> = player_cities.areas_and_cities.keys()
+                let coastal_cities: Vec<Entity> = player_cities
+                    .areas_and_cities
+                    .keys()
                     .filter(|&&area| sea_passage_query.get(area).unwrap_or(false))
                     .cloned()
                     .take(2)
                     .collect();
                 let cities = if coastal_cities.is_empty() {
                     // No coastal cities — take any city as fallback
-                    player_cities.areas_and_cities.keys()
+                    player_cities
+                        .areas_and_cities
+                        .keys()
                         .cloned()
                         .take(2)
                         .collect()
@@ -1170,11 +1737,20 @@ pub fn advance_piracy(
                         }
                     }
                 }
-                info!("[PIRACY] Replacing {} cities", state.cities_to_replace.len());
+                info!(
+                    "[PIRACY] Replacing {} cities",
+                    state.cities_to_replace.len()
+                );
                 state.phase = PiracyPhase::Complete;
             }
             PiracyPhase::Complete => {
-                finish_calamity(&mut resolution, &mut calamity_resolved, &mut commands, player_entity, TradeCard::Piracy);
+                finish_calamity(
+                    &mut resolution,
+                    &mut calamity_resolved,
+                    &mut commands,
+                    player_entity,
+                    TradeCard::Piracy,
+                );
             }
         }
     }
@@ -1190,9 +1766,14 @@ fn finish_calamity(
     calamity: TradeCard,
 ) {
     resolution.mark_resolved();
-    calamity_resolved.write(CalamityResolved { player: player_entity, calamity });
+    calamity_resolved.write(CalamityResolved {
+        player: player_entity,
+        calamity,
+    });
     commands.entity(player_entity).remove::<ResolvingCalamity>();
-    commands.entity(player_entity).remove::<ActiveCalamityResolution>();
+    commands
+        .entity(player_entity)
+        .remove::<ActiveCalamityResolution>();
 }
 
 // ── Monotheism: post-calamity conversion (rule 32.94) ────────────────────────
@@ -1228,11 +1809,17 @@ pub fn apply_monotheism_conversions(
                 for &adj_area in &passages.to_areas {
                     if let Ok(pop) = population_query.get(adj_area) {
                         for (&enemy_player, tokens) in pop.player_tokens().iter() {
-                            if enemy_player == holder_entity { continue; }
-                            if theology_immune.contains(&enemy_player) { continue; }
+                            if enemy_player == holder_entity {
+                                continue;
+                            }
+                            if theology_immune.contains(&enemy_player) {
+                                continue;
+                            }
                             for &token in tokens {
                                 candidate_tokens.push(token);
-                                if candidate_tokens.len() >= 2 { break 'outer; }
+                                if candidate_tokens.len() >= 2 {
+                                    break 'outer;
+                                }
                             }
                         }
                     }
@@ -1243,10 +1830,15 @@ pub fn apply_monotheism_conversions(
         // Mark the chosen tokens for return to stock (deferred, handled by existing system)
         for token in candidate_tokens {
             commands.entity(token).insert(ReturnTokenToStock);
-            info!("[MONOTHEISM] {:?} eliminates token {:?}", holder_entity, token);
+            info!(
+                "[MONOTHEISM] {:?} eliminates token {:?}",
+                holder_entity, token
+            );
         }
 
-        commands.entity(holder_entity).remove::<NeedsMonotheismConversion>();
+        commands
+            .entity(holder_entity)
+            .remove::<NeedsMonotheismConversion>();
     }
 
     if any_processed {
@@ -1264,13 +1856,18 @@ pub fn handle_calamity_resolved(
     names: Query<&Name>,
 ) {
     for event in events.read() {
-        let player_name = names.get(event.player).map(|n| n.to_string()).unwrap_or_else(|_| "Unknown".to_string());
+        let player_name = names
+            .get(event.player)
+            .map(|n| n.to_string())
+            .unwrap_or_else(|_| "Unknown".to_string());
         info!("[CALAMITIES] {} resolved {:?}", player_name, event.calamity);
 
         if let Ok((player_entity, pending)) = players_with_pending.get(event.player)
             && pending.is_empty()
         {
-            commands.entity(player_entity).remove::<NeedsCalamityResolution>();
+            commands
+                .entity(player_entity)
+                .remove::<NeedsCalamityResolution>();
             commands.entity(player_entity).remove::<PendingCalamities>();
         }
     }
@@ -1299,7 +1896,10 @@ pub fn clear_all_tokens_from_area(
     mut areas_to_clear: Query<(Entity, &mut Population), With<ClearAllTokens>>,
 ) {
     for (area_entity, mut population) in areas_to_clear.iter_mut() {
-        info!("[CALAMITIES] Clearing all tokens from area {:?}", area_entity);
+        info!(
+            "[CALAMITIES] Clearing all tokens from area {:?}",
+            area_entity
+        );
         return_all_tokens_to_stock(&mut population, &mut commands);
         commands.entity(area_entity).remove::<ClearAllTokens>();
         commands.entity(area_entity).insert(FixTokenPositions);
@@ -1314,7 +1914,8 @@ pub fn destroy_city_in_area(
     for (area_entity, built_city) in areas_with_destroy.iter() {
         info!("[CALAMITIES] Destroying city in area {:?}", area_entity);
 
-        if let Ok((mut city_stock, mut player_cities)) = city_stock_query.get_mut(built_city.player) {
+        if let Ok((mut city_stock, mut player_cities)) = city_stock_query.get_mut(built_city.player)
+        {
             player_cities.remove_city_from_area(area_entity);
             city_stock.return_token_to_stock(built_city.city);
         }
@@ -1327,21 +1928,30 @@ pub fn destroy_city_in_area(
 pub fn reduce_city_in_area(
     mut commands: Commands,
     areas_with_reduce: Query<(Entity, &BuiltCity, &Population), With<ReduceCity>>,
-    mut city_stock_query: Query<(&mut CityTokenStock, &mut PlayerCities, &mut TokenStock, &mut PlayerAreas)>,
+    mut city_stock_query: Query<(
+        &mut CityTokenStock,
+        &mut PlayerCities,
+        &mut TokenStock,
+        &mut PlayerAreas,
+    )>,
     mut move_tokens: MessageWriter<crate::civilization::events::MoveTokensFromStockToAreaCommand>,
 ) {
     for (area_entity, built_city, population) in areas_with_reduce.iter() {
         info!("[CALAMITIES] Reducing city in area {:?}", area_entity);
 
-        if let Ok((mut city_stock, mut player_cities, _, _)) = city_stock_query.get_mut(built_city.player) {
+        if let Ok((mut city_stock, mut player_cities, _, _)) =
+            city_stock_query.get_mut(built_city.player)
+        {
             player_cities.remove_city_from_area(area_entity);
             city_stock.return_token_to_stock(built_city.city);
 
-            move_tokens.write(crate::civilization::events::MoveTokensFromStockToAreaCommand {
-                player_entity: built_city.player,
-                area_entity,
-                number_of_tokens: population.max_population.min(6),
-            });
+            move_tokens.write(
+                crate::civilization::events::MoveTokensFromStockToAreaCommand {
+                    player_entity: built_city.player,
+                    area_entity,
+                    number_of_tokens: population.max_population.min(6),
+                },
+            );
         }
 
         commands.entity(area_entity).remove::<BuiltCity>();
@@ -1373,21 +1983,26 @@ pub fn transfer_city_to_new_owner(
         commands.entity(area_entity).remove::<TransferCityTo>();
 
         // Use unsafe multi-get to borrow both entities mutably at once
-        if victim_player != new_owner && let Ok([(mut v_stock, mut v_cities), (mut b_stock, mut b_cities)]) =
+        if victim_player != new_owner
+            && let Ok([(mut v_stock, mut v_cities), (mut b_stock, mut b_cities)]) =
                 player_data.get_many_mut([victim_player, new_owner])
-            {
-                if let Some(old_city) = v_cities.remove_city_from_area(area_entity) {
-                    v_stock.return_token_to_stock(old_city);
-                }
-                if let Some(new_city) = b_stock.get_token_from_stock() {
-                    b_cities.build_city_in_area(area_entity, new_city);
-                    commands.entity(area_entity).insert(BuiltCity::new(new_owner, new_city));
-                    info!("[CALAMITIES] City transferred to {:?}", new_owner);
-                } else {
-                    info!("[CALAMITIES] New owner {:?} has no city tokens; city lost", new_owner);
-                }
+        {
+            if let Some(old_city) = v_cities.remove_city_from_area(area_entity) {
+                v_stock.return_token_to_stock(old_city);
             }
-        
+            if let Some(new_city) = b_stock.get_token_from_stock() {
+                b_cities.build_city_in_area(area_entity, new_city);
+                commands
+                    .entity(area_entity)
+                    .insert(BuiltCity::new(new_owner, new_city));
+                info!("[CALAMITIES] City transferred to {:?}", new_owner);
+            } else {
+                info!(
+                    "[CALAMITIES] New owner {:?} has no city tokens; city lost",
+                    new_owner
+                );
+            }
+        }
 
         commands.entity(area_entity).insert(FixTokenPositions);
     }

@@ -116,7 +116,7 @@ pub fn handle_max_pop_is_one_conflicts(
 /// everybody.
 pub fn handle_with_metalworking(
     non_mw: &mut Vec<Entity>,
-    mw: &mut Vec<Entity>,
+    mw: &mut [Entity],
     population: &mut Population,
     commands: &mut Commands,
 ) {
