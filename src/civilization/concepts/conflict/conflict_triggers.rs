@@ -1,14 +1,16 @@
 use crate::civilization::components::*;
+use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
 use crate::civilization::concepts::conflict::conflict_components::*;
 use crate::civilization::concepts::conflict::conflict_functions::*;
 use crate::civilization::concepts::map::CameraFocusQueue;
 use crate::civilization::functions::{replace_city_with_tokens_for_conflict, return_all_tokens_from_area_to_player};
+use crate::civilization::{CivCardName, ConflictCounterResource};
 use crate::stupid_ai::IsHuman;
-use bevy::prelude::{Add, Commands, Entity, Name, NextState, On, Query, ResMut, Transform, With};
-use std::cmp::Ordering;
-use bevy::log::info;
-use crate::civilization::ConflictCounterResource;
 use crate::GameActivity;
+use bevy::platform::collections::HashSet;
+use bevy::prelude::{Add, Commands, Entity, Name, NextState, On, Query, ResMut, Transform, With};
+use bevy::log::info;
+use std::cmp::Ordering;
 
 pub fn on_add_unresolved_conflict(
     trigger: On<Add, UnresolvedConflict>,
@@ -18,15 +20,16 @@ pub fn on_add_unresolved_conflict(
     mut next_state: ResMut<NextState<GameActivity>>,
     human_players: Query<Entity, With<IsHuman>>,
     mut camera_focus: ResMut<CameraFocusQueue>,
+    civ_cards_query: Query<&PlayerCivilizationCards>,
 ) {
     if let Ok((area_entity, name, mut population, transform)) = areas.get_mut(trigger.event().entity) {
         let player_count = population.number_of_players();
         let total_pop = population.total_population();
         let max_pop = population.max_population;
-        
+
         // Check if human player is involved in this conflict
         let human_involved = human_players.iter().any(|human| population.has_player(&human));
-        
+
         if human_involved {
             camera_focus.add_focus(
                 transform.translation,
@@ -34,7 +37,7 @@ pub fn on_add_unresolved_conflict(
                 format!("Conflict in {}", name),
             );
         }
-        
+
         info!(
             "[CONFLICT] Regular conflict in '{}': {} players, {} tokens, max_pop={}, conflicts_pending={}, human_involved={}",
             name, player_count, total_pop, max_pop, conflict_counter_resource.0, human_involved
@@ -49,9 +52,36 @@ pub fn on_add_unresolved_conflict(
             info!("  Player {} ({:?}): {} tokens", i + 1, player, token_count);
         }
 
+        // Build the set of Metalworking holders in this conflict (rule 24.24).
+        let metalworking_set: HashSet<Entity> = players
+            .iter()
+            .filter(|&&p| {
+                civ_cards_query
+                    .get(p)
+                    .map(|c| c.owns(&CivCardName::Metalworking))
+                    .unwrap_or(false)
+            })
+            .copied()
+            .collect();
+
         let resolution_type = if population.max_population == 1 {
             handle_max_pop_is_one_conflicts(&mut players, &mut population, &mut commands);
             "max_pop=1"
+        } else if has_metalworking_mix(&players, &metalworking_set) {
+            // Rule 24.24: non-Metalworking players remove tokens before MW holders.
+            let mut non_mw: Vec<Entity> = players
+                .iter()
+                .filter(|p| !metalworking_set.contains(*p))
+                .copied()
+                .collect();
+            let mut mw: Vec<Entity> = players
+                .iter()
+                .filter(|p| metalworking_set.contains(*p))
+                .copied()
+                .collect();
+            info!("[CONFLICT] Metalworking rule applies: {} non-MW, {} MW players", non_mw.len(), mw.len());
+            handle_with_metalworking(&mut non_mw, &mut mw, &mut population, &mut commands);
+            "metalworking"
         } else if population.all_lengths_equal() {
             handle_all_lengths_equal(&players, &mut population, &mut commands);
             "all_lengths_equal"
@@ -92,6 +122,7 @@ pub fn on_add_unresolved_city_conflict(
     mut next_state: ResMut<NextState<GameActivity>>,
     human_players: Query<Entity, With<IsHuman>>,
     mut camera_focus: ResMut<CameraFocusQueue>,
+    civ_cards_query: Query<&PlayerCivilizationCards>,
 ) {
     if let Ok((area_entity, name, mut population, built_city, transform)) = areas.get_mut(trigger.event().entity) {
         let total_pop = population.total_population();
@@ -125,9 +156,18 @@ pub fn on_add_unresolved_city_conflict(
             info!("  Invader {:?}: {} tokens", player, token_count);
         }
 
+        // Engineering (rule 25.9): holder counts as having 3 extra tokens in city conflicts.
         let has_large_invader = other_players
             .iter()
-            .any(|p| population.population_for_player(*p) > 6);
+            .any(|p| {
+                let has_engineering = civ_cards_query
+                    .get(*p)
+                    .map(|c| c.owns(&CivCardName::Engineering))
+                    .unwrap_or(false);
+                let effective_tokens = population.population_for_player(*p)
+                    + if has_engineering { 3 } else { 0 };
+                effective_tokens > 6
+            });
         
         if has_large_invader {
             info!("[CITY CONFLICT] Large invader detected (>6 tokens)");

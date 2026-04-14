@@ -1,4 +1,4 @@
-use crate::civilization::components::{CityFlood, CitySite, FloodPlain, GameArea, GameCamera, LandPassage, NeedsConnections, Population, StartArea, Volcano};
+use crate::civilization::components::{CityFlood, CitySite, FloodPlain, GameArea, GameCamera, LandPassage, NeedsConnections, Population, SeaPassage, StartArea, Volcano};
 use crate::civilization::concepts::map::camera_focus::{process_camera_focus, CameraFocusQueue};
 use crate::civilization::enums::GameFaction;
 use crate::civilization::general_systems::setup_players;
@@ -351,6 +351,7 @@ fn load_map(
                     Name::new(format!("{}:{}", area.id, n)),
                     GameArea::new(area.id),
                     LandPassage::default(),
+                    SeaPassage::default(),
                     NeedsConnections {
                         land_connections: area.land_connections,
                         sea_connections: area.sea_connections,

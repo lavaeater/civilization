@@ -41,10 +41,10 @@ pub enum GameActivity {
     #[default]
     PrepareGame,
     StartGame,
-    // CollectTaxes,
+    CollectTaxes,
     PopulationExpansion,
     Census,
-    // ShipConstruction,
+    ShipConstruction,
     Movement,
     Conflict,
     CityConstruction,
@@ -55,7 +55,7 @@ pub enum GameActivity {
     ResolveCalamities,
     CheckCitySupportAfterResolveCalamities,
     AcquireCivilizationCards,
-    // MoveSuccessionMarkers,
+    MoveSuccessionMarkers,
 }
 
 pub struct GamePlugin;

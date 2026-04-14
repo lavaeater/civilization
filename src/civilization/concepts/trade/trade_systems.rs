@@ -272,7 +272,8 @@ pub fn recalculate_civ_card_moves_for_player(
             let mut command_index = 0;
 
             let credits = cards.total_credits(&player_civ_cards.cards);
-            let buying_power = player_trade_cards.total_stack_value();
+            let has_mining = player_civ_cards.owns(&CivCardName::Mining);
+            let buying_power = player_trade_cards.total_stack_value_with_mining(has_mining);
 
             let affordable_cards: Vec<CivCardName> = cards
                 .cards
@@ -2686,10 +2687,11 @@ pub fn ai_create_trade_offers(
 /// AI accepts trade offers that benefit them.
 /// Criteria: The trade must either increase the AI's total stack value OR enable trading away a calamity.
 pub fn ai_accept_trade_offers(
-    ai_players: Query<(Entity, &Name, &PlayerTradeCards, &CanTrade), Without<IsHuman>>,
+    ai_players: Query<(Entity, &Name, &PlayerTradeCards, &CanTrade, Option<&PlayerCivilizationCards>), Without<IsHuman>>,
     mut offers: Query<(Entity, &mut OpenTradeOffer)>,
 ) {
-    for (ai_entity, ai_name, ai_cards, _) in ai_players.iter() {
+    for (ai_entity, ai_name, ai_cards, _, ai_civ_cards) in ai_players.iter() {
+        let has_mining = ai_civ_cards.map(|c| c.owns(&CivCardName::Mining)).unwrap_or(false);
         for (_offer_entity, mut offer) in offers.iter_mut() {
             // Skip if we can't accept
             if !offer.can_accept(ai_entity) {
@@ -2720,8 +2722,8 @@ pub fn ai_accept_trade_offers(
                 continue;
             }
 
-            // Calculate current stack value
-            let current_stack_value = ai_cards.total_stack_value();
+            // Calculate current stack value (Mining bonus included if held)
+            let current_stack_value = ai_cards.total_stack_value_with_mining(has_mining);
 
             // Simulate the trade to calculate new stack value
             // We receive: offering_guaranteed cards, we give: wanting_guaranteed cards
@@ -2737,7 +2739,7 @@ pub fn ai_accept_trade_offers(
                 simulated_cards.add_trade_cards(*card, *count);
             }
 
-            let new_stack_value = simulated_cards.total_stack_value();
+            let new_stack_value = simulated_cards.total_stack_value_with_mining(has_mining);
 
             // Check if this trade enables trading away a calamity (hidden card slot)
             let can_trade_away_calamity =

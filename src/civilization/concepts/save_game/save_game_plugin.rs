@@ -11,7 +11,7 @@ use crate::civilization::concepts::movement::movement_components::PerformingMove
 use crate::civilization::concepts::population_expansion::population_expansion_components::NeedsExpansion;
 use crate::civilization::concepts::AvailableFactions;
 use crate::civilization::enums::GameFaction;
-use crate::civilization::{PlayerTradeCards, Census, TradeCard};
+use crate::civilization::{AstPosition, PlayerTradeCards, Census, TradeCard};
 use crate::player::Player;
 use crate::stupid_ai::{IsHuman, StupidAi};
 use crate::{GameActivity, GameState};
@@ -103,7 +103,11 @@ pub struct SavedPlayer {
     /// Used on load to avoid re-running activity logic for players who already finished.
     #[serde(default)]
     pub done_with_current_activity: bool,
+    #[serde(default = "default_ast_space")]
+    pub ast_space: u32,
 }
+
+fn default_ast_space() -> u32 { 1 }
 
 /// Saved data for population in an area
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -188,6 +192,7 @@ fn handle_save_request(
         &CityTokenStock,
         &PlayerTradeCards,
         Has<IsHuman>,
+        Option<&AstPosition>,
     ), With<Player>>,
     area_query: Query<(&GameArea, &Population, Option<&BuiltCity>)>,
     faction_query: Query<&Faction>,
@@ -208,7 +213,7 @@ fn handle_save_request(
     
     // Collect player data with per-player completion state
     let mut players = Vec::new();
-    for (entity, name, faction, census, treasury, token_stock, city_stock, trade_cards, is_human) in player_query.iter() {
+    for (entity, name, faction, census, treasury, token_stock, city_stock, trade_cards, is_human, ast_pos) in player_query.iter() {
         let done = is_player_done_with_activity(
             entity,
             &activity,
@@ -227,6 +232,7 @@ fn handle_save_request(
             city_tokens_in_stock: city_stock.city_tokens_in_stock(),
             trade_cards: trade_cards.cards_as_vec(),
             done_with_current_activity: done,
+            ast_space: ast_pos.map(|p| p.space).unwrap_or(1),
         };
         if done {
             info!("  Player {} ({:?}) is DONE with {:?}", name, faction.faction, activity);
@@ -404,6 +410,7 @@ fn load_game_from_save(
                 PlayerAreas::default(),
                 PlayerCities::default(),
                 trade_cards,
+                AstPosition::new(saved_player.ast_space),
             ))
             .id();
         

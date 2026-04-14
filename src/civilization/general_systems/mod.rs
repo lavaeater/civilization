@@ -182,6 +182,7 @@ pub fn setup_players(
                 StupidAi,
                 PlayerTradeCards::default(),
                 PlayerCivilizationCards::default(),
+                AstPosition::new(1),
             ))
             .id();
 
@@ -212,9 +213,13 @@ pub fn setup_players(
                     .id()
             })
             .collect::<Vec<Entity>>();
+
+        let (ship_stock, player_ships) = create_ship_stock(&mut commands, player);
         commands.entity(player).insert((
             TokenStock::new(token_count, tokens),
             CityTokenStock::new(9, city_tokens),
+            ship_stock,
+            player_ships,
         ));
     }
     info!("Done adding players");
@@ -300,16 +305,22 @@ pub fn player_input_bundle() -> impl Bundle {
 }
 
 pub fn connect_areas(
-    mut area_query: Query<(Entity, &mut LandPassage, &NeedsConnections)>,
+    mut area_query: Query<(Entity, &mut LandPassage, &mut SeaPassage, &NeedsConnections)>,
     named_areas: Query<(Entity, &GameArea)>,
     mut commands: Commands,
 ) {
-    for (area_entity, mut land_passages, needed_connections) in area_query.iter_mut() {
+    for (area_entity, mut land_passages, mut sea_passages, needed_connections) in area_query.iter_mut() {
         for named_area in needed_connections.land_connections.iter() {
-            //This is fucking stupid, but who cares?
             for (target_area_entity, target_area) in named_areas.iter() {
                 if target_area.id == *named_area {
                     land_passages.to_areas.push(target_area_entity);
+                }
+            }
+        }
+        for named_area in needed_connections.sea_connections.iter() {
+            for (target_area_entity, target_area) in named_areas.iter() {
+                if target_area.id == *named_area {
+                    sea_passages.add_passage(target_area_entity);
                 }
             }
         }

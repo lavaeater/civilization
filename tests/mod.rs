@@ -57,6 +57,7 @@ pub fn setup_player(
     app.world_mut().entity_mut(player).insert((
         TokenStock::new(47, tokens.clone()),
         CityTokenStock::new(9, city_tokens.clone()),
+        PlayerShips::default(),
     ));
     (player, tokens, city_tokens)
 }

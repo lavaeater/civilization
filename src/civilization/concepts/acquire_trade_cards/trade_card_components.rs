@@ -149,7 +149,7 @@ impl PlayerTradeCards {
         commodities.sort_by_key(|(_commodity, value)| *value);
         let top = commodities.last().map(|(commodity, _value)| *commodity);
         let bottom = commodities.first().map(|(commodity, _value)| *commodity);
-        top.and_then(|top| bottom.map(|bottom| (top, bottom)))
+        top.zip(bottom)
     }
 
     pub fn top_commodity(&self) -> Option<TradeCard> {
@@ -210,6 +210,27 @@ impl PlayerTradeCards {
     /// Returns the total value of all commodity card stacks (count² × face_value for each)
     pub fn total_stack_value(&self) -> usize {
         self.commodity_card_suites().values().sum()
+    }
+
+    /// Mining card bonus (rule 28.53): the holder may increase the face value of
+    /// one commodity card set by 1. The best set to boost is the one with the
+    /// highest count, since the bonus = count² × 1.
+    pub fn mining_bonus(&self) -> usize {
+        self.commodity_cards()
+            .values()
+            .map(|&count| count * count)
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// Total stack value, optionally including the Mining bonus.
+    pub fn total_stack_value_with_mining(&self, has_mining: bool) -> usize {
+        let base = self.total_stack_value();
+        if has_mining {
+            base + self.mining_bonus()
+        } else {
+            base
+        }
     }
 
     /// Returns true if the player has any tradeable calamity cards

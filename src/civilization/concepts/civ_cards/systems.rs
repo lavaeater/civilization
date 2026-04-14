@@ -1,8 +1,8 @@
 use crate::civilization::{
-    AvailableCivCards, BackToCardSelection, CardHandle, CivCardDefinition, CivCardPurchasePhase,
-    CivCardSelectionState, CivCardType, CivCardsAcquisition, CivTradeUi, ConfirmCivCardPurchase,
-    Credits, PaymentAdjustButton, PaymentSelectionPanel, PaymentState, PaymentValueDisplay,
-    PlayerAcquiringCivilizationCards, PlayerCivilizationCards,
+    AvailableCivCards, BackToCardSelection, CardHandle, CivCardDefinition, CivCardName,
+    CivCardPurchasePhase, CivCardSelectionState, CivCardType, CivCardsAcquisition, CivTradeUi,
+    ConfirmCivCardPurchase, Credits, PaymentAdjustButton, PaymentSelectionPanel, PaymentState,
+    PaymentValueDisplay, PlayerAcquiringCivilizationCards, PlayerCivilizationCards,
     PlayerDoneAcquiringCivilizationCards, ProceedToPayment, RefreshCivCardsUi, SelectedCardsSummary,
     ToggleCivCardSelection,
 };
@@ -127,8 +127,9 @@ fn build_civ_cards_ui(
                 .row_gap_px(6.0)
                 .border_radius_all_px(6.0);
 
-            // Player's buying power
-            let total_value = player_trade_cards.total_stack_value();
+            // Player's buying power (Mining card increases best stack's face value by 1)
+            let has_mining = player_cards.owns(&CivCardName::Mining);
+            let total_value = player_trade_cards.total_stack_value_with_mining(has_mining);
             sidebar.with_child(|info| {
                 info.display_flex()
                     .flex_column()
@@ -660,7 +661,7 @@ pub fn player_is_done(
         }
     }
     if civ_cards_acquisition.is_empty() {
-        next_state.set(GameActivity::PopulationExpansion);
+        next_state.set(GameActivity::MoveSuccessionMarkers);
     }
 }
 

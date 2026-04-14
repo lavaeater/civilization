@@ -101,11 +101,19 @@ impl Population {
     }
 
     pub fn max_expansion_for_player(&self, player: Entity) -> usize {
+        self.max_expansion_for_player_with_agriculture(player, false)
+    }
+
+    /// Like `max_expansion_for_player`, but grants +1 in areas solely occupied
+    /// by this player if they hold Agriculture (rule 26.11).
+    pub fn max_expansion_for_player_with_agriculture(&self, player: Entity, has_agriculture: bool) -> usize {
         if let Some(player_tokens) = self.player_tokens.get(&player) {
+            let solely_occupied = self.player_tokens.len() == 1;
+            let agriculture_bonus = if has_agriculture && solely_occupied { 1 } else { 0 };
             match player_tokens.len() {
                 0 => 0,
-                1 => 1,
-                _ => 2,
+                1 => 1 + agriculture_bonus,
+                _ => 2 + agriculture_bonus,
             }
         } else {
             0

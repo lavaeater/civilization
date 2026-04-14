@@ -22,6 +22,7 @@ impl Plugin for CivilizationPlugin {
         // Use DebugOptions::test_manual_pop_exp() to test manual population expansion
         app.insert_resource(DebugOptions::default())
         .register_type::<Player>()
+        .register_type::<BarbarianToken>()
         .register_type::<Token>()
         .register_type::<LandPassage>()
         .register_type::<TokenStock>()
@@ -39,6 +40,9 @@ impl Plugin for CivilizationPlugin {
         .register_type::<Volcano>()
         .register_type::<CityFlood>()
         .register_type::<NeedsConnections>()
+        .register_type::<SeaPassage>()
+        .register_type::<OpenSea>()
+        .register_type::<AstPosition>()
         .register_type::<StartArea>()
         .register_type::<Census>()
         .register_type::<PlayerTradeCards>()
@@ -51,6 +55,9 @@ impl Plugin for CivilizationPlugin {
             (print_names_of_phases.run_if(in_state(GameState::Playing)),),
         )
         .add_plugins((
+            TaxationPlugin,
+            ShipsPlugin,
+            SuccessionPlugin,
             PopulationExpansionPlugin,
             CensusPlugin,
             MovementPlugin,
@@ -117,20 +124,20 @@ pub struct DebugOptions {
 impl Default for DebugOptions {
     fn default() -> Self {
         Self {
-            add_human_player: true,
+            add_human_player: false,
             human_faction: GameFaction::Assyria,
             human_always_pulls_trade_cards: false,
             ai_always_pulls_trade_cards: false,
             human_starts_with_trade_cards: false,
-            auto_trading: false,
+            auto_trading: true,
             print_selected_moves: true,
             log_selected_moves: false,
-            number_of_players: 7,
+            number_of_players: 8,
             start_at_activity: None,
             human_token_count: None,
             human_starting_areas: None,
             specific_state_name: None,
-            ai_move_delay_secs: 0.1,
+            ai_move_delay_secs: 0.01,
             show_debug_ui: true,
             human_trade_cards: None,
             human_civ_cards: None,
@@ -143,7 +150,7 @@ impl DebugOptions {
     /// This gives the human player limited tokens and multiple populated areas.
     pub fn test_civ_cards() -> Self {
         Self {
-            add_human_player: true,
+            add_human_player: false,
             human_faction: GameFaction::Assyria,
             human_always_pulls_trade_cards: false,
             ai_always_pulls_trade_cards: false,
