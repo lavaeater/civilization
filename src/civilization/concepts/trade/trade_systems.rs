@@ -729,8 +729,12 @@ fn commodity_color(card: &TradeCard) -> Color {
 pub fn cleanup_trade_phase_ui(
     mut commands: Commands,
     trade_ui_query: Query<Entity, With<TradePhaseUiRoot>>,
+    open_offers_query: Query<Entity, With<OpenTradeOffer>>,
 ) {
     for entity in trade_ui_query.iter() {
+        commands.entity(entity).despawn();
+    }
+    for entity in open_offers_query.iter() {
         commands.entity(entity).despawn();
     }
 }
@@ -2758,6 +2762,78 @@ pub fn ai_accept_trade_offers(
                 );
                 break; // Only accept one offer per frame
             }
+        }
+    }
+}
+
+/// Finalize fully-settled OpenTradeOffer entities: exchange cards and despawn.
+/// Called every frame; each offer is processed exactly once.
+pub fn finalize_settled_open_offers(
+    mut commands: Commands,
+    settled_offers: Query<(Entity, &OpenTradeOffer)>,
+    mut command_writer: MessageWriter<SendTradingCardsCommand>,
+) {
+    for (offer_entity, offer) in settled_offers.iter() {
+        if !offer.is_settled() {
+            continue;
+        }
+        let Some(acceptor) = offer.accepted_by else {
+            continue;
+        };
+        let Some(creator_cards) = &offer.creator_actual_cards else {
+            continue;
+        };
+        let Some(acceptor_cards) = &offer.acceptor_actual_cards else {
+            continue;
+        };
+
+        // Creator sends their cards to acceptor
+        command_writer.write(SendTradingCardsCommand::new(
+            offer.creator,
+            acceptor,
+            creator_cards.clone(),
+        ));
+        // Acceptor sends their cards to creator
+        command_writer.write(SendTradingCardsCommand::new(
+            acceptor,
+            offer.creator,
+            acceptor_cards.clone(),
+        ));
+
+        debug!(
+            "Finalized trade between {} and {}",
+            offer.creator_name,
+            offer.accepted_by_name.as_deref().unwrap_or("?")
+        );
+        commands.entity(offer_entity).despawn();
+    }
+}
+
+/// Remove CanTrade from AI players once they have no pending offers.
+/// Waits until 5 seconds have elapsed in the trade phase (countdown drops below 85)
+/// to give `ai_create_trade_offers` time to fire before concluding.
+pub fn ai_stop_trading_when_ready(
+    mut commands: Commands,
+    ai_players: Query<Entity, (With<CanTrade>, Without<IsHuman>)>,
+    offers: Query<&OpenTradeOffer>,
+    trade_phase_state: Res<TradePhaseState>,
+) {
+    // Wait until 5 seconds of the phase have elapsed
+    if trade_phase_state.countdown_seconds > 85.0 {
+        return;
+    }
+
+    for ai_entity in ai_players.iter() {
+        // Only block on offers that have been accepted but aren't fully settled yet.
+        // Unaccepted offers don't prevent the player from stopping — they'll be cleaned
+        // up on phase exit.
+        let has_pending = offers.iter().any(|o| {
+            o.is_settling()
+                && (o.creator == ai_entity || o.accepted_by == Some(ai_entity))
+        });
+
+        if !has_pending {
+            commands.entity(ai_entity).remove::<CanTrade>();
         }
     }
 }
