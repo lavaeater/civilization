@@ -132,7 +132,7 @@ impl Default for DebugOptions {
             auto_trading: false,
             print_selected_moves: true,
             log_selected_moves: false,
-            number_of_players: 7,
+            number_of_players: 8,
             start_at_activity: None,
             human_token_count: None,
             human_starting_areas: None,
