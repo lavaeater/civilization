@@ -75,8 +75,7 @@ pub fn enter_ship_construction(
         player_query.iter_mut()
     {
         let ships_on_board = player_ships.total_ships_on_board();
-        let total_fleet = ships_on_board + ship_stock.count_in_stock();
-        if total_fleet >= ShipStock::MAX_SHIPS {
+        if ships_on_board >= ShipStock::MAX_SHIPS {
             continue;
         }
 
@@ -85,7 +84,7 @@ pub fn enter_ship_construction(
             continue;
         }
 
-        let max_buildable = ShipStock::MAX_SHIPS - total_fleet;
+        let max_buildable = ShipStock::MAX_SHIPS - ships_on_board;
 
         if is_human {
             // Gather areas with player tokens (preferring coastal ones).
