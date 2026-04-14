@@ -124,12 +124,12 @@ pub struct DebugOptions {
 impl Default for DebugOptions {
     fn default() -> Self {
         Self {
-            add_human_player: true,
+            add_human_player: false,
             human_faction: GameFaction::Assyria,
             human_always_pulls_trade_cards: false,
             ai_always_pulls_trade_cards: false,
             human_starts_with_trade_cards: false,
-            auto_trading: false,
+            auto_trading: true,
             print_selected_moves: true,
             log_selected_moves: false,
             number_of_players: 8,
@@ -137,7 +137,7 @@ impl Default for DebugOptions {
             human_token_count: None,
             human_starting_areas: None,
             specific_state_name: None,
-            ai_move_delay_secs: 0.1,
+            ai_move_delay_secs: 0.01,
             show_debug_ui: true,
             human_trade_cards: None,
             human_civ_cards: None,
@@ -150,7 +150,7 @@ impl DebugOptions {
     /// This gives the human player limited tokens and multiple populated areas.
     pub fn test_civ_cards() -> Self {
         Self {
-            add_human_player: true,
+            add_human_player: false,
             human_faction: GameFaction::Assyria,
             human_always_pulls_trade_cards: false,
             ai_always_pulls_trade_cards: false,
