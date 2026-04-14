@@ -149,7 +149,7 @@ impl PlayerTradeCards {
         commodities.sort_by_key(|(_commodity, value)| *value);
         let top = commodities.last().map(|(commodity, _value)| *commodity);
         let bottom = commodities.first().map(|(commodity, _value)| *commodity);
-        top.and_then(|top| bottom.map(|bottom| (top, bottom)))
+        top.zip(bottom)
     }
 
     pub fn top_commodity(&self) -> Option<TradeCard> {
