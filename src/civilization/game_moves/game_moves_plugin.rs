@@ -3,7 +3,7 @@ use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::game_moves::game_moves_systems::*;
 use crate::civilization::game_moves::game_moves_triggers::*;
 use crate::GameActivity;
-use bevy::prelude::{in_state, App, IntoScheduleConfigs, Plugin, Update};
+use bevy::prelude::{in_state, App, IntoScheduleConfigs, Plugin, SystemCondition, Update};
 use crate::civilization::concepts::{recalculate_civ_card_moves_for_player, recalculate_trade_moves_for_player};
 
 pub struct GameMovesPlugin;
