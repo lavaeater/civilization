@@ -1,4 +1,4 @@
-use crate::civilization::components::{PlayerAreas, SeaPassage, TokenStock, Treasury};
+use crate::civilization::components::{GameArea, PlayerAreas, SeaPassage, TokenStock, Treasury};
 use crate::civilization::concepts::ships::ship_components::{PlayerShips, Ship, ShipStock};
 use crate::civilization::concepts::ships::ship_ui_components::{
     AwaitingShipPlacement, ShipConstructionState,
@@ -34,6 +34,7 @@ pub fn enter_ship_construction(
         With<Player>,
     >,
     sea_passage_query: Query<Has<SeaPassage>>,
+    area_transform_query: Query<&Transform, With<GameArea>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
     mut ship_state: ResMut<ShipConstructionState>,
@@ -119,12 +120,16 @@ pub fn enter_ship_construction(
                 token_stock.remove_token_from_stock();
             }
 
+            let area_pos = area_transform_query
+                .get(area)
+                .map(|t| t.translation.truncate())
+                .unwrap_or_default();
             commands.entity(ship_entity).insert((
                 Sprite {
                     image: textures.ship.clone(),
                     ..Default::default()
                 },
-                Transform::from_xyz(0.0, 0.0, 2.0),
+                Transform::from_xyz(area_pos.x, area_pos.y, 2.0),
             ));
 
             player_ships.place_ship(area, ship_entity);
@@ -149,6 +154,7 @@ pub fn advance_ship_construction(
         (&Name, &mut ShipStock, &mut PlayerShips, &mut Treasury, &mut TokenStock),
         With<Player>,
     >,
+    area_transform_query: Query<&Transform, With<GameArea>>,
     mut ship_state: ResMut<ShipConstructionState>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
@@ -180,12 +186,16 @@ pub fn advance_ship_construction(
                     break;
                 }
 
+                let area_pos = area_transform_query
+                    .get(area)
+                    .map(|t| t.translation.truncate())
+                    .unwrap_or_default();
                 commands.entity(ship_entity).insert((
                     Sprite {
                         image: textures.ship.clone(),
                         ..Default::default()
                     },
-                    Transform::from_xyz(0.0, 0.0, 2.0),
+                    Transform::from_xyz(area_pos.x, area_pos.y, 2.0),
                 ));
 
                 player_ships.place_ship(area, ship_entity);

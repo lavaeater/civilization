@@ -3,6 +3,7 @@ use bevy::ui_widgets::Activate;
 use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
 
 use crate::civilization::components::GameArea;
+use crate::civilization::concepts::map::CameraFocusQueue;
 use crate::civilization::concepts::ships::ship_ui_components::*;
 use crate::stupid_ai::IsHuman;
 
@@ -34,7 +35,7 @@ pub fn spawn_ship_construction_ui(
     // Title
     ui.add_text_child(
         "Ship Construction",
-        Some(TextStyle::size_color(22.0, Color::srgb(0.4, 0.8, 1.0))),
+        Some(TextStyle::size_color(16.0, Color::srgb(0.4, 0.8, 1.0))),
     );
 
     // Count row: [−] N ships (max N) [+]
@@ -43,69 +44,69 @@ pub fn spawn_ship_construction_ui(
         ship_state.max_buildable
     );
     ui.add_row(|row| {
-        row.align_items_center().gap_px(12.0);
+        row.align_items_center().gap_px(8.0);
 
         row.add_button_observe(
             "−",
-            |btn| { btn.size_px(36.0, 36.0); },
+            |btn| { btn.size_px(26.0, 26.0); },
             |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.decrement(); },
         );
 
         row.with_child(|c| {
             c.component::<ShipCountText>()
-                .with_text(initial_count, Some(TextStyle::size(18.0)))
-                .width_px(160.0);
+                .with_text(initial_count, Some(TextStyle::size(14.0)))
+                .width_px(130.0);
         });
 
         row.add_button_observe(
             "+",
-            |btn| { btn.size_px(36.0, 36.0); },
+            |btn| { btn.size_px(26.0, 26.0); },
             |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.increment(); },
         );
     });
 
     // Slot row: [◄] Ship N/N [►]
     ui.add_row(|row| {
-        row.align_items_center().gap_px(8.0);
+        row.align_items_center().gap_px(6.0);
 
         row.add_button_observe(
             "◄",
-            |btn| { btn.size_px(28.0, 28.0); },
+            |btn| { btn.size_px(22.0, 22.0); },
             |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.prev_slot(); },
         );
 
         row.with_child(|c| {
             c.component::<ShipSlotText>()
-                .with_text("—", Some(TextStyle::size(16.0)))
-                .width_px(80.0);
+                .with_text("—", Some(TextStyle::size(13.0)))
+                .width_px(70.0);
         });
 
         row.add_button_observe(
             "►",
-            |btn| { btn.size_px(28.0, 28.0); },
+            |btn| { btn.size_px(22.0, 22.0); },
             |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.next_slot(); },
         );
     });
 
     // Area row: [<] area name [>]
     ui.add_row(|row| {
-        row.align_items_center().gap_px(8.0);
+        row.align_items_center().gap_px(6.0);
 
         row.add_button_observe(
             "<",
-            |btn| { btn.size_px(32.0, 32.0); },
+            |btn| { btn.size_px(24.0, 24.0); },
             |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.prev_area(); },
         );
 
         row.with_child(|c| {
             c.component::<ShipAreaText>()
-                .with_text("no area", Some(TextStyle::size(18.0)))
-                .width_px(180.0);
+                .with_text("no area", Some(TextStyle::size(14.0)))
+                .width_px(150.0);
         });
 
         row.add_button_observe(
             ">",
-            |btn| { btn.size_px(32.0, 32.0); },
+            |btn| { btn.size_px(24.0, 24.0); },
             |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.next_area(); },
         );
     });
@@ -113,7 +114,7 @@ pub fn spawn_ship_construction_ui(
     // Confirm button — removes the waiting marker to unblock the advance system
     ui.add_button_observe(
         "Confirm",
-        |btn| { btn.size_px(160.0, 40.0); },
+        |btn| { btn.size_px(120.0, 30.0); },
         |_: On<Activate>,
          mut commands: Commands,
          ship_state: Res<ShipConstructionState>,
@@ -187,6 +188,48 @@ pub fn update_ship_construction_ui(
         } else {
             **t = "No areas available".to_string();
         }
+    }
+}
+
+/// Draw a gizmo highlight on the area currently selected for ship placement.
+pub fn draw_ship_construction_highlight(
+    mut gizmos: Gizmos,
+    ship_state: Res<ShipConstructionState>,
+    area_transforms: Query<&Transform, With<GameArea>>,
+) {
+    if ship_state.ships_to_build == 0 {
+        return;
+    }
+    if let Some(area) = ship_state.current_area()
+        && let Ok(transform) = area_transforms.get(area)
+    {
+        let pos = transform.translation.truncate();
+        gizmos.circle_2d(pos, 35.0, Color::srgb(0.3, 0.7, 1.0));
+        gizmos.circle_2d(pos, 38.0, Color::srgb(0.3, 0.7, 1.0));
+    }
+}
+
+/// Move the camera to focus on the currently selected ship placement area when
+/// the selection changes.
+pub fn focus_camera_on_ship_area(
+    ship_state: Res<ShipConstructionState>,
+    area_transforms: Query<&Transform, With<GameArea>>,
+    mut focus_queue: ResMut<CameraFocusQueue>,
+) {
+    if !ship_state.is_changed() {
+        return;
+    }
+    if ship_state.ships_to_build == 0 {
+        return;
+    }
+    if let Some(area) = ship_state.current_area()
+        && let Ok(transform) = area_transforms.get(area)
+    {
+        focus_queue.add_focus(
+            transform.translation,
+            0.5,
+            "ship construction area",
+        );
     }
 }
 

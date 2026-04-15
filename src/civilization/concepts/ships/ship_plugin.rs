@@ -7,7 +7,8 @@ use crate::civilization::concepts::ships::ship_ui_components::{
     AwaitingShipPlacement, ShipConstructionState,
 };
 use crate::civilization::concepts::ships::ship_ui_systems::{
-    despawn_ship_construction_ui, spawn_ship_construction_ui, update_ship_construction_ui,
+    despawn_ship_construction_ui, draw_ship_construction_highlight, focus_camera_on_ship_area,
+    spawn_ship_construction_ui, update_ship_construction_ui,
 };
 use crate::GameActivity;
 use bevy::app::{App, Plugin};
@@ -31,6 +32,8 @@ impl Plugin for ShipsPlugin {
                     spawn_ship_construction_ui,
                     update_ship_construction_ui,
                     despawn_ship_construction_ui,
+                    draw_ship_construction_highlight,
+                    focus_camera_on_ship_area,
                     advance_ship_construction,
                 )
                     .run_if(in_state(GameActivity::ShipConstruction)),
