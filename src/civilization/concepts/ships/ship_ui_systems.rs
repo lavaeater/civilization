@@ -28,14 +28,15 @@ pub fn spawn_ship_construction_ui(
         .display_flex()
         .flex_column()
         .align_items_center()
-        .padding_all_px(12.0)
-        .gap_px(8.0)
-        .bg_color(Color::srgba(0.05, 0.1, 0.2, 0.93));
+        .padding_all_px(8.0)
+        .gap_px(4.0)
+        .bg_color(Color::srgba(0.05, 0.1, 0.2, 0.93))
+        .z_index(10);
 
     // Title
     ui.add_text_child(
         "Ship Construction",
-        Some(TextStyle::size_color(16.0, Color::srgb(0.4, 0.8, 1.0))),
+        Some(TextStyle::size_color(13.0, Color::srgb(0.4, 0.8, 1.0))),
     );
 
     // Count row: [−] N ships (max N) [+]
@@ -44,69 +45,69 @@ pub fn spawn_ship_construction_ui(
         ship_state.max_buildable
     );
     ui.add_row(|row| {
-        row.align_items_center().gap_px(8.0);
+        row.align_items_center().gap_px(6.0);
 
         row.add_button_observe(
             "−",
-            |btn| { btn.size_px(26.0, 26.0); },
+            |btn| { btn.size_px(22.0, 22.0).font_size(12.0); },
             |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.decrement(); },
         );
 
         row.with_child(|c| {
             c.component::<ShipCountText>()
-                .with_text(initial_count, Some(TextStyle::size(14.0)))
-                .width_px(130.0);
+                .with_text(initial_count, Some(TextStyle::size(12.0)))
+                .width_px(120.0);
         });
 
         row.add_button_observe(
             "+",
-            |btn| { btn.size_px(26.0, 26.0); },
+            |btn| { btn.size_px(22.0, 22.0).font_size(12.0); },
             |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.increment(); },
         );
     });
 
     // Slot row: [◄] Ship N/N [►]
     ui.add_row(|row| {
-        row.align_items_center().gap_px(6.0);
+        row.align_items_center().gap_px(4.0);
 
         row.add_button_observe(
             "◄",
-            |btn| { btn.size_px(22.0, 22.0); },
+            |btn| { btn.size_px(20.0, 20.0).font_size(11.0); },
             |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.prev_slot(); },
         );
 
         row.with_child(|c| {
             c.component::<ShipSlotText>()
-                .with_text("—", Some(TextStyle::size(13.0)))
-                .width_px(70.0);
+                .with_text("—", Some(TextStyle::size(12.0)))
+                .width_px(65.0);
         });
 
         row.add_button_observe(
             "►",
-            |btn| { btn.size_px(22.0, 22.0); },
+            |btn| { btn.size_px(20.0, 20.0).font_size(11.0); },
             |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.next_slot(); },
         );
     });
 
     // Area row: [<] area name [>]
     ui.add_row(|row| {
-        row.align_items_center().gap_px(6.0);
+        row.align_items_center().gap_px(4.0);
 
         row.add_button_observe(
             "<",
-            |btn| { btn.size_px(24.0, 24.0); },
+            |btn| { btn.size_px(22.0, 22.0).font_size(12.0); },
             |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.prev_area(); },
         );
 
         row.with_child(|c| {
             c.component::<ShipAreaText>()
-                .with_text("no area", Some(TextStyle::size(14.0)))
-                .width_px(150.0);
+                .with_text("no area", Some(TextStyle::size(12.0)))
+                .width_px(140.0);
         });
 
         row.add_button_observe(
             ">",
-            |btn| { btn.size_px(24.0, 24.0); },
+            |btn| { btn.size_px(22.0, 22.0).font_size(12.0); },
             |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.next_area(); },
         );
     });
@@ -114,7 +115,7 @@ pub fn spawn_ship_construction_ui(
     // Confirm button — removes the waiting marker to unblock the advance system
     ui.add_button_observe(
         "Confirm",
-        |btn| { btn.size_px(120.0, 30.0); },
+        |btn| { btn.size_px(110.0, 28.0).font_size(12.0); },
         |_: On<Activate>,
          mut commands: Commands,
          ship_state: Res<ShipConstructionState>,
