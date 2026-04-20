@@ -1,3 +1,4 @@
+use crate::GameActivity;
 use crate::civilization::components::{
     GameArea, PlayerAreas, Population, ReturnTokenToStock, SeaPassage, Treasury,
 };
@@ -8,7 +9,6 @@ use crate::civilization::concepts::ships::ship_ui_components::{
 use crate::loading::TextureAssets;
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
-use crate::GameActivity;
 use bevy::prelude::{
     Commands, Entity, Has, Name, NextState, Query, Res, ResMut, Sprite, Transform, With, info,
 };
@@ -70,14 +70,12 @@ pub fn enter_ship_construction(
                 false
             };
 
-            if !paid {
-                if let Some(ship_entity) = player_ships.remove_ship_from_area(area) {
-                    ship_stock.return_ship(ship_entity);
-                    info!(
-                        "[SHIPS] {} cannot maintain ship at {:?} — returned to stock",
-                        name, area
-                    );
-                }
+            if !paid && let Some(ship_entity) = player_ships.remove_ship_from_area(area) {
+                ship_stock.return_ship(ship_entity);
+                info!(
+                    "[SHIPS] {} cannot maintain ship at {:?} — returned to stock",
+                    name, area
+                );
             }
         }
     }
@@ -88,8 +86,15 @@ pub fn enter_ship_construction(
     // (rule 22.2). Levied tokens are returned to stock.
     //
     // TODO: sort by census order; Military holders go last (rule 22.11).
-    for (player_entity, name, mut ship_stock, mut player_ships, mut treasury, player_areas, is_human) in
-        player_query.iter_mut()
+    for (
+        player_entity,
+        name,
+        mut ship_stock,
+        mut player_ships,
+        mut treasury,
+        player_areas,
+        is_human,
+    ) in player_query.iter_mut()
     {
         let ships_on_board = player_ships.total_ships_on_board();
         if ships_on_board >= ShipStock::MAX_SHIPS {
@@ -131,7 +136,10 @@ pub fn enter_ship_construction(
             ship_state.populate(player_entity, available_areas, max_buildable);
             commands.entity(player_entity).insert(AwaitingShipPlacement);
             human_needs_input = true;
-            info!("[SHIPS] Human player {:?} entering ship construction UI", player_entity);
+            info!(
+                "[SHIPS] Human player {:?} entering ship construction UI",
+                player_entity
+            );
         } else {
             // AI: prefer a coastal area, fall back to any area.
             let candidate_area = player_areas
@@ -151,7 +159,9 @@ pub fn enter_ship_construction(
                 continue;
             }
 
-            let Some(ship_entity) = ship_stock.take_ship() else { continue };
+            let Some(ship_entity) = ship_stock.take_ship() else {
+                continue;
+            };
 
             // Pay: prefer treasury, levy the remainder from the area.
             let from_treasury = treasury_tokens.min(2);
@@ -159,13 +169,12 @@ pub fn enter_ship_construction(
             for _ in 0..from_treasury {
                 treasury.remove_token_from_treasury();
             }
-            if from_levy > 0 {
-                if let Ok(mut pop) = area_pop_query.get_mut(area) {
-                    if let Some(levied) = pop.remove_tokens_from_area(&player_entity, from_levy) {
-                        for token in levied {
-                            commands.entity(token).insert(ReturnTokenToStock);
-                        }
-                    }
+            if from_levy > 0
+                && let Ok(mut pop) = area_pop_query.get_mut(area)
+                && let Some(levied) = pop.remove_tokens_from_area(&player_entity, from_levy)
+            {
+                for token in levied {
+                    commands.entity(token).insert(ReturnTokenToStock);
                 }
             }
 
@@ -184,8 +193,12 @@ pub fn enter_ship_construction(
             player_ships.place_ship(area, ship_entity);
             info!(
                 "[SHIPS] {} builds a ship at {:?} (treasury: {}, levy: {}) (fleet: {}/{})",
-                name, area, from_treasury, from_levy,
-                player_ships.total_ships_on_board(), ShipStock::MAX_SHIPS
+                name,
+                area,
+                from_treasury,
+                from_levy,
+                player_ships.total_ships_on_board(),
+                ShipStock::MAX_SHIPS
             );
         }
     }
@@ -200,10 +213,7 @@ pub fn enter_ship_construction(
 /// choices (from `ShipConstructionState`) and transitions to `Movement`.
 pub fn advance_ship_construction(
     waiting: Query<Entity, With<AwaitingShipPlacement>>,
-    mut player_query: Query<
-        (&Name, &mut ShipStock, &mut PlayerShips, &mut Treasury),
-        With<Player>,
-    >,
+    mut player_query: Query<(&Name, &mut ShipStock, &mut PlayerShips, &mut Treasury), With<Player>>,
     area_transform_query: Query<&Transform, With<GameArea>>,
     mut area_pop_query: Query<&mut Population, With<GameArea>>,
     mut ship_state: ResMut<ShipConstructionState>,
@@ -223,7 +233,9 @@ pub fn advance_ship_construction(
         {
             let areas = ship_state.take_result(); // drains + clears resource
             for area in areas {
-                let Some(ship_entity) = ship_stock.take_ship() else { break };
+                let Some(ship_entity) = ship_stock.take_ship() else {
+                    break;
+                };
 
                 // Pay 2 tokens: treasury first, levy the remainder from the area.
                 let treasury_tokens = treasury.tokens_in_treasury();
@@ -243,13 +255,12 @@ pub fn advance_ship_construction(
                 for _ in 0..from_treasury {
                     treasury.remove_token_from_treasury();
                 }
-                if from_levy > 0 {
-                    if let Ok(mut pop) = area_pop_query.get_mut(area) {
-                        if let Some(levied) = pop.remove_tokens_from_area(&player_entity, from_levy) {
-                            for token in levied {
-                                commands.entity(token).insert(ReturnTokenToStock);
-                            }
-                        }
+                if from_levy > 0
+                    && let Ok(mut pop) = area_pop_query.get_mut(area)
+                    && let Some(levied) = pop.remove_tokens_from_area(&player_entity, from_levy)
+                {
+                    for token in levied {
+                        commands.entity(token).insert(ReturnTokenToStock);
                     }
                 }
 
@@ -268,8 +279,12 @@ pub fn advance_ship_construction(
                 player_ships.place_ship(area, ship_entity);
                 info!(
                     "[SHIPS] {} builds ship at {:?} (treasury: {}, levy: {}) (fleet: {}/{})",
-                    name, area, from_treasury, from_levy,
-                    player_ships.total_ships_on_board(), ShipStock::MAX_SHIPS
+                    name,
+                    area,
+                    from_treasury,
+                    from_levy,
+                    player_ships.total_ships_on_board(),
+                    ShipStock::MAX_SHIPS
                 );
             }
         }
@@ -283,14 +298,7 @@ pub fn advance_ship_construction(
 /// Spawns the initial ship entities (stock) for a player during game setup.
 pub fn create_ship_stock(commands: &mut Commands, player: Entity) -> (ShipStock, PlayerShips) {
     let ship_entities: Vec<Entity> = (0..ShipStock::MAX_SHIPS)
-        .map(|_| {
-            commands
-                .spawn((
-                    Name::new("Ship"),
-                    Ship::new(player),
-                ))
-                .id()
-        })
+        .map(|_| commands.spawn((Name::new("Ship"), Ship::new(player))).id())
         .collect();
 
     (ShipStock::new(ship_entities), PlayerShips::default())
