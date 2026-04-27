@@ -135,6 +135,7 @@ pub fn spawn_city_construction_controls_ui(
                     ..default()
                 },
                 BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.9)),
+                ZIndex(10),
             ))
             .with_children(|parent| {
                 // Title

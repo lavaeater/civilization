@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use lava_ui_builder::{UIBuilder, LavaTheme, TextStyle};
+use bevy::ui::ZIndex;
 
 use crate::civilization::components::{
     BuiltCity, Faction, GameArea, GameCamera, Population,
@@ -45,6 +46,8 @@ fn spawn_area_info_markers(
 
     ui.insert(AreaInfoRoot)
         .insert(Name::new("area_info_root"))
+        .insert(ZIndex(1))
+        .insert(Pickable::IGNORE)
         .set_node(Node {
             position_type: PositionType::Absolute,
             width: Val::Percent(100.0),

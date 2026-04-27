@@ -124,7 +124,7 @@ pub struct DebugOptions {
 impl Default for DebugOptions {
     fn default() -> Self {
         Self {
-            add_human_player: false,
+            add_human_player: true,
             human_faction: GameFaction::Assyria,
             human_always_pulls_trade_cards: false,
             ai_always_pulls_trade_cards: false,

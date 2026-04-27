@@ -38,6 +38,7 @@ pub fn spawn_calamity_selection_ui(
                 ..default()
             },
             BackgroundColor(Color::srgba(0.1, 0.05, 0.15, 0.93)),
+            ZIndex(10),
         ))
         .with_children(|parent| {
             // Title row: "CIVIL DISORDER — Select 3 cities to reduce"
@@ -367,6 +368,7 @@ pub fn spawn_civil_war_selection_ui(
                 ..default()
             },
             BackgroundColor(Color::srgba(0.1, 0.05, 0.05, 0.93)),
+            ZIndex(10),
         ))
         .with_children(|parent| {
             // Title
@@ -684,6 +686,7 @@ pub fn spawn_monotheism_selection_ui(
         .align_items_center()
         .padding_all_px(10.0)
         .gap_px(8.0)
+        .z_index(10)
         .bg_color(Color::srgba(0.05, 0.1, 0.15, 0.93));
 
     // Title

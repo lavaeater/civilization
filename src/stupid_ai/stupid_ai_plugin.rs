@@ -1,7 +1,7 @@
 use crate::stupid_ai::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{Plugin, Update};
-use bevy::prelude::{App, IntoScheduleConfigs, in_state};
+use bevy::prelude::{App, IntoScheduleConfigs, in_state, SystemCondition};
 
 pub struct StupidAiPlugin;
 
@@ -18,7 +18,10 @@ impl Plugin for StupidAiPlugin {
                     select_stupid_pop_exp.run_if(in_state(GameActivity::PopulationExpansion)),
                     select_stupid_movement.run_if(in_state(GameActivity::Movement)),
                     select_stupid_city_building.run_if(in_state(GameActivity::CityConstruction)),
-                    select_stupid_city_elimination.run_if(in_state(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation)),
+                    select_stupid_city_elimination.run_if(
+                        in_state(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation)
+                            .or(in_state(GameActivity::CheckCitySupportAfterResolveCalamities)),
+                    ),
                     select_stupid_trade_move.run_if(in_state(GameActivity::Trade)),
                     select_stupid_civ_card_move
                         .run_if(in_state(GameActivity::AcquireCivilizationCards)),

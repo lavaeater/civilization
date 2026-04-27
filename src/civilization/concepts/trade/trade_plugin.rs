@@ -72,6 +72,8 @@ impl Plugin for TradePlugin {
                     ai_create_trade_offers,
                     ai_accept_trade_offers,
                     ai_settle_trades,
+                    finalize_settled_open_offers,
+                    ai_stop_trading_when_ready,
                 )
                     .run_if(in_state(GameActivity::Trade)),
             )
