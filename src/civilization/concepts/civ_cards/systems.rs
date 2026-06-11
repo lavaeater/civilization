@@ -7,6 +7,7 @@ use crate::civilization::{
     ToggleCivCardSelection,
 };
 use crate::civilization::concepts::acquire_trade_cards::{CivilizationTradeCards, PlayerTradeCards, TradeCardTrait};
+use crate::civilization::game_moves::RecalculatePlayerMoves;
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
@@ -597,20 +598,23 @@ pub fn handle_payment_adjust(
 
 pub fn process_civ_card_purchase(
     mut purchase_reader: MessageReader<ConfirmCivCardPurchase>,
-    mut player_query: Query<(&mut PlayerCivilizationCards, &mut PlayerTradeCards)>,
+    mut player_query: Query<(&mut PlayerCivilizationCards, &mut PlayerTradeCards, Has<IsHuman>)>,
     mut trade_cards_resource: ResMut<CivilizationTradeCards>,
     mut selection_state: ResMut<CivCardSelectionState>,
     mut done_writer: MessageWriter<PlayerDoneAcquiringCivilizationCards>,
+    mut recalc_writer: MessageWriter<RecalculatePlayerMoves>,
     mut commands: Commands,
     ui_query: Query<Entity, With<CivTradeUi>>,
 ) {
     for purchase in purchase_reader.read() {
-        if let Ok((mut player_cards, mut player_trade_cards)) = player_query.get_mut(purchase.player) {
+        if let Ok((mut player_cards, mut player_trade_cards, is_human)) =
+            player_query.get_mut(purchase.player)
+        {
             // Add civilization cards to player
             for card_name in &purchase.cards_to_buy {
                 player_cards.add_card(*card_name);
             }
-            
+
             // Remove trade cards used for payment and return to piles
             for (trade_card, count) in &purchase.payment {
                 if player_trade_cards.remove_n_trade_cards(*count, *trade_card).is_some() {
@@ -623,18 +627,49 @@ pub fn process_civ_card_purchase(
                     }
                 }
             }
-            
+
             // Clear selection state
             selection_state.clear();
-            
+
             // Despawn UI
             for entity in ui_query.iter() {
                 commands.entity(entity).despawn();
             }
-            
-            // Mark player as done
-            done_writer.write(PlayerDoneAcquiringCivilizationCards(purchase.player));
+
+            if is_human {
+                // Human flow batches its purchases into a single confirm, then is
+                // done. (The human can re-open and buy again if they choose.)
+                done_writer.write(PlayerDoneAcquiringCivilizationCards(purchase.player));
+            } else {
+                // AI buys one card per move (rule 31.1 allows one or more per
+                // turn): regenerate the affordable-card move set so the AI can buy
+                // again with its reduced reserve. The loop ends when no card is
+                // affordable (only DoneAcquiringCards remains) or the AI scores
+                // stopping highest — then select_stupid_civ_card_move writes Done.
+                recalc_writer.write(RecalculatePlayerMoves::new(purchase.player));
+            }
         }
+    }
+}
+
+/// Rule 31.71: after finishing civ-card purchases a player may retain at most
+/// eight commodity cards for next turn; the excess (lowest-value first) is
+/// surrendered to the bottom of the appropriate trade-card stacks. Calamity
+/// cards are not counted toward this limit nor surrendered here (rule 31.72 —
+/// they are resolved against the holder elsewhere).
+fn enforce_commodity_retention_limit(
+    trade_cards: &mut PlayerTradeCards,
+    piles: &mut CivilizationTradeCards,
+) {
+    const MAX_RETAINED: usize = 8;
+    let commodity_count: usize = trade_cards.commodity_cards().values().sum();
+    let mut excess = commodity_count.saturating_sub(MAX_RETAINED);
+    while excess > 0 {
+        let Some(card) = trade_cards.remove_worst_commodity() else {
+            break;
+        };
+        piles.card_piles.entry(card.value()).or_default().push(card);
+        excess -= 1;
     }
 }
 
@@ -643,6 +678,8 @@ pub fn player_is_done(
     mut done_reader: MessageReader<PlayerDoneAcquiringCivilizationCards>,
     mut civ_cards_acquisition: ResMut<CivCardsAcquisition>,
     mut next_state: ResMut<NextState<GameActivity>>,
+    mut player_trade_cards: Query<&mut PlayerTradeCards>,
+    mut trade_cards_resource: ResMut<CivilizationTradeCards>,
     ui_query: Query<Entity, With<CivTradeUi>>,
 ) {
     let mut human_done = false;
@@ -650,6 +687,11 @@ pub fn player_is_done(
         commands
             .entity(done.0)
             .remove::<PlayerAcquiringCivilizationCards>();
+        // Enforce the 8-commodity-card retention limit now that this player has
+        // finished acquiring (rule 31.71).
+        if let Ok(mut trade_cards) = player_trade_cards.get_mut(done.0) {
+            enforce_commodity_retention_limit(&mut trade_cards, &mut trade_cards_resource);
+        }
         if civ_cards_acquisition.human_players.remove(&done.0) {
             human_done = true;
         }

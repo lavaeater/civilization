@@ -107,7 +107,7 @@ pub struct SavedPlayer {
     pub ast_space: u32,
 }
 
-fn default_ast_space() -> u32 { 1 }
+fn default_ast_space() -> u32 { 0 }
 
 /// Saved data for population in an area
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -232,7 +232,7 @@ fn handle_save_request(
             city_tokens_in_stock: city_stock.city_tokens_in_stock(),
             trade_cards: trade_cards.cards_as_vec(),
             done_with_current_activity: done,
-            ast_space: ast_pos.map(|p| p.space).unwrap_or(1),
+            ast_space: ast_pos.map(|p| p.space).unwrap_or(0),
         };
         if done {
             info!("  Player {} ({:?}) is DONE with {:?}", name, faction.faction, activity);

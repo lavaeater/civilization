@@ -7,7 +7,8 @@ use crate::civilization::concepts::population_expansion::population_expansion_ev
 use crate::civilization::concepts::population_expansion::population_expansion_systems::{
     auto_expand_population, check_area_population_expansion_eligibility,
     cleanup_pop_exp_highlights, enter_population_expansion, expand_population_manually,
-    handle_pop_exp_area_click, highlight_pop_exp_areas_for_human, population_expansion_gate,
+    handle_pop_exp_area_click, highlight_pop_exp_areas_for_human, log_round_state,
+    population_expansion_gate,
 };
 use crate::civilization::concepts::population_expansion::population_expansion_triggers::on_remove_needs_expansion;
 use crate::GameActivity;
@@ -26,7 +27,7 @@ impl Plugin for PopulationExpansionPlugin {
             .add_message::<CheckGate>()
             .add_systems(
                 OnEnter(GameActivity::PopulationExpansion),
-                enter_population_expansion,
+                (enter_population_expansion, log_round_state).chain(),
             )
             .add_systems(
                 Update,

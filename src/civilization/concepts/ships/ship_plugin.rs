@@ -11,6 +11,7 @@ use crate::civilization::concepts::ships::ship_ui_systems::{
     spawn_ship_construction_ui, update_ship_construction_ui,
 };
 use crate::GameActivity;
+use crate::civilization::camera_auto_pan_enabled;
 use bevy::app::{App, Plugin};
 use bevy::prelude::{in_state, IntoScheduleConfigs, OnEnter, Update};
 
@@ -33,7 +34,7 @@ impl Plugin for ShipsPlugin {
                     update_ship_construction_ui,
                     despawn_ship_construction_ui,
                     draw_ship_construction_highlight,
-                    focus_camera_on_ship_area,
+                    focus_camera_on_ship_area.run_if(camera_auto_pan_enabled),
                     advance_ship_construction,
                 )
                     .run_if(in_state(GameActivity::ShipConstruction)),

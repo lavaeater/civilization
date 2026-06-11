@@ -6,6 +6,7 @@ pub mod menu;
 pub mod player;
 pub mod civilization;
 pub mod stupid_ai;
+pub mod agent_api;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
@@ -56,6 +57,9 @@ pub enum GameActivity {
     CheckCitySupportAfterResolveCalamities,
     AcquireCivilizationCards,
     MoveSuccessionMarkers,
+    /// Terminal state entered when a player reaches a finish square (rule 34.1A).
+    /// Final scoring (rule 35) runs on entry; no phase transitions out of here.
+    GameOver,
 }
 
 pub struct GamePlugin;

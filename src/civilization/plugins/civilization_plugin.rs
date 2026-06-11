@@ -9,9 +9,10 @@ use crate::civilization::triggers::on_add_return_token_to_stock;
 use crate::civilization::CivilizationInputPlugin;
 use crate::player::Player;
 use crate::stupid_ai::*;
+use crate::agent_api::AgentApiPlugin;
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
-use bevy::prelude::{in_state, AppExtStates, IntoScheduleConfigs, OnEnter, Resource};
+use bevy::prelude::{in_state, AppExtStates, IntoScheduleConfigs, OnEnter, Res, Resource};
 
 pub struct CivilizationPlugin;
 
@@ -20,7 +21,7 @@ pub struct CivilizationPlugin;
 impl Plugin for CivilizationPlugin {
     fn build(&self, app: &mut App) {
         // Use DebugOptions::test_manual_pop_exp() to test manual population expansion
-        app.insert_resource(DebugOptions::default())
+        app.insert_resource(DebugOptions::from_env())
         .register_type::<Player>()
         .register_type::<BarbarianToken>()
         .register_type::<Token>()
@@ -79,6 +80,7 @@ impl Plugin for CivilizationPlugin {
             AreaInfoPlugin,
             SaveGamePlugin,
             lava_ui_builder::LavaUiPlugin,
+            AgentApiPlugin,
         ))
         .add_systems(OnEnter(GameActivity::StartGame), start_game)
         .insert_resource(GameInfoAndStuff::default())
@@ -119,6 +121,24 @@ pub struct DebugOptions {
     pub show_debug_ui: bool,
     pub human_trade_cards: Option<Vec<(TradeCard, usize)>>,
     pub human_civ_cards: Option<Vec<CivCardName>>,
+    /// If set, every AI player gets this playstyle instead of the round-robin
+    /// spread over all archetypes (for isolating/testing one personality).
+    pub force_playstyle: Option<Playstyle>,
+    /// Watch mode: keep the whole map framed and suppress all automatic camera
+    /// panning/focusing, so you can watch the AI play without the view jumping
+    /// around. Manual zoom/pan keys still work.
+    pub static_map_view: bool,
+}
+
+/// Run condition: automatic camera panning/focusing is enabled (i.e. not in the
+/// static, whole-map watch mode).
+pub fn camera_auto_pan_enabled(debug: Res<DebugOptions>) -> bool {
+    !debug.static_map_view
+}
+
+/// Run condition: the whole-map watch mode is on.
+pub fn static_map_view_enabled(debug: Res<DebugOptions>) -> bool {
+    debug.static_map_view
 }
 
 impl Default for DebugOptions {
@@ -141,11 +161,41 @@ impl Default for DebugOptions {
             show_debug_ui: true,
             human_trade_cards: None,
             human_civ_cards: None,
+            force_playstyle: None,
+            static_map_view: false,
         }
     }
 }
 
 impl DebugOptions {
+    /// Start from the defaults and apply command-line env overrides:
+    ///
+    /// - `NUM_PLAYERS=<n>` — total number of players (clamped to 1..=9, the number
+    ///   of available factions).
+    /// - `HUMAN_PLAYER=0|false|no` — drop the local human (full self-play); any
+    ///   other value (or unset) keeps the default human player.
+    ///
+    /// Orthogonal to `AGENT_FACTIONS`, which decides which non-human factions are
+    /// agent-controlled. E.g. `NUM_PLAYERS=4 HUMAN_PLAYER=0 AGENT_FACTIONS=all`
+    /// is a 4-player, all-agent game.
+    pub fn from_env() -> Self {
+        let mut opts = Self::default();
+        if let Ok(n) = std::env::var("NUM_PLAYERS")
+            && let Ok(n) = n.trim().parse::<usize>()
+        {
+            opts.number_of_players = n.clamp(1, 9);
+        }
+        if let Ok(v) = std::env::var("HUMAN_PLAYER") {
+            let v = v.trim();
+            opts.add_human_player = !matches!(v, "0" | "false" | "no" | "off");
+        }
+        if let Ok(v) = std::env::var("STATIC_MAP") {
+            let v = v.trim();
+            opts.static_map_view = !matches!(v, "0" | "false" | "no" | "off");
+        }
+        opts
+    }
+
     /// Create a debug configuration for testing manual population expansion.
     /// This gives the human player limited tokens and multiple populated areas.
     pub fn test_civ_cards() -> Self {
@@ -169,6 +219,8 @@ impl DebugOptions {
             show_debug_ui: false,
             human_trade_cards: Some(vec![(TradeCard::Wine, 4), (TradeCard::Salt, 4)]),
             human_civ_cards: Some(vec![CivCardName::ClothMaking, CivCardName::Mathematics]),
+            force_playstyle: None,
+            static_map_view: false,
         }
     }
 }

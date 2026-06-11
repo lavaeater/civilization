@@ -1,7 +1,7 @@
 use crate::stupid_ai::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{Plugin, Update};
-use bevy::prelude::{App, IntoScheduleConfigs, in_state, SystemCondition};
+use bevy::prelude::{App, IntoScheduleConfigs, in_state, OnEnter, SystemCondition};
 
 pub struct StupidAiPlugin;
 
@@ -9,7 +9,13 @@ impl Plugin for StupidAiPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<StupidAiMessage>()
             .add_message::<SelectStupidMove>()
+            .register_type::<Personality>()
             .init_resource::<AiMoveQueue>()
+            .init_resource::<MovementLoopGuard>()
+            .add_systems(
+                OnEnter(GameActivity::Movement),
+                reset_movement_loop_guard,
+            )
             .add_systems(
                 Update,
                 (

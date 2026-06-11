@@ -1,4 +1,4 @@
-use crate::civilization::components::{BuiltCity, PlayerCities, TokenStock, Treasury};
+use crate::civilization::components::{BuiltCity, CityToken, PlayerCities, TokenStock};
 use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::ReturnCityToStock;
 use crate::civilization::concepts::taxation::taxation_components::{
@@ -79,16 +79,13 @@ pub fn collect_taxes(
         &Name,
         &NeedsToPayTaxes,
         &mut TokenStock,
-        &mut Treasury,
         &mut PlayerCities,
         Has<PlayerCivilizationCards>,
     )>,
     civ_cards_query: Query<&PlayerCivilizationCards>,
     mut commands: Commands,
 ) {
-    for (player_entity, name, needs_to_pay, mut stock, mut treasury, cities, _) in
-        player_query.iter_mut()
-    {
+    for (player_entity, name, needs_to_pay, mut stock, cities, _) in player_query.iter_mut() {
         let tokens_owed = needs_to_pay.tokens_owed;
         let has_democracy = civ_cards_query
             .get(player_entity)
@@ -100,7 +97,11 @@ pub fn collect_taxes(
             let to_pay = tokens_owed.min(stock.tokens_in_stock());
             if let Some(tokens) = stock.remove_at_most_n_tokens_from_stock(to_pay) {
                 for token in tokens {
-                    treasury.add_token_to_treasury(token);
+                    // Taxes return to the player's own stock (the supply), not a
+                    // hoarded treasury — treasury tokens are the same finite pool
+                    // and accumulating them there starves expansion. The solvency
+                    // check / revolt logic below is the meaningful part.
+                    stock.return_token_to_stock(token);
                 }
             }
             info!(
@@ -116,21 +117,35 @@ pub fn collect_taxes(
             // Full payment.
             if let Some(tokens) = stock.remove_tokens_from_stock(tokens_owed) {
                 for token in tokens {
-                    treasury.add_token_to_treasury(token);
+                    // Taxes return to the player's own stock (the supply), not a
+                    // hoarded treasury — treasury tokens are the same finite pool
+                    // and accumulating them there starves expansion. The solvency
+                    // check / revolt logic below is the meaningful part.
+                    stock.return_token_to_stock(token);
                 }
             }
             info!("[TAXATION] {} pays {} tokens in full", name, tokens_owed);
             commands.entity(player_entity).remove::<NeedsToPayTaxes>();
         } else {
-            // Partial payment — pay an even number of tokens (each city costs 2).
-            // Cities that cannot be paid for will revolt.
-            let affordable_cities = stock_count / 2;
-            let to_pay = affordable_cities * 2;
-            let cities_in_revolt = cities.number_of_cities() - affordable_cities;
+            // Partial payment. Each city costs `rate` tokens — normally 2, but a
+            // Coinage holder may have set 1 or 3 (rule 19.2), so derive the actual
+            // per-city rate from the obligation rather than assuming 2. Cap the
+            // affordable count at the number of cities so the revolt count can't
+            // underflow (a rate-3 holder with stock between 2× and 3× cities would
+            // otherwise compute stock/2 > cities).
+            let num_cities = cities.number_of_cities();
+            let rate = tokens_owed.checked_div(num_cities).unwrap_or(2).max(1);
+            let affordable_cities = (stock_count / rate).min(num_cities);
+            let to_pay = affordable_cities * rate;
+            let cities_in_revolt = num_cities - affordable_cities;
 
             if let Some(tokens) = stock.remove_at_most_n_tokens_from_stock(to_pay) {
                 for token in tokens {
-                    treasury.add_token_to_treasury(token);
+                    // Taxes return to the player's own stock (the supply), not a
+                    // hoarded treasury — treasury tokens are the same finite pool
+                    // and accumulating them there starves expansion. The solvency
+                    // check / revolt logic below is the meaningful part.
+                    stock.return_token_to_stock(token);
                 }
             }
 
@@ -224,11 +239,16 @@ pub fn resolve_revolts(
                     "[TAXATION] Revolting city {:?} taken over by {:?}",
                     revolting_city, new_owner
                 );
-                // Update the BuiltCity component on the city entity to reflect new owner.
+                // Update the BuiltCity *and* the CityToken to reflect the new
+                // owner. Leaving CityToken stale points later owner lookups
+                // (e.g. eliminate_city, conflict resolution) at the previous
+                // owner, which silently no-ops and can spin the city-support
+                // phase forever.
                 commands
                     .entity(revolting_city)
                     .remove::<CityInRevolt>()
-                    .insert(BuiltCity::new(revolting_city, new_owner));
+                    .insert(BuiltCity::new(revolting_city, new_owner))
+                    .insert(CityToken::new(new_owner));
 
                 // Remove the city from the original owner's record and add to new owner.
                 if let Some(area) = area_opt {
@@ -390,6 +410,24 @@ mod tests {
         let cities_in_revolt = city_count - affordable_cities; // 3
 
         assert_eq!(cities_in_revolt, 3);
+    }
+
+    #[test]
+    fn coinage_rate_3_partial_payment_does_not_underflow() {
+        // 5 cities at Coinage rate 3 owe 15 tokens; with 12 in stock the player
+        // can't pay in full. Affordable = 12/3 = 4 cities (capped at 5), so 1
+        // revolts. The old code used a hard-coded /2 (12/2 = 6 > 5 cities) and
+        // underflowed `cities - affordable` -> panic.
+        let num_cities = 5usize;
+        let rate = 3usize;
+        let tokens_owed = num_cities * rate; // 15
+        let stock_count = 12usize;
+        assert!(stock_count < tokens_owed);
+
+        let affordable_cities = (stock_count / rate).min(num_cities);
+        let cities_in_revolt = num_cities - affordable_cities;
+        assert_eq!(affordable_cities, 4);
+        assert_eq!(cities_in_revolt, 1);
     }
 
     #[test]

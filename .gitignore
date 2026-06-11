@@ -3,3 +3,7 @@ target/
 .DS_Store
 
 dist/
+
+# Python
+__pycache__/
+*.pyc

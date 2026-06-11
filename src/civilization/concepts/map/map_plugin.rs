@@ -2,6 +2,7 @@ use crate::civilization::components::{CityFlood, CitySite, FloodPlain, GameArea,
 use crate::civilization::concepts::map::camera_focus::{process_camera_focus, CameraFocusQueue};
 use crate::civilization::enums::GameFaction;
 use crate::civilization::general_systems::setup_players;
+use crate::civilization::{camera_auto_pan_enabled, static_map_view_enabled};
 use crate::civilization::start_game_after_player_setup;
 use crate::loading::TextureAssets;
 use crate::{GameActivity, GameState};
@@ -29,9 +30,32 @@ impl Plugin for MapPlugin {
                 (
                     fit_map_camera_on_resize,
                     handle_map_camera_controls,
-                    process_camera_focus,
+                    // Auto-focusing is suppressed in static-map watch mode.
+                    process_camera_focus.run_if(camera_auto_pan_enabled),
+                    // ...and the whole map is re-framed each frame instead.
+                    keep_full_map_view.run_if(static_map_view_enabled),
                 ).run_if(in_state(GameState::Playing)),
             );
+    }
+}
+
+/// In static-map watch mode, keep the entire map framed every frame: re-centre the
+/// camera and refit the projection, overriding any panning that slipped through.
+fn keep_full_map_view(
+    map_view: Option<Res<MapViewConfig>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut camera: Query<(&mut Projection, &mut Transform), With<GameCamera>>,
+) {
+    let Some(map_view) = map_view else {
+        return;
+    };
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let window_size = Vec2::new(window.resolution.width(), window.resolution.height());
+    if let Ok((mut projection, mut transform)) = camera.single_mut() {
+        transform.translation = map_view.map_center;
+        fit_camera_to_map(map_view.map_size, window_size, &mut projection);
     }
 }
 

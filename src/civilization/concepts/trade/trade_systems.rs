@@ -17,7 +17,11 @@ use crate::civilization::game_moves::{
 use crate::civilization::{
     AvailableCivCards, CivCardName, PlayerCivilizationCards, TradeCardTrait, TradePhaseUiRoot,
 };
-use crate::stupid_ai::IsHuman;
+use crate::stupid_ai::{
+    accepts_calamity_offload, offer_creation_chance, stop_trading_threshold, trade_accept_margin,
+    IsHuman, Personality,
+};
+use rand::RngExt;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
@@ -2572,7 +2576,7 @@ pub fn despawn_settlement_modal(
 /// AI creates trade offers based on their cards and needs
 pub fn ai_create_trade_offers(
     mut commands: Commands,
-    ai_players: Query<(Entity, &Name, &PlayerTradeCards, &CanTrade), Without<IsHuman>>,
+    ai_players: Query<(Entity, &Name, &PlayerTradeCards, &CanTrade, &Personality), Without<IsHuman>>,
     existing_offers: Query<&OpenTradeOffer>,
     time: Res<Time>,
     mut ai_offer_timer: Local<f32>,
@@ -2584,7 +2588,14 @@ pub fn ai_create_trade_offers(
     }
     *ai_offer_timer = 0.0;
 
-    for (ai_entity, ai_name, ai_cards, _) in ai_players.iter() {
+    let mut rng = rand::rng();
+    for (ai_entity, ai_name, ai_cards, _, personality) in ai_players.iter() {
+        // Personality gate: eager traders flood the table with offers, reluctant
+        // ones mostly sit the phase out.
+        if rng.random::<f32>() > offer_creation_chance(&personality.weights) {
+            continue;
+        }
+
         // Check if AI already has an active offer
         let has_active_offer = existing_offers
             .iter()
@@ -2691,10 +2702,10 @@ pub fn ai_create_trade_offers(
 /// AI accepts trade offers that benefit them.
 /// Criteria: The trade must either increase the AI's total stack value OR enable trading away a calamity.
 pub fn ai_accept_trade_offers(
-    ai_players: Query<(Entity, &Name, &PlayerTradeCards, &CanTrade, Option<&PlayerCivilizationCards>), Without<IsHuman>>,
+    ai_players: Query<(Entity, &Name, &PlayerTradeCards, &CanTrade, &Personality, Option<&PlayerCivilizationCards>), Without<IsHuman>>,
     mut offers: Query<(Entity, &mut OpenTradeOffer)>,
 ) {
-    for (ai_entity, ai_name, ai_cards, _, ai_civ_cards) in ai_players.iter() {
+    for (ai_entity, ai_name, ai_cards, _, personality, ai_civ_cards) in ai_players.iter() {
         let has_mining = ai_civ_cards.map(|c| c.owns(&CivCardName::Mining)).unwrap_or(false);
         for (_offer_entity, mut offer) in offers.iter_mut() {
             // Skip if we can't accept
@@ -2749,8 +2760,13 @@ pub fn ai_accept_trade_offers(
             let can_trade_away_calamity =
                 ai_cards.has_tradeable_calamity() && offer.wanting_hidden_count > 0;
 
-            // Accept if: trade increases stack value OR enables trading away a calamity
-            if new_stack_value > current_stack_value || can_trade_away_calamity {
+            // Accept if the trade clears this personality's profit margin, or it lets
+            // a calamity-averse player dump a calamity card.
+            let margin = trade_accept_margin(&personality.weights);
+            let profitable = new_stack_value as f32 > current_stack_value as f32 + margin;
+            let dump_calamity =
+                can_trade_away_calamity && accepts_calamity_offload(&personality.weights);
+            if profitable || dump_calamity {
                 offer.accept(ai_entity, ai_name.to_string());
                 debug!(
                     "{} accepted trade offer from {} (value: {} -> {}, calamity: {})",
@@ -2814,16 +2830,17 @@ pub fn finalize_settled_open_offers(
 /// to give `ai_create_trade_offers` time to fire before concluding.
 pub fn ai_stop_trading_when_ready(
     mut commands: Commands,
-    ai_players: Query<Entity, (With<CanTrade>, Without<IsHuman>)>,
+    ai_players: Query<(Entity, &Personality), (With<CanTrade>, Without<IsHuman>)>,
     offers: Query<&OpenTradeOffer>,
     trade_phase_state: Res<TradePhaseState>,
 ) {
-    // Wait until 5 seconds of the phase have elapsed
-    if trade_phase_state.countdown_seconds > 85.0 {
-        return;
-    }
+    for (ai_entity, personality) in ai_players.iter() {
+        // Each personality keeps trading for a different slice of the phase: eager
+        // traders hold out near the end, reluctant ones bail almost immediately.
+        if trade_phase_state.countdown_seconds > stop_trading_threshold(&personality.weights) {
+            continue;
+        }
 
-    for ai_entity in ai_players.iter() {
         // Only block on offers that have been accepted but aren't fully settled yet.
         // Unaccepted offers don't prevent the player from stopping — they'll be cleaned
         // up on phase exit.

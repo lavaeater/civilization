@@ -64,6 +64,7 @@ lava_ui_builder = { path = "lava_ui_builder" }
 bevy_enhanced_input = "0.23.2"
 bevy_prototype_lyon = "0.16.0"
 enumflags2 = {version =  "0.7.12", features = ["serde"] }
+tiny_http = "0.12"
 
 [build-dependencies]
 embed-resource = "1"

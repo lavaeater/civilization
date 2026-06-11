@@ -1754,17 +1754,107 @@ pub fn advance_civil_war(
                     continue;
                 };
 
-                // Return non-transferred tokens from victim's selection back to stock
-                for &token in state.victim_selected_units.iter()
-                    .filter(|t| !state.beneficiary_selected_units.contains(t))
-                {
-                    commands.entity(token).insert(ReturnTokenToStock);
+                // Civil-war token rule (clarified): NO population token ever
+                // changes owner. ALL of the victim's selected tokens go back to
+                // the victim's own stock; the ones the beneficiary "takes" are
+                // *replaced* in place by the beneficiary's own tokens drawn from
+                // the beneficiary's stock.
+                //
+                // The previous code reassigned `Token::player` to the beneficiary
+                // and left the token in the victim's Population/PlayerAreas, which
+                // created ghost tokens (owner != location), corrupting the token
+                // pool and stalling later phases.
+                let victim = player_entity;
+
+                // Capture each selected token's current area from the victim's
+                // PlayerAreas before we mutate anything.
+                let mut token_area: bevy::platform::collections::HashMap<Entity, Entity> =
+                    bevy::platform::collections::HashMap::default();
+                for (area, tokens) in victim_areas.areas_and_population() {
+                    for t in tokens {
+                        token_area.insert(t, area);
+                    }
                 }
 
-                // Transfer tokens to beneficiary
-                for &token in &state.beneficiary_selected_units {
-                    commands.entity(token).insert(Token::new(beneficiary));
-                }
+                let all_selected = state.victim_selected_units.clone();
+                let taken = state.beneficiary_selected_units.clone();
+                let returned_count = all_selected.len();
+                let replaced_count = taken.len();
+
+                commands.queue(move |world: &mut World| {
+                    use bevy::platform::collections::{HashMap, HashSet};
+                    let mut touched: HashSet<Entity> = HashSet::default();
+
+                    // 1. Return every selected victim token to the victim's stock:
+                    //    off the board (area Population + victim PlayerAreas), drop
+                    //    visuals, back into stock. Owner stays the victim throughout.
+                    for &token in &all_selected {
+                        if let Some(&area) = token_area.get(&token) {
+                            if let Some(mut pop) = world.get_mut::<Population>(area) {
+                                pop.remove_token_from_area(victim, token);
+                            }
+                            touched.insert(area);
+                        }
+                        if let Some(mut pa) = world.get_mut::<PlayerAreas>(victim) {
+                            pa.remove_token(token);
+                        }
+                        if let Some(mut stock) = world.get_mut::<TokenStock>(victim) {
+                            stock.return_token_to_stock(token);
+                        }
+                        world
+                            .entity_mut(token)
+                            .remove::<(Sprite, Transform, Visibility)>();
+                    }
+
+                    // 2. Replace the taken tokens with the beneficiary's own
+                    //    tokens from stock, in the same areas.
+                    let ben_texture = world
+                        .get::<Faction>(beneficiary)
+                        .map(|f| f.faction)
+                        .and_then(|f| {
+                            world
+                                .get_resource::<crate::civilization::concepts::map::map_plugin::AvailableFactions>()
+                                .and_then(|af| af.faction_icons.get(&f).cloned())
+                        });
+
+                    let mut per_area: HashMap<Entity, usize> = HashMap::default();
+                    for &token in &taken {
+                        if let Some(&area) = token_area.get(&token) {
+                            *per_area.entry(area).or_insert(0) += 1;
+                        }
+                    }
+                    for (area, count) in per_area {
+                        let area_pos = world
+                            .get::<Transform>(area)
+                            .map(|t| t.translation)
+                            .unwrap_or_default();
+                        for _ in 0..count {
+                            let ben_token = world
+                                .get_mut::<TokenStock>(beneficiary)
+                                .and_then(|mut s| s.remove_token_from_stock());
+                            let Some(ben_token) = ben_token else { break };
+                            if let Some(mut pop) = world.get_mut::<Population>(area) {
+                                pop.add_token_to_area(beneficiary, ben_token);
+                            }
+                            if let Some(mut pa) = world.get_mut::<PlayerAreas>(beneficiary) {
+                                pa.add_token_to_area(area, ben_token);
+                            }
+                            let mut e = world.entity_mut(ben_token);
+                            if let Some(tex) = ben_texture.clone() {
+                                e.insert((
+                                    Sprite { image: tex, ..default() },
+                                    Transform::from_scale(Vec3::splat(0.25))
+                                        .with_translation(area_pos),
+                                ));
+                            }
+                        }
+                        touched.insert(area);
+                    }
+
+                    for area in touched {
+                        world.entity_mut(area).insert(FixTokenPositions);
+                    }
+                });
 
                 // Cities: transfer victim's selected cities to beneficiary
                 for &area in &state.beneficiary_selected_cities {
@@ -1778,7 +1868,10 @@ pub fn advance_civil_war(
                     commands.entity(area).insert(ReduceCity);
                 }
 
-                info!("[CIVIL_WAR] Transfer complete");
+                info!(
+                    "[CIVIL_WAR] Transfer complete: {} victim tokens returned to stock, {} replaced by beneficiary",
+                    returned_count, replaced_count
+                );
                 state.phase = CivilWarPhase::Complete;
             }
             CivilWarPhase::Complete => {
@@ -2274,7 +2367,7 @@ pub fn transfer_city_to_new_owner(
                 b_cities.build_city_in_area(area_entity, new_city);
                 commands
                     .entity(area_entity)
-                    .insert(BuiltCity::new(new_owner, new_city));
+                    .insert(BuiltCity::new(new_city, new_owner));
                 info!("[CALAMITIES] City transferred to {:?}", new_owner);
             } else {
                 info!(

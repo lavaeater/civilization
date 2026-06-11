@@ -15,8 +15,8 @@ use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
 use bevy::prelude::{
     debug, default, info, ButtonInput, Camera, Commands, Entity, GlobalTransform, Has,
-    MessageReader, MessageWriter, MouseButton, NextState, Query, Res, ResMut, Sprite, Transform,
-    Vec3, Window, With, Without,
+    MessageReader, MessageWriter, MouseButton, Name, NextState, Query, Res, ResMut, Sprite,
+    Transform, Vec3, Window, With, Without,
 };
 use bevy::window::PrimaryWindow;
 
@@ -40,6 +40,78 @@ pub fn check_area_population_expansion_eligibility(
                     commands.entity(event.player).insert(ExpandManually);
                 }
             }
+        }
+    }
+}
+
+/// Per-round diagnostic dump. Runs at the top of every round so late-game stalls
+/// (e.g. players stuck on the A.S.T. with no cities) can be reasoned about from the
+/// log alone: city count, supportable cities, total population, stock, treasury and
+/// A.S.T. position for each player.
+pub fn log_round_state(
+    game_info: Res<GameInfoAndStuff>,
+    player_query: Query<(
+        Entity,
+        &Name,
+        &PlayerCities,
+        &PlayerAreas,
+        &TokenStock,
+        &Treasury,
+        Option<&crate::civilization::concepts::succession::AstPosition>,
+    )>,
+    token_query: Query<&Token>,
+    area_pop_query: Query<(Entity, &Population, Option<&Name>), With<GameArea>>,
+) {
+    // Ground-truth token count per owner, straight from the Token entities. This is
+    // the conservation check: stock + on-board + treasury *should* equal this, and
+    // it should stay constant (47/player) all game. A drop means tokens are leaking;
+    // a mismatch with PlayerAreas means PlayerAreas has drifted out of sync.
+    let mut owned_tokens: bevy::platform::collections::HashMap<Entity, usize> =
+        bevy::platform::collections::HashMap::default();
+    for token in token_query.iter() {
+        *owned_tokens.entry(token.player()).or_insert(0) += 1;
+    }
+
+    info!("[STATE] ───── Round {} ─────", game_info.round);
+    for (entity, name, cities, areas, stock, treasury, ast) in player_query.iter() {
+        let n_cities = cities.number_of_cities();
+        let total_pop = areas.total_population();
+        let supportable = total_pop / 2; // each city needs 2 population (rule)
+        let (space, epoch) = ast
+            .map(|p| (p.space as i64, p.epoch().name()))
+            .unwrap_or((-1, "—"));
+        let real_tokens = owned_tokens.get(&entity).copied().unwrap_or(0);
+        let stock_n = stock.tokens_in_stock();
+        let treasury_n = treasury.tokens_in_treasury();
+        // accounted = what we can see (board + reserve + paid taxes); should == real_tokens.
+        let accounted = total_pop + stock_n + treasury_n;
+
+        // Cross-check the board: sum this player's tokens straight from each area's
+        // Population, and flag areas where Population and PlayerAreas disagree. This
+        // localises the desync to a specific area (we suspect city areas).
+        let mut board_pop = 0usize;
+        let mut mismatches: Vec<String> = Vec::new();
+        for (area_entity, population, area_name) in area_pop_query.iter() {
+            let in_pop = population.population_for_player(entity);
+            let in_pa = areas.population_in_area(area_entity);
+            board_pop += in_pop;
+            if in_pop != in_pa {
+                let label = area_name
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| format!("{area_entity:?}"));
+                mismatches.push(format!("{label}(pop={in_pop},pa={in_pa})"));
+            }
+        }
+
+        info!(
+            "[STATE] {name}: AST sp{space} ({epoch}) | cities={n_cities} (supportable={supportable}) \
+             | pa_pop={total_pop} board_pop={board_pop} areas={areas_n} | stock={stock_n} treasury={treasury_n} \
+             | tokens={real_tokens} accounted={accounted}{flag}",
+            areas_n = areas.areas().len(),
+            flag = if accounted != real_tokens { " ⚠DESYNC" } else { "" },
+        );
+        if !mismatches.is_empty() {
+            info!("[STATE]   ↳ area desync for {name}: {}", mismatches.join(", "));
         }
     }
 }

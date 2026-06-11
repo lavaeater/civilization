@@ -1,8 +1,10 @@
 use crate::stupid_ai::*;
+use bevy::platform::collections::HashMap;
 use bevy::prelude::{
-    debug, Commands, Has, MessageReader, MessageWriter, Name, Query, Res,
+    debug, error, warn, Commands, Entity, Has, MessageReader, MessageWriter, Name, Query, Res,
+    ResMut,
 };
-use rand::prelude::{IteratorRandom, SliceRandom};
+use rand::prelude::SliceRandom;
 use crate::civilization::*;
 
 pub fn setup_stupid_ai(mut stupid_ai_event: MessageReader<StupidAiMessage>, mut commands: Commands) {
@@ -13,17 +15,29 @@ pub fn setup_stupid_ai(mut stupid_ai_event: MessageReader<StupidAiMessage>, mut 
 
 pub fn assign_some_foolish_cards() {}
 
+/// Clear the per-player movement selection counts when a new movement phase begins.
+pub fn reset_movement_loop_guard(mut loop_guard: ResMut<MovementLoopGuard>) {
+    loop_guard.counts.clear();
+}
+
 pub fn select_stupid_pop_exp(
     mut event_reader: MessageReader<SelectStupidMove>,
-    player_moves: Query<(&Name, &AvailableMoves, &PlayerAreas)>,
+    player_moves: Query<(&Name, &AvailableMoves, &Personality)>,
+    area_info_query: Query<(Entity, &Population, &LandPassage, Option<&BuiltCity>, Has<CitySite>)>,
     mut expand_writer: MessageWriter<ExpandPopulationManuallyCommand>,
     debug_options: Res<DebugOptions>,
 ) {
     for event in event_reader.read() {
-        if let Ok((player_name, available_moves, _player_areas)) = player_moves.get(event.player) {
-            let available_moves = available_moves.moves.values().collect::<Vec<_>>();
+        if let Ok((player_name, available_moves, personality)) = player_moves.get(event.player) {
+            let areas = gather_area_summaries(event.player, &area_info_query);
+            let scored: Vec<(usize, f32)> = available_moves
+                .moves
+                .iter()
+                .map(|(i, m)| (*i, score_population_expansion(m, &areas, &personality.weights)))
+                .collect();
             let mut rng = rand::rng();
-            if let Some(selected_move) = available_moves.into_iter().choose(&mut rng) {
+            if let Some(chosen) = pick(&scored, personality.picker, &mut rng) {
+                let selected_move = &available_moves.moves[&chosen];
                 if debug_options.print_selected_moves {
                     debug!("{} selects {:#?}", player_name, selected_move);
                 }
@@ -46,31 +60,69 @@ pub fn select_stupid_pop_exp(
 
 pub fn select_stupid_movement(
     mut event_reader: MessageReader<SelectStupidMove>,
-    player_moves: Query<(&Name, &AvailableMoves, &PlayerAreas)>,
+    player_moves: Query<(&Name, &AvailableMoves, &PlayerAreas, &Personality)>,
     mut move_tokens_writer: MessageWriter<MoveTokenFromAreaToAreaCommand>,
     mut ship_ferry_writer: MessageWriter<ShipFerryCommand>,
     mut end_movement_writer: MessageWriter<PlayerMovementEnded>,
-    target_area_info_query: Query<(&Population, Has<BuiltCity>)>,
+    area_info_query: Query<(Entity, &Population, &LandPassage, Option<&BuiltCity>, Has<CitySite>)>,
     debug_options: Res<DebugOptions>,
+    mut loop_guard: ResMut<MovementLoopGuard>,
 ) {
     for event in event_reader.read() {
-        if let Ok((player_name, available_moves, _player_areas)) = player_moves.get(event.player) {
-            let available_moves = available_moves
+        if let Ok((player_name, available_moves, _player_areas, personality)) =
+            player_moves.get(event.player)
+        {
+            let areas = gather_area_summaries(event.player, &area_info_query);
+
+            let scored: Vec<(usize, f32)> = available_moves
                 .moves
-                .values()
-                .filter(|m| match m {
-                    GameMove::Movement(move_ment) => {
-                        let (_population, has_city) =
-                            target_area_info_query.get(move_ment.target).unwrap();
-                        !has_city
-                    }
-                    _ => true,
+                .iter()
+                .map(|(i, m)| {
+                    (
+                        *i,
+                        score_movement(m, event.player, &areas, &personality.weights),
+                    )
                 })
-                .collect::<Vec<_>>();
+                .collect();
 
             let mut rng = rand::rng();
+            let Some(chosen) = pick(&scored, personality.picker, &mut rng) else {
+                continue;
+            };
+            let selected_move = &available_moves.moves[&chosen];
 
-            if let Some(selected_move) = available_moves.into_iter().choose(&mut rng) {
+            // Loop guard: count consecutive selections this player has made without
+            // ending movement. A no-op move (one the executor silently drops) would
+            // otherwise spin forever under a deterministic picker.
+            let count = loop_guard.counts.entry(event.player).or_insert(0);
+            *count += 1;
+            let count = *count;
+            if count == MovementLoopGuard::WARN_AT {
+                warn!(
+                    "{} has made {} consecutive movement selections without ending. \
+                     Looping move (score {:.3}): {:#?}",
+                    player_name,
+                    count,
+                    scored.iter().find(|(i, _)| *i == chosen).map(|(_, s)| *s).unwrap_or(f32::NAN),
+                    selected_move,
+                );
+            }
+            if count >= MovementLoopGuard::FORCE_END_AT
+                && !matches!(selected_move, GameMove::EndMovement)
+            {
+                error!(
+                    "{} exceeded {} movement selections — forcing end of movement. \
+                     Last move would have been: {:#?}",
+                    player_name,
+                    MovementLoopGuard::FORCE_END_AT,
+                    selected_move,
+                );
+                loop_guard.counts.remove(&event.player);
+                end_movement_writer.write(PlayerMovementEnded::new(event.player));
+                continue;
+            }
+
+            {
                 if debug_options.print_selected_moves {
                     debug!("{} selects {:#?}", player_name, selected_move);
                 }
@@ -90,6 +142,7 @@ pub fn select_stupid_movement(
                         ));
                     }
                     GameMove::EndMovement => {
+                        loop_guard.counts.remove(&event.player);
                         end_movement_writer.write(PlayerMovementEnded::new(event.player));
                     }
                     GameMove::AttackArea(movement_move) => {
@@ -111,18 +164,24 @@ pub fn select_stupid_movement(
 
 pub fn select_stupid_city_building(
     mut event_reader: MessageReader<SelectStupidMove>,
-    player_moves: Query<(&Name, &AvailableMoves, &PlayerAreas)>,
+    player_moves: Query<(&Name, &AvailableMoves, &Personality)>,
+    area_info_query: Query<(Entity, &Population, &LandPassage, Option<&BuiltCity>, Has<CitySite>)>,
     mut build_city_writer: MessageWriter<BuildCityCommand>,
     mut end_player_city_construction: MessageWriter<EndPlayerCityConstruction>,
     debug_options: Res<DebugOptions>,
 ) {
     for event in event_reader.read() {
-        if let Ok((player_name, available_moves, _player_areas)) = player_moves.get(event.player) {
-            let available_moves = available_moves.moves.values().collect::<Vec<_>>();
-
+        if let Ok((player_name, available_moves, personality)) = player_moves.get(event.player) {
+            let areas = gather_area_summaries(event.player, &area_info_query);
+            let scored: Vec<(usize, f32)> = available_moves
+                .moves
+                .iter()
+                .map(|(i, m)| (*i, score_city_construction(m, &areas, &personality.weights)))
+                .collect();
             let mut rng = rand::rng();
 
-            if let Some(selected_move) = available_moves.into_iter().choose(&mut rng) {
+            if let Some(chosen) = pick(&scored, personality.picker, &mut rng) {
+                let selected_move = &available_moves.moves[&chosen];
                 if debug_options.print_selected_moves {
                     debug!("{} selects {:#?}", player_name, selected_move);
                 }
@@ -146,17 +205,23 @@ pub fn select_stupid_city_building(
 
 pub fn select_stupid_city_elimination(
     mut event_reader: MessageReader<SelectStupidMove>,
-    player_moves: Query<(&Name, &AvailableMoves, &PlayerAreas)>,
+    player_moves: Query<(&Name, &AvailableMoves, &Personality)>,
+    area_info_query: Query<(Entity, &Population, &LandPassage, Option<&BuiltCity>, Has<CitySite>)>,
     mut eliminate_city: MessageWriter<EliminateCity>,
     debug_options: Res<DebugOptions>,
 ) {
     for event in event_reader.read() {
-        if let Ok((player_name, available_moves, _player_areas)) = player_moves.get(event.player) {
-            let available_moves = available_moves.moves.values().collect::<Vec<_>>();
-
+        if let Ok((player_name, available_moves, personality)) = player_moves.get(event.player) {
+            let areas = gather_area_summaries(event.player, &area_info_query);
+            let scored: Vec<(usize, f32)> = available_moves
+                .moves
+                .iter()
+                .map(|(i, m)| (*i, score_city_elimination(m, &areas, &personality.weights)))
+                .collect();
             let mut rng = rand::rng();
 
-            if let Some(selected_move) = available_moves.into_iter().choose(&mut rng) {
+            if let Some(chosen) = pick(&scored, personality.picker, &mut rng) {
+                let selected_move = &available_moves.moves[&chosen];
                 if debug_options.print_selected_moves {
                     debug!("{} selects {:#?}", player_name, selected_move);
                 }
@@ -293,7 +358,7 @@ fn _debug_trade_move_info(trade_move: &TradeMove, trade_offer: &TradeOffer) {
 
 pub fn select_stupid_civ_card_move(
     mut event_reader: MessageReader<SelectStupidMove>,
-    player_moves: Query<(&Name, &AvailableMoves)>,
+    player_moves: Query<(&Name, &AvailableMoves, &Personality)>,
     player_cards_query: Query<(&PlayerTradeCards, &PlayerCivilizationCards)>,
     cards: Res<AvailableCivCards>,
     mut done_writer: MessageWriter<PlayerDoneAcquiringCivilizationCards>,
@@ -301,22 +366,50 @@ pub fn select_stupid_civ_card_move(
     debug_options: Res<DebugOptions>,
 ) {
     for event in event_reader.read() {
-        if let Ok((player_name, available_moves)) = player_moves.get(event.player) {
-            let civ_moves: Vec<_> = available_moves
+        if let Ok((player_name, available_moves, personality)) = player_moves.get(event.player) {
+            // Player wealth + existing credits, used to score each card option.
+            let (wealth, credits) = match player_cards_query.get(event.player) {
+                Ok((trade_cards, civ_cards)) => (
+                    trade_cards.total_stack_value() as u32,
+                    cards.total_credits(&civ_cards.cards),
+                ),
+                Err(_) => (0, Vec::new()),
+            };
+
+            let scored: Vec<(usize, f32)> = available_moves
                 .moves
-                .values()
-                .filter_map(|m| match m {
-                    GameMove::AcquireCivilizationCards(civ_move) => Some(civ_move),
+                .iter()
+                .filter_map(|(i, m)| match m {
+                    GameMove::AcquireCivilizationCards(civ_move) => {
+                        let option = match civ_move {
+                            AcquireCivilizationCardsMove::AcquireCard(name) => cards
+                                .cards
+                                .iter()
+                                .find(|c| c.name == *name)
+                                .map(|def| CivCardOption {
+                                    effective_cost: def.calculate_cost(&credits),
+                                    credit_value: civ_card_credit_value(def),
+                                    wealth,
+                                }),
+                            _ => None,
+                        };
+                        Some((*i, score_civ_card(civ_move, option, &personality.weights)))
+                    }
                     _ => None,
                 })
                 .collect();
 
-            if civ_moves.is_empty() {
+            if scored.is_empty() {
                 return;
             }
 
             let mut rng = rand::rng();
-            if let Some(selected_move) = civ_moves.into_iter().choose(&mut rng) {
+            if let Some(chosen) = pick(&scored, personality.picker, &mut rng) {
+                let GameMove::AcquireCivilizationCards(selected_move) =
+                    &available_moves.moves[&chosen]
+                else {
+                    continue;
+                };
                 if debug_options.print_selected_moves {
                     debug!("{} selects {:#?}", player_name, selected_move);
                 }
@@ -353,9 +446,22 @@ pub fn select_stupid_civ_card_move(
     }
 }
 
+/// Sum the credit (future-discount) value a civ card hands out, regardless of which
+/// card type / card it applies to — a coarse proxy for "how much tech synergy".
+fn civ_card_credit_value(def: &CivCardDefinition) -> u32 {
+    def.credits
+        .iter()
+        .map(|credit| match credit {
+            Credits::ToType(_, c) => *c,
+            Credits::ToAll(c) => *c,
+            Credits::ToSpecificCard(_, c) => *c,
+        })
+        .sum()
+}
+
 /// Greedy minimum payment: take stacks sorted by descending face value, using just
 /// enough cards from each to cover `cost`.  Returns a HashMap<TradeCard, count>.
-fn compute_ai_payment(trade_cards: &PlayerTradeCards, cost: usize) -> bevy::platform::collections::HashMap<TradeCard, usize> {
+pub fn compute_ai_payment(trade_cards: &PlayerTradeCards, cost: usize) -> bevy::platform::collections::HashMap<TradeCard, usize> {
     let mut payment = bevy::platform::collections::HashMap::default();
     let mut remaining = cost;
 
@@ -388,6 +494,33 @@ fn compute_ai_payment(trade_cards: &PlayerTradeCards, cost: usize) -> bevy::plat
     payment
 }
 
+/// Flatten every area into an [`AreaSummary`] keyed by area entity, from `player`'s
+/// point of view (my_pop vs enemy_pop). Gathered once per movement decision so the
+/// scoring functions stay pure.
+fn gather_area_summaries(
+    player: Entity,
+    area_info_query: &Query<(Entity, &Population, &LandPassage, Option<&BuiltCity>, Has<CitySite>)>,
+) -> HashMap<Entity, AreaSummary> {
+    let mut areas = HashMap::default();
+    for (entity, population, land_passage, built_city, is_city_site) in area_info_query.iter() {
+        let my_pop = population.population_for_player(player);
+        let enemy_pop = population.total_population() - my_pop;
+        areas.insert(
+            entity,
+            AreaSummary {
+                max_population: population.max_population,
+                is_city_site,
+                has_city: built_city.is_some(),
+                city_is_mine: built_city.map(|c| c.player == player).unwrap_or(false),
+                my_pop,
+                enemy_pop,
+                neighbours: land_passage.to_areas.clone(),
+            },
+        );
+    }
+    areas
+}
+
 fn send_movement_move(
     move_tokens_writer: &mut MessageWriter<MoveTokenFromAreaToAreaCommand>,
     event: &SelectStupidMove,
@@ -395,10 +528,13 @@ fn send_movement_move(
     is_attack: bool,
 ) {
     if is_attack {
+        // Commit the attack with at least one token: keep one back if we can, but
+        // never send a 0-token move (which is a no-op the AI would re-pick forever).
+        let n = movement_move.max_tokens.saturating_sub(1).max(1);
         move_tokens_writer.write(MoveTokenFromAreaToAreaCommand::new(
             movement_move.source,
             movement_move.target,
-            movement_move.max_tokens - 1,
+            n,
             event.player,
         ));
     } else {

@@ -3,7 +3,7 @@ use crate::civilization::concepts::check_city_support::check_city_support_compon
 use crate::civilization::concepts::check_city_support::check_city_support_events::*;
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
 use crate::GameActivity;
-use bevy::prelude::{info, Commands, Entity, MessageReader, MessageWriter, NextState, Query, ResMut, With};
+use bevy::prelude::{error, info, Commands, Entity, MessageReader, MessageWriter, NextState, Query, ResMut, With};
 
 pub fn eliminate_city(
     mut eliminate_city: MessageReader<EliminateCity>,
@@ -18,6 +18,7 @@ pub fn eliminate_city(
         commands
             .entity(eliminate.player)
             .remove::<HasTooManyCities>();
+
         if let Ok(city_token) = city_token.get(eliminate.city)
             && let Ok((mut city_stock, mut player_cities)) =
                 city_token_stock.get_mut(city_token.player)
@@ -34,12 +35,36 @@ pub fn eliminate_city(
                 },
             });
             commands.entity(eliminate.area_entity).remove::<BuiltCity>();
-            player_cities.remove_city_from_area(eliminate.area_entity);
+            let removed = player_cities.remove_city_from_area(eliminate.area_entity);
             city_stock.return_token_to_stock(eliminate.city);
+
+            if removed.is_some() {
+                // Only re-check once the city is actually gone. Doing this
+                // unconditionally would spin forever if the removal is a no-op
+                // (e.g. stale ownership): the player gets re-flagged, regenerates
+                // the same still-present city move, and lands right back here.
+                commands
+                    .entity(eliminate.player)
+                    .insert(NeedsToCheckCitySupport); //Start check all over again to update too many cities thingie!
+            } else {
+                error!(
+                    "[CITY_SUPPORT] eliminate_city resolved the city token but \
+                     area {:?} was not in {:?}'s cities (stale ownership?); \
+                     not re-checking to avoid an infinite loop.",
+                    eliminate.area_entity, city_token.player
+                );
+            }
+        } else {
+            // The move pointed at a city/area/stock we can't resolve. Don't
+            // re-flag the player (that would loop the whole phase forever);
+            // log it loudly so the stale move source can be found and fixed.
+            error!(
+                "[CITY_SUPPORT] eliminate_city could not resolve move \
+                 (player={:?}, city={:?}, area={:?}); dropping it without \
+                 re-checking to avoid an infinite loop.",
+                eliminate.player, eliminate.city, eliminate.area_entity
+            );
         }
-        commands
-            .entity(eliminate.player)
-            .insert(NeedsToCheckCitySupport); //Start check all over again to update too many cities thingie!
     }
 }
 
@@ -81,12 +106,16 @@ pub fn check_player_city_support(
     for (player, cities, areas) in check_city_support_query.iter() {
         let number_of_cities = cities.number_of_cities();
         let required_population = number_of_cities * 2;
+        let total_population = areas.total_population();
 
-        if required_population > areas.total_population() {
-            //debug!("A player has too many cities");
+        if required_population > total_population {
+            info!(
+                "[CITY_SUPPORT] {:?} has too many cities: {} cities need {} population, has {}",
+                player, number_of_cities, required_population, total_population
+            );
             commands.entity(player).insert(HasTooManyCities::new(
-                (required_population - areas.total_population()) / 2,
-                required_population - areas.total_population(),
+                (required_population - total_population) / 2,
+                required_population - total_population,
             ));
         } else {
             commands.entity(player).remove::<HasTooManyCities>();

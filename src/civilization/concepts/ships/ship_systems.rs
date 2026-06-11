@@ -8,7 +8,7 @@ use crate::civilization::concepts::ships::ship_ui_components::{
 };
 use crate::loading::TextureAssets;
 use crate::player::Player;
-use crate::stupid_ai::IsHuman;
+use crate::stupid_ai::{AgentControlled, IsHuman};
 use bevy::prelude::{
     Commands, Entity, Has, Name, NextState, Query, Res, ResMut, Sprite, Transform, With, info,
 };
@@ -32,6 +32,7 @@ pub fn enter_ship_construction(
             &mut Treasury,
             &PlayerAreas,
             Has<IsHuman>,
+            Has<AgentControlled>,
         ),
         With<Player>,
     >,
@@ -48,13 +49,17 @@ pub fn enter_ship_construction(
     // ── Pass 1: Maintenance (rule 22.3) ──────────────────────────────────────
     // Each ship costs 1 token from treasury OR a levy of 1 from the area it
     // occupies. Ships that cannot be paid for are returned to stock.
-    for (player_entity, name, mut ship_stock, mut player_ships, mut treasury, _, _) in
+    for (player_entity, name, mut ship_stock, mut player_ships, mut treasury, _, _, _) in
         player_query.iter_mut()
     {
         let areas_with_ships: Vec<Entity> = player_ships.all_areas_with_ships();
         for area in areas_with_ships {
             let paid = if treasury.tokens_in_treasury() >= 1 {
-                treasury.remove_token_from_treasury();
+                // Treasury tokens are the same finite pool as population tokens —
+                // they must go back to stock, not be dropped, or the pool leaks.
+                if let Some(token) = treasury.remove_token_from_treasury() {
+                    commands.entity(token).insert(ReturnTokenToStock);
+                }
                 true
             } else if let Ok(mut pop) = area_pop_query.get_mut(area) {
                 // Levy 1 token from the area the ship occupies (rule 22.3).
@@ -94,6 +99,7 @@ pub fn enter_ship_construction(
         mut treasury,
         player_areas,
         is_human,
+        is_agent_controlled,
     ) in player_query.iter_mut()
     {
         let ships_on_board = player_ships.total_ships_on_board();
@@ -101,7 +107,11 @@ pub fn enter_ship_construction(
             continue;
         }
 
-        if is_human {
+        // Agent-controlled players are `IsHuman` (so the game waits for them in
+        // interactive phases), but ship construction has no agent endpoint — drive
+        // them down the AI auto-build path rather than the interactive UI, which
+        // only one local human can confirm. See agent-api-design.md.
+        if is_human && !is_agent_controlled {
             // Gather areas with player tokens (preferring coastal ones).
             let mut available_areas: Vec<Entity> = player_areas
                 .areas()
@@ -149,13 +159,18 @@ pub fn enter_ship_construction(
                 .or_else(|| player_areas.areas().into_iter().next());
             let Some(area) = candidate_area else { continue };
 
-            // Check affordability: treasury + area tokens must cover 2.
+            // Check affordability: treasury + area tokens must cover 2. The levy
+            // must leave at least 1 token in the area — never depopulate it for a
+            // ship, or the player wipes out their only city on round 1 (treasury
+            // is empty early, so a naive levy of 2 from a 2-token start area would
+            // empty the board). Only spare tokens above 1 are leviable.
             let treasury_tokens = treasury.tokens_in_treasury();
             let area_tokens = area_pop_query
                 .get(area)
                 .map(|pop| pop.population_for_player(player_entity))
                 .unwrap_or(0);
-            if treasury_tokens + area_tokens < 2 {
+            let spare_area_tokens = area_tokens.saturating_sub(1);
+            if treasury_tokens + spare_area_tokens < 2 {
                 continue;
             }
 
@@ -167,7 +182,10 @@ pub fn enter_ship_construction(
             let from_treasury = treasury_tokens.min(2);
             let from_levy = 2 - from_treasury;
             for _ in 0..from_treasury {
-                treasury.remove_token_from_treasury();
+                // Return spent treasury tokens to stock (same finite pool).
+                if let Some(token) = treasury.remove_token_from_treasury() {
+                    commands.entity(token).insert(ReturnTokenToStock);
+                }
             }
             if from_levy > 0
                 && let Ok(mut pop) = area_pop_query.get_mut(area)
@@ -253,7 +271,10 @@ pub fn advance_ship_construction(
                 let from_treasury = treasury_tokens.min(2);
                 let from_levy = 2 - from_treasury;
                 for _ in 0..from_treasury {
-                    treasury.remove_token_from_treasury();
+                    // Return spent treasury tokens to stock (same finite pool).
+                    if let Some(token) = treasury.remove_token_from_treasury() {
+                        commands.entity(token).insert(ReturnTokenToStock);
+                    }
                 }
                 if from_levy > 0
                     && let Ok(mut pop) = area_pop_query.get_mut(area)

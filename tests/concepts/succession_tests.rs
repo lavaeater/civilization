@@ -1,10 +1,13 @@
 use crate::{setup_bevy_app, setup_player};
-use adv_civ::civilization::{advance_succession_markers, AstPosition, GameFaction, PlayerCities};
+use adv_civ::civilization::{
+    advance_succession_markers, AstPosition, AstTrack, GameFaction, PlayerCities,
+};
 use bevy::app::Update;
 use bevy::prelude::Entity;
 
 fn setup_app() -> bevy::prelude::App {
     setup_bevy_app(|mut app| {
+        app.init_resource::<AstTrack>();
         app.add_systems(Update, advance_succession_markers);
         app
     })
@@ -32,26 +35,27 @@ fn player_advances_in_stone_age_with_one_city() {
     let mut app = setup_app();
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
     add_cities(&mut app, player, 1);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(1));
+    // START (0) → 1, still Stone Age
+    app.world_mut().entity_mut(player).insert(AstPosition::new(0));
 
     app.update();
 
     let pos = app.world().entity(player).get::<AstPosition>().unwrap();
-    assert_eq!(pos.space, 2, "should advance from 1→2 in Stone Age");
+    assert_eq!(pos.space, 1, "should advance from START into Stone Age");
 }
 
 #[test]
 fn player_frozen_at_early_bronze_threshold_with_one_city() {
-    // Space 3→4 enters Early Bronze, requires ≥2 cities
+    // Space 4→5 enters Early Bronze, requires ≥2 cities
     let mut app = setup_app();
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
     add_cities(&mut app, player, 1);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(3));
+    app.world_mut().entity_mut(player).insert(AstPosition::new(4));
 
     app.update();
 
     let pos = app.world().entity(player).get::<AstPosition>().unwrap();
-    assert_eq!(pos.space, 3, "should be frozen at 3 without 2 cities");
+    assert_eq!(pos.space, 4, "should be frozen at 4 without 2 cities");
 }
 
 #[test]
@@ -59,12 +63,12 @@ fn player_enters_early_bronze_with_two_cities() {
     let mut app = setup_app();
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
     add_cities(&mut app, player, 2);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(3));
+    app.world_mut().entity_mut(player).insert(AstPosition::new(4));
 
     app.update();
 
     let pos = app.world().entity(player).get::<AstPosition>().unwrap();
-    assert_eq!(pos.space, 4, "should advance into Early Bronze with 2 cities");
+    assert_eq!(pos.space, 5, "should advance into Early Bronze with 2 cities");
 }
 
 #[test]
@@ -81,29 +85,59 @@ fn player_retreats_when_no_cities() {
 }
 
 #[test]
-fn player_does_not_retreat_below_space_one() {
+fn player_with_no_cities_still_advances_in_stone_age() {
+    // Rule 33.4: the Stone Age has no city requirement, so a city-less marker
+    // advances normally rather than retreating.
     let mut app = setup_app();
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
-    // No cities, already at space 1
-    app.world_mut().entity_mut(player).insert(AstPosition::new(1));
+    // No cities, at START
+    app.world_mut().entity_mut(player).insert(AstPosition::new(0));
 
     app.update();
 
     let pos = app.world().entity(player).get::<AstPosition>().unwrap();
-    assert_eq!(pos.space, 1, "should not go below space 1");
+    assert_eq!(pos.space, 1, "city-less marker advances through the Stone Age");
+}
+
+#[test]
+fn player_with_no_cities_freezes_at_bronze_threshold() {
+    // At space 4 (Stone Age) the next space enters Early Bronze (needs 2 cities).
+    // With no cities the marker cannot advance, but it is in the Stone Age so it
+    // does not retreat either — it freezes.
+    let mut app = setup_app();
+    let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
+    app.world_mut().entity_mut(player).insert(AstPosition::new(4));
+
+    app.update();
+
+    let pos = app.world().entity(player).get::<AstPosition>().unwrap();
+    assert_eq!(pos.space, 4, "city-less marker freezes at the Bronze threshold");
+}
+
+#[test]
+fn finished_marker_stays_at_finish() {
+    let mut app = setup_app();
+    let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
+    add_cities(&mut app, player, 9);
+    app.world_mut().entity_mut(player).insert(AstPosition::new(16));
+
+    app.update();
+
+    let pos = app.world().entity(player).get::<AstPosition>().unwrap();
+    assert_eq!(pos.space, 16, "marker never advances past FINISH (16)");
 }
 
 #[test]
 fn ast_epoch_epoch_boundaries_are_correct() {
-    use adv_civ::civilization::{AstEpoch};
-    assert_eq!(AstEpoch::for_space(1), AstEpoch::StoneAge);
-    assert_eq!(AstEpoch::for_space(3), AstEpoch::StoneAge);
-    assert_eq!(AstEpoch::for_space(4), AstEpoch::EarlyBronze);
-    assert_eq!(AstEpoch::for_space(6), AstEpoch::EarlyBronze);
-    assert_eq!(AstEpoch::for_space(7), AstEpoch::LateBronze);
-    assert_eq!(AstEpoch::for_space(9), AstEpoch::LateBronze);
-    assert_eq!(AstEpoch::for_space(10), AstEpoch::EarlyIron);
-    assert_eq!(AstEpoch::for_space(12), AstEpoch::EarlyIron);
-    assert_eq!(AstEpoch::for_space(13), AstEpoch::LateIron);
-    assert_eq!(AstEpoch::for_space(20), AstEpoch::LateIron);
+    use adv_civ::civilization::AstEpoch;
+    assert_eq!(AstEpoch::for_space(0), AstEpoch::StoneAge);
+    assert_eq!(AstEpoch::for_space(4), AstEpoch::StoneAge);
+    assert_eq!(AstEpoch::for_space(5), AstEpoch::EarlyBronze);
+    assert_eq!(AstEpoch::for_space(7), AstEpoch::EarlyBronze);
+    assert_eq!(AstEpoch::for_space(8), AstEpoch::LateBronze);
+    assert_eq!(AstEpoch::for_space(10), AstEpoch::LateBronze);
+    assert_eq!(AstEpoch::for_space(11), AstEpoch::EarlyIron);
+    assert_eq!(AstEpoch::for_space(13), AstEpoch::EarlyIron);
+    assert_eq!(AstEpoch::for_space(14), AstEpoch::LateIron);
+    assert_eq!(AstEpoch::for_space(16), AstEpoch::LateIron);
 }

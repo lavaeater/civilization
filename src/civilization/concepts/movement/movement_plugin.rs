@@ -1,6 +1,7 @@
 use crate::GameActivity;
+use crate::civilization::camera_auto_pan_enabled;
 use bevy::app::App;
-use bevy::prelude::{in_state, IntoScheduleConfigs, OnEnter, OnExit, Plugin, Update};
+use bevy::prelude::{in_state, IntoScheduleConfigs, OnEnter, OnExit, Plugin, SystemCondition, Update};
 use crate::civilization::concepts::movement::movement_events::*;
 use crate::civilization::concepts::movement::movement_systems::{
     animate_token_movement, execute_ship_ferry, move_tokens_from_area_to_area,
@@ -39,7 +40,8 @@ impl Plugin for MovementPlugin {
                     handle_movement_target_click.run_if(in_state(GameActivity::Movement)),
                     update_token_count_display.run_if(in_state(GameActivity::Movement)),
                     update_source_area_display.run_if(in_state(GameActivity::Movement)),
-                    pan_camera_to_current_source.run_if(in_state(GameActivity::Movement)),
+                    pan_camera_to_current_source
+                        .run_if(in_state(GameActivity::Movement).and(camera_auto_pan_enabled)),
                     cleanup_movement_ui.run_if(in_state(GameActivity::Movement)),
                 ),
             )

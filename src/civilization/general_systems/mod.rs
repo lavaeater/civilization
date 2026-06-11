@@ -83,6 +83,23 @@ pub fn start_game_after_player_setup(mut next_state: ResMut<NextState<GameActivi
     next_state.set(GameActivity::StartGame);
 }
 
+/// Whether a faction should be agent-controlled, from the `AGENT_FACTIONS` env var:
+/// `all` (every non-human player) or a comma-separated, case-insensitive list of
+/// faction names (e.g. `Egypt,Babylon`). Unset/empty = none.
+pub fn faction_is_agent_controlled(faction: GameFaction) -> bool {
+    let Ok(val) = std::env::var("AGENT_FACTIONS") else {
+        return false;
+    };
+    let val = val.trim();
+    if val.eq_ignore_ascii_case("all") {
+        return true;
+    }
+    val.split(',').any(|name| {
+        let name = name.trim();
+        !name.is_empty() && format!("{:?}", faction).eq_ignore_ascii_case(name)
+    })
+}
+
 const ANCIENT_RULERS: &[&str] = &[
     "Ramesses",
     "Cleopatra",
@@ -169,6 +186,11 @@ pub fn setup_players(
 
     for (n, faction) in factions_to_use.into_iter().enumerate() {
         let ruler_name = available_names.pop().unwrap_or("Unknown");
+        // Give each AI a personality: a forced one for testing, else round-robin
+        // over all archetypes so a full table shows every playstyle.
+        let playstyle = debug_options
+            .force_playstyle
+            .unwrap_or(Playstyle::ALL[n % Playstyle::ALL.len()]);
         // Create Player
         let player = commands
             .spawn((
@@ -180,14 +202,23 @@ pub fn setup_players(
                 PlayerAreas::default(),
                 PlayerCities::default(),
                 StupidAi,
+                Personality::from_playstyle(playstyle),
                 PlayerTradeCards::default(),
                 PlayerCivilizationCards::default(),
-                AstPosition::new(1),
+                AstPosition::new(0),
             ))
             .id();
 
         if debug_options.add_human_player && faction == debug_options.human_faction {
             setup_human_player(&debug_options, &mut trade_card_resource, &mut commands, player);
+        } else if faction_is_agent_controlled(faction) {
+            // Agent-controlled players behave like a remote human (IsHuman → the game
+            // waits for them, AI doesn't auto-play) but are tagged AgentControlled so
+            // trade/UI logic routes to the agent API instead of a keyboard. See the API.
+            commands.entity(player).remove::<StupidAi>();
+            commands.entity(player).insert(IsHuman);
+            commands.entity(player).insert(AgentControlled);
+            info!("Faction {:?} is agent-controlled (AGENT_FACTIONS)", faction);
         }
 
         // Determine token count - use debug override for human player if set
