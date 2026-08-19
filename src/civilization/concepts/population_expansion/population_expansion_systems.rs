@@ -78,8 +78,7 @@ pub fn log_round_state(
         let total_pop = areas.total_population();
         let supportable = total_pop / 2; // each city needs 2 population (rule)
         let (space, epoch) = ast
-            .map(|p| (p.space as i64, p.epoch().name()))
-            .unwrap_or((-1, "—"));
+            .map_or((-1, "—"), |p| (i64::from(p.space), p.epoch().name()));
         let real_tokens = owned_tokens.get(&entity).copied().unwrap_or(0);
         let stock_n = stock.tokens_in_stock();
         let treasury_n = treasury.tokens_in_treasury();
@@ -97,8 +96,7 @@ pub fn log_round_state(
             board_pop += in_pop;
             if in_pop != in_pa {
                 let label = area_name
-                    .map(|n| n.to_string())
-                    .unwrap_or_else(|| format!("{area_entity:?}"));
+                    .map_or_else(|| format!("{area_entity:?}"), std::string::ToString::to_string);
                 mismatches.push(format!("{label}(pop={in_pop},pa={in_pa})"));
             }
         }
@@ -108,7 +106,7 @@ pub fn log_round_state(
              | pa_pop={total_pop} board_pop={board_pop} areas={areas_n} | stock={stock_n} treasury={treasury_n} \
              | tokens={real_tokens} accounted={accounted}{flag}",
             areas_n = areas.areas().len(),
-            flag = if accounted != real_tokens { " ⚠DESYNC" } else { "" },
+            flag = if accounted == real_tokens { "" } else { " ⚠DESYNC" },
         );
         if !mismatches.is_empty() {
             info!("[STATE]   ↳ area desync for {name}: {}", mismatches.join(", "));
@@ -173,8 +171,8 @@ pub fn auto_expand_population(
     mut commands: Commands,
     mut checker: MessageWriter<CheckPlayerExpansionEligibility>,
 ) {
-    for (player_entity, player_areas, mut needs_expansion) in player_query.iter_mut() {
-        for area in needs_expansion.areas_that_need_expansion.iter() {
+    for (player_entity, player_areas, mut needs_expansion) in &mut player_query {
+        for area in &needs_expansion.areas_that_need_expansion {
             let needed_tokens = player_areas.required_tokens_for_expansion_for_area(*area);
             if needed_tokens > 0 {
                 event_writer.write(MoveTokensFromStockToAreaCommand::new(
@@ -213,7 +211,7 @@ pub fn population_expansion_gate(
             next_state.set(GameActivity::Census);
         } else {
             // Log who is still waiting
-            for (entity, is_human, has_manual, has_auto) in players_needing_expansion.iter() {
+            for (entity, is_human, has_manual, has_auto) in &players_needing_expansion {
                 info!(
                     "[POP_EXP] Player {:?} still needs expansion: human={}, manual={}, auto={}",
                     entity, is_human, has_manual, has_auto
@@ -265,7 +263,7 @@ pub fn highlight_pop_exp_areas_for_human(
     textures: Res<TextureAssets>,
 ) {
     for (player_entity, available_moves) in human_players.iter() {
-        for (_index, game_move) in available_moves.moves.iter() {
+        for (_index, game_move) in &available_moves.moves {
             if let GameMove::PopulationExpansion(pop_exp_move) = game_move {
                 // Mark the area with highlight component if not already marked
                 if let Ok((area_entity, area_transform)) = area_query.get(pop_exp_move.area) {
@@ -327,6 +325,9 @@ pub fn handle_pop_exp_area_click(
     highlighted_areas: Query<(Entity, &Transform, &PopExpAreaHighlight), With<GameArea>>,
     mut expand_writer: MessageWriter<ExpandPopulationManuallyCommand>,
 ) {
+    // Click is considered a hit if it lands within this radius of an area.
+    const CLICK_RADIUS: f32 = 30.0;
+
     if !mouse_button.just_pressed(MouseButton::Left) {
         return;
     }
@@ -338,9 +339,6 @@ pub fn handle_pop_exp_area_click(
     let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) else {
         return;
     };
-    
-    // Check if click is near any highlighted area (within a radius)
-    const CLICK_RADIUS: f32 = 30.0;
     
     for (area_entity, area_transform, highlight) in highlighted_areas.iter() {
         let area_pos = area_transform.translation.truncate();

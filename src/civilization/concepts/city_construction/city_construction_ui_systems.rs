@@ -5,6 +5,7 @@ use crate::civilization::concepts::city_construction::city_construction_events::
 };
 use crate::civilization::concepts::city_construction::city_construction_ui_components::*;
 use crate::civilization::game_moves::{AvailableMoves, GameMove};
+use crate::civilization::Z_ACTION_UI;
 use crate::stupid_ai::IsHuman;
 use bevy::prelude::*;
 
@@ -135,7 +136,7 @@ pub fn spawn_city_construction_controls_ui(
                     ..default()
                 },
                 BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.9)),
-                ZIndex(10),
+                ZIndex(Z_ACTION_UI),
             ))
             .with_children(|parent| {
                 // Title
@@ -294,9 +295,9 @@ pub fn update_build_site_display(
         return;
     }
 
-    for mut text in text_query.iter_mut() {
+    for mut text in &mut text_query {
         if let Some(site) = selection_state.current_site() {
-            let area_name = area_names.get(site).map(|n| n.as_str()).unwrap_or("?");
+            let area_name = area_names.get(site).map_or("?", bevy::prelude::Name::as_str);
             **text = format!(
                 "{} ({}/{})",
                 area_name,

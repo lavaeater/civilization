@@ -1,13 +1,18 @@
 use crate::{setup_bevy_app, setup_player};
 use adv_civ::civilization::{
-    advance_succession_markers, AstPosition, AstTrack, GameFaction, PlayerCities,
+    advance_succession_markers, AstPosition, AstTrack, GameFaction, GameInfoAndStuff,
+    PlayerCities, RoundLimit,
 };
+use adv_civ::GameActivity;
 use bevy::app::Update;
-use bevy::prelude::Entity;
+use bevy::prelude::NextState::Pending;
+use bevy::prelude::{Entity, NextState};
 
 fn setup_app() -> bevy::prelude::App {
     setup_bevy_app(|mut app| {
         app.init_resource::<AstTrack>();
+        app.init_resource::<GameInfoAndStuff>();
+        app.init_resource::<RoundLimit>();
         app.add_systems(Update, advance_succession_markers);
         app
     })
@@ -125,6 +130,94 @@ fn finished_marker_stays_at_finish() {
 
     let pos = app.world().entity(player).get::<AstPosition>().unwrap();
     assert_eq!(pos.space, 16, "marker never advances past FINISH (16)");
+}
+
+#[test]
+fn game_ends_when_a_marker_is_already_at_finish() {
+    // Rule 34.1A: reaching a finish square ends the game. The end-of-round
+    // check runs on every player's *current* position after the per-player
+    // advance/retreat/freeze loop, so a player already sitting on FINISH (16)
+    // trips it immediately, with no need to satisfy Late Iron's card
+    // requirements to get there in this same tick.
+    let mut app = setup_app();
+    let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
+    add_cities(&mut app, player, 9);
+    app.world_mut().entity_mut(player).insert(AstPosition::new(16));
+
+    app.update();
+
+    let state = app.world().get_resource::<NextState<GameActivity>>().unwrap();
+    assert!(matches!(state, Pending(GameActivity::GameOver)));
+}
+
+#[test]
+fn game_continues_when_no_marker_is_at_finish() {
+    let mut app = setup_app();
+    let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
+    add_cities(&mut app, player, 1);
+    app.world_mut().entity_mut(player).insert(AstPosition::new(0));
+
+    app.update();
+
+    let state = app.world().get_resource::<NextState<GameActivity>>().unwrap();
+    assert!(matches!(state, Pending(GameActivity::CollectTaxes)));
+}
+
+#[test]
+fn game_ends_at_configured_round_limit_even_without_finish() {
+    // Rule 34.1B: a predetermined time limit also ends the game, independent
+    // of anyone's A.S.T. position.
+    let mut app = setup_app();
+    app.insert_resource(RoundLimit(Some(5)));
+    app.insert_resource(GameInfoAndStuff {
+        round: 5,
+        ..Default::default()
+    });
+    let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
+    add_cities(&mut app, player, 1);
+    app.world_mut().entity_mut(player).insert(AstPosition::new(2));
+
+    app.update();
+
+    let state = app.world().get_resource::<NextState<GameActivity>>().unwrap();
+    assert!(matches!(state, Pending(GameActivity::GameOver)));
+}
+
+#[test]
+fn game_continues_below_the_configured_round_limit() {
+    let mut app = setup_app();
+    app.insert_resource(RoundLimit(Some(5)));
+    app.insert_resource(GameInfoAndStuff {
+        round: 4,
+        ..Default::default()
+    });
+    let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
+    add_cities(&mut app, player, 1);
+    app.world_mut().entity_mut(player).insert(AstPosition::new(2));
+
+    app.update();
+
+    let state = app.world().get_resource::<NextState<GameActivity>>().unwrap();
+    assert!(matches!(state, Pending(GameActivity::CollectTaxes)));
+}
+
+#[test]
+fn no_round_limit_configured_never_ends_the_game_early() {
+    // RoundLimit's default (None) — the resource is present (set up by
+    // SuccessionPlugin) but unset; only the A.S.T. condition should apply.
+    let mut app = setup_app();
+    app.insert_resource(GameInfoAndStuff {
+        round: 9_999,
+        ..Default::default()
+    });
+    let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
+    add_cities(&mut app, player, 1);
+    app.world_mut().entity_mut(player).insert(AstPosition::new(2));
+
+    app.update();
+
+    let state = app.world().get_resource::<NextState<GameActivity>>().unwrap();
+    assert!(matches!(state, Pending(GameActivity::CollectTaxes)));
 }
 
 #[test]

@@ -3,11 +3,17 @@
     <head>
         <meta charset="utf-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-        <title>Bevy game</title> <!-- ToDo -->
+        <title>Advanced Civilization</title>
         <link data-trunk rel="copy-dir" href="assets"/>
         <link data-trunk rel="copy-dir" href="credits"/>
         <link data-trunk rel="copy-file" href="build/windows/icon.ico"/>
         <link rel="icon" href="icon.ico">
+        <!-- PWA: installable to the home screen — mobile phase 0 -->
+        <link data-trunk rel="copy-file" href="build/web/manifest.webmanifest"/>
+        <link data-trunk rel="copy-file" href="build/web/pwa/icon-192.png"/>
+        <link data-trunk rel="copy-file" href="build/web/pwa/icon-512.png"/>
+        <link rel="manifest" href="manifest.webmanifest">
+        <meta name="theme-color" content="#1a1a1a">
         <link data-trunk rel="inline" href="build/web/styles.css"/>
     </head>
     <body>
@@ -17,6 +23,25 @@
             <canvas id="bevy">
                 Javascript and support for canvas is required
             </canvas>
+            <button id="fullscreen-btn" title="Toggle full screen">⛶ Full screen</button>
         </div>
+        <script>
+            // Full-screen toggle. Must be called from a user gesture (the click),
+            // which is why this lives in JS rather than being driven from Bevy.
+            // fit_canvas_to_parent then resizes the canvas buffer to the screen
+            // size × devicePixelRatio, i.e. the display's native resolution.
+            (function () {
+                const container = document.querySelector('.game-container');
+                const btn = document.getElementById('fullscreen-btn');
+                btn.addEventListener('click', function () {
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    } else {
+                        (container.requestFullscreen || container.webkitRequestFullscreen)
+                            .call(container);
+                    }
+                });
+            })();
+        </script>
     </body>
 </html>

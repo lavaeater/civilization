@@ -3,6 +3,7 @@ use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{Color, Component, Reflect, ReflectComponent, Resource};
 use itertools::Itertools;
 use rand::seq::SliceRandom;
+use rand::RngExt;
 
 pub const MIN_CARDS_REQUIRED_TO_TRADE: usize = 5;
 
@@ -69,7 +70,7 @@ impl PlayerTradeCards {
             .iter()
             .take(3)
             .map(|(commodity, _)| commodity)
-            .cloned()
+            .copied()
             .collect_vec()
     }
 
@@ -104,6 +105,29 @@ impl PlayerTradeCards {
         self.remove_n_trade_cards(1, calamity).and(Some(calamity))
     }
 
+    /// Removes and returns one physical card chosen uniformly at random from
+    /// the whole hand (rule 24.51: an attacker who eliminates a city "draws,
+    /// at random, one of the victim's trade cards"). Each individual card —
+    /// not each distinct type — has an equal chance, so a 3-of-a-kind stack
+    /// is three times as likely to be hit as a singleton. `None` if the hand
+    /// is empty.
+    pub fn remove_random_card(&mut self) -> Option<TradeCard> {
+        let total = self.number_of_trade_cards();
+        if total == 0 {
+            return None;
+        }
+        let mut pick = rand::rng().random_range(0..total);
+        for (card, count) in &self.cards {
+            if pick < *count {
+                let card = *card;
+                self.remove_n_trade_cards(1, card);
+                return Some(card);
+            }
+            pick -= count;
+        }
+        None
+    }
+
     pub fn has_n_of_card(&self, n: usize, commodity: TradeCard) -> bool {
         self.number_of_cards_for_trade_card(commodity) >= n
     }
@@ -118,6 +142,19 @@ impl PlayerTradeCards {
 
     pub fn number_of_trade_cards(&self) -> usize {
         self.cards.values().sum()
+    }
+
+    /// The full hand with counts, sorted by card value — for serializing to
+    /// the owning player (and only them: hands are hidden information).
+    pub fn cards_with_counts(&self) -> Vec<(TradeCard, usize)> {
+        let mut cards: Vec<(TradeCard, usize)> = self
+            .cards
+            .iter()
+            .filter(|(_, count)| **count > 0)
+            .map(|(card, count)| (*card, *count))
+            .collect();
+        cards.sort_by_key(|(card, _)| (card.value(), format!("{card}")));
+        cards
     }
 
     pub fn number_of_tradeable_cards(&self) -> usize {
@@ -181,7 +218,7 @@ impl PlayerTradeCards {
             .iter()
             .filter(|card| card.is_tradeable())
             .max_by(|a, b| a.value().cmp(&b.value()))
-            .cloned()
+            .copied()
     }
 
     pub fn tradeable_calamity_cards_ranked(&self) -> Vec<TradeCard> {
@@ -189,7 +226,7 @@ impl PlayerTradeCards {
             .iter()
             .filter(|card| card.is_tradeable())
             .sorted_by_key(|c| c.value())
-            .cloned()
+            .copied()
             .collect_vec()
     }
 
@@ -242,7 +279,7 @@ impl PlayerTradeCards {
         self.cards
             .keys()
             .filter(|card| card.is_commodity())
-            .cloned()
+            .copied()
             .collect()
     }
 
@@ -339,4 +376,56 @@ pub fn hex(hex_str: &str) -> Color {
     };
 
     Color::srgba_u8(r, g, b, a)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn remove_random_card_on_empty_hand_returns_none() {
+        let mut hand = PlayerTradeCards::default();
+        assert_eq!(hand.remove_random_card(), None);
+    }
+
+    /// Rule 24.51: draws exactly one card, and only one, from the hand.
+    #[test]
+    fn remove_random_card_removes_exactly_one_card() {
+        let mut hand = PlayerTradeCards::default();
+        hand.add_trade_card(TradeCard::Ochre);
+        hand.add_trade_card(TradeCard::Salt);
+        hand.add_trade_card(TradeCard::Iron);
+        assert_eq!(hand.number_of_trade_cards(), 3);
+
+        let drawn = hand.remove_random_card().expect("hand is non-empty");
+        assert_eq!(hand.number_of_trade_cards(), 2);
+        assert_eq!(hand.number_of_cards_for_trade_card(drawn), 0);
+    }
+
+    /// A single-card hand always yields that card, and leaves the hand empty.
+    #[test]
+    fn remove_random_card_single_card_hand_is_deterministic() {
+        let mut hand = PlayerTradeCards::default();
+        hand.add_trade_card(TradeCard::Iron);
+        assert_eq!(hand.remove_random_card(), Some(TradeCard::Iron));
+        assert_eq!(hand.number_of_trade_cards(), 0);
+        assert_eq!(hand.remove_random_card(), None);
+    }
+
+    /// Every physical card gets picked over enough draws — regression guard
+    /// against a bug that always removes from the same stack/type.
+    #[test]
+    fn remove_random_card_can_draw_each_distinct_type() {
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..200 {
+            let mut hand = PlayerTradeCards::default();
+            hand.add_trade_card(TradeCard::Ochre);
+            hand.add_trade_card(TradeCard::Salt);
+            hand.add_trade_card(TradeCard::Iron);
+            if let Some(card) = hand.remove_random_card() {
+                seen.insert(card);
+            }
+        }
+        assert_eq!(seen.len(), 3, "expected all 3 card types to be drawn at least once across 200 trials");
+    }
 }

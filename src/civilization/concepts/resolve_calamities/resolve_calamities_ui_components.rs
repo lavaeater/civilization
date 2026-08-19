@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use crate::civilization::concepts::resolve_calamities::calamities::civil_war::FactionChoice;
 
 /// Marks the player entity that is currently waiting for a human to complete
 /// a calamity selection. The advance systems check `Has<AwaitingHumanCalamitySelection>`
@@ -109,6 +110,8 @@ pub enum CivilWarUiRole {
     #[default]
     Victim,
     Beneficiary,
+    /// Rule 30.415: the victim picks which of the two finalized factions to keep.
+    ChooseFaction,
 }
 
 /// Resource that drives the Civil War interactive selection UI.
@@ -134,6 +137,12 @@ pub struct CivilWarSelectionState {
     pub current_city_index: usize,
     /// Whether the UI is showing the city list (true) or the token spinner (false).
     pub showing_cities: bool,
+    /// Rule 30.415, role == ChooseFaction: total points in the first faction.
+    pub first_faction_points: usize,
+    /// Rule 30.415, role == ChooseFaction: total points in the second faction.
+    pub second_faction_points: usize,
+    /// Rule 30.415, role == ChooseFaction: the victim's confirmed pick.
+    pub chosen_faction: Option<FactionChoice>,
 }
 
 impl CivilWarSelectionState {
@@ -173,6 +182,31 @@ impl CivilWarSelectionState {
         self.showing_cities = false;
     }
 
+    /// Rule 30.415: set up the victim's binary keep-first/keep-second choice.
+    pub fn populate_faction_choice(
+        &mut self,
+        player: Entity,
+        first_faction_points: usize,
+        second_faction_points: usize,
+    ) {
+        self.acting_player = Some(player);
+        self.role = CivilWarUiRole::ChooseFaction;
+        self.first_faction_points = first_faction_points;
+        self.second_faction_points = second_faction_points;
+        self.chosen_faction = None;
+    }
+
+    pub fn choose_faction(&mut self, choice: FactionChoice) {
+        self.chosen_faction = Some(choice);
+    }
+
+    /// Returns the confirmed faction choice and clears the resource.
+    pub fn take_faction_choice(&mut self) -> Option<FactionChoice> {
+        let choice = self.chosen_faction;
+        self.clear();
+        choice
+    }
+
     pub fn clear(&mut self) {
         *self = Self::default();
     }
@@ -185,15 +219,16 @@ impl CivilWarSelectionState {
         match self.role {
             // Victim must meet or exceed target
             CivilWarUiRole::Victim => self.current_points() >= self.target_points,
-            // Beneficiary can take anything up to target (taking 0 is also valid)
-            CivilWarUiRole::Beneficiary => true,
+            // Beneficiary can take anything up to target (taking 0 is also valid);
+            // ChooseFaction is driven by button presses, not this token/city budget UI.
+            CivilWarUiRole::Beneficiary | CivilWarUiRole::ChooseFaction => true,
         }
     }
 
     pub fn increment_tokens(&mut self) {
         if self.selected_token_count < self.total_available_tokens {
             let headroom = match self.role {
-                CivilWarUiRole::Victim => usize::MAX,
+                CivilWarUiRole::Victim | CivilWarUiRole::ChooseFaction => usize::MAX,
                 CivilWarUiRole::Beneficiary => self.target_points.saturating_sub(
                     self.selected_cities.len() * 5 + self.selected_token_count,
                 ) + self.selected_token_count,
@@ -406,6 +441,14 @@ pub struct CivilWarToggleCityButton;
 #[derive(Component)]
 pub struct CivilWarConfirmButton;
 
+/// Rule 30.415: label on the "keep first faction" button, showing its points.
+#[derive(Component)]
+pub struct CivilWarKeepFirstButton;
+
+/// Rule 30.415: label on the "keep second faction" button, showing its points.
+#[derive(Component)]
+pub struct CivilWarKeepSecondButton;
+
 #[derive(Component, Debug, Clone)]
 pub enum CivilWarButtonAction {
     TokensTab,
@@ -416,4 +459,714 @@ pub enum CivilWarButtonAction {
     NextCity,
     ToggleCity,
     Confirm,
+    /// Rule 30.415: victim keeps the first faction (second faction transfers).
+    KeepFirstFaction,
+    /// Rule 30.415: victim keeps the second faction (first faction transfers).
+    KeepSecondFaction,
+}
+
+// ── Flood secondary-victim allocation state ────────────────────────────────
+
+/// Resource that drives the Flood secondary-victim allocation UI (rule
+/// 30.512): the primary victim divides a fixed point budget among the
+/// secondary victims present on the flood plain, each capped at their own
+/// available tokens. Only reachable when combined secondary availability
+/// exceeds the budget -- if it doesn't, `allocate_secondary_loss` already
+/// takes everyone's everything automatically and there's no decision to make,
+/// so the advance system never populates this in that case.
+///
+/// The advance system populates this and inserts `AwaitingHumanCalamitySelection`
+/// on the acting (primary victim) player. When the human confirms, the UI
+/// removes the marker; the advance system then reads back `take_result()` and
+/// passes it to `allocate_secondary_loss` as the `primary_choice`.
+#[derive(Resource, Default, Debug)]
+pub struct FloodSelectionState {
+    pub acting_player: Option<Entity>,
+    pub total_budget: usize,
+    /// (secondary_victim, available_tokens, allocated_points).
+    pub victims: Vec<(Entity, usize, usize)>,
+    /// Navigation cursor into `victims`.
+    pub current_victim_index: usize,
+}
+
+impl FloodSelectionState {
+    pub fn populate(&mut self, player: Entity, victims: Vec<(Entity, usize)>, total_budget: usize) {
+        self.acting_player = Some(player);
+        self.total_budget = total_budget;
+        self.victims = victims.into_iter().map(|(e, available)| (e, available, 0)).collect();
+        self.current_victim_index = 0;
+    }
+
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+
+    pub fn allocated_total(&self) -> usize {
+        self.victims.iter().map(|&(_, _, allocated)| allocated).sum()
+    }
+
+    pub fn remaining_budget(&self) -> usize {
+        self.total_budget.saturating_sub(self.allocated_total())
+    }
+
+    pub fn current_victim(&self) -> Option<(Entity, usize, usize)> {
+        self.victims.get(self.current_victim_index).copied()
+    }
+
+    pub fn next_victim(&mut self) {
+        if !self.victims.is_empty() {
+            self.current_victim_index = (self.current_victim_index + 1) % self.victims.len();
+        }
+    }
+
+    pub fn prev_victim(&mut self) {
+        if self.victims.is_empty() {
+            return;
+        }
+        if self.current_victim_index == 0 {
+            self.current_victim_index = self.victims.len() - 1;
+        } else {
+            self.current_victim_index -= 1;
+        }
+    }
+
+    /// Adds 1 to the current victim's allocation, capped by their own
+    /// availability and the remaining budget. Returns whether it changed.
+    pub fn increment_current(&mut self) -> bool {
+        if self.remaining_budget() == 0 {
+            return false;
+        }
+        let idx = self.current_victim_index;
+        if let Some(&mut (_, available, ref mut allocated)) = self.victims.get_mut(idx)
+            && *allocated < available
+        {
+            *allocated += 1;
+            return true;
+        }
+        false
+    }
+
+    /// Subtracts 1 from the current victim's allocation. Returns whether it changed.
+    pub fn decrement_current(&mut self) -> bool {
+        let idx = self.current_victim_index;
+        if let Some(&mut (_, _, ref mut allocated)) = self.victims.get_mut(idx)
+            && *allocated > 0
+        {
+            *allocated -= 1;
+            return true;
+        }
+        false
+    }
+
+    /// Rule 30.512: the whole budget must be assigned somewhere among the
+    /// secondary victims before confirming -- this UI is only ever shown when
+    /// combined availability exceeds the budget, so full allocation is always
+    /// achievable.
+    pub fn selection_valid(&self) -> bool {
+        self.remaining_budget() == 0
+    }
+
+    /// Returns the (victim, allocated_points) list and clears the state.
+    pub fn take_result(&mut self) -> Vec<(Entity, usize)> {
+        let result = self.victims.iter().map(|&(e, _, allocated)| (e, allocated)).collect();
+        self.clear();
+        result
+    }
+}
+
+// ── Flood UI markers ────────────────────────────────────────────────────────
+
+#[derive(Component)]
+pub struct FloodSelectionUiRoot;
+
+#[derive(Component)]
+pub struct FloodPointsText;
+
+#[derive(Component)]
+pub struct FloodVictimNameText;
+
+#[derive(Component)]
+pub struct FloodConfirmButton;
+
+#[derive(Component, Debug, Clone)]
+pub enum FloodButtonAction {
+    PrevVictim,
+    NextVictim,
+    Increment,
+    Decrement,
+    Confirm,
+}
+
+// ── Famine secondary-victim allocation state ────────────────────────────────
+
+/// Resource that drives the Famine secondary-victim allocation UI (rule
+/// 30.311): the primary victim divides a fixed point budget among the
+/// secondary victims sharing an area with them, each capped at their own
+/// available tokens (already folded down to the 8-point-per-player cap by
+/// the advance system before populating this). Only reachable when combined
+/// secondary availability exceeds the budget -- if it doesn't,
+/// `allocate_secondary_loss` already takes everyone's everything
+/// automatically and there's no decision to make, so the advance system
+/// never populates this in that case.
+///
+/// The advance system populates this and inserts `AwaitingHumanCalamitySelection`
+/// on the acting (primary victim) player. When the human confirms, the UI
+/// removes the marker; the advance system then reads back `take_result()` and
+/// passes it to `allocate_secondary_loss` as the `primary_choice`.
+#[derive(Resource, Default, Debug)]
+pub struct FamineSelectionState {
+    pub acting_player: Option<Entity>,
+    pub total_budget: usize,
+    /// (secondary_victim, available_tokens, allocated_points).
+    pub victims: Vec<(Entity, usize, usize)>,
+    /// Navigation cursor into `victims`.
+    pub current_victim_index: usize,
+}
+
+impl FamineSelectionState {
+    pub fn populate(&mut self, player: Entity, victims: Vec<(Entity, usize)>, total_budget: usize) {
+        self.acting_player = Some(player);
+        self.total_budget = total_budget;
+        self.victims = victims.into_iter().map(|(e, available)| (e, available, 0)).collect();
+        self.current_victim_index = 0;
+    }
+
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+
+    pub fn allocated_total(&self) -> usize {
+        self.victims.iter().map(|&(_, _, allocated)| allocated).sum()
+    }
+
+    pub fn remaining_budget(&self) -> usize {
+        self.total_budget.saturating_sub(self.allocated_total())
+    }
+
+    pub fn current_victim(&self) -> Option<(Entity, usize, usize)> {
+        self.victims.get(self.current_victim_index).copied()
+    }
+
+    pub fn next_victim(&mut self) {
+        if !self.victims.is_empty() {
+            self.current_victim_index = (self.current_victim_index + 1) % self.victims.len();
+        }
+    }
+
+    pub fn prev_victim(&mut self) {
+        if self.victims.is_empty() {
+            return;
+        }
+        if self.current_victim_index == 0 {
+            self.current_victim_index = self.victims.len() - 1;
+        } else {
+            self.current_victim_index -= 1;
+        }
+    }
+
+    /// Adds 1 to the current victim's allocation, capped by their own
+    /// availability and the remaining budget. Returns whether it changed.
+    pub fn increment_current(&mut self) -> bool {
+        if self.remaining_budget() == 0 {
+            return false;
+        }
+        let idx = self.current_victim_index;
+        if let Some(&mut (_, available, ref mut allocated)) = self.victims.get_mut(idx)
+            && *allocated < available
+        {
+            *allocated += 1;
+            return true;
+        }
+        false
+    }
+
+    /// Subtracts 1 from the current victim's allocation. Returns whether it changed.
+    pub fn decrement_current(&mut self) -> bool {
+        let idx = self.current_victim_index;
+        if let Some(&mut (_, _, ref mut allocated)) = self.victims.get_mut(idx)
+            && *allocated > 0
+        {
+            *allocated -= 1;
+            return true;
+        }
+        false
+    }
+
+    /// Rule 30.311: the whole budget must be assigned somewhere among the
+    /// secondary victims before confirming -- this UI is only ever shown when
+    /// combined availability exceeds the budget, so full allocation is always
+    /// achievable.
+    pub fn selection_valid(&self) -> bool {
+        self.remaining_budget() == 0
+    }
+
+    /// Returns the (victim, allocated_points) list and clears the state.
+    pub fn take_result(&mut self) -> Vec<(Entity, usize)> {
+        let result = self.victims.iter().map(|&(e, _, allocated)| (e, allocated)).collect();
+        self.clear();
+        result
+    }
+}
+
+// ── Famine UI markers ───────────────────────────────────────────────────────
+
+#[derive(Component)]
+pub struct FamineSelectionUiRoot;
+
+#[derive(Component)]
+pub struct FaminePointsText;
+
+#[derive(Component)]
+pub struct FamineVictimNameText;
+
+#[derive(Component)]
+pub struct FamineConfirmButton;
+
+#[derive(Component, Debug, Clone)]
+pub enum FamineButtonAction {
+    PrevVictim,
+    NextVictim,
+    Increment,
+    Decrement,
+    Confirm,
+}
+
+#[cfg(test)]
+mod famine_selection_state_tests {
+    use super::*;
+
+    fn e(n: u32) -> Entity {
+        Entity::from_raw_u32(n).unwrap()
+    }
+
+    #[test]
+    fn populate_sets_up_zeroed_allocations() {
+        let mut state = FamineSelectionState::default();
+        state.populate(e(1), vec![(e(2), 8), (e(3), 5)], 20);
+        assert_eq!(state.acting_player, Some(e(1)));
+        assert_eq!(state.total_budget, 20);
+        assert_eq!(state.victims, vec![(e(2), 8, 0), (e(3), 5, 0)]);
+        assert_eq!(state.remaining_budget(), 20);
+    }
+
+    #[test]
+    fn increment_is_capped_by_remaining_budget() {
+        let mut state = FamineSelectionState::default();
+        state.populate(e(1), vec![(e(2), 8)], 3);
+        assert!(state.increment_current());
+        assert!(state.increment_current());
+        assert!(state.increment_current());
+        assert_eq!(state.victims[0].2, 3);
+        // Budget exhausted -- further increments are no-ops.
+        assert!(!state.increment_current());
+        assert_eq!(state.victims[0].2, 3);
+    }
+
+    #[test]
+    fn increment_is_capped_by_victim_availability() {
+        let mut state = FamineSelectionState::default();
+        state.populate(e(1), vec![(e(2), 2)], 20);
+        assert!(state.increment_current());
+        assert!(state.increment_current());
+        // Victim only has 2 available (already capped at 8/player) -- can't
+        // go higher even with budget left.
+        assert!(!state.increment_current());
+        assert_eq!(state.victims[0].2, 2);
+        assert_eq!(state.remaining_budget(), 18);
+    }
+
+    #[test]
+    fn decrement_cannot_go_below_zero() {
+        let mut state = FamineSelectionState::default();
+        state.populate(e(1), vec![(e(2), 5)], 5);
+        assert!(!state.decrement_current());
+        assert_eq!(state.victims[0].2, 0);
+    }
+
+    #[test]
+    fn navigation_wraps_around() {
+        let mut state = FamineSelectionState::default();
+        state.populate(e(1), vec![(e(2), 5), (e(3), 5), (e(4), 5)], 10);
+        assert_eq!(state.current_victim().unwrap().0, e(2));
+        state.next_victim();
+        assert_eq!(state.current_victim().unwrap().0, e(3));
+        state.prev_victim();
+        state.prev_victim();
+        assert_eq!(state.current_victim().unwrap().0, e(4)); // wrapped backward
+    }
+
+    #[test]
+    fn selection_invalid_until_full_budget_allocated() {
+        let mut state = FamineSelectionState::default();
+        state.populate(e(1), vec![(e(2), 8), (e(3), 8), (e(4), 8)], 20);
+        assert!(!state.selection_valid());
+        // Each victim is capped at 8, so filling the 20-point budget requires
+        // spreading across all three (8 + 8 + 4).
+        for _ in 0..8 {
+            state.increment_current();
+        }
+        state.next_victim();
+        for _ in 0..8 {
+            state.increment_current();
+        }
+        state.next_victim();
+        for _ in 0..4 {
+            state.increment_current();
+        }
+        assert!(state.selection_valid());
+    }
+
+    #[test]
+    fn take_result_reports_allocation_and_clears_state() {
+        let mut state = FamineSelectionState::default();
+        state.populate(e(1), vec![(e(2), 8), (e(3), 8), (e(4), 8)], 20);
+        for _ in 0..8 {
+            state.increment_current();
+        }
+        state.next_victim();
+        for _ in 0..8 {
+            state.increment_current();
+        }
+        state.next_victim();
+        for _ in 0..4 {
+            state.increment_current();
+        }
+        let result = state.take_result();
+        assert_eq!(result, vec![(e(2), 8), (e(3), 8), (e(4), 4)]);
+        assert_eq!(state.acting_player, None);
+        assert!(state.victims.is_empty());
+    }
+}
+
+// ── Epidemic secondary-victim allocation state ──────────────────────────────
+
+/// Resource that drives the Epidemic secondary-victim allocation UI (rule
+/// 30.611): the primary victim divides a fixed point budget among the
+/// secondary victims sharing an area with them, each capped at 10 points (5
+/// with Medicine, rule 30.613). Only reachable when combined secondary caps
+/// exceed the budget -- if they don't, `allocate_secondary_loss` already
+/// takes everyone up to their own cap automatically and there's no decision
+/// to make, so the advance system never populates this in that case.
+///
+/// The advance system populates this and inserts `AwaitingHumanCalamitySelection`
+/// on the acting (primary victim) player. When the human confirms, the UI
+/// removes the marker; the advance system then reads back `take_result()` and
+/// passes it to `allocate_secondary_loss` as the `primary_choice`.
+#[derive(Resource, Default, Debug)]
+pub struct EpidemicSelectionState {
+    pub acting_player: Option<Entity>,
+    pub total_budget: usize,
+    /// (secondary_victim, cap, allocated_points).
+    pub victims: Vec<(Entity, usize, usize)>,
+    /// Navigation cursor into `victims`.
+    pub current_victim_index: usize,
+}
+
+impl EpidemicSelectionState {
+    pub fn populate(&mut self, player: Entity, victims: Vec<(Entity, usize)>, total_budget: usize) {
+        self.acting_player = Some(player);
+        self.total_budget = total_budget;
+        self.victims = victims.into_iter().map(|(e, available)| (e, available, 0)).collect();
+        self.current_victim_index = 0;
+    }
+
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+
+    pub fn allocated_total(&self) -> usize {
+        self.victims.iter().map(|&(_, _, allocated)| allocated).sum()
+    }
+
+    pub fn remaining_budget(&self) -> usize {
+        self.total_budget.saturating_sub(self.allocated_total())
+    }
+
+    pub fn current_victim(&self) -> Option<(Entity, usize, usize)> {
+        self.victims.get(self.current_victim_index).copied()
+    }
+
+    pub fn next_victim(&mut self) {
+        if !self.victims.is_empty() {
+            self.current_victim_index = (self.current_victim_index + 1) % self.victims.len();
+        }
+    }
+
+    pub fn prev_victim(&mut self) {
+        if self.victims.is_empty() {
+            return;
+        }
+        if self.current_victim_index == 0 {
+            self.current_victim_index = self.victims.len() - 1;
+        } else {
+            self.current_victim_index -= 1;
+        }
+    }
+
+    /// Adds 1 to the current victim's allocation, capped by their own
+    /// cap and the remaining budget. Returns whether it changed.
+    pub fn increment_current(&mut self) -> bool {
+        if self.remaining_budget() == 0 {
+            return false;
+        }
+        let idx = self.current_victim_index;
+        if let Some(&mut (_, available, ref mut allocated)) = self.victims.get_mut(idx)
+            && *allocated < available
+        {
+            *allocated += 1;
+            return true;
+        }
+        false
+    }
+
+    /// Subtracts 1 from the current victim's allocation. Returns whether it changed.
+    pub fn decrement_current(&mut self) -> bool {
+        let idx = self.current_victim_index;
+        if let Some(&mut (_, _, ref mut allocated)) = self.victims.get_mut(idx)
+            && *allocated > 0
+        {
+            *allocated -= 1;
+            return true;
+        }
+        false
+    }
+
+    /// Rule 30.611: the whole budget must be assigned somewhere among the
+    /// secondary victims before confirming -- this UI is only ever shown when
+    /// combined caps exceed the budget, so full allocation is always
+    /// achievable.
+    pub fn selection_valid(&self) -> bool {
+        self.remaining_budget() == 0
+    }
+
+    /// Returns the (victim, allocated_points) list and clears the state.
+    pub fn take_result(&mut self) -> Vec<(Entity, usize)> {
+        let result = self.victims.iter().map(|&(e, _, allocated)| (e, allocated)).collect();
+        self.clear();
+        result
+    }
+}
+
+// ── Epidemic UI markers ──────────────────────────────────────────────────────
+
+#[derive(Component)]
+pub struct EpidemicSelectionUiRoot;
+
+#[derive(Component)]
+pub struct EpidemicPointsText;
+
+#[derive(Component)]
+pub struct EpidemicVictimNameText;
+
+#[derive(Component)]
+pub struct EpidemicConfirmButton;
+
+#[derive(Component, Debug, Clone)]
+pub enum EpidemicButtonAction {
+    PrevVictim,
+    NextVictim,
+    Increment,
+    Decrement,
+    Confirm,
+}
+
+#[cfg(test)]
+mod epidemic_selection_state_tests {
+    use super::*;
+
+    fn e(n: u32) -> Entity {
+        Entity::from_raw_u32(n).unwrap()
+    }
+
+    #[test]
+    fn populate_sets_up_zeroed_allocations() {
+        let mut state = EpidemicSelectionState::default();
+        state.populate(e(1), vec![(e(2), 10), (e(3), 5)], 25);
+        assert_eq!(state.acting_player, Some(e(1)));
+        assert_eq!(state.total_budget, 25);
+        assert_eq!(state.victims, vec![(e(2), 10, 0), (e(3), 5, 0)]);
+        assert_eq!(state.remaining_budget(), 25);
+    }
+
+    #[test]
+    fn increment_is_capped_by_remaining_budget() {
+        let mut state = EpidemicSelectionState::default();
+        state.populate(e(1), vec![(e(2), 20)], 3);
+        assert!(state.increment_current());
+        assert!(state.increment_current());
+        assert!(state.increment_current());
+        assert_eq!(state.victims[0].2, 3);
+        // Budget exhausted -- further increments are no-ops.
+        assert!(!state.increment_current());
+        assert_eq!(state.victims[0].2, 3);
+    }
+
+    /// Rule 30.613: a secondary victim holding Medicine has a per-player cap
+    /// of 5 instead of 10.
+    #[test]
+    fn increment_is_capped_by_victim_medicine_reduced_cap() {
+        let mut state = EpidemicSelectionState::default();
+        state.populate(e(1), vec![(e(2), 5)], 25);
+        for _ in 0..5 {
+            assert!(state.increment_current());
+        }
+        // Victim's cap (Medicine-reduced to 5) is reached -- can't go higher
+        // even with budget left.
+        assert!(!state.increment_current());
+        assert_eq!(state.victims[0].2, 5);
+        assert_eq!(state.remaining_budget(), 20);
+    }
+
+    #[test]
+    fn decrement_cannot_go_below_zero() {
+        let mut state = EpidemicSelectionState::default();
+        state.populate(e(1), vec![(e(2), 10)], 25);
+        assert!(!state.decrement_current());
+        assert_eq!(state.victims[0].2, 0);
+    }
+
+    #[test]
+    fn navigation_wraps_around() {
+        let mut state = EpidemicSelectionState::default();
+        state.populate(e(1), vec![(e(2), 10), (e(3), 10), (e(4), 10)], 25);
+        assert_eq!(state.current_victim().unwrap().0, e(2));
+        state.next_victim();
+        assert_eq!(state.current_victim().unwrap().0, e(3));
+        state.prev_victim();
+        state.prev_victim();
+        assert_eq!(state.current_victim().unwrap().0, e(4)); // wrapped backward
+    }
+
+    #[test]
+    fn selection_invalid_until_full_budget_allocated() {
+        let mut state = EpidemicSelectionState::default();
+        state.populate(e(1), vec![(e(2), 10), (e(3), 10), (e(4), 10)], 25);
+        assert!(!state.selection_valid());
+        // Each victim is capped at 10, so filling the 25-point budget requires
+        // spreading across all three (10 + 10 + 5).
+        for _ in 0..10 {
+            state.increment_current();
+        }
+        state.next_victim();
+        for _ in 0..10 {
+            state.increment_current();
+        }
+        state.next_victim();
+        for _ in 0..5 {
+            state.increment_current();
+        }
+        assert!(state.selection_valid());
+    }
+
+    #[test]
+    fn take_result_reports_allocation_and_clears_state() {
+        let mut state = EpidemicSelectionState::default();
+        state.populate(e(1), vec![(e(2), 10), (e(3), 10), (e(4), 10)], 25);
+        for _ in 0..10 {
+            state.increment_current();
+        }
+        state.next_victim();
+        for _ in 0..10 {
+            state.increment_current();
+        }
+        state.next_victim();
+        for _ in 0..5 {
+            state.increment_current();
+        }
+        let result = state.take_result();
+        assert_eq!(result, vec![(e(2), 10), (e(3), 10), (e(4), 5)]);
+        assert_eq!(state.acting_player, None);
+    }
+}
+
+#[cfg(test)]
+mod flood_selection_state_tests {
+    use super::*;
+
+    fn e(n: u32) -> Entity {
+        Entity::from_raw_u32(n).unwrap()
+    }
+
+    #[test]
+    fn populate_sets_up_zeroed_allocations() {
+        let mut state = FloodSelectionState::default();
+        state.populate(e(1), vec![(e(2), 20), (e(3), 5)], 10);
+        assert_eq!(state.acting_player, Some(e(1)));
+        assert_eq!(state.total_budget, 10);
+        assert_eq!(state.victims, vec![(e(2), 20, 0), (e(3), 5, 0)]);
+        assert_eq!(state.remaining_budget(), 10);
+    }
+
+    #[test]
+    fn increment_is_capped_by_remaining_budget() {
+        let mut state = FloodSelectionState::default();
+        state.populate(e(1), vec![(e(2), 20)], 3);
+        assert!(state.increment_current());
+        assert!(state.increment_current());
+        assert!(state.increment_current());
+        assert_eq!(state.victims[0].2, 3);
+        // Budget exhausted -- further increments are no-ops.
+        assert!(!state.increment_current());
+        assert_eq!(state.victims[0].2, 3);
+    }
+
+    #[test]
+    fn increment_is_capped_by_victim_availability() {
+        let mut state = FloodSelectionState::default();
+        state.populate(e(1), vec![(e(2), 2)], 10);
+        assert!(state.increment_current());
+        assert!(state.increment_current());
+        // Victim only has 2 available -- can't go higher even with budget left.
+        assert!(!state.increment_current());
+        assert_eq!(state.victims[0].2, 2);
+        assert_eq!(state.remaining_budget(), 8);
+    }
+
+    #[test]
+    fn decrement_cannot_go_below_zero() {
+        let mut state = FloodSelectionState::default();
+        state.populate(e(1), vec![(e(2), 5)], 5);
+        assert!(!state.decrement_current());
+        assert_eq!(state.victims[0].2, 0);
+    }
+
+    #[test]
+    fn navigation_wraps_around() {
+        let mut state = FloodSelectionState::default();
+        state.populate(e(1), vec![(e(2), 5), (e(3), 5), (e(4), 5)], 10);
+        assert_eq!(state.current_victim().unwrap().0, e(2));
+        state.next_victim();
+        assert_eq!(state.current_victim().unwrap().0, e(3));
+        state.prev_victim();
+        state.prev_victim();
+        assert_eq!(state.current_victim().unwrap().0, e(4)); // wrapped backward
+    }
+
+    #[test]
+    fn selection_invalid_until_full_budget_allocated() {
+        let mut state = FloodSelectionState::default();
+        state.populate(e(1), vec![(e(2), 20), (e(3), 20)], 10);
+        assert!(!state.selection_valid());
+        for _ in 0..10 {
+            state.increment_current();
+        }
+        assert!(state.selection_valid());
+    }
+
+    #[test]
+    fn take_result_reports_allocation_and_clears_state() {
+        let mut state = FloodSelectionState::default();
+        state.populate(e(1), vec![(e(2), 20), (e(3), 20)], 10);
+        for _ in 0..4 {
+            state.increment_current();
+        }
+        state.next_victim();
+        for _ in 0..6 {
+            state.increment_current();
+        }
+        let result = state.take_result();
+        assert_eq!(result, vec![(e(2), 4), (e(3), 6)]);
+        assert_eq!(state.acting_player, None);
+        assert!(state.victims.is_empty());
+    }
 }

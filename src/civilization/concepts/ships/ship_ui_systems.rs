@@ -5,6 +5,7 @@ use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
 use crate::civilization::components::GameArea;
 use crate::civilization::concepts::map::CameraFocusQueue;
 use crate::civilization::concepts::ships::ship_ui_components::*;
+use crate::civilization::Z_ACTION_UI;
 use crate::stupid_ai::IsHuman;
 
 /// Spawn the ship construction panel when a human player has `AwaitingShipPlacement`.
@@ -31,7 +32,7 @@ pub fn spawn_ship_construction_ui(
         .padding_all_px(8.0)
         .gap_px(4.0)
         .bg_color(Color::srgba(0.05, 0.1, 0.2, 0.93))
-        .z_index(10);
+        .z_index(Z_ACTION_UI);
 
     // Title
     ui.add_text_child(
@@ -179,7 +180,7 @@ pub fn update_ship_construction_ui(
         if ship_state.ships_to_build == 0 {
             **t = "—".to_string();
         } else if let Some(area) = ship_state.current_area() {
-            let name = area_names.get(area).map(|n| n.as_str()).unwrap_or("?");
+            let name = area_names.get(area).map_or("?", bevy::prelude::Name::as_str);
             **t = format!(
                 "{} ({}/{})",
                 name,

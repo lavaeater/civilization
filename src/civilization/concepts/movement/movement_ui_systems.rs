@@ -7,6 +7,7 @@ use crate::civilization::concepts::movement::movement_ui_components::{
     MovementSelectionState, MovementUiRoot, SourceAreaDisplay, TokenCountDisplay,
 };
 use crate::civilization::game_moves::{AvailableMoves, GameMove, MovementMove};
+use crate::civilization::Z_ACTION_UI;
 use crate::stupid_ai::IsHuman;
 use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
@@ -96,7 +97,7 @@ pub fn draw_movement_arrows(
         // Only draw arrows from the currently focused source area
         let focused_source = selection_state.current_source();
 
-        for (source, targets) in source_targets.iter() {
+        for (source, targets) in &source_targets {
             // Skip sources that aren't the focused one
             if let Some(focused) = focused_source && *source != focused {
                 continue;
@@ -150,6 +151,8 @@ pub fn handle_movement_target_click(
     area_query: Query<(Entity, &Transform), With<GameArea>>,
     mut selection_state: ResMut<MovementSelectionState>,
 ) {
+    const CLICK_RADIUS: f32 = 30.0;
+
     if !mouse_button.just_pressed(MouseButton::Left) {
         return;
     }
@@ -164,8 +167,6 @@ pub fn handle_movement_target_click(
     let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) else {
         return;
     };
-
-    const CLICK_RADIUS: f32 = 30.0;
 
     let focused_source = selection_state.current_source();
 
@@ -254,17 +255,24 @@ pub fn spawn_movement_controls_ui(
         let mut theme = ui_theme.clone();
         theme.button = button_theme;
 
-        // Spawn the movement controls panel
+        // Spawn the movement controls panel. `pan_camera_to_current_source`
+        // always recenters the camera on the selected source area, so
+        // anchoring near screen-center puts this panel right next to the
+        // action instead of parked on the bottom edge -- offset up and to
+        // one side so it sits beside the (centered) source rather than on
+        // top of it. Not full target-avoidance (targets can be in any
+        // direction around the source), just a floating-near-the-action
+        // default meant to be tuned by eye during play.
         let mut builder = UIBuilder::new(commands, Some(theme));
         builder
             .component::<MovementUiRoot>()
-            .z_index(10)
+            .z_index(Z_ACTION_UI)
             .absolute_position()
-            .bottom(px(20.0))
-            .left(percent(50.0))
+            .top(percent(58.0))
+            .left(percent(58.0))
             .flex_column()
             .padding_all(px(10.0))
-            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.7));
+            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.9));
 
         // Source area navigation row
         builder.add_row(|source_control_row| {
@@ -448,7 +456,7 @@ pub fn update_token_count_display(
         return;
     }
 
-    for mut text in text_query.iter_mut() {
+    for mut text in &mut text_query {
         if selection_state.has_selection() {
             **text = format!(
                 "{} / {}",
@@ -476,11 +484,11 @@ pub fn update_source_area_display(
         .filter(|s| !selection_state.skipped_sources.contains(*s))
         .count();
 
-    for mut text in text_query.iter_mut() {
+    for mut text in &mut text_query {
         if selection_state.all_skipped() {
             **text = "All sources skipped".to_string();
         } else if let Some(source) = selection_state.current_source() {
-            let area_name = area_names.get(source).map(|n| n.as_str()).unwrap_or("?");
+            let area_name = area_names.get(source).map_or("?", bevy::prelude::Name::as_str);
             let skipped = if selection_state.is_current_skipped() {
                 " [SKIPPED]"
             } else {

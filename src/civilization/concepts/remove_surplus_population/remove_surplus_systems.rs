@@ -11,7 +11,7 @@ pub fn remove_surplus_population(
     let mut areas_with_surplus = 0;
     let mut total_tokens_removed = 0;
     
-    for (_area_entity, name, mut area, has_city) in areas.iter_mut() {
+    for (_area_entity, name, mut area, has_city) in &mut areas {
         total_areas_processed += 1;
         let total_pop = area.total_population();
         let max_pop = area.max_population;
@@ -30,7 +30,7 @@ pub fn remove_surplus_population(
             if has_city {
                 info!("[SURPLUS] '{}': Removing all tokens from area with city", name);
                 let tokens = area.remove_all_tokens();
-                for token in tokens.iter() {
+                for token in &tokens {
                     commands.entity(*token).insert(ReturnTokenToStock);
                 }
                 total_tokens_removed += tokens.len();
@@ -41,7 +41,7 @@ pub fn remove_surplus_population(
             } else if num_players == 1 {
                 info!("[SURPLUS] '{}': Removing surplus tokens from single-player area", name);
                 let tokens = area.remove_surplus();
-                for token in tokens.iter() {
+                for token in &tokens {
                     commands.entity(*token).insert(ReturnTokenToStock);
                 }
                 total_tokens_removed += tokens.len();
@@ -92,7 +92,7 @@ fn remove_surplus_multi_player(area: &mut Population, commands: &mut Commands) -
 
         if let Some(player) = smallest_player {
             if let Some(removed) = area.remove_tokens_from_area(&player, 1) {
-                for token in removed.iter() {
+                for token in &removed {
                     commands.entity(*token).insert(ReturnTokenToStock);
                 }
                 removed_count += removed.len();

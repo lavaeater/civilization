@@ -49,3 +49,30 @@ impl SuperstitionState {
         self.selected_cities.len() >= self.cities_to_reduce
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Rule 30.321: three cities belonging to the primary victim are reduced.
+    #[test]
+    fn base_reduces_3_cities() {
+        assert_eq!(SuperstitionState::new().cities_to_reduce, 3);
+    }
+
+    /// Rule 30.322: Religion cards are NOT cumulative — the highest-level card governs.
+    #[test]
+    fn mysticism_reduces_to_2_cities() {
+        assert_eq!(SuperstitionState::new().with_mysticism().cities_to_reduce, 2);
+    }
+
+    #[test]
+    fn deism_reduces_to_1_city() {
+        assert_eq!(SuperstitionState::new().with_deism().cities_to_reduce, 1);
+    }
+
+    #[test]
+    fn enlightenment_has_no_effect_zero_cities() {
+        assert_eq!(SuperstitionState::new().with_enlightenment().cities_to_reduce, 0);
+    }
+}

@@ -86,14 +86,14 @@ fn a_simple_trade_move_is_created() {
     let moves = get_trade_moves(&mut app, player_one);
     assert_eq!(moves.len(), 2, "Expected 2 trade moves (propose or stop trading)");
 
-    for (_, p_move) in moves.iter() {
+    for (_, p_move) in &moves {
         if let GameMove::Trade(TradeMove::ProposeTrade(to, cards)) = p_move {
             assert_eq!(*to, player_two, "Proposed trade should be to player two");
             assert!(!cards.is_empty(), "Trade proposal should include cards");
         } else if let GameMove::Trade(TradeMove::StopTrading) = p_move {
             // This is valid
         } else {
-            panic!("Unexpected trade move type: {:?}", p_move);
+            panic!("Unexpected trade move type: {p_move:?}");
         }
     }
 }
@@ -118,7 +118,7 @@ fn trade_accept_moves_are_created() {
     let moves = get_trade_moves(&mut app, player_two);
     let mut found_accept = false;
 
-    for (_, p_move) in moves.iter() {
+    for (_, p_move) in &moves {
         if let GameMove::Trade(TradeMove::AcceptOrDeclineTrade(offer_entity)) = p_move {
             assert_eq!(*offer_entity, trade_entity, "Trade offer entity mismatch");
             found_accept = true;
@@ -156,7 +156,7 @@ fn trade_settlement_moves_are_created() {
     let moves = get_trade_moves(&mut app, player_two);
     let mut found_settle = false;
 
-    for (_, p_move) in moves.iter() {
+    for (_, p_move) in &moves {
         if let GameMove::Trade(TradeMove::SettleTrade(offer_entity)) = p_move {
             assert_eq!(*offer_entity, trade_entity, "Trade offer entity mismatch");
             found_settle = true;

@@ -1,0 +1,47 @@
+# Game server + Caddy TLS front (see docs/multiplayer.md).
+#
+#   docker compose up --build
+#
+# Caddy terminates TLS and proxies both the WebSocket game traffic and the
+# HTTP join API on one port; the game server itself stays plain ws/http on
+# the internal network. Set CIV_DOMAIN to a real domain for automatic
+# Let's Encrypt certificates; unset, Caddy serves localhost with its
+# internal CA.
+
+services:
+  game:
+    build: .
+    environment:
+      SEATS: ${SEATS:-2}
+      NUM_PLAYERS: ${NUM_PLAYERS:-5}
+      NETCODE_KEY: ${NETCODE_KEY:-random}
+      # The address tokens are minted for = the address clients dial.
+      PUBLIC_ADDR: ${CIV_DOMAIN:-localhost}:443
+      # The WebSocket URL the join API hands out (through the Caddy front).
+      PUBLIC_WS: wss://${CIV_DOMAIN:-localhost}/ws
+    volumes:
+      - saves:/app/saves
+    expose:
+      - "5111"
+      - "5112"
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "443:443"
+      - "80:80"
+    environment:
+      CIV_DOMAIN: ${CIV_DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # The wasm client: run `trunk build --release` first.
+      - ./dist:/srv:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - game
+
+volumes:
+  saves:
+  caddy_data:
+  caddy_config:

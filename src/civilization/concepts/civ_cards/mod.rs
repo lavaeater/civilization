@@ -26,7 +26,7 @@ pub fn mathematics() -> CivCardDefinition {
             Credits::ToSpecificCard(CivCardName::Philosophy, 25),
             Credits::ToSpecificCard(CivCardName::Theology, 25),
         ],
-        prerequisites: Default::default(),
+        prerequisites: Vec::new(),
     }
 }
 

@@ -8,4 +8,4 @@ pub use ast_ui_systems::{
 };
 pub use succession_components::*;
 pub use succession_plugin::SuccessionPlugin;
-pub use succession_systems::advance_succession_markers;
+pub use succession_systems::{advance_succession_markers, determine_winner};

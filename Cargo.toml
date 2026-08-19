@@ -1,6 +1,19 @@
 # This line needs to come before anything else in Cargo.toml
 #cargo-features = ["codegen-backend"]
 
+[workspace]
+members = ["lava_ui_builder", "adv_civ_protocol", "adv_civ_server"]
+# mobile shares this crate's bevy version (kept in sync by hand) but is
+# built standalone by cargo-apk, which needs it out of this workspace --
+# it declares its own empty [workspace] table for the same reason.
+exclude = ["mobile"]
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+
+
 [package]
 name = "adv_civ" # ToDo
 version = "0.1.0"
@@ -41,10 +54,26 @@ dev = [
 ]
 test-utils = []
 
-# All of Bevy's default features exept for the audio related ones (bevy_audio, vorbis), since they clash with bevy_kira_audio
-#   and android_shared_stdcxx/android-game-activity, since those are covered in `mobile`
 [dependencies]
-bevy = { version = "0.18.0", default-features = false, features = ["2d", "ui", "experimental_bevy_feathers", "bevy_gizmos", "debug"] }
+# Expands Bevy's "2d" and "ui" umbrella features by hand instead of using
+# them directly: both pull in "default_platform", which hardcodes
+# "android-game-activity" -- that conflicts at build time with `mobile`'s own
+# "android-native-activity" (Cargo unions features for a shared dependency
+# across the whole build, and android-activity refuses to compile with both
+# enabled). Everything else "2d"/"ui" would have pulled in is listed
+# explicitly below, so desktop/web builds are unaffected; only the Android
+# activity backend choice moves to `mobile`, matching this comment block's
+# original intent.
+bevy = { version = "0.18.0", default-features = false, features = [
+    "default_app",
+    "std", "android_shared_stdcxx", "bevy_gilrs", "bevy_winit", "default_font", "multi_threaded", "webgl2", "x11", "wayland", "sysinfo_plugin",
+    "2d_bevy_render",
+    "ui_api", "ui_bevy_render",
+    "scene",
+    "audio",
+    "picking",
+    "experimental_bevy_feathers", "bevy_gizmos", "debug",
+] }
 bevy_kira_audio = { version = "0.25.0", features = ["android_shared_stdcxx"] }
 bevy_asset_loader = { version = "0.25.0" }
 rand = { version = "0.10.0-rc.8" }
@@ -61,10 +90,31 @@ serde = { version = "1.0.228", features = ["derive"] }
 ron = "0.12.0"
 bevy_common_assets = { version = "0.15.0", features = ["ron"] }
 lava_ui_builder = { path = "lava_ui_builder" }
+adv_civ_protocol = { path = "adv_civ_protocol" }
 bevy_enhanced_input = "0.23.2"
 bevy_prototype_lyon = "0.16.0"
 enumflags2 = {version =  "0.7.12", features = ["serde"] }
 tiny_http = "0.12"
+# Multiplayer client (server-side plugins live in adv_civ_server).
+# websocket works on native and wasm alike — see docs/multiplayer.md.
+lightyear = { version = "0.26", default-features = false, features = ["std", "client", "netcode", "websocket"] }
+base64 = "0.22"
+
+# Fetching the join ConnectToken from the HTTP API (blocking, in a thread).
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+ureq = "2"
+
+# Flip the wasm entropy switches for every getrandom generation in the tree
+# (0.2 via lightyear's chacha20poly1305, 0.3/0.4-rc via rand). The matching
+# `getrandom_backend="wasm_js"` rustflag lives in .cargo/config.toml.
+[target.'cfg(target_family = "wasm")'.dependencies]
+getrandom02 = { package = "getrandom", version = "0.2", features = ["js"] }
+getrandom03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+getrandom04 = { package = "getrandom", version = "0.4.0-rc.1", features = ["wasm_js"] }
+# Join-link plumbing in the browser: URL params + token fetch.
+wasm-bindgen-futures = "0.4"
+gloo-net = { version = "0.6", default-features = false, features = ["http"] }
+web-sys = { version = "0.3", features = ["Window", "Location", "UrlSearchParams"] }
 
 [build-dependencies]
 embed-resource = "1"
@@ -74,4 +124,22 @@ pretty_assertions = "1"
 adv_civ = { path = ".", features = ["test-utils"] }
 
 [lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+
+# Bevy idioms that pedantic dislikes.
+needless_pass_by_value = "allow"  # systems take Trigger/Res/events by value
+used_underscore_binding = "allow" # _trigger, _commands in system signatures
+wildcard_imports = "allow"        # use bevy::prelude::*
+must_use_candidate = "allow"      # binary crate, not a public API
+missing_panics_doc = "allow"      # ditto
+doc_markdown = "allow"            # wants backticks around Bevy, UI, ECS, ...
+return_self_not_must_use = "allow"
+
+# Deliberate numeric conversions in game/layout math.
+cast_precision_loss = "allow"
+cast_possible_truncation = "allow"
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"
+
 too_many_arguments = "allow"
+too_many_lines = "allow"

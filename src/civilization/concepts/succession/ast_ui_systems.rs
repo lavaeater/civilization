@@ -7,6 +7,7 @@ use crate::civilization::concepts::succession::succession_components::{
     AstEpoch, AstPosition, AstTrack,
 };
 use crate::civilization::enums::GameFaction;
+use crate::civilization::Z_PANEL;
 use crate::player::Player;
 
 /// Root node of the A.S.T. panel.
@@ -34,8 +35,16 @@ pub struct AstMarker {
 const CELL_W: f32 = 36.0;
 const CELL_H: f32 = 34.0;
 const MARKER: f32 = 15.0;
-/// Vertical offset between stacked markers sharing a space.
-const STACK_OFFSET: f32 = 9.0;
+/// Gap between adjacent markers sharing a space, in either axis.
+const MARKER_GAP: f32 = 3.0;
+/// Markers sharing a space arrange into a grid this many columns wide, rather
+/// than one tall single-file column -- with up to 9 factions all starting on
+/// space 0, a single column would overlap badly (the old fixed 9px vertical
+/// step was smaller than the 15px marker itself) or run far off the bottom of
+/// the panel.
+const STACK_COLS: usize = 2;
+/// Centre-to-centre step between grid cells (marker size + gap).
+const STACK_STEP: f32 = MARKER + MARKER_GAP;
 
 /// Authentic civilization colour from `docs/ast.xslx` (sheet "AST").
 pub fn ast_faction_color(faction: GameFaction) -> Color {
@@ -89,7 +98,7 @@ pub fn spawn_ast_ui(
 
     ui.insert(AstUiRoot)
         .insert(Name::new("ast_ui_root"))
-        .insert(ZIndex(5))
+        .insert(ZIndex(Z_PANEL))
         .insert(Pickable::IGNORE)
         .set_node(Node {
             position_type: PositionType::Absolute,
@@ -99,7 +108,7 @@ pub fn spawn_ast_ui(
         })
         .flex_column()
         .padding_all_px(6.0)
-        .bg_color(Color::srgba(0.0, 0.0, 0.0, 0.7))
+        .bg_color(Color::srgba(0.0, 0.0, 0.0, 0.9))
         .border_radius_all_px(5.0);
 
     // Title.
@@ -175,7 +184,7 @@ pub fn toggle_ast_ui(
     if !keys.just_pressed(KeyCode::F8) {
         return;
     }
-    for mut visibility in root_query.iter_mut() {
+    for mut visibility in &mut root_query {
         *visibility = match *visibility {
             Visibility::Hidden => Visibility::Inherited,
             _ => Visibility::Hidden,
@@ -196,7 +205,7 @@ pub fn update_ast_markers(
         .collect();
     positions.sort_by_key(|(e, space)| (*space, e.index()));
 
-    for (marker, mut node) in marker_query.iter_mut() {
+    for (marker, mut node) in &mut marker_query {
         let Some(space) = positions
             .iter()
             .find(|(e, _)| *e == marker.player)
@@ -208,10 +217,14 @@ pub fn update_ast_markers(
             .iter()
             .filter(|(_, s)| *s == space)
             .position(|(e, _)| *e == marker.player)
-            .unwrap_or(0) as f32;
+            .unwrap_or(0);
+        let col = (stack % STACK_COLS) as f32;
+        let row = (stack / STACK_COLS) as f32;
 
-        node.left = Val::Px(space as f32 * CELL_W + (CELL_W - MARKER) / 2.0 - 1.0);
-        node.top = Val::Px(2.0 + stack * STACK_OFFSET);
+        let grid_width = STACK_COLS as f32 * STACK_STEP - MARKER_GAP;
+        let base_left = space as f32 * CELL_W + (CELL_W - grid_width) / 2.0 - 1.0;
+        node.left = Val::Px(base_left + col * STACK_STEP);
+        node.top = Val::Px(2.0 + row * STACK_STEP);
     }
 }
 
@@ -261,9 +274,10 @@ mod tests {
     }
 
     #[test]
-    fn markers_share_x_when_stacked_but_differ_in_y() {
+    fn markers_sharing_a_space_do_not_overlap() {
         let mut app = ui_app();
-        // Two factions on the same space → same left, stacked tops.
+        // Two factions on the same space -> arranged into distinct grid cells
+        // (first row, side by side) rather than one directly on top of the other.
         let a = spawn_player(&mut app, GameFaction::Egypt, 5);
         let b = spawn_player(&mut app, GameFaction::Crete, 5);
 
@@ -277,7 +291,45 @@ mod tests {
         }
         let (left_a, top_a) = by_player[&a];
         let (left_b, top_b) = by_player[&b];
-        assert_eq!(left_a, left_b, "same space → same horizontal position");
-        assert_ne!(top_a, top_b, "stacked markers differ vertically");
+        assert_eq!(top_a, top_b, "first two stacked markers share a row");
+        assert_ne!(left_a, left_b, "first two stacked markers sit in different columns");
+    }
+
+    #[test]
+    fn a_large_stack_never_places_two_markers_in_the_same_spot() {
+        let mut app = ui_app();
+        // All 9 factions starting on the same space -- the worst-case stack.
+        let players: Vec<Entity> = [
+            GameFaction::Egypt,
+            GameFaction::Crete,
+            GameFaction::Africa,
+            GameFaction::Asia,
+            GameFaction::Assyria,
+            GameFaction::Babylon,
+            GameFaction::Illyria,
+            GameFaction::Iberia,
+            GameFaction::Thrace,
+        ]
+        .into_iter()
+        .map(|f| spawn_player(&mut app, f, 0))
+        .collect();
+        assert_eq!(players.len(), 9);
+
+        app.world_mut().run_system_once(spawn_ast_ui).unwrap();
+        app.world_mut().run_system_once(update_ast_markers).unwrap();
+
+        let mut q = app.world_mut().query::<(&AstMarker, &Node)>();
+        let positions: Vec<(Val, Val)> = q.iter(app.world()).map(|(_, n)| (n.left, n.top)).collect();
+        assert_eq!(positions.len(), 9);
+
+        let mut seen = std::collections::HashSet::new();
+        for pos in &positions {
+            // `Val::Px` isn't `Hash`/`Eq`, so compare via its `f32` payload.
+            let key = match pos {
+                (Val::Px(l), Val::Px(t)) => (l.to_bits(), t.to_bits()),
+                _ => panic!("expected Val::Px for both axes"),
+            };
+            assert!(seen.insert(key), "two markers landed on the exact same spot: {pos:?}");
+        }
     }
 }

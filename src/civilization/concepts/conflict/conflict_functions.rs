@@ -167,6 +167,21 @@ pub fn has_metalworking_mix(
     any_mw && any_non_mw
 }
 
+/// Rule 24.31 (base 7-to-attack / replaced-by-6) modified by rule 24.35
+/// Engineering: an attacker who alone holds Engineering needs only 6 tokens
+/// and the city is replaced by 5; a defender who alone holds Engineering
+/// raises the requirement to 8, replaced by 7; if both hold it, the two
+/// modifiers cancel and the base 7/6 applies.
+///
+/// Returns `(tokens_required_to_attack, city_replaced_by_n_tokens)`.
+pub fn attack_thresholds(attacker_engineering: bool, defender_engineering: bool) -> (usize, usize) {
+    match (attacker_engineering, defender_engineering) {
+        (true, false) => (6, 5),
+        (false, true) => (8, 7),
+        (true, true) | (false, false) => (7, 6),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -471,6 +486,30 @@ mod tests {
             pop.total_population(),
             pop.number_of_players()
         );
+    }
+
+    // ========================================================================
+    // attack_thresholds tests (rules 24.31, 24.35)
+    // ========================================================================
+
+    #[test]
+    fn attack_thresholds_neither_engineering_is_base_7_and_6() {
+        assert_eq!(attack_thresholds(false, false), (7, 6));
+    }
+
+    #[test]
+    fn attack_thresholds_attacker_only_engineering_needs_6_replaced_by_5() {
+        assert_eq!(attack_thresholds(true, false), (6, 5));
+    }
+
+    #[test]
+    fn attack_thresholds_defender_only_engineering_needs_8_replaced_by_7() {
+        assert_eq!(attack_thresholds(false, true), (8, 7));
+    }
+
+    #[test]
+    fn attack_thresholds_both_engineering_cancels_to_base_7_and_6() {
+        assert_eq!(attack_thresholds(true, true), (7, 6));
     }
 
     #[test]

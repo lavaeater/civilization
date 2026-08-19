@@ -125,7 +125,7 @@ pub fn pick<R: Rng>(scored: &[(usize, f32)], picker: Picker, rng: &mut R) -> Opt
                 .fold(f32::NEG_INFINITY, f32::max);
             let weights: Vec<f64> = scored
                 .iter()
-                .map(|(_, s)| (((*s - max) / t) as f64).exp())
+                .map(|(_, s)| f64::from((*s - max) / t).exp())
                 .collect();
             let total: f64 = weights.iter().sum();
             if total <= 0.0 || !total.is_finite() {

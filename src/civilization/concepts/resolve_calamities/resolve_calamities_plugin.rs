@@ -7,7 +7,8 @@ use crate::civilization::concepts::resolve_calamities::resolve_calamities_compon
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
     AwaitingHumanCalamitySelection, AwaitingMonotheismSelection, CalamitySelectionState,
-    CivilWarSelectionState, MonotheismSelectionState,
+    CivilWarSelectionState, EpidemicSelectionState, FamineSelectionState, FloodSelectionState,
+    MonotheismSelectionState,
 };
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_systems::*;
 use crate::civilization::resolve_calamities::resolve_calamities_events::{
@@ -37,8 +38,13 @@ impl Plugin for ResolveCalamitiesPlugin {
             .register_type::<ReduceCity>()
             .register_type::<TransferCityTo>()
             .register_type::<ReturnCityToStock>()
+            .register_type::<GrainLockedForPurchase>()
+            .register_type::<PirateNation>()
             .init_resource::<CalamitySelectionState>()
             .init_resource::<CivilWarSelectionState>()
+            .init_resource::<FloodSelectionState>()
+            .init_resource::<FamineSelectionState>()
+            .init_resource::<EpidemicSelectionState>()
             .init_resource::<MonotheismSelectionState>()
             .add_systems(
                 OnEnter(GameActivity::ResolveCalamities),
@@ -47,6 +53,10 @@ impl Plugin for ResolveCalamitiesPlugin {
             .add_systems(
                 OnExit(GameActivity::ResolveCalamities),
                 cleanup_calamity_selection_ui_on_exit,
+            )
+            .add_systems(
+                OnEnter(GameActivity::PopulationExpansion),
+                clear_grain_lock_for_new_turn,
             )
             .add_systems(
                 Update,
@@ -102,6 +112,21 @@ impl Plugin for ResolveCalamitiesPlugin {
                     spawn_monotheism_selection_ui,
                     update_monotheism_selection_ui,
                     cleanup_monotheism_selection_ui,
+                    // Flood secondary-victim allocation UI
+                    spawn_flood_selection_ui,
+                    update_flood_selection_ui,
+                    handle_flood_selection_buttons,
+                    cleanup_flood_selection_ui,
+                    // Famine secondary-victim allocation UI
+                    spawn_famine_selection_ui,
+                    update_famine_selection_ui,
+                    handle_famine_selection_buttons,
+                    cleanup_famine_selection_ui,
+                    // Epidemic secondary-victim allocation UI
+                    spawn_epidemic_selection_ui,
+                    update_epidemic_selection_ui,
+                    handle_epidemic_selection_buttons,
+                    cleanup_epidemic_selection_ui,
                 ).run_if(in_state(GameActivity::ResolveCalamities)),
             );
     }

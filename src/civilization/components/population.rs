@@ -29,7 +29,7 @@ impl Population {
     }
 
     pub fn players(&self) -> HashSet<Entity> {
-        self.player_tokens.keys().cloned().collect()
+        self.player_tokens.keys().copied().collect()
     }
 
     pub fn number_of_players(&self) -> usize {
@@ -37,7 +37,7 @@ impl Population {
     }
 
     pub fn all_lengths_equal(&self) -> bool {
-        let first_length = self.player_tokens.values().next().map(|v| v.len());
+        let first_length = self.player_tokens.values().next().map(HashSet::len);
         self.player_tokens
             .values()
             .all(|v| Some(v.len()) == first_length)
@@ -50,7 +50,7 @@ impl Population {
         let player_tokens = self.player_tokens.values_mut().next().unwrap();
         let tokens: HashSet<Entity> = player_tokens.iter().take(surplus_count).copied().collect();
 
-        for token in tokens.iter() {
+        for token in &tokens {
             player_tokens.remove(token);
         }
         tokens
@@ -93,7 +93,7 @@ impl Population {
     }
 
     pub fn total_population(&self) -> usize {
-        self.player_tokens.values().map(|set| set.len()).sum()
+        self.player_tokens.values().map(HashSet::len).sum()
     }
 
     pub fn has_population(&self) -> bool {
@@ -109,7 +109,7 @@ impl Population {
     pub fn max_expansion_for_player_with_agriculture(&self, player: Entity, has_agriculture: bool) -> usize {
         if let Some(player_tokens) = self.player_tokens.get(&player) {
             let solely_occupied = self.player_tokens.len() == 1;
-            let agriculture_bonus = if has_agriculture && solely_occupied { 1 } else { 0 };
+            let agriculture_bonus = usize::from(has_agriculture && solely_occupied);
             match player_tokens.len() {
                 0 => 0,
                 1 => 1 + agriculture_bonus,
@@ -165,7 +165,7 @@ impl Population {
                         .take(number_of_tokens)
                         .copied()
                         .collect();
-                    for token in tokens.iter() {
+                    for token in &tokens {
                         player_tokens.remove(token);
                     }
                     if player_tokens.is_empty() {
@@ -335,6 +335,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::similar_names)] // token1 / token2
     fn test_remove_all_tokens_for_player() {
         let mut population = Population::new(10);
         let player = create_entity();

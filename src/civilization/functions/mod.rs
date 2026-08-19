@@ -120,6 +120,12 @@ pub fn remove_n_tokens_from_each_player(
     }
 }
 
+/// Replaces an attacked city with `replacement_count` tokens from the owner's
+/// stock (rule 24.32: 6 normally; rule 24.35 Engineering: 5 when the attacker
+/// alone holds Engineering, 7 when the defender alone holds it, 6 again when
+/// both hold it — see `conflict::attack_thresholds`). If the owner has fewer
+/// tokens in stock than `replacement_count`, `move_from_stock_to_area` moves
+/// however many are available (24.32: "replaces the city with what he has").
 pub fn replace_city_with_tokens_for_conflict(
     area_entity: Entity,
     population: &mut Population,
@@ -128,13 +134,14 @@ pub fn replace_city_with_tokens_for_conflict(
     token_stock: &mut TokenStock,
     player_cities: &mut PlayerCities,
     player_areas: &mut PlayerAreas,
+    replacement_count: usize,
 ) {
     player_cities.remove_city_from_area(area_entity);
     city_stock.return_token_to_stock(built_city.city);
     move_from_stock_to_area(
         built_city.player,
         area_entity,
-        6,
+        replacement_count,
         population,
         token_stock,
         player_areas,
@@ -224,6 +231,7 @@ mod tests {
             &mut token_stock,
             &mut player_cities,
             &mut player_areas,
+            6,
         );
 
         // Check that the city has been removed from the player cities

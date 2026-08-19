@@ -12,7 +12,7 @@ pub fn check_areas_for_population(
     mut area_query: Query<(Entity, &mut Population)>,
     mut commands: Commands,
 ) {
-    for (area, population) in area_query.iter_mut() {
+    for (area, population) in &mut area_query {
         if population.has_population() {
             commands.entity(area).insert(HasPopulation {});
         } else {
@@ -28,7 +28,7 @@ pub fn perform_census(
 ) {
     census_order.census_order.clear();
     let mut hash_to_sort = HashMap::new();
-    for (player, _name, player_areas, mut census) in stock_query.iter_mut() {
+    for (player, _name, player_areas, mut census) in &mut stock_query {
         census.population = player_areas.total_population();
         hash_to_sort.insert(player, census.population);
     }

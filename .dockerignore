@@ -1,0 +1,10 @@
+# dev-machine cargo config (mold linker) must not leak into the image build
+.cargo
+target
+dist
+build
+mobile
+.git
+*.log
+savegame.json
+docs

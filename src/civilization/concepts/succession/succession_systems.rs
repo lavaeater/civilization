@@ -1,7 +1,10 @@
 use crate::civilization::components::{Faction, Treasury};
 use crate::civilization::concepts::acquire_trade_cards::PlayerTradeCards;
+use crate::civilization::concepts::census::GameInfoAndStuff;
 use crate::civilization::concepts::civ_cards::{AvailableCivCards, CivCardType, PlayerCivilizationCards};
-use crate::civilization::concepts::succession::succession_components::{AstEpoch, AstPosition, AstTrack, GameResult};
+use crate::civilization::concepts::succession::succession_components::{
+    AstEpoch, AstPosition, AstTrack, GameResult, RoundLimit,
+};
 use crate::civilization::PlayerCities;
 use crate::player::Player;
 use crate::GameActivity;
@@ -32,9 +35,11 @@ pub fn advance_succession_markers(
     >,
     track: Res<AstTrack>,
     civ_card_defs: Option<Res<AvailableCivCards>>,
+    game_info: Res<GameInfoAndStuff>,
+    round_limit: Option<Res<RoundLimit>>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    for (mut position, civ_cards, player_cities, faction) in player_query.iter_mut() {
+    for (mut position, civ_cards, player_cities, faction) in &mut player_query {
         let city_count = player_cities.number_of_cities();
         let finish = track.finish_index(faction.faction);
 
@@ -48,7 +53,7 @@ pub fn advance_succession_markers(
         let target_epoch = AstEpoch::for_space(target_space);
 
         let can_advance = city_count >= target_epoch.min_cities()
-            && check_card_requirements(&target_epoch, civ_cards, civ_card_defs.as_deref());
+            && check_card_requirements(target_epoch, civ_cards, civ_card_defs.as_deref());
 
         if can_advance {
             position.space = target_space;
@@ -77,11 +82,24 @@ pub fn advance_succession_markers(
     }
 
     // Rule 34.1A: if any marker is on its finish square, the game ends now (the
-    // move onto finish is the last step). Otherwise continue to taxation.
-    let game_over = player_query
+    // move onto finish is the last step). Rule 34.1B: alternatively, a
+    // predetermined round limit (set before the game starts) also ends it —
+    // this check runs at the end of a round, so 34.2's "complete the final
+    // turn" requirement is satisfied for free by the phase ordering.
+    let ast_finished = player_query
         .iter()
         .any(|(pos, _, _, faction)| pos.space >= track.finish_index(faction.faction));
-    if game_over {
+    let time_limit_reached = round_limit
+        .and_then(|limit| limit.0)
+        .is_some_and(|limit| game_info.round >= limit);
+
+    if ast_finished || time_limit_reached {
+        if time_limit_reached && !ast_finished {
+            info!(
+                "[AST] Round {} reached the configured time limit — game-end condition met (rule 34.1B)",
+                game_info.round
+            );
+        }
         next_state.set(GameActivity::GameOver);
     } else {
         next_state.set(GameActivity::CollectTaxes);
@@ -116,8 +134,8 @@ pub fn determine_winner(
             (Some(cc), Some(defs)) => defs.cards_for_names(&cc.cards).iter().map(|d| d.cost).sum(),
             _ => 0,
         };
-        let commodity_value = trade_cards.map(|t| t.total_stack_value() as u32).unwrap_or(0);
-        let treasury_value = treasury.map(|t| t.tokens_in_treasury() as u32).unwrap_or(0);
+        let commodity_value = trade_cards.map_or(0, |t| t.total_stack_value() as u32);
+        let treasury_value = treasury.map_or(0, |t| t.tokens_in_treasury() as u32);
         let ast_value = position.space * 100;
         let city_value = cities.number_of_cities() as u32 * 50;
         let total = civ_value + commodity_value + treasury_value + ast_value + city_value;
@@ -141,7 +159,7 @@ pub fn determine_winner(
 
 /// Returns true if the player's civ cards meet the epoch's group and count requirements.
 fn check_card_requirements(
-    epoch: &AstEpoch,
+    epoch: AstEpoch,
     civ_cards: Option<&PlayerCivilizationCards>,
     civ_card_defs: Option<&AvailableCivCards>,
 ) -> bool {

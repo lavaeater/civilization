@@ -17,7 +17,7 @@ pub fn initiator_can_pay_for_offer(offer: &TradeOffer, initiator_cards: &PlayerT
         .iter()
         .map(|(c, _)| initiator_cards.number_of_cards_for_trade_card(*c))
         .sum::<usize>()
-        >= offer.initiator_pays_guaranteed.values().sum()
+        >= offer.initiator_pays_guaranteed.values().sum::<usize>()
 }
 
 #[allow(dead_code)]

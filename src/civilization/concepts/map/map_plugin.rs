@@ -163,6 +163,8 @@ fn remove_random_place(places: &mut HashSet<String>) -> Option<String> {
 #[derive(
     serde::Deserialize, serde::Serialize, bevy::asset::Asset, bevy::reflect::TypePath, Clone, Debug,
 )]
+// Mirrors the map asset file; the flags are per-area terrain properties.
+#[allow(clippy::struct_excessive_bools)]
 pub struct Area {
     pub id: i32,
     pub x: f32,
@@ -343,7 +345,7 @@ fn load_map(
             "Hierapolis",
         ]
         .into_iter()
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
         .collect();
 
         let map_center = Vec3::new(1250.0, 662.5, 0.0);

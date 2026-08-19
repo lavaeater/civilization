@@ -57,8 +57,7 @@ pub fn build_city(
             .get(build_city.player)
             .ok()
             .and_then(|(_, _, _, _, _, _, civ_cards)| civ_cards)
-            .map(|c| c.owns(&CivCardName::Architecture))
-            .unwrap_or(false);
+            .is_some_and(|c| c.owns(&CivCardName::Architecture));
 
         // Architecture (rule 25.3): save 1 token to treasury before returning the rest.
         // We must also update PlayerAreas since the token bypasses the normal ReturnTokenToStock path.

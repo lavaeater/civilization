@@ -7,6 +7,7 @@ pub mod player;
 pub mod civilization;
 pub mod stupid_ai;
 pub mod agent_api;
+pub mod network_client;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
@@ -28,6 +29,9 @@ pub enum GameState {
     Playing,
     Sandbox,
     Menu,
+    /// Connected to a multiplayer server: the local rules engine stays
+    /// dormant; `network_client` drives everything from protocol messages.
+    Online,
 }
 
 /// Resource that indicates the game is paused. When present, game systems
@@ -62,6 +66,36 @@ pub enum GameActivity {
     GameOver,
 }
 
+impl From<&GameActivity> for adv_civ_protocol::NetPhase {
+    fn from(activity: &GameActivity) -> Self {
+        use adv_civ_protocol::NetPhase;
+        match activity {
+            GameActivity::PrepareGame => NetPhase::PrepareGame,
+            GameActivity::StartGame => NetPhase::StartGame,
+            GameActivity::CollectTaxes => NetPhase::CollectTaxes,
+            GameActivity::PopulationExpansion => NetPhase::PopulationExpansion,
+            GameActivity::Census => NetPhase::Census,
+            GameActivity::ShipConstruction => NetPhase::ShipConstruction,
+            GameActivity::Movement => NetPhase::Movement,
+            GameActivity::Conflict => NetPhase::Conflict,
+            GameActivity::CityConstruction => NetPhase::CityConstruction,
+            GameActivity::RemoveSurplusPopulation => NetPhase::RemoveSurplusPopulation,
+            GameActivity::CheckCitySupportAfterRemoveSurplusPopulation => {
+                NetPhase::CheckCitySupportAfterRemoveSurplusPopulation
+            }
+            GameActivity::AcquireTradeCards => NetPhase::AcquireTradeCards,
+            GameActivity::Trade => NetPhase::Trade,
+            GameActivity::ResolveCalamities => NetPhase::ResolveCalamities,
+            GameActivity::CheckCitySupportAfterResolveCalamities => {
+                NetPhase::CheckCitySupportAfterResolveCalamities
+            }
+            GameActivity::AcquireCivilizationCards => NetPhase::AcquireCivilizationCards,
+            GameActivity::MoveSuccessionMarkers => NetPhase::MoveSuccessionMarkers,
+            GameActivity::GameOver => NetPhase::GameOver,
+        }
+    }
+}
+
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
@@ -72,7 +106,8 @@ impl Plugin for GamePlugin {
             LoadingPlugin,
             MenuPlugin,
             SandboxPlugin,
-            CivilizationPlugin
+            CivilizationPlugin,
+            crate::network_client::NetworkClientPlugin,
         ));
 
         #[cfg(debug_assertions)]

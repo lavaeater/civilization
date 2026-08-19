@@ -121,6 +121,7 @@ fn test_remove_all_tokens() {
 }
 
 #[test]
+#[allow(clippy::similar_names)] // token1 / token2
 fn test_remove_all_tokens_for_player() {
     let mut population = Population::new(10);
     let player = create_entity();

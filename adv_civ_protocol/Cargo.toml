@@ -1,0 +1,19 @@
+[package]
+name = "adv_civ_protocol"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[features]
+default = []
+client = ["lightyear/client"]
+server = ["lightyear/server"]
+
+[dependencies]
+bevy = { version = "0.18.0", default-features = false }
+serde = { version = "1.0.228", features = ["derive"] }
+enumflags2 = { version = "0.7.12", features = ["serde"] }
+lightyear = { version = "0.26", default-features = false, features = ["std"] }
+
+[lints.clippy]
+too_many_arguments = "allow"

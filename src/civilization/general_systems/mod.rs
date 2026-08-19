@@ -96,7 +96,7 @@ pub fn faction_is_agent_controlled(faction: GameFaction) -> bool {
     }
     val.split(',').any(|name| {
         let name = name.trim();
-        !name.is_empty() && format!("{:?}", faction).eq_ignore_ascii_case(name)
+        !name.is_empty() && format!("{faction:?}").eq_ignore_ascii_case(name)
     })
 }
 
@@ -140,6 +140,15 @@ pub fn setup_players(
     let mut available_names: Vec<&str> = ANCIENT_RULERS.to_vec();
     available_names.shuffle(&mut rand::rng());
 
+    // Factions reserved for network seats come first, so the multiplayer
+    // server knows which factions its seats map to.
+    let mut reserved: Vec<GameFaction> = Vec::new();
+    for faction in &debug_options.reserved_factions {
+        if available_factions.remaining_factions.remove(faction) {
+            reserved.push(*faction);
+        }
+    }
+
     // If adding a human player, ensure their faction is included first
     let mut factions_to_use: Vec<_> = if debug_options.add_human_player {
         // Start with the human faction
@@ -149,7 +158,9 @@ pub fn setup_players(
             .remove(&debug_options.human_faction);
 
         // Add random factions for the remaining players
-        let remaining_count = debug_options.number_of_players.saturating_sub(1);
+        let remaining_count = debug_options
+            .number_of_players
+            .saturating_sub(1 + reserved.len());
         let mut remaining: Vec<_> = available_factions
             .remaining_factions
             .iter()
@@ -173,7 +184,11 @@ pub fn setup_players(
         remaining.shuffle(&mut rand::rng());
         let factions: Vec<_> = remaining
             .into_iter()
-            .take(debug_options.number_of_players)
+            .take(
+                debug_options
+                    .number_of_players
+                    .saturating_sub(reserved.len()),
+            )
             .collect();
         for f in &factions {
             available_factions.remaining_factions.remove(f);
@@ -181,6 +196,7 @@ pub fn setup_players(
         factions
     };
 
+    factions_to_use.extend(reserved);
     // Shuffle so human isn't always first
     factions_to_use.shuffle(&mut rand::rng());
 
@@ -195,7 +211,7 @@ pub fn setup_players(
         let player = commands
             .spawn((
                 Player,
-                Name::new(format!("{} of {:?}", ruler_name, faction)),
+                Name::new(format!("{ruler_name} of {faction:?}")),
                 Census { population: 0 },
                 Treasury::default(),
                 Faction::new(faction),
@@ -267,11 +283,11 @@ pub fn setup_human_player(
     commands.entity(player).insert(IsHuman);
     if let Some(trade_cards) = &debug_options.human_trade_cards {
         let mut player_trade_cards = PlayerTradeCards::default();
-        trade_cards.iter().for_each(|(card, count)| {
+        for (card, count) in trade_cards {
             for _ in 0..*count {
                 player_trade_cards.add_trade_card(*card);
             }
-        });
+        }
         commands.entity(player).insert(player_trade_cards);
     }
     
@@ -340,15 +356,15 @@ pub fn connect_areas(
     named_areas: Query<(Entity, &GameArea)>,
     mut commands: Commands,
 ) {
-    for (area_entity, mut land_passages, mut sea_passages, needed_connections) in area_query.iter_mut() {
-        for named_area in needed_connections.land_connections.iter() {
+    for (area_entity, mut land_passages, mut sea_passages, needed_connections) in &mut area_query {
+        for named_area in &needed_connections.land_connections {
             for (target_area_entity, target_area) in named_areas.iter() {
                 if target_area.id == *named_area {
                     land_passages.to_areas.push(target_area_entity);
                 }
             }
         }
-        for named_area in needed_connections.sea_connections.iter() {
+        for named_area in &needed_connections.sea_connections {
             for (target_area_entity, target_area) in named_areas.iter() {
                 if target_area.id == *named_area {
                     sea_passages.add_passage(target_area_entity);

@@ -213,10 +213,15 @@ pub fn poll_agent_api(
     mut offer_query: OfferQuery,
     faction_query: FactionQuery,
     civ_data: Option<Res<AvailableCivCards>>,
-    civ_cards_query: Query<(&PlayerTradeCards, &PlayerCivilizationCards)>,
+    civ_cards_query: Query<(
+        &PlayerTradeCards,
+        &PlayerCivilizationCards,
+        Option<&crate::civilization::resolve_calamities::resolve_calamities_components::GrainLockedForPurchase>,
+        Option<&crate::civilization::CardsHeldBeforePurchasing>,
+    )>,
     mut writers: MoveWriters,
 ) {
-    let snapshot = build_snapshot(&activity, &controlled_query, &area_query, &offer_query, &faction_query);
+    let snapshot = build_snapshot(activity.as_ref(), &controlled_query, &area_query, &offer_query, &faction_query);
 
     while let Ok(Some(request)) = server.server.try_recv() {
         let mut request = request;
@@ -272,9 +277,9 @@ pub fn poll_agent_api(
                         let target_name = target.and_then(|t| snapshot.player_factions.get(&t).cloned());
                         let mut offer = OpenTradeOffer::new(p.player, p.name.clone(), target, target_name);
                         offer.offering_guaranteed = parse_card_map(payload.get("offering_guaranteed"));
-                        offer.offering_hidden_count = payload.get("offering_hidden").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                        offer.offering_hidden_count = payload.get("offering_hidden").and_then(serde_json::Value::as_u64).unwrap_or(0) as usize;
                         offer.wanting_guaranteed = parse_card_map(payload.get("wanting_guaranteed"));
-                        offer.wanting_hidden_count = payload.get("wanting_hidden").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                        offer.wanting_hidden_count = payload.get("wanting_hidden").and_then(serde_json::Value::as_u64).unwrap_or(0) as usize;
                         if offer.is_valid() {
                             let id = commands.spawn(offer).id();
                             json!({ "ok": true, "created_offer": id.to_bits().to_string() })
@@ -315,7 +320,7 @@ pub fn poll_agent_api(
                 let faction = payload
                     .get("faction")
                     .and_then(|v| v.as_str())
-                    .map(|s| s.to_string())
+                    .map(std::string::ToString::to_string)
                     .or(faction_q);
                 match resolve_move(&snapshot, faction.as_deref(), payload) {
                     Err(e) => e,
@@ -343,13 +348,14 @@ pub fn poll_agent_api(
                                 writers.eliminate_city.write(EliminateCity::new(*player, *city, *area, false));
                             }
                             ResolvedMove::AcquireCivCard { player, card } => {
-                                if let (Some(cards_res), Ok((trade_cards, civ_cards))) =
+                                if let (Some(cards_res), Ok((trade_cards, civ_cards, grain_locked, cards_held_before))) =
                                     (civ_data.as_deref(), civ_cards_query.get(*player))
                                 {
-                                    let credits = cards_res.total_credits(&civ_cards.cards);
+                                    // Rule 31.53: see CardsHeldBeforePurchasing's doc comment.
+                                    let credits = cards_res.total_credits(cards_held_before.map_or(&civ_cards.cards, |c| &c.0));
                                     if let Some(def) = cards_res.cards.iter().find(|c| c.name == *card) {
                                         let cost = def.calculate_cost(&credits) as usize;
-                                        let payment = compute_ai_payment(trade_cards, cost);
+                                        let payment = compute_ai_payment(trade_cards, cost, grain_locked.map_or(0, |l| l.0));
                                         writers.purchase.write(ConfirmCivCardPurchase {
                                             player: *player,
                                             cards_to_buy: vec![*card],
@@ -390,16 +396,13 @@ fn query_param(url: &str, key: &str) -> Option<String> {
 }
 
 fn build_snapshot(
-    activity: &Option<Res<State<GameActivity>>>,
+    activity: Option<&Res<State<GameActivity>>>,
     controlled_query: &ControlledQuery,
     area_query: &AreaQuery,
     offer_query: &OfferQuery,
     faction_query: &FactionQuery,
 ) -> Snapshot {
-    let phase = activity
-        .as_ref()
-        .map(|a| format!("{:?}", a.get()))
-        .unwrap_or_else(|| "NotPlaying".to_string());
+    let phase = activity.map_or_else(|| "NotPlaying".to_string(), |a| format!("{:?}", a.get()));
 
     let area_ids: HashMap<Entity, i32> =
         area_query.iter().map(|(e, area, _)| (e, area.id)).collect();
@@ -597,10 +600,10 @@ fn resolve_move(
     payload: Value,
 ) -> Result<(ResolvedMove, String), Value> {
     let player_info = snapshot.select(faction)?;
-    let Some(index) = payload.get("index").and_then(|v| v.as_u64()).map(|v| v as usize) else {
+    let Some(index) = payload.get("index").and_then(serde_json::Value::as_u64).map(|v| v as usize) else {
         return Err(json!({ "ok": false, "error": "expected JSON body { \"index\": <usize> }" }));
     };
-    let number = payload.get("number").and_then(|v| v.as_u64()).map(|v| v as usize);
+    let number = payload.get("number").and_then(serde_json::Value::as_u64).map(|v| v as usize);
 
     let Some((_, game_move)) = player_info.moves.iter().find(|(i, _)| *i == index) else {
         return Err(json!({ "ok": false, "error": format!("no move with index {index}") }));
@@ -672,7 +675,7 @@ mod tests {
         faction_query: FactionQuery,
         mut result: ResMut<ResolveResult>,
     ) {
-        let snapshot = build_snapshot(&activity, &controlled_query, &area_query, &offer_query, &faction_query);
+        let snapshot = build_snapshot(activity.as_ref(), &controlled_query, &area_query, &offer_query, &faction_query);
         // Two players have moves → must select by faction.
         result.0 = resolve_move(&snapshot, Some("Egypt"), json!({ "index": 1, "number": 2 }))
             .ok()

@@ -236,7 +236,7 @@ fn build_control_row(
             },
         );
 
-        ui.build_text_child(format!("{:.0}", initial_value), |ui| {
+        ui.build_text_child(format!("{initial_value:.0}"), |ui| {
             ui.width_px(40.0)
                 .align_items_center()
                 .text_justify_center()
@@ -280,7 +280,7 @@ fn handle_layout_controls(
     >,
     mut layout_state: ResMut<SandboxLayoutState>,
 ) {
-    for (interaction, control, mut bg_color) in interaction_query.iter_mut() {
+    for (interaction, control, mut bg_color) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
                 let value = match control.property {
@@ -313,7 +313,7 @@ fn update_sample_box(
     }
 
     // Update sample box
-    for mut node in sample_box_query.iter_mut() {
+    for mut node in &mut sample_box_query {
         node.width = Val::Px(layout_state.width);
         node.height = Val::Px(layout_state.height);
         node.padding = UiRect::all(Val::Px(layout_state.padding));
@@ -323,7 +323,7 @@ fn update_sample_box(
     }
 
     // Update value displays
-    for (display, mut text) in value_displays.iter_mut() {
+    for (display, mut text) in &mut value_displays {
         let value = match display.property {
             LayoutProperty::Width => layout_state.width,
             LayoutProperty::Height => layout_state.height,
@@ -332,6 +332,6 @@ fn update_sample_box(
             LayoutProperty::BorderWidth => layout_state.border_width,
             LayoutProperty::BorderRadius => layout_state.border_radius,
         };
-        text.0 = format!("{:.0}", value);
+        text.0 = format!("{value:.0}");
     }
 }

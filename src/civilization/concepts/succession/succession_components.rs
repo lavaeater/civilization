@@ -11,6 +11,13 @@ pub struct GameResult {
     pub standings: Vec<(String, u32, u32)>,
 }
 
+/// A predetermined round limit (rule 34.1B): "a predetermined time limit",
+/// which must be set before the game starts. `None` (the default) means the
+/// game only ends via the A.S.T. finish-square condition (34.1A) — i.e. no
+/// limit configured.
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub struct RoundLimit(pub Option<usize>);
+
 /// Number of spaces on the A.S.T., indices `0..=AST_FINISH`.
 pub const AST_FINISH: u32 = 16;
 /// Total count of spaces (START + 16).
@@ -154,16 +161,14 @@ impl AstTrack {
     pub fn spaces_for(&self, faction: GameFaction) -> &[AstSpace] {
         self.overrides
             .get(&faction)
-            .map(|v| v.as_slice())
-            .unwrap_or(&self.spaces)
+            .map_or(&self.spaces, std::vec::Vec::as_slice)
     }
 
     /// The FINISH index for a faction (last space).
     pub fn finish_index(&self, faction: GameFaction) -> u32 {
         self.spaces_for(faction)
             .last()
-            .map(|s| s.index)
-            .unwrap_or(AST_FINISH)
+            .map_or(AST_FINISH, |s| s.index)
     }
 }
 

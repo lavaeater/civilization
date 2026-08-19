@@ -109,8 +109,7 @@ pub fn player_end_movement(
     for end_movement_event in end_event.read() {
         let name = names
             .get(end_movement_event.player)
-            .map(|n| n.as_str())
-            .unwrap_or("?");
+            .map_or("?", bevy::prelude::Name::as_str);
         info!("Player {} has ended movement", name);
         commands
             .entity(end_movement_event.player)
@@ -161,7 +160,7 @@ pub fn move_tokens_from_area_to_area(
                         .take(ev.number_of_tokens)
                         .copied()
                         .collect::<Vec<_>>();
-                    for token in tokens_to_move.iter() {
+                    for token in &tokens_to_move {
                         from_pop.remove_token_from_area(ev.player, *token);
                     }
 
@@ -170,25 +169,25 @@ pub fn move_tokens_from_area_to_area(
                     {
                         // Check if AI is moving into an area with human player tokens
                         let mover_is_ai =
-                            player_is_human.get(ev.player).map(|h| !h).unwrap_or(true);
+                            player_is_human.get(ev.player).map_or(true, |h| !h);
                         let human_has_tokens =
-                            human_player.map(|h| to_pop.has_player(&h)).unwrap_or(false);
+                            human_player.is_some_and(|h| to_pop.has_player(&h));
 
                         if mover_is_ai && human_has_tokens {
                             let area_desc = area_name
-                                .map(|n| n.to_string())
+                                .map(std::string::ToString::to_string)
                                 .or_else(|| game_area.map(|a| format!("Area {}", a.id)))
                                 .unwrap_or_else(|| "unknown area".to_string());
                             camera_focus.add_focus(
                                 target_transform.translation,
                                 1.0,
-                                format!("AI moving into {}", area_desc),
+                                format!("AI moving into {area_desc}"),
                             );
                         }
 
                         if let Ok(mut player_area) = player_areas.get_mut(ev.player) {
                             let target_pos = target_transform.translation;
-                            tokens_to_move.iter().for_each(|token| {
+                            for token in &tokens_to_move {
                                 commands.entity(*token).insert(TokenHasMoved);
                                 if let Ok(token_transform) = token_transform.get(*token) {
                                     let start_pos = token_transform.translation;
@@ -200,7 +199,7 @@ pub fn move_tokens_from_area_to_area(
                                 player_area.remove_token_from_area(&ev.source_area, *token);
                                 to_pop.add_token_to_area(ev.player, *token);
                                 player_area.add_token_to_area(ev.target_area, *token);
-                            });
+                            }
                         }
                     }
                 }
@@ -229,22 +228,28 @@ pub fn execute_ship_ferry(
 ) {
     for ev in ferry_events.read() {
         // Collect tokens to move (unmoved, belonging to this player, in source area).
-        let tokens_to_ferry: Vec<Entity> = {
-            let Ok((pop, _)) = pop_query.get(ev.source_area) else {
-                continue;
-            };
-            let Some(player_tokens) = pop.player_tokens().get(&ev.player) else {
-                continue;
-            };
-            player_tokens
-                .iter()
-                .filter(|&&t| tokens_that_can_move.get(t).is_ok())
-                .take(ev.number_of_tokens)
-                .copied()
-                .collect()
-        };
+        // May legitimately be empty -- rule 23.1 lets a ship move on its own,
+        // carrying nothing, so an empty result isn't itself a no-op.
+        let tokens_to_ferry: Vec<Entity> = pop_query
+            .get(ev.source_area)
+            .ok()
+            .and_then(|(pop, _)| pop.player_tokens().get(&ev.player).cloned())
+            .map(|player_tokens| {
+                player_tokens
+                    .iter()
+                    .filter(|&&t| tokens_that_can_move.get(t).is_ok())
+                    .take(ev.number_of_tokens)
+                    .copied()
+                    .collect()
+            })
+            .unwrap_or_default();
 
-        if tokens_to_ferry.is_empty() {
+        let has_ship = player_ships_query
+            .get(ev.player)
+            .is_ok_and(|ships| !ships.ships_in_area(ev.source_area).is_empty());
+
+        if tokens_to_ferry.is_empty() && !has_ship {
+            // Nothing to carry and no ship to move -- stale/invalid command.
             recalculate_player_moves.write(RecalculatePlayerMoves::new(ev.player));
             continue;
         }
@@ -286,7 +291,8 @@ pub fn execute_ship_ferry(
             }
         }
 
-        // Move the ship from source to target in PlayerShips.
+        // Move the ship from source to target in PlayerShips (rule 23.1: a ship
+        // moves whether or not it's carrying anything).
         if let Ok(mut ships) = player_ships_query.get_mut(ev.player)
             && let Some(ship_entity) = ships.remove_ship_from_area(ev.source_area)
         {
@@ -317,7 +323,7 @@ pub fn animate_token_movement(
     mut commands: Commands,
     mut query: Query<(Entity, &mut Transform, &mut TokenMoveAnimation)>,
 ) {
-    for (entity, mut transform, mut animation) in query.iter_mut() {
+    for (entity, mut transform, mut animation) in &mut query {
         animation.elapsed += time.delta_secs();
         transform.translation = animation.current_position();
 

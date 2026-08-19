@@ -57,7 +57,7 @@ pub struct PlayerShips {
 
 impl PlayerShips {
     pub fn ships_in_area(&self, area: Entity) -> &[Entity] {
-        self.ships_by_area.get(&area).map(|v| v.as_slice()).unwrap_or_default()
+        self.ships_by_area.get(&area).map(std::vec::Vec::as_slice).unwrap_or_default()
     }
 
     pub fn place_ship(&mut self, area: Entity, ship: Entity) {
@@ -78,10 +78,10 @@ impl PlayerShips {
     }
 
     pub fn total_ships_on_board(&self) -> usize {
-        self.ships_by_area.values().map(|v| v.len()).sum()
+        self.ships_by_area.values().map(std::vec::Vec::len).sum()
     }
 
     pub fn all_areas_with_ships(&self) -> Vec<Entity> {
-        self.ships_by_area.keys().cloned().collect()
+        self.ships_by_area.keys().copied().collect()
     }
 }

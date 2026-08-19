@@ -3,7 +3,9 @@ use bevy::ui_widgets::Activate;
 use lava_ui_builder::{InteractionPalette, LavaTheme, TextStyle, UIBuilder};
 
 use crate::civilization::components::GameArea;
+use crate::civilization::concepts::resolve_calamities::calamities::civil_war::FactionChoice;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::*;
+use crate::civilization::Z_DIALOG;
 use crate::stupid_ai::IsHuman;
 
 /// Spawn the calamity city-selection panel when a human player gets
@@ -38,7 +40,7 @@ pub fn spawn_calamity_selection_ui(
                 ..default()
             },
             BackgroundColor(Color::srgba(0.1, 0.05, 0.15, 0.93)),
-            ZIndex(10),
+            ZIndex(Z_DIALOG),
         ))
         .with_children(|parent| {
             // Title row: "CIVIL DISORDER — Select 3 cities to reduce"
@@ -200,7 +202,7 @@ pub fn update_calamity_selection_ui(
     // Update city name
     if let Ok(mut text) = city_name_text.single_mut() {
         if let Some(city) = calamity_selection.current_city() {
-            let name = area_names.get(city).map(|n| n.as_str()).unwrap_or("?");
+            let name = area_names.get(city).map_or("?", bevy::prelude::Name::as_str);
             let selected_marker = if calamity_selection.is_current_selected() { " [X]" } else { "" };
             **text = format!(
                 "{}{} ({}/{})",
@@ -345,13 +347,21 @@ pub fn spawn_civil_war_selection_ui(
     }
 
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+
+    if cw_selection.role == CivilWarUiRole::ChooseFaction {
+        spawn_civil_war_faction_choice_ui(&mut commands, &cw_selection, font);
+        return;
+    }
+
     let role_label = match cw_selection.role {
         CivilWarUiRole::Victim => "Civil War — Victim Selection",
         CivilWarUiRole::Beneficiary => "Civil War — Beneficiary Selection",
+        CivilWarUiRole::ChooseFaction => unreachable!("handled above"),
     };
     let hint = match cw_selection.role {
         CivilWarUiRole::Victim => format!("Select at least {} pts to yield", cw_selection.target_points),
         CivilWarUiRole::Beneficiary => format!("Take up to {} pts from the pool", cw_selection.target_points),
+        CivilWarUiRole::ChooseFaction => unreachable!("handled above"),
     };
 
     commands
@@ -368,7 +378,7 @@ pub fn spawn_civil_war_selection_ui(
                 ..default()
             },
             BackgroundColor(Color::srgba(0.1, 0.05, 0.05, 0.93)),
-            ZIndex(10),
+            ZIndex(Z_DIALOG),
         ))
         .with_children(|parent| {
             // Title
@@ -541,6 +551,86 @@ pub fn spawn_civil_war_selection_ui(
         });
 }
 
+/// Rule 30.415: minimal two-button panel letting the primary victim pick
+/// which of the two finalized factions to keep.
+fn spawn_civil_war_faction_choice_ui(
+    commands: &mut Commands,
+    cw_selection: &CivilWarSelectionState,
+    font: Handle<Font>,
+) {
+    commands
+        .spawn((
+            CivilWarSelectionUiRoot,
+            Node {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(20.0),
+                left: Val::Percent(50.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                padding: UiRect::all(Val::Px(12.0)),
+                row_gap: Val::Px(8.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.1, 0.05, 0.05, 0.93)),
+            ZIndex(Z_DIALOG),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                CivilWarTitleText,
+                Text::new("Civil War — Choose Your Faction"),
+                TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                TextColor(Color::srgb(1.0, 0.5, 0.3)),
+            ));
+            parent.spawn((
+                Text::new("Whichever faction you don't keep is annexed by the beneficiary"),
+                TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                TextColor(Color::srgb(0.7, 0.7, 0.7)),
+            ));
+
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(10.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn((
+                        Button,
+                        CivilWarButtonAction::KeepFirstFaction,
+                        CivilWarKeepFirstButton,
+                        Node {
+                            width: Val::Px(180.0), height: Val::Px(40.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
+                    ))
+                    .with_child((
+                        Text::new(format!("Keep First Faction ({} pts)", cw_selection.first_faction_points)),
+                        TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                        TextColor(Color::WHITE),
+                    ));
+
+                    row.spawn((
+                        Button,
+                        CivilWarButtonAction::KeepSecondFaction,
+                        CivilWarKeepSecondButton,
+                        Node {
+                            width: Val::Px(180.0), height: Val::Px(40.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.2, 0.2, 0.5)),
+                    ))
+                    .with_child((
+                        Text::new(format!("Keep Second Faction ({} pts)", cw_selection.second_faction_points)),
+                        TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                        TextColor(Color::WHITE),
+                    ));
+                });
+        });
+}
+
 /// Update Civil War UI text each frame the state changes.
 pub fn update_civil_war_selection_ui(
     cw_selection: Res<CivilWarSelectionState>,
@@ -553,13 +643,15 @@ pub fn update_civil_war_selection_ui(
     mut child_texts: Query<&mut Text, (Without<CivilWarPointsText>, Without<CivilWarTokenCountText>, Without<CivilWarCityNameText>)>,
 ) {
     if !cw_selection.is_changed() { return; }
+    if cw_selection.role == CivilWarUiRole::ChooseFaction { return; }
 
     if let Ok(mut text) = points_text.single_mut() {
         let pts = cw_selection.current_points();
         let target = cw_selection.target_points;
         let label = match cw_selection.role {
-            CivilWarUiRole::Victim => format!("Points: {} / {} (need ≥{})", pts, target, target),
-            CivilWarUiRole::Beneficiary => format!("Points: {} / {} (take up to {})", pts, target, target),
+            CivilWarUiRole::Victim => format!("Points: {pts} / {target} (need ≥{target})"),
+            CivilWarUiRole::Beneficiary => format!("Points: {pts} / {target} (take up to {target})"),
+            CivilWarUiRole::ChooseFaction => String::new(),
         };
         **text = label;
     }
@@ -575,7 +667,7 @@ pub fn update_civil_war_selection_ui(
     if let Ok(mut text) = city_text.single_mut()
         && let Some(city) = cw_selection.current_city()
     {
-        let name = area_names.get(city).map(|n| n.as_str()).unwrap_or("?");
+        let name = area_names.get(city).map_or("?", bevy::prelude::Name::as_str);
         let sel = if cw_selection.is_current_city_selected() { " [✓]" } else { "" };
         **text = format!(
             "{}{} ({}/{})",
@@ -638,6 +730,20 @@ pub fn handle_civil_war_selection_buttons(
                     commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
                 }
             }
+            CivilWarButtonAction::KeepFirstFaction => {
+                if let Ok(player) = human_waiting.single() {
+                    info!("[CIVIL WAR UI] Human victim keeps First faction (30.415)");
+                    cw_selection.choose_faction(FactionChoice::First);
+                    commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
+                }
+            }
+            CivilWarButtonAction::KeepSecondFaction => {
+                if let Ok(player) = human_waiting.single() {
+                    info!("[CIVIL WAR UI] Human victim keeps Second faction (30.415)");
+                    cw_selection.choose_faction(FactionChoice::Second);
+                    commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
+                }
+            }
         }
     }
 }
@@ -686,7 +792,7 @@ pub fn spawn_monotheism_selection_ui(
         .align_items_center()
         .padding_all_px(10.0)
         .gap_px(8.0)
-        .z_index(10)
+        .z_index(Z_DIALOG)
         .bg_color(Color::srgba(0.05, 0.1, 0.15, 0.93));
 
     // Title
@@ -744,7 +850,7 @@ pub fn spawn_monotheism_selection_ui(
         row.with_child(|c| {
             c.component::<MonotheismProgressText>()
                 .with_text(
-                    format!("0 / {}", max),
+                    format!("0 / {max}"),
                     Some(TextStyle::size_color(18.0, Color::srgb(0.8, 0.8, 0.8))),
                 );
         });
@@ -798,7 +904,7 @@ pub fn update_monotheism_selection_ui(
 
     if let Ok(mut t) = target_text.single_mut() {
         if let Some((_, area)) = mono_state.current_candidate() {
-            let area_name = area_names.get(area).map(|n| n.as_str()).unwrap_or("?");
+            let area_name = area_names.get(area).map_or("?", bevy::prelude::Name::as_str);
             let sel = if mono_state.is_current_selected() { " [✓]" } else { "" };
             **t = format!(
                 "{}{} ({}/{})",
@@ -843,6 +949,636 @@ pub fn cleanup_monotheism_selection_ui(
     mono_state: Res<MonotheismSelectionState>,
 ) {
     if !ui_root.is_empty() && human_waiting.is_empty() && mono_state.player.is_none() {
+        for entity in ui_root.iter() {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+// ── Flood secondary-victim allocation UI (rule 30.512) ──────────────────────
+
+/// Spawn the Flood allocation panel when a human primary victim has
+/// `AwaitingHumanCalamitySelection` and `FloodSelectionState` has an acting
+/// player set.
+pub fn spawn_flood_selection_ui(
+    human_waiting: Query<Entity, (With<IsHuman>, Added<AwaitingHumanCalamitySelection>)>,
+    existing_ui: Query<Entity, With<FloodSelectionUiRoot>>,
+    flood_selection: Res<FloodSelectionState>,
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+) {
+    if !existing_ui.is_empty() || flood_selection.acting_player.is_none() {
+        return;
+    }
+    if human_waiting.iter().next().is_none() {
+        return;
+    }
+
+    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+
+    commands
+        .spawn((
+            FloodSelectionUiRoot,
+            Node {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(20.0),
+                left: Val::Percent(50.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                padding: UiRect::all(Val::Px(12.0)),
+                row_gap: Val::Px(8.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.05, 0.1, 0.15, 0.93)),
+            ZIndex(Z_DIALOG),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Flood — Divide the secondary loss"),
+                TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                TextColor(Color::srgb(0.4, 0.7, 1.0)),
+            ));
+
+            parent.spawn((
+                Text::new("Choose how many points each secondary victim loses"),
+                TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                TextColor(Color::srgb(0.7, 0.7, 0.7)),
+            ));
+
+            parent.spawn((
+                FloodPointsText,
+                Text::new("Allocated: 0 / ?"),
+                TextFont { font: font.clone(), font_size: 18.0, ..default() },
+                TextColor(Color::srgb(1.0, 1.0, 0.5)),
+            ));
+
+            // Victim navigation + allocation row: [<] Name: N (of M) [>]  [-] [+]
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(6.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn((
+                        Button, FloodButtonAction::PrevVictim,
+                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
+                    )).with_child((Text::new("<"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+
+                    row.spawn((
+                        FloodVictimNameText,
+                        Text::new("Victim: ?"),
+                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        TextColor(Color::srgb(1.0, 1.0, 0.7)),
+                        Node { min_width: Val::Px(200.0), ..default() },
+                    ));
+
+                    row.spawn((
+                        Button, FloodButtonAction::NextVictim,
+                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
+                    )).with_child((Text::new(">"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+
+                    row.spawn((
+                        Button, FloodButtonAction::Decrement,
+                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.3, 0.1, 0.1)),
+                    )).with_child((Text::new("−"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+
+                    row.spawn((
+                        Button, FloodButtonAction::Increment,
+                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.1, 0.3, 0.1)),
+                    )).with_child((Text::new("+"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+                });
+
+            parent.spawn((
+                Button,
+                FloodButtonAction::Confirm,
+                FloodConfirmButton,
+                Node {
+                    width: Val::Px(160.0), height: Val::Px(40.0),
+                    justify_content: JustifyContent::Center, align_items: AlignItems::Center,
+                    margin: UiRect::top(Val::Px(4.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
+            ))
+            .with_child((Text::new("Confirm"), TextFont { font: font.clone(), font_size: 20.0, ..default() }, TextColor(Color::WHITE)));
+        });
+}
+
+/// Update Flood allocation UI text each frame the state changes.
+pub fn update_flood_selection_ui(
+    flood_selection: Res<FloodSelectionState>,
+    player_names: Query<&Name>,
+    mut points_text: Query<&mut Text, (With<FloodPointsText>, Without<FloodVictimNameText>)>,
+    mut victim_text: Query<&mut Text, (With<FloodVictimNameText>, Without<FloodPointsText>)>,
+    mut confirm_button: Query<&mut BackgroundColor, With<FloodConfirmButton>>,
+) {
+    if !flood_selection.is_changed() {
+        return;
+    }
+
+    if let Ok(mut text) = points_text.single_mut() {
+        **text = format!(
+            "Allocated: {} / {}",
+            flood_selection.allocated_total(),
+            flood_selection.total_budget
+        );
+    }
+
+    if let Ok(mut text) = victim_text.single_mut()
+        && let Some((victim, available, allocated)) = flood_selection.current_victim()
+    {
+        let name = player_names.get(victim).map_or("?", Name::as_str);
+        **text = format!(
+            "{}: {} (of {})  [{}/{}]",
+            name,
+            allocated,
+            available,
+            flood_selection.current_victim_index + 1,
+            flood_selection.victims.len()
+        );
+    }
+
+    if let Ok(mut bg) = confirm_button.single_mut() {
+        *bg = if flood_selection.selection_valid() {
+            BackgroundColor(Color::srgb(0.2, 0.5, 0.2))
+        } else {
+            BackgroundColor(Color::srgb(0.25, 0.25, 0.25))
+        };
+    }
+}
+
+/// Handle Flood allocation UI button presses.
+pub fn handle_flood_selection_buttons(
+    interaction_query: Query<
+        (&Interaction, &FloodButtonAction),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut flood_selection: ResMut<FloodSelectionState>,
+    mut commands: Commands,
+    human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
+) {
+    for (interaction, action) in interaction_query.iter() {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        match action {
+            FloodButtonAction::PrevVictim => { flood_selection.prev_victim(); }
+            FloodButtonAction::NextVictim => { flood_selection.next_victim(); }
+            FloodButtonAction::Increment => { flood_selection.increment_current(); }
+            FloodButtonAction::Decrement => { flood_selection.decrement_current(); }
+            FloodButtonAction::Confirm => {
+                if flood_selection.selection_valid()
+                    && let Ok(player) = human_waiting.single()
+                {
+                    info!(
+                        "[FLOOD UI] Human primary victim confirmed allocation: {:?}",
+                        flood_selection.victims
+                    );
+                    commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
+                }
+            }
+        }
+    }
+}
+
+/// Despawn Flood allocation UI when no human is waiting and acting_player is cleared.
+pub fn cleanup_flood_selection_ui(
+    mut commands: Commands,
+    ui_root: Query<Entity, With<FloodSelectionUiRoot>>,
+    human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
+    flood_selection: Res<FloodSelectionState>,
+) {
+    if !ui_root.is_empty() && human_waiting.is_empty() && flood_selection.acting_player.is_none() {
+        for entity in ui_root.iter() {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+// ── Famine secondary-victim allocation UI (rule 30.311) ──────────────────────
+
+/// Spawn the Famine allocation panel when a human primary victim has
+/// `AwaitingHumanCalamitySelection` and `FamineSelectionState` has an acting
+/// player set.
+pub fn spawn_famine_selection_ui(
+    human_waiting: Query<Entity, (With<IsHuman>, Added<AwaitingHumanCalamitySelection>)>,
+    existing_ui: Query<Entity, With<FamineSelectionUiRoot>>,
+    famine_selection: Res<FamineSelectionState>,
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+) {
+    if !existing_ui.is_empty() || famine_selection.acting_player.is_none() {
+        return;
+    }
+    if human_waiting.iter().next().is_none() {
+        return;
+    }
+
+    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+
+    commands
+        .spawn((
+            FamineSelectionUiRoot,
+            Node {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(20.0),
+                left: Val::Percent(50.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                padding: UiRect::all(Val::Px(12.0)),
+                row_gap: Val::Px(8.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.15, 0.1, 0.05, 0.93)),
+            ZIndex(Z_DIALOG),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Famine — Divide the secondary loss"),
+                TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                TextColor(Color::srgb(1.0, 0.6, 0.3)),
+            ));
+
+            parent.spawn((
+                Text::new("Choose how many points each secondary victim loses"),
+                TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                TextColor(Color::srgb(0.7, 0.7, 0.7)),
+            ));
+
+            parent.spawn((
+                FaminePointsText,
+                Text::new("Allocated: 0 / ?"),
+                TextFont { font: font.clone(), font_size: 18.0, ..default() },
+                TextColor(Color::srgb(1.0, 1.0, 0.5)),
+            ));
+
+            // Victim navigation + allocation row: [<] Name: N (of M) [>]  [-] [+]
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(6.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn((
+                        Button, FamineButtonAction::PrevVictim,
+                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
+                    )).with_child((Text::new("<"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+
+                    row.spawn((
+                        FamineVictimNameText,
+                        Text::new("Victim: ?"),
+                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        TextColor(Color::srgb(1.0, 1.0, 0.7)),
+                        Node { min_width: Val::Px(200.0), ..default() },
+                    ));
+
+                    row.spawn((
+                        Button, FamineButtonAction::NextVictim,
+                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
+                    )).with_child((Text::new(">"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+
+                    row.spawn((
+                        Button, FamineButtonAction::Decrement,
+                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.3, 0.1, 0.1)),
+                    )).with_child((Text::new("−"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+
+                    row.spawn((
+                        Button, FamineButtonAction::Increment,
+                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.1, 0.3, 0.1)),
+                    )).with_child((Text::new("+"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+                });
+
+            parent.spawn((
+                Button,
+                FamineButtonAction::Confirm,
+                FamineConfirmButton,
+                Node {
+                    width: Val::Px(160.0), height: Val::Px(40.0),
+                    justify_content: JustifyContent::Center, align_items: AlignItems::Center,
+                    margin: UiRect::top(Val::Px(4.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
+            ))
+            .with_child((Text::new("Confirm"), TextFont { font: font.clone(), font_size: 20.0, ..default() }, TextColor(Color::WHITE)));
+        });
+}
+
+/// Update Famine allocation UI text each frame the state changes.
+pub fn update_famine_selection_ui(
+    famine_selection: Res<FamineSelectionState>,
+    player_names: Query<&Name>,
+    mut points_text: Query<&mut Text, (With<FaminePointsText>, Without<FamineVictimNameText>)>,
+    mut victim_text: Query<&mut Text, (With<FamineVictimNameText>, Without<FaminePointsText>)>,
+    mut confirm_button: Query<&mut BackgroundColor, With<FamineConfirmButton>>,
+) {
+    if !famine_selection.is_changed() {
+        return;
+    }
+
+    if let Ok(mut text) = points_text.single_mut() {
+        **text = format!(
+            "Allocated: {} / {}",
+            famine_selection.allocated_total(),
+            famine_selection.total_budget
+        );
+    }
+
+    if let Ok(mut text) = victim_text.single_mut()
+        && let Some((victim, available, allocated)) = famine_selection.current_victim()
+    {
+        let name = player_names.get(victim).map_or("?", Name::as_str);
+        **text = format!(
+            "{}: {} (of {})  [{}/{}]",
+            name,
+            allocated,
+            available,
+            famine_selection.current_victim_index + 1,
+            famine_selection.victims.len()
+        );
+    }
+
+    if let Ok(mut bg) = confirm_button.single_mut() {
+        *bg = if famine_selection.selection_valid() {
+            BackgroundColor(Color::srgb(0.2, 0.5, 0.2))
+        } else {
+            BackgroundColor(Color::srgb(0.25, 0.25, 0.25))
+        };
+    }
+}
+
+/// Handle Famine allocation UI button presses.
+pub fn handle_famine_selection_buttons(
+    interaction_query: Query<
+        (&Interaction, &FamineButtonAction),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut famine_selection: ResMut<FamineSelectionState>,
+    mut commands: Commands,
+    human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
+) {
+    for (interaction, action) in interaction_query.iter() {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        match action {
+            FamineButtonAction::PrevVictim => { famine_selection.prev_victim(); }
+            FamineButtonAction::NextVictim => { famine_selection.next_victim(); }
+            FamineButtonAction::Increment => { famine_selection.increment_current(); }
+            FamineButtonAction::Decrement => { famine_selection.decrement_current(); }
+            FamineButtonAction::Confirm => {
+                if famine_selection.selection_valid()
+                    && let Ok(player) = human_waiting.single()
+                {
+                    info!(
+                        "[FAMINE UI] Human primary victim confirmed allocation: {:?}",
+                        famine_selection.victims
+                    );
+                    commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
+                }
+            }
+        }
+    }
+}
+
+/// Despawn Famine allocation UI when no human is waiting and acting_player is cleared.
+pub fn cleanup_famine_selection_ui(
+    mut commands: Commands,
+    ui_root: Query<Entity, With<FamineSelectionUiRoot>>,
+    human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
+    famine_selection: Res<FamineSelectionState>,
+) {
+    if !ui_root.is_empty() && human_waiting.is_empty() && famine_selection.acting_player.is_none() {
+        for entity in ui_root.iter() {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+// ── Epidemic secondary-victim allocation UI (rule 30.611) ───────────────────
+
+/// Spawn the Epidemic allocation panel when a human primary victim has
+/// `AwaitingHumanCalamitySelection` and `EpidemicSelectionState` has an acting
+/// player set.
+pub fn spawn_epidemic_selection_ui(
+    human_waiting: Query<Entity, (With<IsHuman>, Added<AwaitingHumanCalamitySelection>)>,
+    existing_ui: Query<Entity, With<EpidemicSelectionUiRoot>>,
+    epidemic_selection: Res<EpidemicSelectionState>,
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+) {
+    if !existing_ui.is_empty() || epidemic_selection.acting_player.is_none() {
+        return;
+    }
+    if human_waiting.iter().next().is_none() {
+        return;
+    }
+
+    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+
+    commands
+        .spawn((
+            EpidemicSelectionUiRoot,
+            Node {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(20.0),
+                left: Val::Percent(50.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                padding: UiRect::all(Val::Px(12.0)),
+                row_gap: Val::Px(8.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.05, 0.1, 0.15, 0.93)),
+            ZIndex(Z_DIALOG),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Epidemic — Divide the secondary loss"),
+                TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                TextColor(Color::srgb(0.4, 0.7, 1.0)),
+            ));
+
+            parent.spawn((
+                Text::new("Choose how many points each secondary victim loses"),
+                TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                TextColor(Color::srgb(0.7, 0.7, 0.7)),
+            ));
+
+            parent.spawn((
+                EpidemicPointsText,
+                Text::new("Allocated: 0 / ?"),
+                TextFont { font: font.clone(), font_size: 18.0, ..default() },
+                TextColor(Color::srgb(1.0, 1.0, 0.5)),
+            ));
+
+            // Victim navigation + allocation row: [<] Name: N (of M) [>]  [-] [+]
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(6.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn((
+                        Button, EpidemicButtonAction::PrevVictim,
+                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
+                    )).with_child((Text::new("<"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+
+                    row.spawn((
+                        EpidemicVictimNameText,
+                        Text::new("Victim: ?"),
+                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        TextColor(Color::srgb(1.0, 1.0, 0.7)),
+                        Node { min_width: Val::Px(200.0), ..default() },
+                    ));
+
+                    row.spawn((
+                        Button, EpidemicButtonAction::NextVictim,
+                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
+                    )).with_child((Text::new(">"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+
+                    row.spawn((
+                        Button, EpidemicButtonAction::Decrement,
+                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.3, 0.1, 0.1)),
+                    )).with_child((Text::new("−"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+
+                    row.spawn((
+                        Button, EpidemicButtonAction::Increment,
+                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.1, 0.3, 0.1)),
+                    )).with_child((Text::new("+"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+                });
+
+            parent.spawn((
+                Button,
+                EpidemicButtonAction::Confirm,
+                EpidemicConfirmButton,
+                Node {
+                    width: Val::Px(160.0), height: Val::Px(40.0),
+                    justify_content: JustifyContent::Center, align_items: AlignItems::Center,
+                    margin: UiRect::top(Val::Px(4.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
+            ))
+            .with_child((Text::new("Confirm"), TextFont { font: font.clone(), font_size: 20.0, ..default() }, TextColor(Color::WHITE)));
+        });
+}
+
+/// Update Epidemic allocation UI text each frame the state changes.
+pub fn update_epidemic_selection_ui(
+    epidemic_selection: Res<EpidemicSelectionState>,
+    player_names: Query<&Name>,
+    mut points_text: Query<&mut Text, (With<EpidemicPointsText>, Without<EpidemicVictimNameText>)>,
+    mut victim_text: Query<&mut Text, (With<EpidemicVictimNameText>, Without<EpidemicPointsText>)>,
+    mut confirm_button: Query<&mut BackgroundColor, With<EpidemicConfirmButton>>,
+) {
+    if !epidemic_selection.is_changed() {
+        return;
+    }
+
+    if let Ok(mut text) = points_text.single_mut() {
+        **text = format!(
+            "Allocated: {} / {}",
+            epidemic_selection.allocated_total(),
+            epidemic_selection.total_budget
+        );
+    }
+
+    if let Ok(mut text) = victim_text.single_mut()
+        && let Some((victim, available, allocated)) = epidemic_selection.current_victim()
+    {
+        let name = player_names.get(victim).map_or("?", Name::as_str);
+        **text = format!(
+            "{}: {} (of {})  [{}/{}]",
+            name,
+            allocated,
+            available,
+            epidemic_selection.current_victim_index + 1,
+            epidemic_selection.victims.len()
+        );
+    }
+
+    if let Ok(mut bg) = confirm_button.single_mut() {
+        *bg = if epidemic_selection.selection_valid() {
+            BackgroundColor(Color::srgb(0.2, 0.5, 0.2))
+        } else {
+            BackgroundColor(Color::srgb(0.25, 0.25, 0.25))
+        };
+    }
+}
+
+/// Handle Epidemic allocation UI button presses.
+pub fn handle_epidemic_selection_buttons(
+    interaction_query: Query<
+        (&Interaction, &EpidemicButtonAction),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut epidemic_selection: ResMut<EpidemicSelectionState>,
+    mut commands: Commands,
+    human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
+) {
+    for (interaction, action) in interaction_query.iter() {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        match action {
+            EpidemicButtonAction::PrevVictim => { epidemic_selection.prev_victim(); }
+            EpidemicButtonAction::NextVictim => { epidemic_selection.next_victim(); }
+            EpidemicButtonAction::Increment => { epidemic_selection.increment_current(); }
+            EpidemicButtonAction::Decrement => { epidemic_selection.decrement_current(); }
+            EpidemicButtonAction::Confirm => {
+                if epidemic_selection.selection_valid()
+                    && let Ok(player) = human_waiting.single()
+                {
+                    info!(
+                        "[EPIDEMIC UI] Human primary victim confirmed allocation: {:?}",
+                        epidemic_selection.victims
+                    );
+                    commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
+                }
+            }
+        }
+    }
+}
+
+/// Despawn Epidemic allocation UI when no human is waiting and acting_player is cleared.
+pub fn cleanup_epidemic_selection_ui(
+    mut commands: Commands,
+    ui_root: Query<Entity, With<EpidemicSelectionUiRoot>>,
+    human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
+    epidemic_selection: Res<EpidemicSelectionState>,
+) {
+    if !ui_root.is_empty() && human_waiting.is_empty() && epidemic_selection.acting_player.is_none() {
         for entity in ui_root.iter() {
             commands.entity(entity).despawn();
         }

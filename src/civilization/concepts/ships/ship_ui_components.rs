@@ -43,7 +43,7 @@ impl ShipConstructionState {
         max_buildable: usize,
     ) {
         self.player = Some(player);
-        self.available_areas = available_areas.clone();
+        self.available_areas = available_areas;
         self.ships_to_build = 0;
         self.max_buildable = max_buildable;
         self.selected_areas.clear();

@@ -103,7 +103,7 @@ pub fn select_stupid_movement(
                      Looping move (score {:.3}): {:#?}",
                     player_name,
                     count,
-                    scored.iter().find(|(i, _)| *i == chosen).map(|(_, s)| *s).unwrap_or(f32::NAN),
+                    scored.iter().find(|(i, _)| *i == chosen).map_or(f32::NAN, |(_, s)| *s),
                     selected_move,
                 );
             }
@@ -145,11 +145,7 @@ pub fn select_stupid_movement(
                         loop_guard.counts.remove(&event.player);
                         end_movement_writer.write(PlayerMovementEnded::new(event.player));
                     }
-                    GameMove::AttackArea(movement_move) => {
-                        //A little complexity here: If possible, leave two, but also, always make a move
-                        send_movement_move(&mut move_tokens_writer, event, movement_move, true);
-                    }
-                    GameMove::AttackCity(movement_move) => {
+                    GameMove::AttackArea(movement_move) | GameMove::AttackCity(movement_move) => {
                         //A little complexity here: If possible, leave two, but also, always make a move
                         send_movement_move(&mut move_tokens_writer, event, movement_move, true);
                     }
@@ -260,7 +256,7 @@ pub fn select_stupid_trade_move(
                 .filter_map(|m| match m { GameMove::Trade(trade_move) => Some(trade_move), _ => None })
                 .cloned()
                 .collect::<Vec<_>>();
-            for trade_move in trade_moves.iter() {
+            for trade_move in &trade_moves {
                 let mut rng = rand::rng();
                 match trade_move {
                     TradeMove::ProposeTrade(receiver, matching_cards) => {
@@ -359,7 +355,12 @@ fn _debug_trade_move_info(trade_move: &TradeMove, trade_offer: &TradeOffer) {
 pub fn select_stupid_civ_card_move(
     mut event_reader: MessageReader<SelectStupidMove>,
     player_moves: Query<(&Name, &AvailableMoves, &Personality)>,
-    player_cards_query: Query<(&PlayerTradeCards, &PlayerCivilizationCards)>,
+    player_cards_query: Query<(
+        &PlayerTradeCards,
+        &PlayerCivilizationCards,
+        Option<&crate::civilization::resolve_calamities::resolve_calamities_components::GrainLockedForPurchase>,
+        Option<&crate::civilization::CardsHeldBeforePurchasing>,
+    )>,
     cards: Res<AvailableCivCards>,
     mut done_writer: MessageWriter<PlayerDoneAcquiringCivilizationCards>,
     mut purchase_writer: MessageWriter<ConfirmCivCardPurchase>,
@@ -368,10 +369,16 @@ pub fn select_stupid_civ_card_move(
     for event in event_reader.read() {
         if let Ok((player_name, available_moves, personality)) = player_moves.get(event.player) {
             // Player wealth + existing credits, used to score each card option.
+            // Rule 31.53: credits are computed against what was held BEFORE
+            // this turn's acquiring phase began, not the live hand -- see
+            // CardsHeldBeforePurchasing's doc comment. This matters here
+            // specifically because this system re-runs iteratively as the AI
+            // buys one card per move, so without the snapshot a card bought
+            // earlier this turn would wrongly discount a later one.
             let (wealth, credits) = match player_cards_query.get(event.player) {
-                Ok((trade_cards, civ_cards)) => (
+                Ok((trade_cards, civ_cards, _, cards_held_before)) => (
                     trade_cards.total_stack_value() as u32,
-                    cards.total_credits(&civ_cards.cards),
+                    cards.total_credits(cards_held_before.map_or(&civ_cards.cards, |c| &c.0)),
                 ),
                 Err(_) => (0, Vec::new()),
             };
@@ -418,12 +425,12 @@ pub fn select_stupid_civ_card_move(
                         done_writer.write(PlayerDoneAcquiringCivilizationCards(event.player));
                     }
                     AcquireCivilizationCardsMove::AcquireCard(card_name) => {
-                        if let Ok((trade_cards, civ_cards)) = player_cards_query.get(event.player) {
-                            let credits = cards.total_credits(&civ_cards.cards);
+                        if let Ok((trade_cards, civ_cards, grain_locked, cards_held_before)) = player_cards_query.get(event.player) {
+                            let credits = cards.total_credits(cards_held_before.map_or(&civ_cards.cards, |c| &c.0));
                             let card_def = cards.cards.iter().find(|c| c.name == *card_name);
                             if let Some(def) = card_def {
                                 let cost = def.calculate_cost(&credits) as usize;
-                                let payment = compute_ai_payment(trade_cards, cost);
+                                let payment = compute_ai_payment(trade_cards, cost, grain_locked.map_or(0, |l| l.0));
                                 purchase_writer.write(ConfirmCivCardPurchase {
                                     player: event.player,
                                     cards_to_buy: vec![*card_name],
@@ -452,20 +459,39 @@ fn civ_card_credit_value(def: &CivCardDefinition) -> u32 {
     def.credits
         .iter()
         .map(|credit| match credit {
-            Credits::ToType(_, c) => *c,
-            Credits::ToAll(c) => *c,
-            Credits::ToSpecificCard(_, c) => *c,
+            Credits::ToType(_, c) | Credits::ToAll(c) | Credits::ToSpecificCard(_, c) => *c,
         })
         .sum()
 }
 
 /// Greedy minimum payment: take stacks sorted by descending face value, using just
 /// enough cards from each to cover `cost`.  Returns a HashMap<TradeCard, count>.
-pub fn compute_ai_payment(trade_cards: &PlayerTradeCards, cost: usize) -> bevy::platform::collections::HashMap<TradeCard, usize> {
+///
+/// `grain_locked` (rule 30.312) is how many of the player's Grain cards are
+/// tied up face-up from a Famine/Pottery reduction this turn and therefore
+/// unusable -- the Grain stack's effective count (and its count²×face
+/// suite_value, recomputed here since the raw stack's is based on the full
+/// count) is capped before scoring, so the AI never even considers spending
+/// locked Grain.
+pub fn compute_ai_payment(
+    trade_cards: &PlayerTradeCards,
+    cost: usize,
+    grain_locked: usize,
+) -> bevy::platform::collections::HashMap<TradeCard, usize> {
     let mut payment = bevy::platform::collections::HashMap::default();
     let mut remaining = cost;
 
     let mut stacks = trade_cards.as_card_stacks_sorted_by_value();
+    if grain_locked > 0
+        && let Some(grain_stack) = stacks.iter_mut().find(|s| s.card_type == TradeCard::Grain)
+    {
+        let usable = crate::civilization::resolve_calamities::resolve_calamities_components::usable_grain_count(
+            grain_stack.count,
+            grain_locked,
+        );
+        grain_stack.count = usable;
+        grain_stack.suite_value = usable * usable * grain_stack.card_type.value();
+    }
     stacks.retain(|s| s.is_commodity && s.count > 0);
 
     for stack in stacks {
@@ -511,7 +537,7 @@ fn gather_area_summaries(
                 max_population: population.max_population,
                 is_city_site,
                 has_city: built_city.is_some(),
-                city_is_mine: built_city.map(|c| c.player == player).unwrap_or(false),
+                city_is_mine: built_city.is_some_and(|c| c.player == player),
                 my_pop,
                 enemy_pop,
                 neighbours: land_passage.to_areas.clone(),
@@ -539,15 +565,7 @@ fn send_movement_move(
         ));
     } else {
         match movement_move.max_tokens {
-            1 => {
-                move_tokens_writer.write(MoveTokenFromAreaToAreaCommand::new(
-                    movement_move.source,
-                    movement_move.target,
-                    1,
-                    event.player,
-                ));
-            }
-            2 => {
+            1 | 2 => {
                 move_tokens_writer.write(MoveTokenFromAreaToAreaCommand::new(
                     movement_move.source,
                     movement_move.target,
@@ -564,5 +582,61 @@ fn send_movement_move(
                 ));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod grain_lock_tests {
+    use super::*;
+
+    // ── Rule 30.312: locked Grain is never offered as AI payment ───────────
+
+    #[test]
+    fn no_lock_can_still_spend_all_grain() {
+        let mut hand = PlayerTradeCards::default();
+        for _ in 0..3 {
+            hand.add_trade_card(TradeCard::Grain);
+        }
+        // 3 Grain -> suite_value 3*3*4 = 36, plenty to cover a cost of 20.
+        let payment = compute_ai_payment(&hand, 20, 0);
+        assert_eq!(payment.get(&TradeCard::Grain).copied(), Some(3));
+    }
+
+    #[test]
+    fn fully_locked_grain_is_never_selected() {
+        let mut hand = PlayerTradeCards::default();
+        for _ in 0..3 {
+            hand.add_trade_card(TradeCard::Grain);
+        }
+        // All 3 held Grain are locked -> usable count 0 -> can't cover any cost.
+        let payment = compute_ai_payment(&hand, 20, 3);
+        assert_eq!(payment.get(&TradeCard::Grain), None);
+    }
+
+    #[test]
+    fn partially_locked_grain_only_offers_the_unlocked_remainder() {
+        let mut hand = PlayerTradeCards::default();
+        for _ in 0..5 {
+            hand.add_trade_card(TradeCard::Grain);
+        }
+        // 5 held, 3 locked -> 2 usable -> suite_value 2*2*4 = 16, not enough
+        // for a cost of 20, so the whole usable stack is spent (not the full 5).
+        let payment = compute_ai_payment(&hand, 20, 3);
+        assert_eq!(payment.get(&TradeCard::Grain).copied(), Some(2));
+    }
+
+    #[test]
+    fn locked_grain_does_not_affect_other_commodity_types() {
+        let mut hand = PlayerTradeCards::default();
+        for _ in 0..3 {
+            hand.add_trade_card(TradeCard::Grain);
+        }
+        for _ in 0..3 {
+            hand.add_trade_card(TradeCard::Salt);
+        }
+        // Grain fully locked; Salt is untouched and should still be offered.
+        let payment = compute_ai_payment(&hand, 5, 3);
+        assert_eq!(payment.get(&TradeCard::Grain), None);
+        assert!(payment.get(&TradeCard::Salt).copied().unwrap_or(0) > 0);
     }
 }

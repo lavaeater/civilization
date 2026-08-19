@@ -77,3 +77,52 @@ impl SlaveRevoltState {
         self.selected_cities.len() >= self.cities_to_reduce || self.cities_to_reduce == 0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Rule 30.421: 15 tokens belonging to the primary victim may not support cities.
+    #[test]
+    fn base_is_15_tokens() {
+        assert_eq!(SlaveRevoltState::new().tokens_cannot_support, 15);
+    }
+
+    /// Rule 30.423: Mining adds 5 tokens that cannot support.
+    #[test]
+    fn mining_adds_5_tokens() {
+        assert_eq!(SlaveRevoltState::new().with_mining().tokens_cannot_support, 20);
+    }
+
+    /// Rule 30.423: Enlightenment removes 5 tokens from the unsupported count.
+    #[test]
+    fn enlightenment_removes_5_tokens() {
+        assert_eq!(SlaveRevoltState::new().with_enlightenment().tokens_cannot_support, 10);
+    }
+
+    /// Rule 30.423: holding both Mining and Enlightenment cancels the modifiers — net base 15.
+    #[test]
+    fn mining_and_enlightenment_cancel_out() {
+        assert_eq!(
+            SlaveRevoltState::new().with_mining_and_enlightenment().tokens_cannot_support,
+            15
+        );
+    }
+
+    /// One city needs 5 supporting tokens to stay up; the affected-token count is
+    /// converted to a city count, capped by however many cities the player actually has.
+    #[test]
+    fn cities_to_reduce_derived_from_affected_tokens_and_board_state() {
+        let mut state = SlaveRevoltState::new(); // 15 tokens
+        state.compute_cities_to_reduce(15, 10);
+        assert_eq!(state.cities_to_reduce, 3); // 15 / 5
+
+        let mut capped = SlaveRevoltState::new();
+        capped.compute_cities_to_reduce(15, 2); // only 2 cities exist
+        assert_eq!(capped.cities_to_reduce, 2);
+
+        let mut fewer_tokens = SlaveRevoltState::new();
+        fewer_tokens.compute_cities_to_reduce(7, 10); // fewer than 15 on board
+        assert_eq!(fewer_tokens.cities_to_reduce, 1); // 7 / 5 = 1
+    }
+}

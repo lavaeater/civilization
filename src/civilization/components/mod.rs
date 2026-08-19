@@ -181,7 +181,7 @@ impl TokenStock {
     pub fn remove_tokens_from_stock(&mut self, number_of_tokens: usize) -> Option<HashSet<Entity>> {
         if self.tokens.len() >= number_of_tokens {
             let to_remove: Vec<Entity> =
-                self.tokens.iter().take(number_of_tokens).cloned().collect();
+                self.tokens.iter().take(number_of_tokens).copied().collect();
             self.tokens.retain(|t| !to_remove.contains(t));
             Some(to_remove.into_iter().collect())
         } else {
@@ -204,7 +204,7 @@ impl TokenStock {
 
     pub fn remove_token_from_stock(&mut self) -> Option<Entity> {
         // Find an arbitrary item to pop (first item in iteration)
-        if let Some(item) = self.tokens.iter().next().cloned() {
+        if let Some(item) = self.tokens.iter().next().copied() {
             self.tokens.take(&item) // Remove and return the item
         } else {
             None // Return None if the set is empty
@@ -306,7 +306,7 @@ impl PlayerAreas {
     pub fn remove_token(&mut self, token: Entity) {
         let mut key_to_remove: Option<Entity> = None;
 
-        for (area, tokens) in self.area_population.iter_mut() {
+        for (area, tokens) in &mut self.area_population {
             if tokens.remove(&token) {
                 if tokens.is_empty() {
                     key_to_remove = Some(*area);
@@ -330,11 +330,11 @@ impl PlayerAreas {
     }
 
     pub fn areas_with_population(&self) -> HashSet<Entity> {
-        self.area_population.keys().cloned().collect()
+        self.area_population.keys().copied().collect()
     }
 
     pub fn total_population(&self) -> usize {
-        self.area_population.values().map(|set| set.len()).sum()
+        self.area_population.values().map(HashSet::len).sum()
     }
 
     pub fn population_in_area(&self, area: Entity) -> usize {

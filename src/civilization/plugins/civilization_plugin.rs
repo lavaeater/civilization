@@ -20,6 +20,29 @@ pub struct CivilizationPlugin;
 /// Player logic is only active during the State `GameState::Playing`
 impl Plugin for CivilizationPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(CivLogicPlugins).add_plugins((
+            CivilizationInputPlugin,
+            TradeUiPlugin,
+            AreaInfoPlugin,
+            lava_ui_builder::LavaUiPlugin,
+            AgentApiPlugin,
+        ));
+    }
+}
+
+/// The rules engine without any UI shell: everything needed to *play* the
+/// game (phases, moves, AI, map, save), but none of the plugins that need a
+/// window, input devices or rendered UI. The headless multiplayer server
+/// builds on exactly this; `CivilizationPlugin` adds the UI shell on top.
+///
+/// Note: several phase plugins still contain UI *systems* (highlights, HUD
+/// panels). Those are inert headless as long as the resources they read
+/// exist — the server inserts inert `ButtonInput`/`TextureAssets`/`LavaTheme`
+/// stand-ins. Splitting those systems out per-plugin is follow-up work.
+pub struct CivLogicPlugins;
+
+impl Plugin for CivLogicPlugins {
+    fn build(&self, app: &mut App) {
         // Use DebugOptions::test_manual_pop_exp() to test manual population expansion
         app.insert_resource(DebugOptions::from_env())
         .register_type::<Player>()
@@ -64,7 +87,6 @@ impl Plugin for CivilizationPlugin {
             MovementPlugin,
             ConflictPlugin,
             TradePlugin,
-            CivilizationInputPlugin,
             CivCardsPlugin,
         ))
         .add_plugins((
@@ -76,11 +98,7 @@ impl Plugin for CivilizationPlugin {
             GameMovesPlugin,
             TradeCardPlugin,
             MapPlugin,
-            TradeUiPlugin,
-            AreaInfoPlugin,
             SaveGamePlugin,
-            lava_ui_builder::LavaUiPlugin,
-            AgentApiPlugin,
         ))
         .add_systems(OnEnter(GameActivity::StartGame), start_game)
         .insert_resource(GameInfoAndStuff::default())
@@ -97,6 +115,8 @@ impl Plugin for CivilizationPlugin {
 }
 
 #[derive(Resource)]
+// A bag of debug toggles; bools are the whole point.
+#[allow(clippy::struct_excessive_bools)]
 pub struct DebugOptions {
     pub add_human_player: bool,
     pub human_faction: GameFaction,
@@ -128,6 +148,10 @@ pub struct DebugOptions {
     /// panning/focusing, so you can watch the AI play without the view jumping
     /// around. Manual zoom/pan keys still work.
     pub static_map_view: bool,
+    /// Factions reserved for network seats: `setup_players` includes these
+    /// first (before the local human / random fill), so the multiplayer
+    /// server knows which factions its seats map to.
+    pub reserved_factions: Vec<GameFaction>,
 }
 
 /// Run condition: automatic camera panning/focusing is enabled (i.e. not in the
@@ -163,6 +187,7 @@ impl Default for DebugOptions {
             human_civ_cards: None,
             force_playstyle: None,
             static_map_view: false,
+            reserved_factions: Vec::new(),
         }
     }
 }
@@ -221,6 +246,7 @@ impl DebugOptions {
             human_civ_cards: Some(vec![CivCardName::ClothMaking, CivCardName::Mathematics]),
             force_playstyle: None,
             static_map_view: false,
+            reserved_factions: Vec::new(),
         }
     }
 }

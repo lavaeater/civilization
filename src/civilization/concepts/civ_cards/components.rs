@@ -9,6 +9,19 @@ pub struct PlayerCivilizationCards {
     pub cards: HashSet<CivCardName>,
 }
 
+/// Rule 31.53: "Credits may not be used in the same turn in which they are
+/// acquired." A snapshot of `PlayerCivilizationCards.cards` taken once, at
+/// the start of this player's `AcquireCivilizationCards` turn
+/// (`begin_acquire_civ_cards`), before any purchase this turn can add to it.
+/// Every cost/credit calculation during this phase must use this snapshot,
+/// not the live `PlayerCivilizationCards`, so a card bought earlier in the
+/// same turn can't discount a card bought later in the same turn -- without
+/// this, the AI's iterative "buy one, recalculate, buy again" loop would
+/// otherwise let exactly that happen. Removed when the player finishes
+/// acquiring (`player_is_done`).
+#[derive(Component, Debug, Default)]
+pub struct CardsHeldBeforePurchasing(pub HashSet<CivCardName>);
+
 impl PlayerCivilizationCards {
     pub fn owns(&self, card: &CivCardName) -> bool {
         self.cards.contains(card)

@@ -45,14 +45,23 @@ struct PauseMenu;
 // Main Menu
 // ============================================================================
 
-fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>, theme: Res<LavaTheme>) {
-    commands.spawn((
-        Camera2d,
-        IsDefaultUiCamera,
-        Projection::Orthographic(OrthographicProjection::default_2d()),
-        GameCamera,
-        Msaa::Off,
-    ));
+fn setup_menu(
+    mut commands: Commands,
+    _textures: Res<TextureAssets>,
+    theme: Res<LavaTheme>,
+    existing_camera: Query<(), With<GameCamera>>,
+) {
+    // Re-entering the menu (e.g. after leaving an online game) must not
+    // spawn a second camera.
+    if existing_camera.is_empty() {
+        commands.spawn((
+            Camera2d,
+            IsDefaultUiCamera,
+            Projection::Orthographic(OrthographicProjection::default_2d()),
+            GameCamera,
+            Msaa::Off,
+        ));
+    }
 
     let mut ui = UIBuilder::new(commands, Some(theme.clone()));
 
@@ -74,6 +83,16 @@ fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>, theme: Res<
         |_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
             info!("Play button clicked!");
             next_state.set(GameState::Playing);
+        },
+    );
+
+    ui.add_button_observe(
+        "Play Online",
+        |btn| {
+            btn.size(px(300.0), px(60.0));
+        },
+        |_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
+            next_state.set(GameState::Online);
         },
     );
 

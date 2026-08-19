@@ -1,4 +1,5 @@
 use crate::civilization::components::*;
+use crate::civilization::concepts::acquire_trade_cards::PlayerTradeCards;
 use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
 use crate::civilization::concepts::conflict::conflict_components::*;
 use crate::civilization::concepts::conflict::conflict_functions::*;
@@ -34,7 +35,7 @@ pub fn on_add_unresolved_conflict(
             camera_focus.add_focus(
                 transform.translation,
                 1.5,
-                format!("Conflict in {}", name),
+                format!("Conflict in {name}"),
             );
         }
 
@@ -48,7 +49,7 @@ pub fn on_add_unresolved_conflict(
         players.sort_by(|a, b| temp_map[b].len().cmp(&temp_map[a].len()));
 
         for (i, player) in players.iter().enumerate() {
-            let token_count = temp_map.get(player).map(|t| t.len()).unwrap_or(0);
+            let token_count = temp_map.get(player).map_or(0, HashSet::len);
             info!("  Player {} ({:?}): {} tokens", i + 1, player, token_count);
         }
 
@@ -58,8 +59,7 @@ pub fn on_add_unresolved_conflict(
             .filter(|&&p| {
                 civ_cards_query
                     .get(p)
-                    .map(|c| c.owns(&CivCardName::Metalworking))
-                    .unwrap_or(false)
+                    .is_ok_and(|c| c.owns(&CivCardName::Metalworking))
             })
             .copied()
             .collect();
@@ -123,6 +123,8 @@ pub fn on_add_unresolved_city_conflict(
     human_players: Query<Entity, With<IsHuman>>,
     mut camera_focus: ResMut<CameraFocusQueue>,
     civ_cards_query: Query<&PlayerCivilizationCards>,
+    mut trade_cards_query: Query<&mut PlayerTradeCards>,
+    mut treasury_query: Query<&mut Treasury>,
 ) {
     if let Ok((area_entity, name, mut population, built_city, transform)) = areas.get_mut(trigger.event().entity) {
         let total_pop = population.total_population();
@@ -139,7 +141,7 @@ pub fn on_add_unresolved_city_conflict(
             camera_focus.add_focus(
                 transform.translation,
                 1.5,
-                format!("City conflict in {}", name),
+                format!("City conflict in {name}"),
             );
         }
         
@@ -151,32 +153,40 @@ pub fn on_add_unresolved_city_conflict(
             name, city_owner, owner_tokens, other_players.len(), total_pop, max_pop, conflict_counter_resource.0
         );
         
-        for player in other_players.iter() {
+        for player in &other_players {
             let token_count = population.population_for_player(*player);
             info!("  Invader {:?}: {} tokens", player, token_count);
         }
 
-        // Engineering (rule 25.9): holder counts as having 3 extra tokens in city conflicts.
-        let has_large_invader = other_players
-            .iter()
-            .any(|p| {
-                let has_engineering = civ_cards_query
-                    .get(*p)
-                    .map(|c| c.owns(&CivCardName::Engineering))
-                    .unwrap_or(false);
-                let effective_tokens = population.population_for_player(*p)
-                    + if has_engineering { 3 } else { 0 };
-                effective_tokens > 6
-            });
-        
+        // Rule 24.35: Engineering shifts the attack threshold (base 7, rule
+        // 24.31) and the number of tokens the city is replaced by (base 6,
+        // rule 24.32) depending on which side(s) hold it.
+        let defender_has_engineering = civ_cards_query
+            .get(built_city.player)
+            .is_ok_and(|c| c.owns(&CivCardName::Engineering));
+        let has_large_invader = other_players.iter().any(|p| {
+            let attacker_has_engineering = civ_cards_query
+                .get(*p)
+                .is_ok_and(|c| c.owns(&CivCardName::Engineering));
+            let (tokens_required, _) =
+                attack_thresholds(attacker_has_engineering, defender_has_engineering);
+            population.population_for_player(*p) >= tokens_required
+        });
+
         if has_large_invader {
-            info!("[CITY CONFLICT] Large invader detected (>6 tokens)");
+            info!("[CITY CONFLICT] Large invader detected");
             match other_players.len().cmp(&1) {
                 Ordering::Less => {
                     info!("[CITY CONFLICT] No other players - edge case");
                 }
                 Ordering::Equal => {
-                    info!("[CITY CONFLICT] Single large invader - replacing city with tokens");
+                    let attacker = *other_players.iter().next().expect("len == 1");
+                    let attacker_has_engineering = civ_cards_query
+                        .get(attacker)
+                        .is_ok_and(|c| c.owns(&CivCardName::Engineering));
+                    let (_, replacement_count) =
+                        attack_thresholds(attacker_has_engineering, defender_has_engineering);
+                    info!("[CITY CONFLICT] Single large invader - replacing city with {} tokens", replacement_count);
                     if let Ok((
                         mut city_stock,
                         mut token_stock,
@@ -193,9 +203,55 @@ pub fn on_add_unresolved_city_conflict(
                             &mut token_stock,
                             &mut player_cities,
                             &mut player_areas,
+                            replacement_count,
                         );
                         info!("[CITY CONFLICT] City replaced, inserting UnresolvedConflict for regular resolution");
                         commands.entity(area_entity).insert(UnresolvedConflict);
+
+                        // Rules 24.51-24.52: a city eliminated by direct attack
+                        // (as opposed to Monotheism/Pirates/calamity/tax revolt,
+                        // 24.53) costs its owner a random trade card and up to
+                        // 3 pillaged tokens per city. This is unconditionally
+                        // beneficial to the attacker, so it's auto-applied for
+                        // both AI and human players; a "let the human decline"
+                        // UI hook would be a pure nice-to-have on top of this.
+                        //
+                        // Rule 30.526: if Barbarian Hordes eliminates a city,
+                        // NO trade card is drawn from the victim at all -- not
+                        // just "the attacker doesn't receive it". Barbarians
+                        // (see BarbarianHordesState's doc comment) have no
+                        // PlayerTradeCards, so gating the whole draw on the
+                        // attacker having one (checked first, before touching
+                        // the victim's hand) implements this correctly rather
+                        // than removing a card from the victim and discarding
+                        // it, which the old attacker-only check would have done.
+                        if trade_cards_query.get(attacker).is_ok()
+                            && let Ok(mut victim_cards) = trade_cards_query.get_mut(built_city.player)
+                            && let Some(drawn) = victim_cards.remove_random_card()
+                        {
+                            if let Ok(mut attacker_cards) = trade_cards_query.get_mut(attacker) {
+                                attacker_cards.add_trade_card(drawn);
+                                info!(
+                                    "[CITY CONFLICT] Rule 24.51: {:?} drew {:?} from {:?}'s hand",
+                                    attacker, drawn, built_city.player
+                                );
+                            } else {
+                                info!("[CITY CONFLICT] Rule 24.51: attacker {:?} has no PlayerTradeCards, card lost", attacker);
+                            }
+                        }
+                        if let Ok((_, mut attacker_stock, _, _)) = player_with_city.get_mut(attacker)
+                            && let Ok(mut attacker_treasury) = treasury_query.get_mut(attacker)
+                            && let Some(pillaged) = attacker_stock.remove_at_most_n_tokens_from_stock(3)
+                        {
+                            let pillaged_count = pillaged.len();
+                            for token in pillaged {
+                                attacker_treasury.add_token_to_treasury(token);
+                            }
+                            info!(
+                                "[CITY CONFLICT] Rule 24.52: {:?} pillaged {} token(s) from stock to treasury",
+                                attacker, pillaged_count
+                            );
+                        }
                     } else {
                         info!("[CITY CONFLICT] Failed to get city owner components");
                     }
@@ -236,15 +292,15 @@ pub fn on_add_unresolved_city_conflict(
         // Only decrement the counter if we did NOT chain into UnresolvedConflict.
         // When we insert UnresolvedConflict (large invader paths), that observer
         // will handle the decrement — so we must not double-decrement here.
-        if !has_large_invader {
+        if has_large_invader {
+            info!("[CITY CONFLICT] Chained into UnresolvedConflict — counter will be decremented by that observer");
+        } else {
             conflict_counter_resource.0 = conflict_counter_resource.0.saturating_sub(1);
             info!("[CITY CONFLICT] Conflicts remaining: {}", conflict_counter_resource.0);
             if conflict_counter_resource.0 == 0 {
                 info!("[CITY CONFLICT] All conflicts resolved, transitioning to CityConstruction");
                 next_state.set(GameActivity::CityConstruction);
             }
-        } else {
-            info!("[CITY CONFLICT] Chained into UnresolvedConflict — counter will be decremented by that observer");
         }
     } else {
         info!("[CITY CONFLICT] Failed to get area for entity {:?}", trigger.event().entity);

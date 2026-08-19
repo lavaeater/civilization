@@ -20,9 +20,8 @@ pub fn recalculate_pop_exp_moves_for_player(
         let mut command_index = 0;
         if let Ok((player_areas, stock, civ_cards)) = player_move_query.get(event.player) {
             let has_agriculture = civ_cards
-                .map(|c| c.owns(&CivCardName::Agriculture))
-                .unwrap_or(false);
-            for area in player_areas.areas().iter() {
+                .is_some_and(|c| c.owns(&CivCardName::Agriculture));
+            for area in &player_areas.areas() {
                 if let Ok(pop) = area_population_query.get(*area) {
                     command_index += 1;
                     moves.insert(
@@ -71,16 +70,15 @@ pub fn recalculate_movement_moves_for_player(
         let mut command_index = 0;
         if let Ok((player_areas, player_ships, civ_cards)) = player_move_query.get(event.player) {
             let has_road_building = civ_cards
-                .map(|c| c.owns(&CivCardName::RoadBuilding))
-                .unwrap_or(false);
+                .is_some_and(|c| c.owns(&CivCardName::RoadBuilding));
             let has_astronomy = civ_cards
-                .map(|c| c.owns(&CivCardName::Astronomy))
-                .unwrap_or(false);
+                .is_some_and(|c| c.owns(&CivCardName::Astronomy));
             let has_cloth_making = civ_cards
-                .map(|c| c.owns(&CivCardName::ClothMaking))
-                .unwrap_or(false);
+                .is_some_and(|c| c.owns(&CivCardName::ClothMaking));
 
-            for (area, tokens) in player_areas.areas_and_population() {
+            let areas_and_population = player_areas.areas_and_population();
+
+            for (area, tokens) in &areas_and_population {
                 let tokens_that_can_move = tokens
                     .iter()
                     .filter(|t| !token_filter_query.get(**t).unwrap())
@@ -88,15 +86,15 @@ pub fn recalculate_movement_moves_for_player(
 
                 if !tokens_that_can_move.is_empty() {
                     // ── Land movement ─────────────────────────────────────────
-                    if let Ok(connections) = area_connections_query.get(area) {
-                        for target_area in connections.to_areas.iter() {
+                    if let Ok(connections) = area_connections_query.get(*area) {
+                        for target_area in &connections.to_areas {
                             if let Ok((population, optional_city)) =
                                 area_pop_and_city_query.get(*target_area)
                             {
                                 add_land_move(
                                     &mut moves,
                                     &mut command_index,
-                                    area,
+                                    *area,
                                     *target_area,
                                     event.player,
                                     tokens_that_can_move.len(),
@@ -115,8 +113,8 @@ pub fn recalculate_movement_moves_for_player(
                 !pass_pop.has_other_players(&event.player) && let Ok(connections2) =
                     area_connections_query.get(*target_area)
                             {
-                                for final_area in connections2.to_areas.iter() {
-                                    if *final_area == area {
+                                for final_area in &connections2.to_areas {
+                                    if *final_area == *area {
                                         continue;
                                     } // no backtrack
                                     if let Ok((final_pop, final_city)) =
@@ -125,7 +123,7 @@ pub fn recalculate_movement_moves_for_player(
                                         add_land_move(
                                             &mut moves,
                                             &mut command_index,
-                                            area,
+                                            *area,
                                             *final_area,
                                             event.player,
                                             tokens_that_can_move.len(),
@@ -137,18 +135,55 @@ pub fn recalculate_movement_moves_for_player(
                             }
                         }
                     }
+                }
+            }
 
-                    // ── Ship ferry moves ──────────────────────────────────────
-                    // Rule: ships ferry up to 5 tokens per move.
-                    // Astronomy (rule 28.23): allows entering Open Sea areas.
-                    // Cloth Making (rule 28.18): extends sea range by 1 hop.
-                    if !player_ships.ships_in_area(area).is_empty()
-                        && let Ok(sea) = sea_connections_query.get(area)
+            // ── Ship movement (rule 23.1) ───────────────────────────────────
+            // Ships move independently of whether they're carrying tokens --
+            // iterate every area with one of the player's ships, not just
+            // areas with population, so a ship stranded away from its owner's
+            // tokens (or simply left empty) can still move on its own.
+            // Astronomy (rule 28.23): allows entering Open Sea areas.
+            // Cloth Making (rule 28.18): extends sea range by 1 hop.
+            for area in player_ships.all_areas_with_ships() {
+                let Ok(sea) = sea_connections_query.get(area) else {
+                    continue;
+                };
+                let ferry_tokens = areas_and_population
+                    .get(&area)
+                    .map_or(0, |tokens| {
+                        tokens
+                            .iter()
+                            .filter(|t| !token_filter_query.get(**t).unwrap())
+                            .count()
+                    })
+                    .min(5);
+                for &target_area in &sea.to_areas {
+                    // Without Astronomy, skip Open Sea destinations
+                    if !has_astronomy && open_sea_query.get(target_area).unwrap_or(false) {
+                        continue;
+                    }
+                    command_index += 1;
+                    moves.insert(
+                        command_index,
+                        GameMove::ShipFerry(MovementMove::new(
+                            area,
+                            target_area,
+                            event.player,
+                            ferry_tokens,
+                        )),
+                    );
+
+                    // Cloth Making: generate one additional hop through this target
+                    // (rule 28.18: +1 sea movement range, cannot use open sea without Astronomy)
+                    if has_cloth_making
+                        && let Ok(sea2) = sea_connections_query.get(target_area)
                     {
-                        let ferry_tokens = tokens_that_can_move.len().min(5);
-                        for &target_area in sea.to_areas.iter() {
-                            // Without Astronomy, skip Open Sea destinations
-                            if !has_astronomy && open_sea_query.get(target_area).unwrap_or(false) {
+                        for &final_area in &sea2.to_areas {
+                            if final_area == area {
+                                continue;
+                            } // no backtrack
+                            if !has_astronomy && open_sea_query.get(final_area).unwrap_or(false) {
                                 continue;
                             }
                             command_index += 1;
@@ -156,45 +191,18 @@ pub fn recalculate_movement_moves_for_player(
                                 command_index,
                                 GameMove::ShipFerry(MovementMove::new(
                                     area,
-                                    target_area,
+                                    final_area,
                                     event.player,
                                     ferry_tokens,
                                 )),
                             );
-
-                            // Cloth Making: generate one additional hop through this target
-                            // (rule 28.18: +1 sea movement range, cannot use open sea without Astronomy)
-                            if has_cloth_making
-                                && let Ok(sea2) = sea_connections_query.get(target_area)
-                            {
-                                for &final_area in sea2.to_areas.iter() {
-                                    if final_area == area {
-                                        continue;
-                                    } // no backtrack
-                                    if !has_astronomy
-                                        && open_sea_query.get(final_area).unwrap_or(false)
-                                    {
-                                        continue;
-                                    }
-                                    command_index += 1;
-                                    moves.insert(
-                                        command_index,
-                                        GameMove::ShipFerry(MovementMove::new(
-                                            area,
-                                            final_area,
-                                            event.player,
-                                            ferry_tokens,
-                                        )),
-                                    );
-                                }
-                            }
                         }
                     }
                 }
             }
         }
 
-        let _player_name = names.get(event.player).map(|n| n.as_str()).unwrap_or("?");
+        let _player_name = names.get(event.player).map_or("?", bevy::prelude::Name::as_str);
         if moves.is_empty() {
             end_player_movement.write(PlayerMovementEnded::new(event.player));
         } else {
@@ -219,13 +227,12 @@ fn add_land_move(
 ) {
     *command_index += 1;
     let game_move = if let Some(city) = target_city {
-        if city.player != player {
-            GameMove::AttackCity(MovementMove::new(source, target, player, token_count))
-        } else {
+        if city.player == player {
             // Player's own city – don't generate a move into it
             *command_index -= 1;
             return;
         }
+        GameMove::AttackCity(MovementMove::new(source, target, player, token_count))
     } else if target_pop.has_other_players(&player) {
         GameMove::AttackArea(MovementMove::new(source, target, player, token_count))
     } else {
@@ -253,13 +260,12 @@ pub fn recalculate_city_construction_moves_for_player(
             // Architecture (rule 25.3): holder can build with 1 fewer population token
             // (minimum 1); the saved token goes to treasury.
             let has_architecture = civ_cards
-                .map(|c| c.owns(&CivCardName::Architecture))
-                .unwrap_or(false);
+                .is_some_and(|c| c.owns(&CivCardName::Architecture));
             let city_site_threshold: usize = if has_architecture { 5 } else { 6 };
             let no_site_threshold: usize = if has_architecture { 11 } else { 12 };
 
             if city_token_stock.has_tokens() {
-                for (area, population) in player_areas.areas_and_population_count().iter() {
+                for (area, population) in &player_areas.areas_and_population_count() {
                     if let Ok((_area_pop, has_city_site)) = area_property_query.get(*area)
                         && ((has_city_site && *population >= city_site_threshold)
                             || *population >= no_site_threshold)
@@ -296,7 +302,7 @@ pub fn recalculate_city_support_moves_for_player(
         let mut moves = HashMap::default();
         let mut command_index = 0;
         if let Ok((player_cities, has_too_many_cities)) = player_city_query.get(event.player) {
-            for (area, city) in player_cities.areas_and_cities.iter() {
+            for (area, city) in &player_cities.areas_and_cities {
                 if let Ok(pop) = area_property_query.get(*area) {
                     command_index += 1;
                     moves.insert(

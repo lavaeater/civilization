@@ -1,56 +1,80 @@
+#:schema https://dystroy.org/bacon/.bacon.schema.json
+
 # This is a configuration file for the bacon tool
 #
 # Complete help on configuration: https://dystroy.org/bacon/config/
-# 
-# You may check the current default at
+#
+# You may check the current default at
 #   https://github.com/Canop/bacon/blob/main/defaults/default-bacon.toml
 
-default_job = "check"
+default_job = "clippy"
 env.CARGO_TERM_COLOR = "always"
 
 [jobs.check]
 command = ["cargo", "check"]
 need_stdout = false
 
-[jobs.check-all]
-command = ["cargo", "check", "--all-targets"]
-need_stdout = false
-
-# Run clippy on the default target
 [jobs.clippy]
-command = ["cargo", "clippy"]
-need_stdout = false
-
-# Run clippy on all targets
-# To disable some lints, you may change the job this way:
-#    [jobs.clippy-all]
-#    command = [
-#        "cargo", "clippy",
-#        "--all-targets",
-#    	 "--",
-#    	 "-A", "clippy::bool_to_int_with_if",
-#    	 "-A", "clippy::collapsible_if",
-#    	 "-A", "clippy::derive_partial_eq_without_eq",
-#    ]
-# need_stdout = false
-[jobs.clippy-all]
-command = ["cargo", "clippy", "--all-targets"]
-need_stdout = false
-
-# This job lets you run
-# - all tests: bacon test
-# - a specific test: bacon test -- config::test_default_files
-# - the tests of a package: bacon test -- -- -p config
-[jobs.test]
-command = ["cargo", "test", "--no-fail-fast"]
+command = [
+    "cargo", "+nightly", "clippy",
+    "-Z", "codegen-backend",
+    "--timings"
+]
 need_stdout = true
+
+[jobs.clippy.env]
+CARGO_PROFILE_DEV_CODEGEN_BACKEND = "cranelift"  # Dynamically assigns cranelift to dev builds
+RUSTC_WRAPPER = "sccache"
+
+# Same as `clippy`, but also lints tests, examples and benches — the default
+# `clippy` job only sees the lib and bin targets.
+[jobs.clippy-all]
+command = [
+    "cargo", "+nightly", "clippy",
+    "-Z", "codegen-backend",
+    "--all-targets",
+]
+need_stdout = true
+
+[jobs.clippy-all.env]
+CARGO_PROFILE_DEV_CODEGEN_BACKEND = "cranelift"
+RUSTC_WRAPPER = "sccache"
+
+# [jobs.nextest]
+# command = [
+#     "cargo", "+nightly", "nextest", "run",
+#     "-Z", "codegen-backend",
+#     "--timings"
+# ]
+# need_stdout = true
+# analyzer = "nextest"
+
+# [jobs.nextest.env]
+# CARGO_PROFILE_DEV_CODEGEN_BACKEND = "cranelift"  # Dynamically assigns cranelift to dev builds
+# RUSTC_WRAPPER = "sccache"
 
 [jobs.nextest]
 command = [
-    "cargo", "nextest", "run", "--failure-output", "final", "--no-fail-fast"
+    "cargo", "nextest", "run",
+    "--timings"
 ]
 need_stdout = true
 analyzer = "nextest"
+
+[jobs.nextest.env]
+RUSTC_WRAPPER = "sccache"
+
+[jobs.tarp]
+ command = [
+     "cargo", "+nightly", "tarpaulin", "--skip-clean"#,
+#     "-Z", "codegen-backend"
+]
+need_stdout = true
+analyzer = "nextest"
+
+[jobs.tarp.env]
+#CARGO_PROFILE_DEV_CODEGEN_BACKEND = "cranelift"  # Dynamically assigns cranelift to dev builds
+RUSTC_WRAPPER = "sccache"
 
 [jobs.doc]
 command = ["cargo", "doc", "--no-deps"]
@@ -93,7 +117,7 @@ need_stdout = true
 allow_warnings = true
 background = false
 on_change_strategy = "kill_then_restart"
-# kill = ["pkill", "-TERM", "-P"]'
+# kill = ["pkill", "-TERM", "-P"]
 
 # This parameterized job runs the example of your choice, as soon
 # as the code compiles.
@@ -104,11 +128,17 @@ command = ["cargo", "run", "--example"]
 need_stdout = true
 allow_warnings = true
 
-# You may define here keybindings that would be specific to
-# a project, for example a shortcut to launch a specific job.
-# Shortcuts to internal functions (scrolling, toggling, etc.)
-# should go in your personal global prefs.toml file instead.
+# 1. Standard build, but with timings enabled
+[jobs.build-timings]
+command = [
+    "cargo", "build",
+    "--timings"
+]
+need_stdout = true
+
 [keybindings]
-# alt-m = "job:my-job"
-c = "job:clippy-all" # comment this to have 'c' run clippy on only the default target
-l = "job:run-long"
+# Remap 'c' or choose custom keys to trigger your profiling layouts on a whim
+t = "job:tarp"
+c = "job:clippy" # comment this to have 'c' run clippy on only the default target
+a = "job:clippy-all" # clippy across lib, bins, tests and examples
+v = "job:nextest"

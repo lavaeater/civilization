@@ -36,3 +36,28 @@ impl TreacheryState {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Rule 30.221: traded Treachery transfers a city from the victim to the trader.
+    #[test]
+    fn with_trade_sets_beneficiary_and_city() {
+        let city = crate::test_utils::create_test_entity();
+        let beneficiary = crate::test_utils::create_test_entity();
+        let state = TreacheryState::with_trade(city, beneficiary);
+        assert_eq!(state.city_to_replace, Some(city));
+        assert_eq!(state.beneficiary, Some(beneficiary));
+        assert_eq!(state.phase, TreacheryPhase::ApplyEffects);
+    }
+
+    /// Rule 30.222: untraded Treachery just reduces the victim's own city — no beneficiary.
+    #[test]
+    fn without_trade_has_no_beneficiary() {
+        let city = crate::test_utils::create_test_entity();
+        let state = TreacheryState::without_trade(city);
+        assert_eq!(state.city_to_replace, Some(city));
+        assert_eq!(state.beneficiary, None);
+    }
+}

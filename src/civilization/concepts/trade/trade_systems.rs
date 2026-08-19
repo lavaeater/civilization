@@ -53,7 +53,7 @@ pub fn settle_trades(
     mut trades_query: Query<(Entity, &mut TradeOffer)>,
     mut command_writer: MessageWriter<SendTradingCardsCommand>,
 ) {
-    for (trade_offer_entity, mut offer) in trades_query.iter_mut() {
+    for (trade_offer_entity, mut offer) in &mut trades_query {
         if offer.is_player_settled() {
             debug!("Players have settled this trade, let's send out some cards!");
             command_writer.write(SendTradingCardsCommand::new(
@@ -83,6 +83,9 @@ pub fn button_action(
         match interaction {
             Interaction::Pressed => {
                 *bg_color = PRESSED_BUTTON.into();
+                // Arms are deliberately listed out (not merged or wildcarded) so that
+                // adding a new action or trade move is a compile error here.
+                #[allow(clippy::match_same_arms)]
                 match menu_button_action {
                     TradeButtonAction::Ok => {}
                     TradeButtonAction::Cancel => {}
@@ -247,7 +250,7 @@ pub fn handle_send_trading_cards_command(
         debug!("Sending trading cards!");
         let mut sender_trade_cards = player_trading_cards.get_mut(event.sending_player).unwrap();
         let mut cards_to_send: HashMap<TradeCard, usize> = HashMap::new();
-        for (trade_card, count) in event.cards_to_send.iter() {
+        for (trade_card, count) in &event.cards_to_send {
             if let Some(cards) = sender_trade_cards.remove_n_trade_cards(*count, *trade_card) {
                 cards_to_send.insert(*trade_card, cards);
             }
@@ -538,7 +541,7 @@ pub fn setup_trade_phase_ui(
                 .with_children(|cards_section| {
                     // Section header
                     cards_section.spawn((
-                        Text::new(format!("Your Cards ({})", player_name)),
+                        Text::new(format!("Your Cards ({player_name})")),
                         TextFont {
                             font_size: 16.0,
                             ..Default::default()
@@ -563,7 +566,7 @@ pub fn setup_trade_phase_ui(
                             // Display commodity cards
                             for (card, count) in player_cards.commodity_cards() {
                                 for _ in 0..count {
-                                    let color = commodity_color(&card);
+                                    let color = commodity_color(card);
                                     cards_row
                                         .spawn((
                                             Node {
@@ -574,7 +577,7 @@ pub fn setup_trade_phase_ui(
                                             BackgroundColor(color),
                                         ))
                                         .with_child((
-                                            Text::new(format!("{}", card)),
+                                            Text::new(format!("{card}")),
                                             TextFont {
                                                 font_size: 12.0,
                                                 ..Default::default()
@@ -595,7 +598,7 @@ pub fn setup_trade_phase_ui(
                                         BackgroundColor(Color::srgb(0.8, 0.2, 0.2)),
                                     ))
                                     .with_child((
-                                        Text::new(format!("{}", card)),
+                                        Text::new(format!("{card}")),
                                         TextFont {
                                             font_size: 12.0,
                                             ..Default::default()
@@ -706,7 +709,7 @@ pub fn setup_trade_phase_ui(
         });
 }
 
-fn commodity_color(card: &TradeCard) -> Color {
+fn commodity_color(card: TradeCard) -> Color {
     match card {
         TradeCard::Hides => Color::srgb(0.6, 0.4, 0.2),
         TradeCard::Ochre => Color::srgb(0.8, 0.4, 0.2),
@@ -759,8 +762,8 @@ pub fn update_trade_countdown_display(
     let minutes = (trade_phase_state.countdown_seconds / 60.0) as u32;
     let seconds = (trade_phase_state.countdown_seconds % 60.0) as u32;
 
-    for mut text in countdown_text.iter_mut() {
-        **text = format!("{}:{:02}", minutes, seconds);
+    for mut text in &mut countdown_text {
+        **text = format!("{minutes}:{seconds:02}");
     }
 
     // End trading for all players when countdown expires
@@ -806,7 +809,7 @@ pub fn update_player_trading_status(
         } else {
             format!(" | Done: {}", done_trading.join(", "))
         };
-        **text = format!("{}{}", trading_text, done_text);
+        **text = format!("{trading_text}{done_text}");
         *color = TextColor(Color::srgb(0.7, 0.9, 0.7));
     }
 }
@@ -861,8 +864,8 @@ pub fn update_open_offers_display(
 
     // Display each offer
     commands.entity(container).with_children(|parent| {
-        for (offer_entity, offer) in active_offers.iter() {
-            let is_my_offer = human_player.map(|h| h == offer.creator).unwrap_or(false);
+        for (offer_entity, offer) in &active_offers {
+            let is_my_offer = human_player.is_some_and(|h| h == offer.creator);
             let is_accepted = offer.accepted_by.is_some();
 
             // Offer card
@@ -952,9 +955,9 @@ pub fn update_open_offers_display(
                             .iter()
                             .map(|(card, count)| {
                                 if *count > 1 {
-                                    format!("{}x{}", count, card)
+                                    format!("{count}x{card}")
                                 } else {
-                                    format!("{}", card)
+                                    format!("{card}")
                                 }
                             })
                             .collect();
@@ -996,9 +999,9 @@ pub fn update_open_offers_display(
                             .iter()
                             .map(|(card, count)| {
                                 if *count > 1 {
-                                    format!("{}x{}", count, card)
+                                    format!("{count}x{card}")
                                 } else {
-                                    format!("{}", card)
+                                    format!("{card}")
                                 }
                             })
                             .collect();
@@ -1132,7 +1135,7 @@ pub fn update_human_done_ui(
         return;
     }
     let grayed = Color::srgb(0.3, 0.3, 0.3);
-    for (mut bg, children) in done_btn_query.iter_mut() {
+    for (mut bg, children) in &mut done_btn_query {
         *bg = BackgroundColor(grayed);
         for child in children.iter() {
             if let Ok(mut text) = text_query.get_mut(child) {
@@ -1140,7 +1143,7 @@ pub fn update_human_done_ui(
             }
         }
     }
-    for mut bg in create_btn_query.iter_mut() {
+    for mut bg in &mut create_btn_query {
         *bg = BackgroundColor(grayed);
     }
 }
@@ -1201,7 +1204,7 @@ fn spawn_card_adjust_row(
     is_offering: bool,
     label_suffix: &str,
 ) {
-    let color = commodity_color(&card);
+    let color = commodity_color(card);
     let suffix = label_suffix.to_string();
 
     ui.add_row(|row| {
@@ -1235,7 +1238,7 @@ fn spawn_card_adjust_row(
             });
             label.bg_color(color);
             label.add_text_child(
-                format!("{}", card),
+                format!("{card}"),
                 Some(TextStyle::size_color(12.0, Color::WHITE)),
             );
         });
@@ -1269,7 +1272,7 @@ fn spawn_card_adjust_row(
         // Suffix label (e.g. "/ 3 owned")
         if !suffix.is_empty() {
             row.add_text_child(
-                format!("  {}", suffix),
+                format!("  {suffix}"),
                 Some(TextStyle::size_color(11.0, Color::srgb(0.5, 0.5, 0.5))),
             );
         }
@@ -1356,14 +1359,14 @@ pub fn spawn_create_offer_modal(
 
     // All commodity types (for wanting section)
     let mut all_commodity_types: Vec<TradeCard> =
-        TradeCard::iter().filter(|c| c.is_commodity()).collect();
-    all_commodity_types.sort_by_key(|c| c.value());
+        TradeCard::iter().filter(adv_civ_protocol::TradeCardTrait::is_commodity).collect();
+    all_commodity_types.sort_by_key(adv_civ_protocol::TradeCardTrait::value);
 
     // Calamity cards the player owns (tradeable ones)
     let owned_calamities: Vec<TradeCard> = player_cards
         .calamity_cards()
         .into_iter()
-        .filter(|c| c.is_tradeable())
+        .filter(adv_civ_protocol::TradeCardTrait::is_tradeable)
         .collect();
 
     let player_name = player_name.to_string();
@@ -1424,7 +1427,7 @@ pub fn spawn_create_offer_modal(
             .bg_color(Color::srgba(0.15, 0.2, 0.15, 0.6));
 
         section.add_text_child(
-            format!("WHAT YOU OFFER (Your Cards - {})", player_name),
+            format!("WHAT YOU OFFER (Your Cards - {player_name})"),
             Some(TextStyle::size_color(15.0, Color::srgb(0.5, 0.9, 0.5))),
         );
         section.add_text_child(
@@ -1434,7 +1437,7 @@ pub fn spawn_create_offer_modal(
 
         // One row per commodity type the player owns
         for (card, count) in &owned_commodities {
-            spawn_card_adjust_row(section, *card, true, &format!("/ {} owned", count));
+            spawn_card_adjust_row(section, *card, true, &format!("/ {count} owned"));
         }
 
         // Calamity cards (can be hidden in trades)
@@ -1627,7 +1630,7 @@ pub fn update_card_count_displays(
     create_offer_state: Res<CreateOfferState>,
     mut displays: Query<(&CardCountDisplay, &mut Text)>,
 ) {
-    for (display, mut text) in displays.iter_mut() {
+    for (display, mut text) in &mut displays {
         let count = if display.is_offering {
             create_offer_state
                 .offering_guaranteed
@@ -1672,7 +1675,7 @@ pub fn update_hidden_count_displays(
     create_offer_state: Res<CreateOfferState>,
     mut displays: Query<(&OfferHiddenCountDisplay, &mut Text)>,
 ) {
-    for (display, mut text) in displays.iter_mut() {
+    for (display, mut text) in &mut displays {
         let count = if display.is_offering {
             create_offer_state.offering_hidden_count
         } else {
@@ -1709,7 +1712,7 @@ pub fn handle_accept_offer_button(
 
                         // Check if player has the required guaranteed cards
                         let mut can_fulfill = true;
-                        for (card, count) in offer.wanting_guaranteed.iter() {
+                        for (card, count) in &offer.wanting_guaranteed {
                             let player_has = player_commodities.get(card).copied().unwrap_or(0);
                             if player_has < *count {
                                 can_fulfill = false;
@@ -1736,8 +1739,7 @@ pub fn handle_accept_offer_button(
                         if can_fulfill {
                             let human_name = player_names
                                 .get(human)
-                                .map(|n| n.to_string())
-                                .unwrap_or_else(|_| "Human".to_string());
+                                .map_or_else(|_| "Human".to_string(), std::string::ToString::to_string);
                             offer.accept(human, human_name);
                             debug!("Human accepted offer from {}", offer.creator_name);
                         } else {
@@ -1784,8 +1786,8 @@ pub fn update_offer_summary_display(
         "nothing".to_string()
     } else {
         let mut parts = Vec::new();
-        for (card, count) in create_offer_state.offering_guaranteed.iter() {
-            parts.push(format!("{}x {}", count, card));
+        for (card, count) in &create_offer_state.offering_guaranteed {
+            parts.push(format!("{count}x {card}"));
         }
         if create_offer_state.offering_hidden_count > 0 {
             parts.push(format!(
@@ -1803,8 +1805,8 @@ pub fn update_offer_summary_display(
         "nothing".to_string()
     } else {
         let mut parts = Vec::new();
-        for (card, count) in create_offer_state.wanting_guaranteed.iter() {
-            parts.push(format!("{}x {}", count, card));
+        for (card, count) in &create_offer_state.wanting_guaranteed {
+            parts.push(format!("{count}x {card}"));
         }
         if create_offer_state.wanting_hidden_count > 0 {
             parts.push(format!(
@@ -1816,13 +1818,13 @@ pub fn update_offer_summary_display(
     };
 
     // Update summary
-    for mut text in summary_query.iter_mut() {
-        **text = format!("Offering: {} | Wanting: {}", offering_text, wanting_text);
+    for mut text in &mut summary_query {
+        **text = format!("Offering: {offering_text} | Wanting: {wanting_text}");
     }
 
     // Update validation
     let is_valid = create_offer_state.is_valid();
-    for (mut text, mut color) in validation_query.iter_mut() {
+    for (mut text, mut color) in &mut validation_query {
         if is_valid {
             **text = "✅ Valid offer - ready to publish!".to_string();
             *color = TextColor(Color::srgb(0.4, 0.8, 0.4));
@@ -1858,7 +1860,7 @@ pub fn update_offer_summary_display(
     }
 
     // Update publish button appearance
-    for (mut bg, children) in publish_btn.iter_mut() {
+    for (mut bg, children) in &mut publish_btn {
         if is_valid {
             *bg = BackgroundColor(Color::srgb(0.2, 0.6, 0.3));
             for child in children.iter() {
@@ -1903,14 +1905,13 @@ pub fn handle_publish_offer(
 
         let human_name = human_query
             .get(human_entity)
-            .map(|n| n.to_string())
-            .unwrap_or_else(|_| "Player".to_string());
+            .map_or_else(|_| "Player".to_string(), std::string::ToString::to_string);
 
         // Create the offer entity
         let mut offer = OpenTradeOffer::new(human_entity, human_name, None, None);
-        offer.offering_guaranteed = create_offer_state.offering_guaranteed.clone();
+        offer.offering_guaranteed.clone_from(&create_offer_state.offering_guaranteed);
         offer.offering_hidden_count = create_offer_state.offering_hidden_count;
-        offer.wanting_guaranteed = create_offer_state.wanting_guaranteed.clone();
+        offer.wanting_guaranteed.clone_from(&create_offer_state.wanting_guaranteed);
         offer.wanting_hidden_count = create_offer_state.wanting_hidden_count;
 
         commands.spawn(offer);
@@ -2112,7 +2113,7 @@ pub fn spawn_settlement_modal(
                 .with_children(|summary| {
                     // Role description
                     summary.spawn((
-                        Text::new(format!("{}: {} cards total", role_text, total_required)),
+                        Text::new(format!("{role_text}: {total_required} cards total")),
                         TextFont {
                             font_size: 16.0,
                             ..Default::default()
@@ -2123,7 +2124,7 @@ pub fn spawn_settlement_modal(
                     // Guaranteed cards requirement
                     let guaranteed_text: Vec<String> = required_guaranteed
                         .iter()
-                        .map(|(card, count)| format!("{}x {}", count, card))
+                        .map(|(card, count)| format!("{count}x {card}"))
                         .collect();
 
                     summary.spawn((
@@ -2140,7 +2141,7 @@ pub fn spawn_settlement_modal(
 
                     if required_hidden > 0 {
                         summary.spawn((
-                            Text::new(format!("+ {} hidden cards (your choice)", required_hidden)),
+                            Text::new(format!("+ {required_hidden} hidden cards (your choice)")),
                             TextFont {
                                 font_size: 14.0,
                                 ..Default::default()
@@ -2170,7 +2171,7 @@ pub fn spawn_settlement_modal(
                 })
                 .with_children(|section| {
                     section.spawn((
-                        Text::new(format!("Your Cards ({}):", player_name)),
+                        Text::new(format!("Your Cards ({player_name}):")),
                         TextFont {
                             font_size: 14.0,
                             ..Default::default()
@@ -2192,7 +2193,7 @@ pub fn spawn_settlement_modal(
                             // Commodity cards
                             for (card, count) in player_cards.commodity_cards() {
                                 for _ in 0..count {
-                                    let color = commodity_color(&card);
+                                    let color = commodity_color(card);
                                     cards_row
                                         .spawn((
                                             Button,
@@ -2210,7 +2211,7 @@ pub fn spawn_settlement_modal(
                                             BorderColor::all(Color::NONE),
                                         ))
                                         .with_child((
-                                            Text::new(format!("{}", card)),
+                                            Text::new(format!("{card}")),
                                             TextFont {
                                                 font_size: 12.0,
                                                 ..Default::default()
@@ -2238,7 +2239,7 @@ pub fn spawn_settlement_modal(
                                         BorderColor::all(Color::NONE),
                                     ))
                                     .with_child((
-                                        Text::new(format!("{}", card)),
+                                        Text::new(format!("{card}")),
                                         TextFont {
                                             font_size: 12.0,
                                             ..Default::default()
@@ -2406,7 +2407,7 @@ pub fn update_settlement_display(
     let mut is_valid = total_selected == total_required;
 
     // Check guaranteed cards are included
-    for (card, required_count) in required_guaranteed.iter() {
+    for (card, required_count) in required_guaranteed {
         let selected_count = selection.selected_cards.get(card).copied().unwrap_or(0);
         if selected_count < *required_count {
             is_valid = false;
@@ -2415,14 +2416,14 @@ pub fn update_settlement_display(
     }
 
     // Update display text
-    for mut text in selected_display.iter_mut() {
+    for mut text in &mut selected_display {
         if selection.selected_cards.is_empty() {
             **text = "None selected yet".to_string();
         } else {
             let cards_text: Vec<String> = selection
                 .selected_cards
                 .iter()
-                .map(|(card, count)| format!("{}x {}", count, card))
+                .map(|(card, count)| format!("{count}x {card}"))
                 .collect();
             **text = format!(
                 "Selected ({}/{}): {}",
@@ -2434,7 +2435,7 @@ pub fn update_settlement_display(
     }
 
     // Update confirm button appearance based on validity
-    for (mut bg, children) in confirm_btn.iter_mut() {
+    for (mut bg, children) in &mut confirm_btn {
         if is_valid {
             *bg = BackgroundColor(Color::srgb(0.2, 0.6, 0.3));
             for child in children.iter() {
@@ -2499,7 +2500,7 @@ pub fn handle_confirm_settlement(
 
         // Check guaranteed cards
         let mut valid = true;
-        for (card, required_count) in required_guaranteed.iter() {
+        for (card, required_count) in required_guaranteed {
             let selected_count = selection.selected_cards.get(card).copied().unwrap_or(0);
             if selected_count < *required_count {
                 valid = false;
@@ -2640,7 +2641,7 @@ pub fn ai_create_trade_offers(
         let mut wanting_guaranteed: HashMap<TradeCard, usize> = HashMap::default();
         let mut cards_wanted = 0;
 
-        let ai_card_counts: HashMap<TradeCard, usize> = commodities.iter().cloned().collect();
+        let ai_card_counts: HashMap<TradeCard, usize> = commodities.iter().copied().collect();
         let max_own_value = commodities
             .iter()
             .map(|(card, _)| card.value())
@@ -2650,7 +2651,7 @@ pub fn ai_create_trade_offers(
         // Want commodities that: (a) are at or below our max value, (b) we have few of,
         // (c) prefer higher value within that range (to try completing sets)
         let mut desired: Vec<TradeCard> = TradeCard::iter()
-            .filter(|c| c.is_commodity())
+            .filter(adv_civ_protocol::TradeCardTrait::is_commodity)
             .filter(|c| c.value() <= max_own_value)
             .filter(|c| ai_card_counts.get(c).copied().unwrap_or(0) < 2)
             .collect();
@@ -2668,7 +2669,7 @@ pub fn ai_create_trade_offers(
         if cards_wanted < 2 {
             // Fallback: want any commodity at or below our max value
             for card in TradeCard::iter()
-                .filter(|c| c.is_commodity())
+                .filter(adv_civ_protocol::TradeCardTrait::is_commodity)
                 .filter(|c| c.value() <= max_own_value)
             {
                 if cards_wanted >= 2 {
@@ -2706,8 +2707,8 @@ pub fn ai_accept_trade_offers(
     mut offers: Query<(Entity, &mut OpenTradeOffer)>,
 ) {
     for (ai_entity, ai_name, ai_cards, _, personality, ai_civ_cards) in ai_players.iter() {
-        let has_mining = ai_civ_cards.map(|c| c.owns(&CivCardName::Mining)).unwrap_or(false);
-        for (_offer_entity, mut offer) in offers.iter_mut() {
+        let has_mining = ai_civ_cards.is_some_and(|c| c.owns(&CivCardName::Mining));
+        for (_offer_entity, mut offer) in &mut offers {
             // Skip if we can't accept
             if !offer.can_accept(ai_entity) {
                 continue;
@@ -2719,7 +2720,7 @@ pub fn ai_accept_trade_offers(
 
             // Check if AI can provide the wanted guaranteed cards
             let mut can_fulfill = true;
-            for (card, count) in offer.wanting_guaranteed.iter() {
+            for (card, count) in &offer.wanting_guaranteed {
                 let ai_has = ai_commodities.get(card).copied().unwrap_or(0);
                 if ai_has < *count {
                     can_fulfill = false;
@@ -2745,12 +2746,12 @@ pub fn ai_accept_trade_offers(
             let mut simulated_cards = ai_cards.clone();
 
             // Remove cards we would give away
-            for (card, count) in offer.wanting_guaranteed.iter() {
+            for (card, count) in &offer.wanting_guaranteed {
                 simulated_cards.remove_n_trade_cards(*count, *card);
             }
 
             // Add cards we would receive
-            for (card, count) in offer.offering_guaranteed.iter() {
+            for (card, count) in &offer.offering_guaranteed {
                 simulated_cards.add_trade_cards(*card, *count);
             }
 
@@ -2861,7 +2862,7 @@ pub fn ai_settle_trades(
     mut offers: Query<&mut OpenTradeOffer>,
 ) {
     for (ai_entity, ai_name, ai_cards) in ai_players.iter() {
-        for mut offer in offers.iter_mut() {
+        for mut offer in &mut offers {
             if !offer.is_settling() {
                 continue;
             }
@@ -2906,7 +2907,7 @@ fn ai_select_settlement_cards(
         player_cards.commodity_cards().into_iter().collect();
 
     // First, add all required guaranteed cards
-    for (card, count) in required_guaranteed.iter() {
+    for (card, count) in required_guaranteed {
         let have = available.get(card).copied().unwrap_or(0);
         if have < *count {
             return None; // Can't fulfill

@@ -75,14 +75,13 @@ pub fn offer_published(
       .default_text("Offers:")
       .parent()
       .foreach_child(trade_offer.initiator_pays.iter(), |builder: &mut UIBuilder, (commodity, count)| {
-        builder.default_text(format!("{}: {}", commodity, count));
+        builder.default_text(format!("{commodity}: {count}"));
       })
       .foreach_child(
         trade_offer.initiator_pays_guaranteed.iter(),
         |builder: &mut UIBuilder, (commodity, count)| {
           builder.default_text(format!(
-            "{}: {} (Guaranteed)",
-            commodity, count
+            "{commodity}: {count} (Guaranteed)"
           ));
         },
       )
@@ -95,14 +94,13 @@ pub fn offer_published(
       .default_text("Wants:")
       .parent()
       .foreach_child(trade_offer.initiator_gets.iter(), |builder: &mut UIBuilder, (commodity, count)| {
-        builder.default_text(format!("{}: {}", commodity, count));
+        builder.default_text(format!("{commodity}: {count}"));
       })
       .foreach_child(
         trade_offer.initiator_gets_guaranteed.iter(),
         |builder: &mut UIBuilder, (commodity, count)| {
           builder.default_text(format!(
-            "{}: {} (Guaranteed)",
-            commodity, count
+            "{commodity}: {count} (Guaranteed)"
           ));
         },
       );

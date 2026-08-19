@@ -9,15 +9,23 @@ use crate::civilization::concepts::census::GameInfoAndStuff;
 use crate::civilization::concepts::city_construction::{CityConstructionPhaseActive, IsBuilding};
 use crate::civilization::concepts::movement::movement_components::PerformingMovement;
 use crate::civilization::concepts::population_expansion::population_expansion_components::NeedsExpansion;
+use crate::civilization::concepts::ships::create_ship_stock;
 use crate::civilization::concepts::AvailableFactions;
 use crate::civilization::enums::GameFaction;
-use crate::civilization::{AstPosition, PlayerTradeCards, Census, TradeCard};
+use crate::civilization::game_moves::RecalculatePlayerMoves;
+use crate::civilization::{AstPosition, CivCardName, PlayerCivilizationCards, PlayerTradeCards, Census, TradeCard};
 use crate::player::Player;
-use crate::stupid_ai::{IsHuman, StupidAi};
+use crate::stupid_ai::{IsHuman, Personality, Playstyle, StupidAi};
 use crate::{GameActivity, GameState};
 
 const SAVE_FILE_PATH: &str = "savegame.json";
 const SAVE_GAME_VERSION: &str = "0.0.2";
+
+/// Dev-workflow env var: when set (to anything), the game skips straight
+/// past the menu and loads `savegame.json` on boot if it exists -- lets you
+/// iterate on UI/logic, restart, and land right back where you left off
+/// instead of re-driving the menu and early turns by hand every time.
+const AUTOLOAD_ENV_VAR: &str = "ADV_CIV_AUTOLOAD";
 
 /// Message to request a game save (fired by F5 key or menu button)
 #[derive(Message)]
@@ -56,7 +64,17 @@ impl Plugin for SaveGamePlugin {
         app
             .add_message::<SaveGameRequest>()
             .add_message::<LoadGameRequest>()
-            .add_systems(Update, (save_on_key, trigger_load_on_key, handle_save_request, handle_load_request))
+            .add_systems(
+                Update,
+                (
+                    save_on_key,
+                    trigger_load_on_key,
+                    autosave_on_player_move,
+                    handle_save_request,
+                    handle_load_request,
+                ),
+            )
+            .add_systems(OnEnter(GameState::Menu), trigger_autoload)
             .add_systems(
                 OnEnter(GameActivity::PrepareGame),
                 load_game_from_save.before(crate::civilization::general_systems::setup_players),
@@ -105,6 +123,11 @@ pub struct SavedPlayer {
     pub done_with_current_activity: bool,
     #[serde(default = "default_ast_space")]
     pub ast_space: u32,
+    /// Civilization cards owned at save time (rule 31.x). Older save files
+    /// predate this field; `#[serde(default)]` loads them as owning none
+    /// rather than rejecting the whole file.
+    #[serde(default)]
+    pub owned_civ_cards: Vec<CivCardName>,
 }
 
 fn default_ast_space() -> u32 { 0 }
@@ -169,6 +192,34 @@ fn is_player_done_with_activity(
     }
 }
 
+/// Autosave for UI iteration: `RecalculatePlayerMoves` fires after
+/// essentially every player action across every phase (movement, city
+/// construction, trade, civ card purchase, population expansion, plus the
+/// generic per-phase "needs a move" triggers), so it's the closest thing this
+/// codebase has to a single "a move happened" choke point. Firing a save
+/// after each batch means `savegame.json` always reflects roughly the last
+/// move made, so a UI bug can be reached again with F9 or `ADV_CIV_AUTOLOAD`
+/// instead of replaying the whole game by hand.
+fn autosave_on_player_move(
+    mut recalc_reader: MessageReader<RecalculatePlayerMoves>,
+    mut save_writer: MessageWriter<SaveGameRequest>,
+) {
+    if recalc_reader.read().next().is_some() {
+        recalc_reader.clear();
+        save_writer.write(SaveGameRequest);
+    }
+}
+
+/// Dev-workflow convenience: skip the menu and jump straight into the last
+/// autosaved game when `ADV_CIV_AUTOLOAD` is set, so restarting the app to
+/// pick up a code/UI change lands back where you left off.
+fn trigger_autoload(mut writer: MessageWriter<LoadGameRequest>) {
+    if std::env::var(AUTOLOAD_ENV_VAR).is_ok() && Path::new(SAVE_FILE_PATH).exists() {
+        info!("{} set -- autoloading {}", AUTOLOAD_ENV_VAR, SAVE_FILE_PATH);
+        writer.write(LoadGameRequest);
+    }
+}
+
 fn save_on_key(
     keys: Res<ButtonInput<KeyCode>>,
     mut writer: MessageWriter<SaveGameRequest>,
@@ -193,6 +244,7 @@ fn handle_save_request(
         &PlayerTradeCards,
         Has<IsHuman>,
         Option<&AstPosition>,
+        Option<&PlayerCivilizationCards>,
     ), With<Player>>,
     area_query: Query<(&GameArea, &Population, Option<&BuiltCity>)>,
     faction_query: Query<&Faction>,
@@ -213,7 +265,7 @@ fn handle_save_request(
     
     // Collect player data with per-player completion state
     let mut players = Vec::new();
-    for (entity, name, faction, census, treasury, token_stock, city_stock, trade_cards, is_human, ast_pos) in player_query.iter() {
+    for (entity, name, faction, census, treasury, token_stock, city_stock, trade_cards, is_human, ast_pos, civ_cards) in player_query.iter() {
         let done = is_player_done_with_activity(
             entity,
             &activity,
@@ -232,7 +284,8 @@ fn handle_save_request(
             city_tokens_in_stock: city_stock.city_tokens_in_stock(),
             trade_cards: trade_cards.cards_as_vec(),
             done_with_current_activity: done,
-            ast_space: ast_pos.map(|p| p.space).unwrap_or(0),
+            ast_space: ast_pos.map_or(0, |p| p.space),
+            owned_civ_cards: civ_cards.map_or_else(Vec::new, |c| c.cards.iter().copied().collect()),
         };
         if done {
             info!("  Player {} ({:?}) is DONE with {:?}", name, faction.faction, activity);
@@ -246,7 +299,7 @@ fn handle_save_request(
     let mut area_populations = Vec::new();
     for (game_area, population, built_city) in area_query.iter() {
         let mut tokens_by_faction = Vec::new();
-        for (player_entity, tokens) in population.player_tokens().iter() {
+        for (player_entity, tokens) in population.player_tokens() {
             if let Ok(faction) = faction_query.get(*player_entity) {
                 tokens_by_faction.push((faction.faction, tokens.len()));
             }
@@ -398,7 +451,10 @@ fn load_game_from_save(
         
         // Create trade cards from saved data
         let trade_cards = PlayerTradeCards::from_cards_vec(saved_player.trade_cards.clone());
-        
+        let civ_cards = PlayerCivilizationCards {
+            cards: saved_player.owned_civ_cards.iter().copied().collect(),
+        };
+
         // Create player entity
         let player = commands
             .spawn((
@@ -410,6 +466,7 @@ fn load_game_from_save(
                 PlayerAreas::default(),
                 PlayerCities::default(),
                 trade_cards,
+                civ_cards,
                 AstPosition::new(saved_player.ast_space),
             ))
             .id();
@@ -419,7 +476,18 @@ fn load_game_from_save(
             commands.entity(player).insert(IsHuman);
             info!("  -> Human player");
         } else {
-            commands.entity(player).insert(StupidAi);
+            // Every AI move-selection system (select_stupid_movement et al.)
+            // requires `&Personality` non-optionally and, being event-driven
+            // rather than requeryable, silently drops the SelectStupidMove
+            // event with no retry when the query fails -- an AI player
+            // missing this component doesn't error, it just never moves
+            // again, hanging that phase forever. setup_players round-robins
+            // over every archetype for a fresh game; do the same here so a
+            // loaded game's AI table looks the same as it would have fresh.
+            let playstyle = Playstyle::ALL[n % Playstyle::ALL.len()];
+            commands
+                .entity(player)
+                .insert((StupidAi, Personality::from_playstyle(playstyle)));
         }
         
         // Create tokens for stock
@@ -440,11 +508,21 @@ fn load_game_from_save(
             })
             .collect();
         
+        // Ship stock/board state isn't part of the save format yet (rule 22.4's
+        // 4-ship cap is a fresh default here, same as a new game) -- without
+        // this, loaded players were missing ShipStock/PlayerShips entirely,
+        // which silently broke every query that requires them (movement-move
+        // generation, the Player Info HUD's "current human" lookup) rather
+        // than just losing ship state gracefully.
+        let (ship_stock, player_ships) = create_ship_stock(&mut commands, player);
+
         commands.entity(player).insert((
             TokenStock::new(47, tokens), // max_tokens is always 47
             CityTokenStock::new(9, city_tokens),
+            ship_stock,
+            player_ships,
         ));
-        
+
         faction_to_player.insert(saved_player.faction, player);
     }
     
@@ -499,7 +577,7 @@ fn restore_area_populations(
         .map(|(entity, game_area, _, transform)| (game_area.id, (entity, transform.translation)))
         .collect();
     
-    for saved_area in pending.0.iter() {
+    for saved_area in &pending.0 {
         let Some(&(area_entity, area_position)) = area_id_to_entity.get(&saved_area.area_id) else {
             warn!("Area {} not found in map, skipping", saved_area.area_id);
             continue;
@@ -594,6 +672,197 @@ fn restore_area_populations(
     // Clean up area-related load resources (but keep LoadingFromSave for OnEnter systems)
     commands.remove_resource::<PendingAreaPopulations>();
     commands.remove_resource::<LoadedFactionMap>();
-    
+
     info!("Area populations restored from save");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::civilization::enums::GameFaction;
+    use crate::civilization::{PlayerShips, ShipStock};
+    use crate::stupid_ai::{IsHuman, StupidAi};
+    use crate::GameActivity;
+    use bevy::ecs::system::RunSystemOnce;
+
+    /// A loaded player must come out with the same components a freshly
+    /// created one gets (`setup_players` inserts `ShipStock`/`PlayerShips`
+    /// via `create_ship_stock`) -- otherwise every query that requires them
+    /// non-optionally (movement-move generation, the Player Info HUD's
+    /// "current human" lookup) silently breaks for the rest of the loaded
+    /// game.
+    #[test]
+    fn loaded_player_has_ship_stock_and_player_ships() {
+        let mut world = World::new();
+        world.init_resource::<GameInfoAndStuff>();
+
+        let saved_player = SavedPlayer {
+            name: "Test Player".to_string(),
+            faction: GameFaction::Egypt,
+            is_human: true,
+            census_population: 0,
+            treasury: 0,
+            tokens_in_stock: 47,
+            city_tokens_in_stock: 9,
+            trade_cards: vec![],
+            done_with_current_activity: false,
+            ast_space: 0,
+            owned_civ_cards: vec![],
+        };
+        world.insert_resource(PendingGameLoad(GameSaveData {
+            version: SAVE_GAME_VERSION.to_string(),
+            round: 1,
+            game_activity: GameActivity::Movement,
+            players: vec![saved_player],
+            area_populations: vec![],
+            census_order: vec![],
+            left_to_move: vec![],
+            current_mover: None,
+        }));
+
+        world.run_system_once(load_game_from_save).unwrap();
+
+        let mut query = world.query_filtered::<Entity, (With<Player>, With<IsHuman>)>();
+        let player = query.single(&world).expect("expected exactly one loaded human player");
+
+        assert!(world.get::<ShipStock>(player).is_some(), "loaded player is missing ShipStock");
+        assert!(world.get::<PlayerShips>(player).is_some(), "loaded player is missing PlayerShips");
+        assert_eq!(world.get::<ShipStock>(player).unwrap().count_in_stock(), ShipStock::MAX_SHIPS);
+    }
+
+    /// Every AI move-selection system (`select_stupid_movement` et al.)
+    /// requires `&Personality` non-optionally and is event-driven rather
+    /// than requeryable each frame -- a loaded AI player missing this
+    /// component doesn't error or skip its turn, it silently drops the
+    /// `SelectStupidMove` event with no retry and never moves again,
+    /// hanging that phase (and the whole game) forever. Reproduces the
+    /// exact hang a save/load playthrough hit: an AI player just sits
+    /// there with no available-moves processing ever happening again.
+    #[test]
+    fn loaded_ai_player_has_a_personality() {
+        let mut world = World::new();
+        world.init_resource::<GameInfoAndStuff>();
+
+        let saved_player = SavedPlayer {
+            name: "Test AI".to_string(),
+            faction: GameFaction::Africa,
+            is_human: false,
+            census_population: 0,
+            treasury: 0,
+            tokens_in_stock: 47,
+            city_tokens_in_stock: 9,
+            trade_cards: vec![],
+            done_with_current_activity: false,
+            ast_space: 0,
+            owned_civ_cards: vec![],
+        };
+        world.insert_resource(PendingGameLoad(GameSaveData {
+            version: SAVE_GAME_VERSION.to_string(),
+            round: 1,
+            game_activity: GameActivity::Movement,
+            players: vec![saved_player],
+            area_populations: vec![],
+            census_order: vec![],
+            left_to_move: vec![],
+            current_mover: None,
+        }));
+
+        world.run_system_once(load_game_from_save).unwrap();
+
+        let mut query = world.query_filtered::<Entity, (With<Player>, With<StupidAi>)>();
+        let player = query.single(&world).expect("expected exactly one loaded AI player");
+
+        assert!(world.get::<Personality>(player).is_some(), "loaded AI player is missing Personality");
+    }
+
+    /// Rule 31.x: civilization cards owned at save time must survive a
+    /// reload. Previously `PlayerCivilizationCards` wasn't part of the save
+    /// format at all -- a loaded player silently owned nothing, so every
+    /// card-gated bonus (Agriculture's city-reduction bonus, Medicine's
+    /// Epidemic discount, Credits, etc.) quietly stopped applying after a
+    /// reload with no error.
+    #[test]
+    fn loaded_player_keeps_their_civilization_cards() {
+        let mut world = World::new();
+        world.init_resource::<GameInfoAndStuff>();
+
+        let saved_player = SavedPlayer {
+            name: "Test Player".to_string(),
+            faction: GameFaction::Egypt,
+            is_human: true,
+            census_population: 0,
+            treasury: 0,
+            tokens_in_stock: 47,
+            city_tokens_in_stock: 9,
+            trade_cards: vec![],
+            done_with_current_activity: false,
+            ast_space: 0,
+            owned_civ_cards: vec![CivCardName::Agriculture, CivCardName::Medicine],
+        };
+        world.insert_resource(PendingGameLoad(GameSaveData {
+            version: SAVE_GAME_VERSION.to_string(),
+            round: 1,
+            game_activity: GameActivity::Movement,
+            players: vec![saved_player],
+            area_populations: vec![],
+            census_order: vec![],
+            left_to_move: vec![],
+            current_mover: None,
+        }));
+
+        world.run_system_once(load_game_from_save).unwrap();
+
+        let mut query = world.query_filtered::<Entity, (With<Player>, With<IsHuman>)>();
+        let player = query.single(&world).expect("expected exactly one loaded human player");
+
+        let civ_cards = world
+            .get::<PlayerCivilizationCards>(player)
+            .expect("loaded player is missing PlayerCivilizationCards");
+        assert!(civ_cards.owns(&CivCardName::Agriculture));
+        assert!(civ_cards.owns(&CivCardName::Medicine));
+        assert!(!civ_cards.owns(&CivCardName::Mining));
+    }
+
+    /// A player who owned nothing must still come out with an (empty)
+    /// `PlayerCivilizationCards`, not a missing component -- several systems
+    /// query it non-optionally.
+    #[test]
+    fn loaded_player_with_no_civ_cards_still_gets_an_empty_component() {
+        let mut world = World::new();
+        world.init_resource::<GameInfoAndStuff>();
+
+        let saved_player = SavedPlayer {
+            name: "Test Player".to_string(),
+            faction: GameFaction::Egypt,
+            is_human: true,
+            census_population: 0,
+            treasury: 0,
+            tokens_in_stock: 47,
+            city_tokens_in_stock: 9,
+            trade_cards: vec![],
+            done_with_current_activity: false,
+            ast_space: 0,
+            owned_civ_cards: vec![],
+        };
+        world.insert_resource(PendingGameLoad(GameSaveData {
+            version: SAVE_GAME_VERSION.to_string(),
+            round: 1,
+            game_activity: GameActivity::Movement,
+            players: vec![saved_player],
+            area_populations: vec![],
+            census_order: vec![],
+            left_to_move: vec![],
+            current_mover: None,
+        }));
+
+        world.run_system_once(load_game_from_save).unwrap();
+
+        let mut query = world.query_filtered::<Entity, (With<Player>, With<IsHuman>)>();
+        let player = query.single(&world).expect("expected exactly one loaded human player");
+
+        let civ_cards = world
+            .get::<PlayerCivilizationCards>(player)
+            .expect("loaded player is missing PlayerCivilizationCards");
+        assert!(civ_cards.cards.is_empty());
+    }
 }

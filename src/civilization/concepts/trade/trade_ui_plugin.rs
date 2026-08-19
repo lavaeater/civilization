@@ -1,6 +1,7 @@
 use crate::civilization::components::{Faction, PlayerAreas, PlayerCities, TokenStock, Treasury};
 use crate::civilization::concepts::ships::ShipStock;
 use crate::civilization::concepts::*;
+use crate::civilization::Z_PANEL;
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
 use crate::{GameActivity, GameState};
@@ -63,33 +64,38 @@ pub fn setup_trade_ui(
 
     let mut ui = UIBuilder::new(commands, Some(ui_theme.clone()));
 
-    // HUD strip anchored to the bottom of the screen
+    // HUD strip anchored to the top of the screen -- the AST panel already
+    // owns the bottom-left corner, so these four move up top and out of its
+    // way. Each panel's collapse toggle sits at its bottom edge (closest to
+    // the board) rather than its top, since it's now the edge nearest the
+    // rest of the screen instead of the edge nearest nothing.
     ui.component::<TradeCardUiRoot>()
         .absolute_position()
-        .bottom(Val::Px(0.0))
+        .top(Val::Px(0.0))
         .left(Val::Px(0.0))
+        .z_index(Z_PANEL)
         .display_flex()
         .flex_row()
-        .align_items_end()
+        .align_items_start()
         .padding_all_px(4.0)
         .gap_px(4.0);
 
     // ── Card 1: Player Info ───────────────────────────────────────────────────
-    ui.with_collapsible("Player Info", false, |section| {
+    ui.with_collapsible_toggle_at_bottom("Player Info", false, |section| {
         section
             .component::<PlayerInfoDisplay>()
             .width_px(220.0)
-            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.85))
+            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.9))
             .padding_all_px(6.0);
         // Content filled by update_hud_dynamic
     });
 
     // ── Card 2: Trade Cards ───────────────────────────────────────────────────
-    ui.with_collapsible("Trade Cards", false, |section| {
+    ui.with_collapsible_toggle_at_bottom("Trade Cards", false, |section| {
         section
             .component::<TradeCardList>()
             .width_px(320.0)
-            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.85))
+            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.9))
             .padding_all_px(6.0);
 
         if let Ok(trade_cards) = player_trade_cards.single() {
@@ -98,21 +104,21 @@ pub fn setup_trade_ui(
     });
 
     // ── Card 3: Game State (census order) ─────────────────────────────────────
-    ui.with_collapsible("Game State", false, |section| {
+    ui.with_collapsible_toggle_at_bottom("Game State", false, |section| {
         section
             .component::<CensusDisplay>()
             .width_px(380.0)
-            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.85))
+            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.9))
             .padding_all_px(6.0);
         // Content filled by update_hud_dynamic
     });
 
     // ── Card 4: Game Activity ─────────────────────────────────────────────────
-    ui.with_collapsible("Game Activity", false, |section| {
+    ui.with_collapsible_toggle_at_bottom("Game Activity", false, |section| {
         section
             .component::<ActivityDisplay>()
             .width_px(200.0)
-            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.85))
+            .bg_color(Color::srgba(0.1, 0.1, 0.1, 0.9))
             .padding_all_px(6.0);
         // Content filled by update_hud_dynamic
     });
@@ -266,7 +272,7 @@ fn update_hud_dynamic(
                 let cards = player_trade_cards.number_of_trade_cards();
                 let color = faction_to_color(faction);
                 let display_name = if is_human {
-                    format!("{} (YOU)", name)
+                    format!("{name} (YOU)")
                 } else {
                     name.to_string()
                 };
@@ -399,7 +405,7 @@ pub fn build_trade_card_list(ui: &mut UIBuilder, trade_cards: &PlayerTradeCards)
 
         if !pile_stacks.is_empty() {
             let mut sorted_stacks = pile_stacks.clone();
-            sorted_stacks.sort_by_key(|s| if s.is_commodity { 0 } else { 1 });
+            sorted_stacks.sort_by_key(|s| i32::from(!s.is_commodity));
 
             ui.add_row(|row| {
                 row.width_percent(100.0)
@@ -408,7 +414,7 @@ pub fn build_trade_card_list(ui: &mut UIBuilder, trade_cards: &PlayerTradeCards)
                     .align_items_center()
                     .with_flex_shrink(0.0);
 
-                row.add_text_child(format!("{}:", pile_value), Some(TextStyle::size(24.0)));
+                row.add_text_child(format!("{pile_value}:"), Some(TextStyle::size(24.0)));
 
                 for stack in sorted_stacks {
                     build_trade_card(row, stack);

@@ -1,6 +1,9 @@
 use adv_civ::civilization::{
-    PlayerTradeCards, TradeCard, MIN_CARDS_REQUIRED_TO_TRADE
+    buy_from_ninth_stack, CivilizationTradeCards, PlayerTradeCards, TokenStock, TradeCard,
+    Treasury, MIN_CARDS_REQUIRED_TO_TRADE, NINTH_STACK_COST,
 };
+use bevy::platform::collections::HashMap;
+use bevy::prelude::World;
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -218,4 +221,90 @@ fn test_commodity_card_suites() {
     assert_eq!(suites.get(&TradeCard::Gold), Some(&9));
     // No other commodities present
     assert_eq!(suites.len(), 3);
+}
+
+// ── Rule 27.51: buying from the ninth (Gold/Ivory/Piracy) stack ────────────
+
+fn treasury_with_tokens(world: &mut World, count: usize) -> Treasury {
+    let mut treasury = Treasury::default();
+    for _ in 0..count {
+        treasury.add_token_to_treasury(world.spawn_empty().id());
+    }
+    treasury
+}
+
+#[test]
+fn buying_charges_18_tokens_per_card_and_returns_them_to_stock() {
+    let mut world = World::new();
+    let mut treasury = treasury_with_tokens(&mut world, 2 * NINTH_STACK_COST);
+    let mut token_stock = TokenStock::new(0, vec![]);
+    let mut resource = CivilizationTradeCards {
+        card_piles: HashMap::from([(9, vec![TradeCard::Gold, TradeCard::Ivory])]),
+    };
+    let mut hand = PlayerTradeCards::default();
+
+    let bought = buy_from_ninth_stack(&mut treasury, &mut token_stock, &mut resource, &mut hand, 2);
+
+    assert_eq!(bought, 2);
+    assert_eq!(treasury.tokens_in_treasury(), 0);
+    assert_eq!(token_stock.tokens_in_stock(), 2 * NINTH_STACK_COST);
+    assert_eq!(
+        hand.number_of_cards_for_trade_card(TradeCard::Gold)
+            + hand.number_of_cards_for_trade_card(TradeCard::Ivory),
+        2
+    );
+    assert!(resource.card_piles.get(&9).unwrap().is_empty());
+}
+
+#[test]
+fn insufficient_treasury_blocks_the_purchase() {
+    let mut world = World::new();
+    let mut treasury = treasury_with_tokens(&mut world, NINTH_STACK_COST - 1);
+    let mut token_stock = TokenStock::new(0, vec![]);
+    let mut resource = CivilizationTradeCards {
+        card_piles: HashMap::from([(9, vec![TradeCard::Piracy])]),
+    };
+    let mut hand = PlayerTradeCards::default();
+
+    let bought = buy_from_ninth_stack(&mut treasury, &mut token_stock, &mut resource, &mut hand, 1);
+
+    assert_eq!(bought, 0);
+    assert_eq!(treasury.tokens_in_treasury(), NINTH_STACK_COST - 1);
+    assert_eq!(token_stock.tokens_in_stock(), 0);
+    assert!(!hand.has_trade_card(TradeCard::Piracy));
+    // Nothing was spent, so the stack is untouched.
+    assert_eq!(resource.card_piles.get(&9).unwrap().len(), 1);
+}
+
+#[test]
+fn an_empty_ninth_stack_blocks_the_purchase_even_with_plenty_of_treasury() {
+    let mut world = World::new();
+    let mut treasury = treasury_with_tokens(&mut world, 10 * NINTH_STACK_COST);
+    let mut token_stock = TokenStock::new(0, vec![]);
+    let mut resource = CivilizationTradeCards {
+        card_piles: HashMap::from([(9, vec![])]),
+    };
+    let mut hand = PlayerTradeCards::default();
+
+    let bought = buy_from_ninth_stack(&mut treasury, &mut token_stock, &mut resource, &mut hand, 3);
+
+    assert_eq!(bought, 0);
+    assert_eq!(treasury.tokens_in_treasury(), 10 * NINTH_STACK_COST);
+}
+
+#[test]
+fn purchase_count_is_capped_by_whichever_runs_out_first_stack_or_treasury() {
+    let mut world = World::new();
+    // Enough treasury for 3 cards, but the stack only has 2.
+    let mut treasury = treasury_with_tokens(&mut world, 3 * NINTH_STACK_COST);
+    let mut token_stock = TokenStock::new(0, vec![]);
+    let mut resource = CivilizationTradeCards {
+        card_piles: HashMap::from([(9, vec![TradeCard::Gold, TradeCard::Ivory])]),
+    };
+    let mut hand = PlayerTradeCards::default();
+
+    let bought = buy_from_ninth_stack(&mut treasury, &mut token_stock, &mut resource, &mut hand, 5);
+
+    assert_eq!(bought, 2, "capped by the stack, not the requested max_cards");
+    assert_eq!(treasury.tokens_in_treasury(), NINTH_STACK_COST, "only 2 cards' worth spent");
 }

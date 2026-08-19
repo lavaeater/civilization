@@ -1,9 +1,12 @@
 use crate::civilization::components::*;
+use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
+use crate::civilization::CivCardName;
 use crate::civilization::concepts::check_city_support::check_city_support_components::*;
 use crate::civilization::concepts::check_city_support::check_city_support_events::*;
+use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::PirateNation;
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
 use crate::GameActivity;
-use bevy::prelude::{error, info, Commands, Entity, MessageReader, MessageWriter, NextState, Query, ResMut, With};
+use bevy::prelude::{error, info, Commands, Entity, MessageReader, MessageWriter, NextState, Query, ResMut, With, Without};
 
 pub fn eliminate_city(
     mut eliminate_city: MessageReader<EliminateCity>,
@@ -11,6 +14,7 @@ pub fn eliminate_city(
     mut city_token_stock: Query<(&mut CityTokenStock, &mut PlayerCities)>,
     area_population: Query<&mut Population>,
     city_token: Query<&CityToken>,
+    civ_cards_query: Query<&PlayerCivilizationCards>,
     mut move_tokens: MessageWriter<MoveTokensFromStockToAreaCommand>,
 ) {
     for eliminate in eliminate_city.read() {
@@ -25,13 +29,22 @@ pub fn eliminate_city(
             && let Ok(population) = area_population.get(eliminate.area_entity)
         {
             //debug!("Eliminating city, conflict: {}, max_pop: {}", eliminate.is_conflict, population.max_population);
+            // Rule 26.11/26.41: a city reduced (not conflict-eliminated) is
+            // replaced by tokens up to the area's population limit; that limit
+            // is +1 if the reducing player holds Agriculture, since the area
+            // is necessarily solely occupied by their own replacement tokens
+            // afterward (26.1 -- areas with cities may not also contain
+            // tokens, so there's nothing else there to disqualify the bonus).
+            let has_agriculture = civ_cards_query
+                .get(city_token.player)
+                .is_ok_and(|c| c.owns(&CivCardName::Agriculture));
             move_tokens.write(MoveTokensFromStockToAreaCommand {
                 player_entity: city_token.player,
                 area_entity: eliminate.area_entity,
                 number_of_tokens: if eliminate.is_conflict {
                     6
                 } else {
-                    population.max_population
+                    population.max_population + usize::from(has_agriculture)
                 },
             });
             commands.entity(eliminate.area_entity).remove::<BuiltCity>();
@@ -125,7 +138,15 @@ pub fn check_player_city_support(
 }
 
 pub fn start_check_city_support(
-    player_cities_query: Query<(Entity, &PlayerCities)>,
+    // Rule 30.913: Pirate cities never require city support. `PlayerCities`
+    // isn't otherwise gated by `With<Player>` here (a bare-owner query, used
+    // so eliminated/inactive players still get swept), so Piracy's shared
+    // `PirateNation` owner entity -- which does hold `PlayerCities` for
+    // `TransferCityTo` to work -- must be explicitly excluded or it would
+    // get incorrectly flagged as under-supported (it has no `PlayerAreas`
+    // population to support cities with, since Pirates never place tokens
+    // there directly).
+    player_cities_query: Query<(Entity, &PlayerCities), Without<PirateNation>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {

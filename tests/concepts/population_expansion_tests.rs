@@ -20,7 +20,7 @@ fn calculate_game_moves_in_population_expansion() {
     let area_two = create_area(&mut app, "Thrace", 1);
     let area_three = create_area(&mut app, "Crete", 1);
     let areas = [area_one, area_two, area_three];
-    for area in areas.iter() {
+    for area in &areas {
         let mut population = Population::new(4);
         let token = stock.remove_token_from_stock().unwrap();
         player_areas.add_token_to_area(*area, token);
@@ -45,11 +45,11 @@ fn calculate_game_moves_in_population_expansion() {
     assert!(player_moves.is_some());
     let player_moves = player_moves.unwrap();
     assert_eq!(player_moves.moves.len(), 3);
-    for (_move_index, p_move) in player_moves.moves.iter() {
+    for (_move_index, p_move) in &player_moves.moves {
         assert!(matches!(p_move, GameMove::PopulationExpansion(..)));
         if let GameMove::PopulationExpansion(pop_exp) = p_move {
             assert_eq!(pop_exp.max_tokens, 1);
-        };
+        }
     }
 }
 
@@ -99,5 +99,5 @@ fn given_a_player_with_too_few_tokens_for_expansion_the_correct_moves_are_create
     if let GameMove::PopulationExpansion(pop_exp_move) = first_move {
         assert_eq!(pop_exp_move.max_tokens, 2);
         assert_eq!(pop_exp_move.area, area);
-    };
+    }
 }

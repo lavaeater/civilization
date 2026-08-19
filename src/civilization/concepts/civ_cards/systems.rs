@@ -1,17 +1,20 @@
 use crate::civilization::{
-    AvailableCivCards, BackToCardSelection, CardHandle, CivCardDefinition, CivCardName,
+    AvailableCivCards, BackToCardSelection, CardHandle, CardsHeldBeforePurchasing, CivCardDefinition, CivCardName,
     CivCardPurchasePhase, CivCardSelectionState, CivCardType, CivCardsAcquisition, CivTradeUi,
     ConfirmCivCardPurchase, Credits, PaymentAdjustButton, PaymentSelectionPanel, PaymentState,
     PaymentValueDisplay, PlayerAcquiringCivilizationCards, PlayerCivilizationCards,
     PlayerDoneAcquiringCivilizationCards, ProceedToPayment, RefreshCivCardsUi, SelectedCardsSummary,
     ToggleCivCardSelection,
 };
-use crate::civilization::concepts::acquire_trade_cards::{CivilizationTradeCards, PlayerTradeCards, TradeCardTrait};
+use crate::civilization::concepts::acquire_trade_cards::{CivilizationTradeCards, PlayerTradeCards, TradeCard, TradeCardTrait};
+use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::{usable_grain_count, GrainLockedForPurchase};
 use crate::civilization::game_moves::RecalculatePlayerMoves;
+use crate::civilization::Z_DIALOG;
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
 use crate::GameActivity;
 use bevy::asset::{AssetServer, Assets};
+use bevy::platform::collections::HashSet;
 use bevy::color::Color;
 use bevy::prelude::{percent, Add, Button, Changed, Commands, Entity, Has, Interaction, MessageReader, MessageWriter, NextState, On, Query, Res, ResMut, Val, With};
 use bevy::ui_widgets::Button as WidgetsButton;
@@ -38,7 +41,13 @@ pub fn init_civ_cards(
 
 pub fn on_add_player_acquiring_civilization_cards(
     trigger: On<Add, PlayerAcquiringCivilizationCards>,
-    human_player_query: Query<(&Player, &IsHuman, &PlayerCivilizationCards, &PlayerTradeCards)>,
+    human_player_query: Query<(
+        &Player,
+        &IsHuman,
+        &PlayerCivilizationCards,
+        &PlayerTradeCards,
+        Option<&CardsHeldBeforePurchasing>,
+    )>,
     ui_exists_query: Query<(), With<CivTradeUi>>,
     mut selection_state: ResMut<CivCardSelectionState>,
     commands: Commands,
@@ -46,12 +55,17 @@ pub fn on_add_player_acquiring_civilization_cards(
     cards: Res<AvailableCivCards>,
 ) {
     if ui_exists_query.is_empty()
-        && let Ok((_, _, player_cards, player_trade_cards)) = human_player_query.get(trigger.entity)
+        && let Ok((_, _, player_cards, player_trade_cards, cards_held_before)) =
+            human_player_query.get(trigger.entity)
     {
         selection_state.clear();
         selection_state.player_entity = Some(trigger.entity);
 
-        build_civ_cards_ui(commands, &theme, &cards, player_cards, player_trade_cards, &selection_state);
+        // Rule 31.53: credits are computed against what was held BEFORE this
+        // turn's acquiring phase began, not the live (possibly already-grown)
+        // hand -- see CardsHeldBeforePurchasing's doc comment.
+        let credits_basis = cards_held_before.map_or(&player_cards.cards, |c| &c.0);
+        build_civ_cards_ui(commands, &theme, &cards, player_cards, player_trade_cards, &selection_state, credits_basis);
     }
 }
 
@@ -62,13 +76,22 @@ fn build_civ_cards_ui(
     player_cards: &PlayerCivilizationCards,
     player_trade_cards: &PlayerTradeCards,
     selection_state: &CivCardSelectionState,
+    credits_basis: &HashSet<CivCardName>,
 ) {
     let mut theme_to_use = theme.clone();
     theme_to_use.text.label_size = 16.0;
     theme_to_use.text.header_size = 20.0;
     let mut builder = UIBuilder::new(commands, Some(theme_to_use));
     
-    builder.component::<CivTradeUi>().add_panel(|panel| {
+    builder
+        .component::<CivTradeUi>()
+        .absolute_position()
+        .width(percent(100.0))
+        .height(percent(100.0))
+        .justify_center()
+        .align_items_center()
+        .z_index(Z_DIALOG)
+        .add_panel(|panel| {
         let panel_color = Color::srgba(0.1, 0.1, 0.1, 0.95);
         panel
             .display_flex()
@@ -111,7 +134,7 @@ fn build_civ_cards_ui(
                 });
 
                 col_builder.foreach_child(&cards.get_cards(card_type), |card_builder, card| {
-                    create_civ_card_panel(card_builder, card, player_cards, cards, selection_state);
+                    create_civ_card_panel(card_builder, card, player_cards, cards, selection_state, credits_basis);
                 });
             });
         });
@@ -136,7 +159,7 @@ fn build_civ_cards_ui(
                     .flex_column()
                     .row_gap_px(4.0);
                 info.default_text("Your Buying Power");
-                info.default_text(format!("Commodity Value: {}", total_value));
+                info.default_text(format!("Commodity Value: {total_value}"));
             });
 
             // Selected cards summary
@@ -157,16 +180,16 @@ fn build_civ_cards_ui(
                 } else {
                     let selected_defs = cards.cards_for_names(&selection_state.selected_cards);
                     let total_cost: u32 = selected_defs.iter().map(|c| {
-                        let credits = cards.total_credits(&player_cards.cards);
+                        let credits = cards.total_credits(credits_basis);
                         c.calculate_cost(&credits)
                     }).sum();
-                    
+
                     for card_def in &selected_defs {
-                        let credits = cards.total_credits(&player_cards.cards);
+                        let credits = cards.total_credits(credits_basis);
                         let cost = card_def.calculate_cost(&credits);
                         summary.default_text(format!("• {} ({})", card_def.name, cost));
                     }
-                    summary.default_text(format!("Total: {}", total_cost));
+                    summary.default_text(format!("Total: {total_cost}"));
                     
                     let can_afford = total_cost as usize <= total_value;
                     if can_afford {
@@ -218,13 +241,14 @@ fn build_civ_cards_ui(
 }
 
 fn create_civ_card_panel(
-    card_builder: &mut UIBuilder, 
-    card: &CivCardDefinition, 
-    player_cards: &PlayerCivilizationCards, 
+    card_builder: &mut UIBuilder,
+    card: &CivCardDefinition,
+    player_cards: &PlayerCivilizationCards,
     cards: &AvailableCivCards,
     selection_state: &CivCardSelectionState,
+    credits_basis: &HashSet<CivCardName>,
 ) {
-    let credits = cards.total_credits(&player_cards.cards);
+    let credits = cards.total_credits(credits_basis);
     let actual_cost = card.calculate_cost(&credits);
     let owns_card = player_cards.owns(&card.name);
     let has_prerequisites = player_cards.has_prerequisites(&card.prerequisites);
@@ -236,7 +260,7 @@ fn create_civ_card_panel(
     } else if !has_prerequisites {
         let missing: Vec<_> = card.prerequisites.iter()
             .filter(|p| !player_cards.owns(p))
-            .map(|p| p.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
         (Color::srgba(0.3, 0.15, 0.15, 1.0), Some(format!("Requires: {}", missing.join(", "))), false)
     } else if is_selected {
@@ -269,7 +293,7 @@ fn create_civ_card_panel(
             .justify_space_between();
         name_row.add_text_child(card.name.to_string(), None);
         if let Some(ref status) = status_text {
-            name_row.add_text_child(format!("[{}]", status), None);
+            name_row.add_text_child(format!("[{status}]"), None);
         }
     });
     card_builder.with_child(|cost_row| {
@@ -280,7 +304,7 @@ fn create_civ_card_panel(
         if actual_cost < card.cost {
             cost_row.default_text(format!("Cost: {} (was {})", actual_cost, card.cost));
         } else {
-            cost_row.default_text(format!("Cost: {}", actual_cost));
+            cost_row.default_text(format!("Cost: {actual_cost}"));
         }
     });
     if !card.credits.is_empty() {
@@ -291,11 +315,11 @@ fn create_civ_card_panel(
 }
 
 #[allow(dead_code)]
-fn format_credit(credit: &Credits) -> String {
+fn format_credit(credit: Credits) -> String {
     match credit {
-        Credits::ToType(card_type, amount) => format!("+{} to {:?}", amount, card_type),
-        Credits::ToAll(amount) => format!("+{} to all", amount),
-        Credits::ToSpecificCard(card_name, amount) => format!("+{} to {}", amount, card_name),
+        Credits::ToType(card_type, amount) => format!("+{amount} to {card_type:?}"),
+        Credits::ToAll(amount) => format!("+{amount} to all"),
+        Credits::ToSpecificCard(card_name, amount) => format!("+{amount} to {card_name}"),
     }
 }
 
@@ -338,7 +362,15 @@ pub fn refresh_civ_cards_ui(
     mut refresh_reader: MessageReader<RefreshCivCardsUi>,
     mut commands: Commands,
     ui_query: Query<Entity, With<CivTradeUi>>,
-    human_player_query: Query<(&PlayerCivilizationCards, &PlayerTradeCards), With<IsHuman>>,
+    human_player_query: Query<
+        (
+            &PlayerCivilizationCards,
+            &PlayerTradeCards,
+            Option<&GrainLockedForPurchase>,
+            Option<&CardsHeldBeforePurchasing>,
+        ),
+        With<IsHuman>,
+    >,
     theme: Res<LavaTheme>,
     cards: Res<AvailableCivCards>,
     selection_state: Res<CivCardSelectionState>,
@@ -349,18 +381,21 @@ pub fn refresh_civ_cards_ui(
         for entity in ui_query.iter() {
             commands.entity(entity).despawn();
         }
-        
+
         // Rebuild UI based on current phase
-        if let Ok((player_cards, player_trade_cards)) = human_player_query.single() {
+        if let Ok((player_cards, player_trade_cards, grain_locked, cards_held_before)) = human_player_query.single() {
+            // Rule 31.53: see CardsHeldBeforePurchasing's doc comment.
+            let credits_basis = cards_held_before.map_or(&player_cards.cards, |c| &c.0);
             match selection_state.phase {
                 CivCardPurchasePhase::SelectingCards => {
                     build_civ_cards_ui(
-                        commands.reborrow(), 
-                        &theme, 
-                        &cards, 
-                        player_cards, 
-                        player_trade_cards, 
-                        &selection_state
+                        commands.reborrow(),
+                        &theme,
+                        &cards,
+                        player_cards,
+                        player_trade_cards,
+                        &selection_state,
+                        credits_basis,
                     );
                 }
                 CivCardPurchasePhase::SelectingPayment => {
@@ -368,10 +403,11 @@ pub fn refresh_civ_cards_ui(
                         commands.reborrow(),
                         &theme,
                         &cards,
-                        player_cards,
                         player_trade_cards,
                         &selection_state,
                         &payment_state,
+                        grain_locked,
+                        credits_basis,
                     );
                 }
             }
@@ -383,22 +419,31 @@ fn build_payment_ui(
     commands: Commands,
     theme: &LavaTheme,
     cards: &AvailableCivCards,
-    player_cards: &PlayerCivilizationCards,
     player_trade_cards: &PlayerTradeCards,
     selection_state: &CivCardSelectionState,
     payment_state: &PaymentState,
+    grain_locked: Option<&GrainLockedForPurchase>,
+    credits_basis: &HashSet<CivCardName>,
 ) {
     let mut theme_to_use = theme.clone();
     theme_to_use.text.label_size = 14.0;
     let mut builder = UIBuilder::new(commands, Some(theme_to_use));
 
     let selected_defs = cards.cards_for_names(&selection_state.selected_cards);
-    let credits = cards.total_credits(&player_cards.cards);
+    let credits = cards.total_credits(credits_basis);
     let total_cost: u32 = selected_defs.iter().map(|c| c.calculate_cost(&credits)).sum();
     let chosen_value = payment_state.total_value();
     let can_confirm = chosen_value >= total_cost as usize;
 
-    builder.component::<CivTradeUi>().add_panel(|panel| {
+    builder
+        .component::<CivTradeUi>()
+        .absolute_position()
+        .width(percent(100.0))
+        .height(percent(100.0))
+        .justify_center()
+        .align_items_center()
+        .z_index(Z_DIALOG)
+        .add_panel(|panel| {
         let panel_color = Color::srgba(0.1, 0.1, 0.1, 0.95);
         panel
             .display_flex()
@@ -426,7 +471,7 @@ fn build_payment_ui(
                 let cost = card_def.calculate_cost(&credits);
                 buying.default_text(format!("• {} ({})", card_def.name, cost));
             }
-            buying.default_text(format!("Total Cost: {}", total_cost));
+            buying.default_text(format!("Total Cost: {total_cost}"));
         });
 
         // Commodity card picker — one +/- row per stack
@@ -446,7 +491,13 @@ fn build_payment_ui(
             let stacks = player_trade_cards.as_card_stacks_sorted_by_value();
             for stack in stacks.iter().filter(|s| s.is_commodity) {
                 let card_type = stack.card_type;
-                let owned = stack.count;
+                // Rule 30.312: Grain locked by a Famine reduction this turn
+                // can't be offered as payment at all.
+                let owned = if card_type == TradeCard::Grain {
+                    usable_grain_count(stack.count, grain_locked.map_or(0, |l| l.0))
+                } else {
+                    stack.count
+                };
                 let chosen = payment_state.chosen.get(&card_type).copied().unwrap_or(0);
                 let chosen_value_for_stack = chosen * chosen * card_type.value();
 
@@ -470,14 +521,14 @@ fn build_payment_ui(
                             ..Default::default()
                         });
                         label.add_text_child(
-                            format!("{}", card_type),
+                            format!("{card_type}"),
                             Some(TextStyle::size_color(12.0, Color::WHITE)),
                         );
                     });
 
                     // Chosen / owned count
                     row.add_text_child(
-                        format!("{}/{}", chosen, owned),
+                        format!("{chosen}/{owned}"),
                         Some(TextStyle::size_color(13.0, Color::WHITE)),
                     );
 
@@ -489,7 +540,7 @@ fn build_payment_ui(
                     );
 
                     // Stack value contribution
-                    row.add_text_child(format!("  = {}", chosen_value_for_stack), Some(TextStyle::size_color(12.0, Color::srgb(0.7, 0.9, 0.7))),
+                    row.add_text_child(format!("  = {chosen_value_for_stack}"), Some(TextStyle::size_color(12.0, Color::srgb(0.7, 0.9, 0.7))),
                     );
                 });
             }
@@ -512,7 +563,7 @@ fn build_payment_ui(
                 Color::srgb(0.9, 0.4, 0.3)
             };
             total_row.add_text_child(
-                format!("Paying: {} / {} required", chosen_value, total_cost),
+                format!("Paying: {chosen_value} / {total_cost} required"),
                 Some(TextStyle::size_color(14.0, status_color)),
             );
         });
@@ -533,7 +584,7 @@ fn build_payment_ui(
             );
 
             if can_confirm {
-                let selected: Vec<_> = selection_state.selected_cards.iter().cloned().collect();
+                let selected: Vec<_> = selection_state.selected_cards.iter().copied().collect();
                 let payment = payment_state.chosen.clone();
                 buttons.add_button_observe(
                     "Confirm Purchase",
@@ -544,7 +595,7 @@ fn build_payment_ui(
                         if let Ok(player_entity) = human_player_query.single() {
                             purchase_writer.write(ConfirmCivCardPurchase {
                                 player: player_entity,
-                                cards_to_buy: selected.to_vec(),
+                                cards_to_buy: selected.clone(),
                                 payment: payment.clone(),
                             });
                         }
@@ -561,10 +612,10 @@ pub fn handle_payment_adjust(
         Changed<Interaction>,
     >,
     mut payment_state: ResMut<PaymentState>,
-    human_player_query: Query<&PlayerTradeCards, With<IsHuman>>,
+    human_player_query: Query<(&PlayerTradeCards, Option<&GrainLockedForPurchase>), With<IsHuman>>,
     mut refresh_writer: MessageWriter<RefreshCivCardsUi>,
 ) {
-    let Ok(player_trade_cards) = human_player_query.single() else { return; };
+    let Ok((player_trade_cards, grain_locked)) = human_player_query.single() else { return; };
 
     let mut changed = false;
     for (interaction, btn) in &mut interaction_query {
@@ -572,7 +623,14 @@ pub fn handle_payment_adjust(
             continue;
         }
 
-        let owned = player_trade_cards.number_of_cards_for_trade_card(btn.card);
+        let held = player_trade_cards.number_of_cards_for_trade_card(btn.card);
+        // Rule 30.312: Grain locked by a Famine reduction this turn can't be
+        // selected as payment, even though it's still physically held.
+        let owned = if btn.card == TradeCard::Grain {
+            usable_grain_count(held, grain_locked.map_or(0, |l| l.0))
+        } else {
+            held
+        };
         let current = payment_state.chosen.get(&btn.card).copied().unwrap_or(0);
 
         if btn.delta > 0 {
@@ -598,7 +656,12 @@ pub fn handle_payment_adjust(
 
 pub fn process_civ_card_purchase(
     mut purchase_reader: MessageReader<ConfirmCivCardPurchase>,
-    mut player_query: Query<(&mut PlayerCivilizationCards, &mut PlayerTradeCards, Has<IsHuman>)>,
+    mut player_query: Query<(
+        &mut PlayerCivilizationCards,
+        &mut PlayerTradeCards,
+        Has<IsHuman>,
+        Option<&GrainLockedForPurchase>,
+    )>,
     mut trade_cards_resource: ResMut<CivilizationTradeCards>,
     mut selection_state: ResMut<CivCardSelectionState>,
     mut done_writer: MessageWriter<PlayerDoneAcquiringCivilizationCards>,
@@ -607,7 +670,7 @@ pub fn process_civ_card_purchase(
     ui_query: Query<Entity, With<CivTradeUi>>,
 ) {
     for purchase in purchase_reader.read() {
-        if let Ok((mut player_cards, mut player_trade_cards, is_human)) =
+        if let Ok((mut player_cards, mut player_trade_cards, is_human, grain_locked)) =
             player_query.get_mut(purchase.player)
         {
             // Add civilization cards to player
@@ -615,13 +678,29 @@ pub fn process_civ_card_purchase(
                 player_cards.add_card(*card_name);
             }
 
+            // Rule 30.312: whatever produced this payment (human UI, AI
+            // selection) should already respect the Grain lock, but this is
+            // the one place every purchase actually commits, so it's the
+            // last line of defense -- cap any Grain payment to what's
+            // usable rather than trusting the caller.
+            let locked_grain = grain_locked.map_or(0, |l| l.0);
+
             // Remove trade cards used for payment and return to piles
             for (trade_card, count) in &purchase.payment {
-                if player_trade_cards.remove_n_trade_cards(*count, *trade_card).is_some() {
+                let count = if *trade_card == TradeCard::Grain {
+                    let held = player_trade_cards.number_of_cards_for_trade_card(*trade_card);
+                    (*count).min(usable_grain_count(held, locked_grain))
+                } else {
+                    *count
+                };
+                if count == 0 {
+                    continue;
+                }
+                if player_trade_cards.remove_n_trade_cards(count, *trade_card).is_some() {
                     // Return cards to the appropriate pile
                     let pile = trade_card.value();
                     if let Some(pile_vec) = trade_cards_resource.card_piles.get_mut(&pile) {
-                        for _ in 0..*count {
+                        for _ in 0..count {
                             pile_vec.push(*trade_card);
                         }
                     }
@@ -687,6 +766,7 @@ pub fn player_is_done(
         commands
             .entity(done.0)
             .remove::<PlayerAcquiringCivilizationCards>();
+        commands.entity(done.0).remove::<CardsHeldBeforePurchasing>();
         // Enforce the 8-commodity-card retention limit now that this player has
         // finished acquiring (rule 31.71).
         if let Ok(mut trade_cards) = player_trade_cards.get_mut(done.0) {
@@ -710,12 +790,23 @@ pub fn player_is_done(
 pub fn begin_acquire_civ_cards(
     mut commands: Commands,
     mut civ_cards_acquisition: ResMut<CivCardsAcquisition>,
-    players: Query<(Entity, Has<IsHuman>), With<Player>>,
+    players: Query<(Entity, Has<IsHuman>, Option<&PlayerCivilizationCards>), With<Player>>,
     mut selection_state: ResMut<CivCardSelectionState>,
 ) {
     selection_state.clear();
     
-    for (entity, is_human) in players.iter() {
+    for (entity, is_human, civ_cards) in players.iter() {
+        // Rule 31.53: snapshot held cards now, before this turn's purchases
+        // can add to the credit pool. See CardsHeldBeforePurchasing's doc
+        // comment. Inserted BEFORE PlayerAcquiringCivilizationCards: that
+        // component's Add observer (on_add_player_acquiring_civilization_cards)
+        // builds the initial UI and reads this snapshot, and multiple
+        // .insert() calls on the same entity in one system are applied (and
+        // their Add observers fired) in the order they were issued -- so the
+        // snapshot must land first or the observer would see it as absent.
+        commands.entity(entity).insert(CardsHeldBeforePurchasing(
+            civ_cards.map_or_else(Default::default, |c| c.cards.clone()),
+        ));
         commands
             .entity(entity)
             .insert(PlayerAcquiringCivilizationCards);

@@ -3,7 +3,7 @@ use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Messages, Name, Transform};
 use bevy::state::app::StatesPlugin;
-use adv_civ::civilization::{move_tokens_from_area_to_area, recalculate_movement_moves_for_player, AvailableMoves, CameraFocusQueue, GameArea, GameFaction, GameMove, LandPassage, MoveTokenFromAreaToAreaCommand, PlayerAreas, PlayerMovementEnded, Population, RecalculatePlayerMoves, TokenHasMoved, TokenStock};
+use adv_civ::civilization::{move_tokens_from_area_to_area, recalculate_movement_moves_for_player, AvailableMoves, CameraFocusQueue, GameArea, GameFaction, GameMove, LandPassage, MoveTokenFromAreaToAreaCommand, PlayerAreas, PlayerMovementEnded, Population, RecalculatePlayerMoves, TokenHasMoved, TokenStock, execute_ship_ferry, ShipFerryCommand, PlayerShips, SeaPassage};
 
 fn setup_app() -> App {
     let mut app = App::new();
@@ -223,7 +223,7 @@ fn calculate_one_move() {
         assert_eq!(m.max_tokens, 1);
         assert_eq!(m.target, area_two);
         assert_eq!(m.source, area_one);
-    };
+    }
 
     let last_move = player_moves.moves.get(&2).unwrap();
     assert!(matches!(last_move, GameMove::EndMovement));
@@ -290,7 +290,7 @@ fn calculate_two_moves() {
         assert_eq!(m.max_tokens, 1);
         assert_eq!(m.target, area_two);
         assert_eq!(m.source, area_one);
-    };
+    }
 
     let second_move = player_moves.moves.get(&2).unwrap();
     assert!(matches!(second_move, GameMove::Movement(..)));
@@ -298,7 +298,7 @@ fn calculate_two_moves() {
         assert_eq!(m.max_tokens, 1);
         assert_eq!(m.target, area_three);
         assert_eq!(m.source, area_one);
-    };
+    }
 
     let last_move = player_moves.moves.get(&3).unwrap();
     assert!(matches!(last_move, GameMove::EndMovement));
@@ -373,7 +373,7 @@ fn calculate_moves_after_having_moved() {
         assert_eq!(m.max_tokens, 3);
         assert_eq!(m.target, area_two);
         assert_eq!(m.source, area_one);
-    };
+    }
 
     let second_move = player_moves.moves.get(&2).unwrap();
     assert!(matches!(second_move, GameMove::Movement(..)));
@@ -381,8 +381,230 @@ fn calculate_moves_after_having_moved() {
         assert_eq!(m.max_tokens, 3);
         assert_eq!(m.target, area_three);
         assert_eq!(m.source, area_one);
-    };
+    }
 
     let last_move = player_moves.moves.get(&3).unwrap();
     assert!(matches!(last_move, GameMove::EndMovement));
+}
+
+/// Rule 23.1: a ship with no tokens of its own to carry -- and sitting in an
+/// area where the player has no population at all -- must still generate a
+/// move for itself. Previously ship-move generation piggybacked entirely on
+/// the token-presence loop, so a stranded empty ship had no move at all.
+#[test]
+fn calculate_moves_generates_a_ship_move_for_an_empty_ship_with_no_tokens_in_its_area() {
+    // Arrange
+    let mut app = setup_bevy_app(|mut app| {
+        app.add_message::<RecalculatePlayerMoves>()
+            .add_message::<PlayerMovementEnded>()
+            .add_systems(Update, recalculate_movement_moves_for_player);
+        app
+    });
+
+    let source_area = create_area(&mut app, "Crete", 1);
+    let target_area = create_area(&mut app, "Aegean Sea", 2);
+    let mut sea_passage = SeaPassage::default();
+    sea_passage.add_passage(target_area);
+    app.world_mut().entity_mut(source_area).insert(sea_passage);
+    app.world_mut()
+        .entity_mut(source_area)
+        .insert(Population::new(4));
+    app.world_mut()
+        .entity_mut(target_area)
+        .insert(Population::new(4));
+
+    let (player, _tokens, _city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Crete);
+
+    // Player has NO tokens/population anywhere -- only a ship, sitting alone
+    // in source_area.
+    let mut player_ships = PlayerShips::default();
+    let ship = app.world_mut().spawn(Name::new("Ship")).id();
+    player_ships.place_ship(source_area, ship);
+    app.world_mut()
+        .entity_mut(player)
+        .insert((PlayerAreas::default(), player_ships));
+
+    let mut events = app
+        .world_mut()
+        .resource_mut::<Messages<RecalculatePlayerMoves>>();
+    events.write(RecalculatePlayerMoves::new(player));
+
+    // Act
+    app.update();
+
+    // Assert: a ShipFerry move exists carrying 0 tokens, plus EndMovement.
+    let player_moves = app.world().entity(player).get::<AvailableMoves>().unwrap();
+    let ship_move = player_moves
+        .moves
+        .values()
+        .find_map(|m| match m {
+            GameMove::ShipFerry(m) => Some(m),
+            _ => None,
+        })
+        .expect("expected a ShipFerry move for the empty ship");
+    assert_eq!(ship_move.source, source_area);
+    assert_eq!(ship_move.target, target_area);
+    assert_eq!(ship_move.max_tokens, 0);
+}
+
+// ── Rule 23.52: ship ferrying ────────────────────────────────────────────────
+
+#[test]
+fn ship_ferry_moves_tokens_and_the_ship_to_the_target_area() {
+    // Arrange
+    let mut app = App::new();
+    app.add_plugins(StatesPlugin)
+        .add_message::<ShipFerryCommand>()
+        .add_message::<RecalculatePlayerMoves>()
+        .insert_state(GameState::Playing)
+        .add_sub_state::<GameActivity>()
+        .add_systems(Update, execute_ship_ferry);
+
+    let (player_one, mut player_one_tokens, _) =
+        setup_player(&mut app, "player one", GameFaction::Egypt);
+
+    let mut source_population = Population::new(6);
+    let tokens_to_ferry: Vec<_> = player_one_tokens.drain(0..3).collect();
+    for &token in &tokens_to_ferry {
+        source_population.add_token_to_area(player_one, token);
+    }
+
+    let source_area = create_area_w_components(&mut app, "source", Some(source_population));
+    let target_area = create_area_w_components(&mut app, "target", Some(Population::new(6)));
+
+    let mut player_areas = PlayerAreas::default();
+    for &token in &tokens_to_ferry {
+        player_areas.add_token_to_area(source_area, token);
+    }
+    app.world_mut().entity_mut(player_one).insert(player_areas);
+
+    let ship = app.world_mut().spawn(Name::new("Ship")).id();
+    let mut player_ships = PlayerShips::default();
+    player_ships.place_ship(source_area, ship);
+    app.world_mut().entity_mut(player_one).insert(player_ships);
+
+    app.world_mut().resource_mut::<Messages<ShipFerryCommand>>().write(ShipFerryCommand::new(
+        source_area,
+        target_area,
+        3,
+        player_one,
+    ));
+
+    // Act
+    app.update();
+
+    // Assert: all 3 tokens moved from source to target population...
+    let source_pop = app.world().get::<Population>(source_area).unwrap();
+    let target_pop = app.world().get::<Population>(target_area).unwrap();
+    assert_eq!(source_pop.population_for_player(player_one), 0);
+    assert_eq!(target_pop.population_for_player(player_one), 3);
+    for &token in &tokens_to_ferry {
+        assert!(app.world().get::<TokenHasMoved>(token).is_some());
+    }
+
+    // ...PlayerAreas reflects the move...
+    let areas = app.world().get::<PlayerAreas>(player_one).unwrap();
+    assert!(!areas.areas().contains(&source_area));
+    assert!(areas.areas().contains(&target_area));
+
+    // ...and the ship follows to the target area.
+    let ships = app.world().get::<PlayerShips>(player_one).unwrap();
+    assert!(ships.ships_in_area(source_area).is_empty());
+    assert_eq!(ships.ships_in_area(target_area), &[ship]);
+}
+
+#[test]
+fn ship_ferry_only_moves_tokens_that_have_not_already_moved() {
+    // Arrange
+    let mut app = App::new();
+    app.add_plugins(StatesPlugin)
+        .add_message::<ShipFerryCommand>()
+        .add_message::<RecalculatePlayerMoves>()
+        .insert_state(GameState::Playing)
+        .add_sub_state::<GameActivity>()
+        .add_systems(Update, execute_ship_ferry);
+
+    let (player_one, mut player_one_tokens, _) =
+        setup_player(&mut app, "player one", GameFaction::Egypt);
+
+    let mut source_population = Population::new(6);
+    let already_moved = player_one_tokens.remove(0);
+    let unmoved = player_one_tokens.remove(0);
+    source_population.add_token_to_area(player_one, already_moved);
+    source_population.add_token_to_area(player_one, unmoved);
+
+    let source_area = create_area_w_components(&mut app, "source", Some(source_population));
+    let target_area = create_area_w_components(&mut app, "target", Some(Population::new(6)));
+
+    app.world_mut().entity_mut(already_moved).insert(TokenHasMoved);
+
+    let mut player_areas = PlayerAreas::default();
+    player_areas.add_token_to_area(source_area, already_moved);
+    player_areas.add_token_to_area(source_area, unmoved);
+    app.world_mut().entity_mut(player_one).insert(player_areas);
+
+    let ship = app.world_mut().spawn(Name::new("Ship")).id();
+    let mut player_ships = PlayerShips::default();
+    player_ships.place_ship(source_area, ship);
+    app.world_mut().entity_mut(player_one).insert(player_ships);
+
+    // Ask to ferry up to 5 -- only the 1 unmoved token is eligible.
+    app.world_mut().resource_mut::<Messages<ShipFerryCommand>>().write(ShipFerryCommand::new(
+        source_area,
+        target_area,
+        5,
+        player_one,
+    ));
+
+    // Act
+    app.update();
+
+    // Assert: only the unmoved token crossed; the already-moved one stayed put.
+    let source_pop = app.world().get::<Population>(source_area).unwrap();
+    let target_pop = app.world().get::<Population>(target_area).unwrap();
+    assert_eq!(source_pop.population_for_player(player_one), 1);
+    assert_eq!(target_pop.population_for_player(player_one), 1);
+}
+
+/// Rule 23.1: ships move independently of tokens -- an empty ship in an area
+/// with no unmoved (or no) tokens must still be able to relocate on its own.
+#[test]
+fn ship_ferry_moves_an_empty_ship_with_no_tokens_along() {
+    // Arrange
+    let mut app = App::new();
+    app.add_plugins(StatesPlugin)
+        .add_message::<ShipFerryCommand>()
+        .add_message::<RecalculatePlayerMoves>()
+        .insert_state(GameState::Playing)
+        .add_sub_state::<GameActivity>()
+        .add_systems(Update, execute_ship_ferry);
+
+    let (player_one, _player_one_tokens, _) =
+        setup_player(&mut app, "player one", GameFaction::Egypt);
+
+    // Source area has no tokens belonging to player_one at all.
+    let source_area = create_area_w_components(&mut app, "source", Some(Population::new(6)));
+    let target_area = create_area_w_components(&mut app, "target", Some(Population::new(6)));
+
+    app.world_mut().entity_mut(player_one).insert(PlayerAreas::default());
+
+    let ship = app.world_mut().spawn(Name::new("Ship")).id();
+    let mut player_ships = PlayerShips::default();
+    player_ships.place_ship(source_area, ship);
+    app.world_mut().entity_mut(player_one).insert(player_ships);
+
+    app.world_mut().resource_mut::<Messages<ShipFerryCommand>>().write(ShipFerryCommand::new(
+        source_area,
+        target_area,
+        0,
+        player_one,
+    ));
+
+    // Act
+    app.update();
+
+    // Assert: the ship relocated on its own, no tokens involved.
+    let ships = app.world().get::<PlayerShips>(player_one).unwrap();
+    assert!(ships.ships_in_area(source_area).is_empty());
+    assert_eq!(ships.ships_in_area(target_area), &[ship]);
 }

@@ -1,0 +1,22 @@
+# TLS front for the game server. {$CIV_DOMAIN} = localhost gives Caddy's
+# internal CA; a real domain gives automatic Let's Encrypt.
+
+{$CIV_DOMAIN} {
+	# HTTP join API
+	handle /api/* {
+		reverse_proxy game:5112
+	}
+
+	# Game WebSocket
+	handle /ws {
+		reverse_proxy game:5111
+	}
+
+	# The wasm client (trunk build output, mounted at /srv).
+	# try_files keeps future /join/<id> style links landing on the app.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -46,7 +46,7 @@ fn score_end_movement(
     w: &Weights,
 ) -> f32 {
     let mut hold_value = 0.15; // small floor: standing pat is a legitimate option
-    for (entity, s) in areas.iter() {
+    for (entity, s) in areas {
         if s.my_pop == 0 {
             continue;
         }

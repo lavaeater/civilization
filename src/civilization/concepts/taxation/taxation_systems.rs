@@ -34,7 +34,7 @@ pub fn enter_collect_taxes(
             continue;
         }
         // Base rate: 2 tokens/city. Coinage holders may have chosen 1 or 3 (rule 19.2).
-        let rate = coinage_rate.map(|r| r.0.clamp(1, 3)).unwrap_or(2);
+        let rate = coinage_rate.map_or(2, |r| r.0.clamp(1, 3));
         let tokens_owed = city_count * rate;
         commands
             .entity(player_entity)
@@ -48,15 +48,14 @@ pub fn enter_collect_taxes(
 /// Human players would set this via UI before taxes are computed.
 /// AI chooses 3/city when stock is ample (≥20), 1/city when stock is low (≤8), else 2.
 pub fn ai_set_coinage_rate(
-    mut player_query: Query<(Entity, &TokenStock, &PlayerCities), (With<Player>, With<StupidAi>)>,
+    player_query: Query<(Entity, &TokenStock, &PlayerCities), (With<Player>, With<StupidAi>)>,
     civ_cards_query: Query<&PlayerCivilizationCards>,
     mut commands: Commands,
 ) {
-    for (player_entity, stock, cities) in player_query.iter_mut() {
+    for (player_entity, stock, cities) in player_query {
         let has_coinage = civ_cards_query
             .get(player_entity)
-            .map(|c| c.owns(&CivCardName::Coinage))
-            .unwrap_or(false);
+            .is_ok_and(|c| c.owns(&CivCardName::Coinage));
 
         if !has_coinage || cities.number_of_cities() == 0 {
             continue;
@@ -85,12 +84,11 @@ pub fn collect_taxes(
     civ_cards_query: Query<&PlayerCivilizationCards>,
     mut commands: Commands,
 ) {
-    for (player_entity, name, needs_to_pay, mut stock, cities, _) in player_query.iter_mut() {
+    for (player_entity, name, needs_to_pay, mut stock, cities, _) in &mut player_query {
         let tokens_owed = needs_to_pay.tokens_owed;
         let has_democracy = civ_cards_query
             .get(player_entity)
-            .map(|c| c.owns(&CivCardName::Democracy))
-            .unwrap_or(false);
+            .is_ok_and(|c| c.owns(&CivCardName::Democracy));
 
         if has_democracy {
             // Democracy holders are immune from revolts; pay what they have, no revolt.
@@ -233,60 +231,57 @@ pub fn resolve_revolts(
             .find(|(e, _)| *e != original_owner)
             .map(|(e, _)| *e);
 
-        match beneficiary {
-            Some(new_owner) => {
-                info!(
-                    "[TAXATION] Revolting city {:?} taken over by {:?}",
-                    revolting_city, new_owner
-                );
-                // Update the BuiltCity *and* the CityToken to reflect the new
-                // owner. Leaving CityToken stale points later owner lookups
-                // (e.g. eliminate_city, conflict resolution) at the previous
-                // owner, which silently no-ops and can spin the city-support
-                // phase forever.
-                commands
-                    .entity(revolting_city)
-                    .remove::<CityInRevolt>()
-                    .insert(BuiltCity::new(revolting_city, new_owner))
-                    .insert(CityToken::new(new_owner));
+        if let Some(new_owner) = beneficiary {
+            info!(
+                "[TAXATION] Revolting city {:?} taken over by {:?}",
+                revolting_city, new_owner
+            );
+            // Update the BuiltCity *and* the CityToken to reflect the new
+            // owner. Leaving CityToken stale points later owner lookups
+            // (e.g. eliminate_city, conflict resolution) at the previous
+            // owner, which silently no-ops and can spin the city-support
+            // phase forever.
+            commands
+                .entity(revolting_city)
+                .remove::<CityInRevolt>()
+                .insert(BuiltCity::new(revolting_city, new_owner))
+                .insert(CityToken::new(new_owner));
 
-                // Remove the city from the original owner's record and add to new owner.
-                if let Some(area) = area_opt {
-                    commands.entity(original_owner).queue(
-                        move |mut entity: bevy::ecs::world::EntityWorldMut| {
-                            if let Some(mut cities) = entity.get_mut::<PlayerCities>() {
-                                cities.remove_city_from_area(area);
-                            }
-                        },
-                    );
-                    commands.entity(new_owner).queue(
-                        move |mut entity: bevy::ecs::world::EntityWorldMut| {
-                            if let Some(mut cities) = entity.get_mut::<PlayerCities>() {
-                                cities.build_city_in_area(area, revolting_city);
-                            }
-                        },
-                    );
-                }
+            // Remove the city from the original owner's record and add to new owner.
+            if let Some(area) = area_opt {
+                commands.entity(original_owner).queue(
+                    move |mut entity: bevy::ecs::world::EntityWorldMut| {
+                        if let Some(mut cities) = entity.get_mut::<PlayerCities>() {
+                            cities.remove_city_from_area(area);
+                        }
+                    },
+                );
+                commands.entity(new_owner).queue(
+                    move |mut entity: bevy::ecs::world::EntityWorldMut| {
+                        if let Some(mut cities) = entity.get_mut::<PlayerCities>() {
+                            cities.build_city_in_area(area, revolting_city);
+                        }
+                    },
+                );
             }
-            None => {
-                info!(
-                    "[TAXATION] No player can take revolting city {:?} — eliminating",
-                    revolting_city
-                );
-                commands
-                    .entity(revolting_city)
-                    .remove::<CityInRevolt>()
-                    .insert(ReturnCityToStock);
+        } else {
+            info!(
+                "[TAXATION] No player can take revolting city {:?} — eliminating",
+                revolting_city
+            );
+            commands
+                .entity(revolting_city)
+                .remove::<CityInRevolt>()
+                .insert(ReturnCityToStock);
 
-                if let Some(area) = area_opt {
-                    commands.entity(original_owner).queue(
-                        move |mut entity: bevy::ecs::world::EntityWorldMut| {
-                            if let Some(mut cities) = entity.get_mut::<PlayerCities>() {
-                                cities.remove_city_from_area(area);
-                            }
-                        },
-                    );
-                }
+            if let Some(area) = area_opt {
+                commands.entity(original_owner).queue(
+                    move |mut entity: bevy::ecs::world::EntityWorldMut| {
+                        if let Some(mut cities) = entity.get_mut::<PlayerCities>() {
+                            cities.remove_city_from_area(area);
+                        }
+                    },
+                );
             }
         }
     }
@@ -371,9 +366,11 @@ mod tests {
 
         // Simulate payment
         {
-            let mut stock = world.get_mut::<TokenStock>(player).unwrap();
-            let taken = stock.remove_tokens_from_stock(tokens_owed).unwrap();
-            drop(stock);
+            // Scoped so the `TokenStock` borrow ends before we borrow `Treasury`.
+            let taken = {
+                let mut stock = world.get_mut::<TokenStock>(player).unwrap();
+                stock.remove_tokens_from_stock(tokens_owed).unwrap()
+            };
             let mut treasury = world.get_mut::<Treasury>(player).unwrap();
             for t in taken {
                 treasury.add_token_to_treasury(t);
