@@ -1,0 +1,245 @@
+{
+  "version": "0.0.2",
+  "round": 1,
+  "game_activity": "CityConstruction",
+  "players": [
+    {
+      "name": "Ptolemy of Crete",
+      "faction": "Crete",
+      "is_human": false,
+      "census_population": 2,
+      "treasury": 0,
+      "tokens_in_stock": 45,
+      "city_tokens_in_stock": 9,
+      "trade_cards": [],
+      "done_with_current_activity": false,
+      "ast_space": 0,
+      "owned_civ_cards": []
+    },
+    {
+      "name": "Cleopatra of Egypt",
+      "faction": "Egypt",
+      "is_human": false,
+      "census_population": 2,
+      "treasury": 0,
+      "tokens_in_stock": 45,
+      "city_tokens_in_stock": 9,
+      "trade_cards": [],
+      "done_with_current_activity": false,
+      "ast_space": 0,
+      "owned_civ_cards": []
+    },
+    {
+      "name": "Sargon of Iberia",
+      "faction": "Iberia",
+      "is_human": false,
+      "census_population": 2,
+      "treasury": 0,
+      "tokens_in_stock": 45,
+      "city_tokens_in_stock": 9,
+      "trade_cards": [],
+      "done_with_current_activity": false,
+      "ast_space": 0,
+      "owned_civ_cards": []
+    },
+    {
+      "name": "Agamemnon of Asia",
+      "faction": "Asia",
+      "is_human": false,
+      "census_population": 2,
+      "treasury": 0,
+      "tokens_in_stock": 45,
+      "city_tokens_in_stock": 9,
+      "trade_cards": [],
+      "done_with_current_activity": false,
+      "ast_space": 0,
+      "owned_civ_cards": []
+    },
+    {
+      "name": "Nebuchadnezzar of Babylon",
+      "faction": "Babylon",
+      "is_human": false,
+      "census_population": 2,
+      "treasury": 0,
+      "tokens_in_stock": 45,
+      "city_tokens_in_stock": 9,
+      "trade_cards": [],
+      "done_with_current_activity": false,
+      "ast_space": 0,
+      "owned_civ_cards": []
+    },
+    {
+      "name": "Priam of Illyria",
+      "faction": "Illyria",
+      "is_human": false,
+      "census_population": 2,
+      "treasury": 0,
+      "tokens_in_stock": 45,
+      "city_tokens_in_stock": 9,
+      "trade_cards": [],
+      "done_with_current_activity": false,
+      "ast_space": 0,
+      "owned_civ_cards": []
+    },
+    {
+      "name": "Tutankhamun of Africa",
+      "faction": "Africa",
+      "is_human": false,
+      "census_population": 2,
+      "treasury": 0,
+      "tokens_in_stock": 45,
+      "city_tokens_in_stock": 9,
+      "trade_cards": [],
+      "done_with_current_activity": false,
+      "ast_space": 0,
+      "owned_civ_cards": []
+    },
+    {
+      "name": "Alexander of Assyria",
+      "faction": "Assyria",
+      "is_human": true,
+      "census_population": 2,
+      "treasury": 0,
+      "tokens_in_stock": 45,
+      "city_tokens_in_stock": 9,
+      "trade_cards": [],
+      "done_with_current_activity": false,
+      "ast_space": 0,
+      "owned_civ_cards": []
+    }
+  ],
+  "area_populations": [
+    {
+      "area_id": 109,
+      "tokens_by_faction": [
+        [
+          "Crete",
+          2
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 62,
+      "tokens_by_faction": [
+        [
+          "Asia",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 17,
+      "tokens_by_faction": [
+        [
+          "Illyria",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 22,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 4,
+      "tokens_by_faction": [
+        [
+          "Illyria",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 92,
+      "tokens_by_faction": [
+        [
+          "Africa",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 66,
+      "tokens_by_faction": [
+        [
+          "Iberia",
+          2
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 11,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 9,
+      "tokens_by_faction": [
+        [
+          "Assyria",
+          2
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 63,
+      "tokens_by_faction": [
+        [
+          "Asia",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 93,
+      "tokens_by_faction": [
+        [
+          "Africa",
+          1
+        ]
+      ],
+      "city_owner": null
+    },
+    {
+      "area_id": 129,
+      "tokens_by_faction": [
+        [
+          "Egypt",
+          2
+        ]
+      ],
+      "city_owner": null
+    }
+  ],
+  "census_order": [
+    "Babylon",
+    "Egypt",
+    "Assyria",
+    "Crete",
+    "Iberia",
+    "Illyria",
+    "Asia",
+    "Africa"
+  ],
+  "left_to_move": [],
+  "current_mover": null
+}
