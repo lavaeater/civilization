@@ -58,8 +58,8 @@ impl PlayerTradeInterests {
         }
     }
     
-    pub fn get_trade_thingie(&self, mut rng: &mut ThreadRng) -> HashMap<TradeCard, usize> {
-        HashMap::from([(*self.wants.choose(&mut rng).unwrap(), 2), (*self.wants.choose(&mut rng).unwrap(), 1)])
+    pub fn get_trade_thingie(&self, rng: &mut ThreadRng) -> HashMap<TradeCard, usize> {
+        HashMap::from([(*self.wants.choose(&mut *rng).unwrap(), 2), (*self.wants.choose(&mut *rng).unwrap(), 1)])
     }
 }
 /*

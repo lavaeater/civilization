@@ -1050,7 +1050,7 @@ mod tests {
         // Resolved with no landing area / owner entity ever set -- proves it
         // short-circuited at FindLandingArea (rule 30.527) rather than
         // placing and then somehow reversing.
-        assert!(world.resource::<Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>().len() == 1);
+        assert_eq!(world.resource::<Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>().len(), 1);
     }
 
     #[test]
