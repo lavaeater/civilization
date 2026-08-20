@@ -43,9 +43,7 @@ pub fn setup_human_movement_options(
 
         if !source_areas.is_empty() {
             selection_state.player = Some(player_entity);
-            selection_state.source_areas = source_areas;
-            selection_state.current_source_index = 0;
-            selection_state.next_source(); //Advance to first unskipped source
+            selection_state.resync_sources(&source_areas);
         }
     }
 }
@@ -560,3 +558,4 @@ pub fn pan_camera_to_current_source(
     camera_transform.translation.x = area_transform.translation.x;
     camera_transform.translation.y = area_transform.translation.y;
 }
+
