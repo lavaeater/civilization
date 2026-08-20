@@ -764,6 +764,185 @@ mod tests {
         assert_eq!(world.get::<Population>(areas[1]).unwrap().population_for_player(victim), 3);
     }
 
+    /// Rule 30.311: "the secondary victims choose which units to remove" --
+    /// the primary victim divides the total, but each victim picks their own
+    /// tokens. A human secondary victim gets the same panel the primary does.
+    #[test]
+    fn famine_secondary_loss_lets_a_human_secondary_victim_pick_their_own_units() {
+        use crate::civilization::concepts::resolve_calamities::calamities::famine::{FaminePhase, FamineState};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_famine;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, FamineSelectionState, UnitLossSelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<FamineSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        // The primary victim is AI here so the *division* is automatic and the
+        // only interaction under test is the human secondary victim's choice.
+        let victim = world.spawn(Player).id();
+        let human_secondary = world.spawn((Player, IsHuman)).id();
+
+        // Two areas, 5 tokens each for the human secondary: a real choice
+        // against the 3 points they are told to lose.
+        let mut sec_areas = PlayerAreas::default();
+        let mut areas = Vec::new();
+        for n in 0..2 {
+            let mut pop = Population::new(30);
+            let mut tokens = Vec::new();
+            for _ in 0..5 {
+                let token = world.spawn_empty().id();
+                pop.add_token_to_area(human_secondary, token);
+                tokens.push(token);
+            }
+            let area = world
+                .spawn((Name::new(format!("sec area {n}")), GameArea::new(n), pop, LandPassage::default()))
+                .id();
+            for token in tokens {
+                sec_areas.add_token_to_area(area, token);
+            }
+            areas.push(area);
+        }
+        world.entity_mut(human_secondary).insert(sec_areas);
+        world.entity_mut(victim).insert(PlayerAreas::default());
+
+        let mut state = FamineState::new();
+        state.phase = FaminePhase::ApplySecondaryLosses;
+        state.secondary_allocations = vec![(human_secondary, 3)];
+
+        let context = CalamityContext::new(TradeCard::Famine, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Famine(state),
+        ));
+
+        // First pass: the secondary victim is prompted, nothing is removed.
+        world.run_system_once(advance_famine).unwrap();
+
+        assert!(
+            world.get::<AwaitingHumanCalamitySelection>(human_secondary).is_some(),
+            "the secondary victim, not the primary, chooses their own units"
+        );
+        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_none());
+        assert_eq!(world.get::<Population>(areas[0]).unwrap().population_for_player(human_secondary), 5);
+        assert_eq!(world.get::<Population>(areas[1]).unwrap().population_for_player(human_secondary), 5);
+        assert_eq!(world.resource::<UnitLossSelectionState>().acting_player, Some(human_secondary));
+
+        {
+            let mut selection = world.resource_mut::<UnitLossSelectionState>();
+            let second = areas[1];
+            while selection.current_area().map(|(a, _, _)| a) != Some(second) {
+                selection.next_area();
+            }
+            for _ in 0..3 {
+                assert!(selection.increment_current());
+            }
+        }
+        world.entity_mut(human_secondary).remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_famine).unwrap();
+
+        assert_eq!(world.get::<Population>(areas[0]).unwrap().population_for_player(human_secondary), 5);
+        assert_eq!(world.get::<Population>(areas[1]).unwrap().population_for_player(human_secondary), 2);
+        let ResolvingCalamity::Famine(ref done) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        assert_eq!(done.phase, FaminePhase::Complete);
+        assert!(done.secondary_allocations.is_empty(), "work list drained");
+    }
+
+    /// A pause for one victim must not re-charge the victims already settled.
+    #[test]
+    fn famine_secondary_losses_are_applied_once_each_across_a_pause() {
+        use crate::civilization::concepts::resolve_calamities::calamities::famine::{FaminePhase, FamineState};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_famine;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, FamineSelectionState, UnitLossSelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<FamineSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        let victim = world.spawn((Player, PlayerAreas::default())).id();
+        let ai_secondary = world.spawn(Player).id();
+        let human_secondary = world.spawn((Player, IsHuman)).id();
+
+        let mut pop = Population::new(60);
+        let mut ai_areas = PlayerAreas::default();
+        let mut human_areas = PlayerAreas::default();
+        for _ in 0..6 {
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(ai_secondary, token);
+        }
+        for _ in 0..6 {
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(human_secondary, token);
+        }
+        let area = world.spawn((Name::new("shared"), GameArea::new(1), pop, LandPassage::default())).id();
+        for token in world.get::<Population>(area).unwrap().tokens_for_player(&ai_secondary).unwrap() {
+            ai_areas.add_token_to_area(area, *token);
+        }
+        for token in world.get::<Population>(area).unwrap().tokens_for_player(&human_secondary).unwrap() {
+            human_areas.add_token_to_area(area, *token);
+        }
+        // Give the human a second area so they actually have a choice to make.
+        let mut second_pop = Population::new(30);
+        for _ in 0..4 {
+            let token = world.spawn_empty().id();
+            second_pop.add_token_to_area(human_secondary, token);
+        }
+        let second_area = world.spawn((Name::new("second"), GameArea::new(2), second_pop, LandPassage::default())).id();
+        for token in world.get::<Population>(second_area).unwrap().tokens_for_player(&human_secondary).unwrap() {
+            human_areas.add_token_to_area(second_area, *token);
+        }
+        world.entity_mut(ai_secondary).insert(ai_areas);
+        world.entity_mut(human_secondary).insert(human_areas);
+
+        let mut state = FamineState::new();
+        state.phase = FaminePhase::ApplySecondaryLosses;
+        state.secondary_allocations = vec![(ai_secondary, 2), (human_secondary, 2)];
+
+        let context = CalamityContext::new(TradeCard::Famine, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Famine(state),
+        ));
+
+        world.run_system_once(advance_famine).unwrap();
+        // The AI victim is settled immediately; the human is paused.
+        assert_eq!(world.get::<Population>(area).unwrap().population_for_player(ai_secondary), 4);
+        assert!(world.get::<AwaitingHumanCalamitySelection>(human_secondary).is_some());
+
+        // Idle frames while waiting must not charge the AI victim again.
+        world.run_system_once(advance_famine).unwrap();
+        world.run_system_once(advance_famine).unwrap();
+        assert_eq!(
+            world.get::<Population>(area).unwrap().population_for_player(ai_secondary),
+            4,
+            "settled victims are dropped from the work list"
+        );
+
+        {
+            let mut selection = world.resource_mut::<UnitLossSelectionState>();
+            while selection.current_area().map(|(a, _, _)| a) != Some(second_area) {
+                selection.next_area();
+            }
+            for _ in 0..2 {
+                assert!(selection.increment_current());
+            }
+        }
+        world.entity_mut(human_secondary).remove::<AwaitingHumanCalamitySelection>();
+        world.run_system_once(advance_famine).unwrap();
+
+        assert_eq!(world.get::<Population>(area).unwrap().population_for_player(ai_secondary), 4);
+        assert_eq!(world.get::<Population>(area).unwrap().population_for_player(human_secondary), 6);
+        assert_eq!(world.get::<Population>(second_area).unwrap().population_for_player(human_secondary), 2);
+    }
+
     // ── Rule 30.512: human primary victim allocation UI wiring ─────────────
 
     use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{

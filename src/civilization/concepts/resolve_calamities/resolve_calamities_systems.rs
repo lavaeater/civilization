@@ -994,21 +994,6 @@ fn spend_epidemic_budget_on_cities(
     remaining
 }
 
-/// Epidemic loss resolution: city cost (rule 30.612, capped at 4/city) is
-/// deducted first, then whatever remains is removed from tokens via
-/// `remove_unit_points_leaving_one_per_area`. Used for both primary and
-/// secondary Epidemic victims -- 30.612 doesn't distinguish between them.
-fn remove_epidemic_loss(
-    player: Entity,
-    points: i32,
-    player_areas: &PlayerAreas,
-    player_cities: &PlayerCities,
-    populations: &mut Query<&mut Population>,
-    commands: &mut Commands,
-) {
-    let remaining = spend_epidemic_budget_on_cities(player_cities, points, commands);
-    remove_unit_points_leaving_one_per_area(player, remaining, player_areas, populations, commands);
-}
 
 /// Outcome of asking a victim to give up unit points.
 #[derive(Debug, PartialEq, Eq)]
@@ -1161,7 +1146,7 @@ pub fn advance_famine(
         Has<AwaitingHumanCalamitySelection>,
     )>,
     mut populations: Query<&mut Population>,
-    all_players: Query<(Entity, &PlayerAreas), With<Player>>,
+    all_players: Query<(Entity, &PlayerAreas, Has<IsHuman>, Has<AwaitingHumanCalamitySelection>), With<Player>>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut famine_selection: ResMut<FamineSelectionState>,
     mut unit_loss: ResMut<UnitLossSelectionState>,
@@ -1224,11 +1209,11 @@ pub fn advance_famine(
                 let max_per_player = state.max_per_secondary.max(0) as usize;
                 let secondary_players: Vec<(Entity, usize)> = all_players
                     .iter()
-                    .filter(|(e, areas)| {
+                    .filter(|(e, areas, _, _)| {
                         *e != player_entity
                             && areas.areas().iter().any(|a| primary_areas.contains(a))
                     })
-                    .map(|(e, areas)| {
+                    .map(|(e, areas, _, _)| {
                         let total_pop: usize =
                             areas.areas_and_population_count().values().sum();
                         (e, total_pop.min(max_per_player))
@@ -1273,25 +1258,57 @@ pub fn advance_famine(
                 // Secondary victims: players sharing areas with primary victim lose up to 20 pts
                 // total, max 8 per player (rule 30.311), per the allocation computed in
                 // SelectSecondaryVictims (human choice, or auto-distributed for AI).
+                //
+                // 30.311 is explicit that "the secondary victims choose which
+                // units to remove", so each victim is walked one at a time and
+                // a human among them gets the same unit-loss panel the primary
+                // victim gets. Victims already dealt with are dropped from
+                // `secondary_allocations`, which doubles as the work list, so a
+                // pause never re-charges anyone.
+                state.secondary_allocations.retain(|&(_, loss)| loss > 0);
+
+                let mut settled: Vec<Entity> = Vec::new();
+                let mut paused = false;
                 for (secondary_entity, loss) in state.secondary_allocations.clone() {
-                    if loss <= 0 {
+                    let Ok((_, sec_areas, sec_is_human, sec_is_awaiting)) =
+                        all_players.get(secondary_entity)
+                    else {
+                        // Player no longer resolvable (despawned) -- nothing to take.
+                        settled.push(secondary_entity);
                         continue;
-                    }
-                    if let Ok((_, sec_areas)) = all_players.get(secondary_entity) {
-                        remove_unit_points(
-                            secondary_entity,
-                            loss,
-                            sec_areas,
-                            &mut populations,
-                            &mut commands,
-                        );
-                        info!(
-                            "[FAMINE] Secondary player {:?} loses {} pts",
-                            secondary_entity, loss
-                        );
+                    };
+                    match take_unit_point_loss(
+                        secondary_entity,
+                        loss,
+                        "Famine",
+                        false,
+                        sec_is_human,
+                        sec_is_awaiting,
+                        sec_areas,
+                        &mut populations,
+                        &mut unit_loss,
+                        &mut commands,
+                    ) {
+                        UnitLossStep::AwaitingHuman => {
+                            paused = true;
+                            break;
+                        }
+                        UnitLossStep::Applied => {
+                            info!(
+                                "[FAMINE] Secondary player {:?} loses {} pts",
+                                secondary_entity, loss
+                            );
+                            settled.push(secondary_entity);
+                        }
                     }
                 }
+                state
+                    .secondary_allocations
+                    .retain(|(e, _)| !settled.contains(e));
 
+                if paused || !state.secondary_allocations.is_empty() {
+                    continue;
+                }
                 state.phase = FaminePhase::Complete;
             }
             FaminePhase::Complete => {
@@ -1600,6 +1617,7 @@ pub fn advance_epidemic(
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut epidemic_selection: ResMut<EpidemicSelectionState>,
     mut unit_loss: ResMut<UnitLossSelectionState>,
+    human_flags: Query<(Has<IsHuman>, Has<AwaitingHumanCalamitySelection>), With<Player>>,
 ) {
     for (player_entity, mut resolving, mut resolution, player_areas, player_cities, is_human, is_awaiting) in
         &mut player_query
@@ -1677,48 +1695,106 @@ pub fn advance_epidemic(
                     continue;
                 }
 
-                let combined_available: usize = secondary_players.iter().map(|&(_, a)| a).sum();
-                let needs_choice = combined_available > secondary_total;
+                // Dividing the loss is a one-time decision; it is recorded on
+                // the state so that applying it -- which can pause again, once
+                // per human victim (30.611 leaves the choice of units to each
+                // victim, same as Famine's 30.311) -- never re-divides or
+                // re-charges anyone.
+                if !state.secondary_divided {
+                    let combined_available: usize =
+                        secondary_players.iter().map(|&(_, a)| a).sum();
+                    let needs_choice = combined_available > secondary_total;
 
-                let allocation = if !needs_choice {
-                    allocate_epidemic_secondary_loss(&secondary_players, secondary_total, None)
-                } else if is_human {
-                    if epidemic_selection.acting_player.is_none() {
-                        epidemic_selection.populate(player_entity, secondary_players.clone(), secondary_total);
-                        commands.entity(player_entity).insert(AwaitingHumanCalamitySelection);
-                        continue; // wait for the human this frame
-                    } else if is_awaiting {
-                        continue; // still waiting on the UI
-                    } else if epidemic_selection.acting_player == Some(player_entity) {
-                        let choice = epidemic_selection.take_result();
-                        allocate_epidemic_secondary_loss(&secondary_players, secondary_total, Some(&choice))
+                    let allocation = if !needs_choice {
+                        allocate_epidemic_secondary_loss(&secondary_players, secondary_total, None)
+                    } else if is_human {
+                        if epidemic_selection.acting_player.is_none() {
+                            epidemic_selection.populate(player_entity, secondary_players.clone(), secondary_total);
+                            commands.entity(player_entity).insert(AwaitingHumanCalamitySelection);
+                            continue; // wait for the human this frame
+                        } else if is_awaiting {
+                            continue; // still waiting on the UI
+                        } else if epidemic_selection.acting_player == Some(player_entity) {
+                            let choice = epidemic_selection.take_result();
+                            allocate_epidemic_secondary_loss(&secondary_players, secondary_total, Some(&choice))
+                        } else {
+                            continue; // selection resource is owned by a different player right now
+                        }
                     } else {
-                        continue; // selection resource is owned by a different player right now
-                    }
-                } else {
-                    allocate_epidemic_secondary_loss(&secondary_players, secondary_total, None)
-                };
+                        allocate_epidemic_secondary_loss(&secondary_players, secondary_total, None)
+                    };
 
-                for (secondary_entity, to_remove) in &allocation {
-                    if *to_remove == 0 {
-                        continue;
-                    }
-                    if let Ok((_, sec_areas, sec_cities, _)) = all_players.get(*secondary_entity) {
-                        remove_epidemic_loss(
-                            *secondary_entity,
-                            *to_remove as i32,
-                            sec_areas,
-                            sec_cities,
-                            &mut populations,
-                            &mut commands,
-                        );
-                        info!(
-                            "[EPIDEMIC] Secondary player {:?} loses {} pts",
-                            secondary_entity, to_remove
-                        );
-                    }
+                    state.secondary_allocations = allocation
+                        .into_iter()
+                        .filter(|&(_, points)| points > 0)
+                        .map(|(e, points)| (e, points as i32))
+                        .collect();
+                    state.secondary_divided = true;
                 }
 
+                let mut settled: Vec<Entity> = Vec::new();
+                let mut paused = false;
+                for (secondary_entity, owed) in state.secondary_allocations.clone() {
+                    let Ok((_, sec_areas, sec_cities, _)) = all_players.get(secondary_entity)
+                    else {
+                        settled.push(secondary_entity);
+                        continue;
+                    };
+                    let (sec_is_human, sec_is_awaiting) = human_flags
+                        .get(secondary_entity)
+                        .map_or((false, false), |(h, a)| (h, a));
+
+                    // Cities absorb up to 4 points each (30.612) and are picked
+                    // deterministically -- spend them once, then let the victim
+                    // choose which tokens cover what is left.
+                    let token_points = if state.secondary_cities_spent.contains(&secondary_entity) {
+                        owed
+                    } else {
+                        let remainder =
+                            spend_epidemic_budget_on_cities(sec_cities, owed, &mut commands);
+                        state.secondary_cities_spent.push(secondary_entity);
+                        if let Some(entry) = state
+                            .secondary_allocations
+                            .iter_mut()
+                            .find(|(e, _)| *e == secondary_entity)
+                        {
+                            entry.1 = remainder;
+                        }
+                        remainder
+                    };
+
+                    match take_unit_point_loss(
+                        secondary_entity,
+                        token_points,
+                        "Epidemic",
+                        true,
+                        sec_is_human,
+                        sec_is_awaiting,
+                        sec_areas,
+                        &mut populations,
+                        &mut unit_loss,
+                        &mut commands,
+                    ) {
+                        UnitLossStep::AwaitingHuman => {
+                            paused = true;
+                            break;
+                        }
+                        UnitLossStep::Applied => {
+                            info!(
+                                "[EPIDEMIC] Secondary player {:?} loses {} pts",
+                                secondary_entity, owed
+                            );
+                            settled.push(secondary_entity);
+                        }
+                    }
+                }
+                state
+                    .secondary_allocations
+                    .retain(|(e, _)| !settled.contains(e));
+
+                if paused || !state.secondary_allocations.is_empty() {
+                    continue;
+                }
                 state.phase = EpidemicPhase::Complete;
             }
             EpidemicPhase::Complete => {
