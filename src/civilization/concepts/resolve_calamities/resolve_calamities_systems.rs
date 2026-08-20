@@ -2787,6 +2787,7 @@ pub fn advance_piracy(
     pirate_nation_query: Query<Entity, With<PirateNation>>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut calamity_selection: ResMut<CalamitySelectionState>,
+    human_flags: Query<(Has<IsHuman>, Has<AwaitingHumanCalamitySelection>), With<Player>>,
 ) {
     for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in &mut player_query {
         if resolution.phase == CalamityPhase::Resolved { continue; }
@@ -2799,24 +2800,56 @@ pub fn advance_piracy(
                 state.phase = PiracyPhase::SelectCoastalCities;
             }
             PiracyPhase::SelectCoastalCities => {
-                // Rule 30.911: the trading player selects which 2 of the
-                // primary victim's coastal cities are lost (replaced by
-                // Pirate cities in ApplyEffects). Interactive selection for
-                // the trading player is out of scope for this pass (same
-                // simplification pattern as Barbarian Hordes' tie-breaking);
-                // auto-selects the first 2 coastal cities in iteration order.
-                let coastal_cities: Vec<Entity> = player_cities.areas_and_cities.keys()
-                    .filter(|&&area| sea_passage_query.get(area).unwrap_or(false))
+                // Rule 30.911: the primary victim loses two *coastal* cities
+                // and "the trading player selects" them. An inland city is
+                // never a substitute -- 30.912 explicitly still hits the
+                // secondary victims "even if the primary victim had fewer
+                // than two coastal cities", so having none simply means the
+                // victim loses none.
+                let coastal_cities: Vec<Entity> = player_cities
+                    .areas_and_cities
+                    .keys()
                     .copied()
-                    .take(2)
+                    .filter(|&area| sea_passage_query.get(area).unwrap_or(false))
                     .collect();
-                let cities = if coastal_cities.is_empty() {
-                    player_cities.areas_and_cities.keys().copied().take(2).collect()
-                } else {
-                    coastal_cities
-                };
-                state.cities_to_replace = cities;
-                state.phase = PiracyPhase::SelectSecondaryVictims;
+
+                if coastal_cities.len() <= 2 {
+                    // Nothing to select -- all of them go.
+                    state.cities_to_replace = coastal_cities;
+                    state.phase = PiracyPhase::SelectSecondaryVictims;
+                    continue;
+                }
+
+                // The selector is the trader, not the victim. With no trader
+                // (drawn and kept, 29.4) nobody gets to choose.
+                let trader = resolution.context.traded_by;
+                let (trader_is_human, trader_awaiting) = trader
+                    .and_then(|t| human_flags.get(t).ok())
+                    .map_or((false, false), |(h, a)| (h, a));
+
+                if !trader_is_human {
+                    state.cities_to_replace = coastal_cities.into_iter().take(2).collect();
+                    state.phase = PiracyPhase::SelectSecondaryVictims;
+                    continue;
+                }
+
+                let trader = trader.expect("trader_is_human implies a trader");
+                if trader_awaiting {
+                    continue; // still picking
+                }
+                if calamity_selection.player == Some(trader) {
+                    state.cities_to_replace = calamity_selection.take_selected_cities();
+                    state.phase = PiracyPhase::SelectSecondaryVictims;
+                } else if calamity_selection.player.is_none() {
+                    calamity_selection.populate(
+                        trader,
+                        coastal_cities,
+                        2,
+                        "Piracy — pick 2 of the victim's coastal cities",
+                    );
+                    commands.entity(trader).insert(AwaitingHumanCalamitySelection);
+                }
+                // else: the panel belongs to someone else right now; retry later.
             }
             PiracyPhase::SelectSecondaryVictims => {
                 // Rule 30.912: primary victim chooses 2 other players to each lose 1 coastal city.
@@ -2830,16 +2863,16 @@ pub fn advance_piracy(
                                 && Some(*e) != immune
                                 && !cities.areas_and_cities.is_empty()
                         })
+                        // 30.912 replaces *coastal* cities; a player with none
+                        // simply cannot be named a secondary victim.
                         .flat_map(|(_, _, cities)| {
-                            let coastal: Vec<Entity> = cities.areas_and_cities.keys()
-                                .filter(|&&area| sea_passage_query.get(area).unwrap_or(false))
+                            cities
+                                .areas_and_cities
+                                .keys()
                                 .copied()
-                                .collect();
-                            if coastal.is_empty() {
-                                cities.areas_and_cities.keys().take(1).copied().collect::<Vec<_>>()
-                            } else {
-                                coastal.into_iter().take(1).collect::<Vec<_>>()
-                            }
+                                .filter(|&area| sea_passage_query.get(area).unwrap_or(false))
+                                .take(1)
+                                .collect::<Vec<_>>()
                         })
                         .collect();
 
@@ -2868,9 +2901,10 @@ pub fn advance_piracy(
                     for (e, _, cities) in all_players.iter() {
                         if secondary.len() >= 2 { break; }
                         if e == player_entity || Some(e) == immune { continue; }
-                        let coastal: Option<Entity> = cities.areas_and_cities.keys()
+                        let coastal: Option<Entity> = cities
+                            .areas_and_cities
+                            .keys()
                             .find(|&&area| sea_passage_query.get(area).unwrap_or(false))
-                            .or_else(|| cities.areas_and_cities.keys().next())
                             .copied();
                         if let Some(area) = coastal {
                             secondary.push(area);

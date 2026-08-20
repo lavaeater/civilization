@@ -2097,6 +2097,80 @@ mod tests {
             .expect("a PirateNation entity must exist after Piracy resolves")
     }
 
+    /// Rule 30.911: "The trading player selects the cities." A human trader
+    /// picks which 2 of the victim's coastal cities become Pirate cities;
+    /// previously the first 2 in iteration order were taken silently.
+    #[test]
+    fn a_human_trader_picks_which_coastal_cities_piracy_takes() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::AwaitingHumanCalamitySelection;
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = piracy_test_world();
+        let victim = world.spawn(Player).id();
+        let trader = world.spawn((Player, IsHuman, TokenStock::new(47, vec![]))).id();
+
+        let coastal: Vec<Entity> = (0..3)
+            .map(|n| spawn_city_for(&mut world, victim, &format!("coastal-{n}"), true))
+            .collect();
+
+        start_piracy(&mut world, victim, Some(trader));
+
+        // EnsurePirateNation, then the selection pause.
+        world.run_system_once(advance_piracy).unwrap();
+        world.flush();
+        world.run_system_once(advance_piracy).unwrap();
+        world.flush();
+
+        assert!(
+            world.get::<AwaitingHumanCalamitySelection>(trader).is_some(),
+            "the trader chooses, not the victim"
+        );
+        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_none());
+        assert_eq!(world.resource::<CalamitySelectionState>().player, Some(trader));
+        assert_eq!(world.resource::<CalamitySelectionState>().required_count, 2);
+
+        // Trader picks the last two.
+        {
+            let mut selection = world.resource_mut::<CalamitySelectionState>();
+            for want in [coastal[1], coastal[2]] {
+                while selection.current_city() != Some(want) {
+                    selection.next();
+                }
+                selection.toggle_current();
+            }
+            assert!(selection.selection_complete());
+        }
+        world.entity_mut(trader).remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_piracy).unwrap();
+        world.flush();
+
+        let ResolvingCalamity::Piracy(ref state) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        let chosen = state.cities_to_replace.clone();
+        assert_eq!(chosen.len(), 2);
+        assert!(chosen.contains(&coastal[1]) && chosen.contains(&coastal[2]));
+        assert!(!chosen.contains(&coastal[0]), "the city the trader spared");
+    }
+
+    /// 30.911 targets coastal cities only. A victim whose cities are all
+    /// inland keeps every one of them -- 30.912 still hits the secondary
+    /// victims, which is precisely why the rule spells that case out.
+    #[test]
+    fn piracy_never_substitutes_an_inland_city_for_the_primary_victim() {
+        let mut world = piracy_test_world();
+        let victim = world.spawn(Player).id();
+        let inland_1 = spawn_city_for(&mut world, victim, "inland-1", false);
+        let inland_2 = spawn_city_for(&mut world, victim, "inland-2", false);
+
+        start_piracy(&mut world, victim, None);
+        run_piracy_to_completion(&mut world, victim);
+
+        for area in [inland_1, inland_2] {
+            let city = world.get::<BuiltCity>(area).expect("city still standing");
+            assert_eq!(city.player, victim, "an inland city is never a Piracy target");
+        }
+    }
+
     #[test]
     fn primary_victim_loses_2_coastal_cities_to_real_pirate_cities() {
         let mut world = piracy_test_world();
