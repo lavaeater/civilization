@@ -11,6 +11,8 @@ use crate::civilization::concepts::movement::movement_components::PerformingMove
 use crate::civilization::concepts::population_expansion::population_expansion_components::NeedsExpansion;
 use crate::civilization::concepts::ships::create_ship_stock;
 use crate::civilization::concepts::AvailableFactions;
+use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::PirateNation;
+use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::ensure_pirate_nation;
 use crate::civilization::enums::GameFaction;
 use crate::civilization::game_moves::RecalculatePlayerMoves;
 use crate::civilization::{AstPosition, CanTrade, CivCardName, PlayerAcquiringCivilizationCards, PlayerCivilizationCards, PlayerTradeCards, Census, TradeCard};
@@ -146,6 +148,12 @@ pub struct SavedAreaPopulation {
     pub tokens_by_faction: Vec<(GameFaction, usize)>,
     /// Faction that has a city here, if any
     pub city_owner: Option<GameFaction>,
+    /// Whether the city here belongs to the Pirate nation (rule 30.913: a
+    /// Pirate city "remains until attacked and destroyed"). It has no
+    /// `GameFaction`, so `city_owner` cannot name it -- without this flag a
+    /// Pirate city silently vanished on save/load.
+    #[serde(default)]
+    pub city_is_pirate: bool,
 }
 
 /// Complete game save data
@@ -264,6 +272,7 @@ fn handle_save_request(
     ), With<Player>>,
     area_query: Query<(&GameArea, &Population, Option<&BuiltCity>)>,
     faction_query: Query<&Faction>,
+    pirate_query: Query<Entity, With<PirateNation>>,
     needs_expansion_query: Query<Entity, With<NeedsExpansion>>,
     performing_movement_query: Query<Entity, With<PerformingMovement>>,
     is_building_query: Query<Entity, With<IsBuilding>>,
@@ -335,12 +344,14 @@ fn handle_save_request(
         let city_owner = built_city.and_then(|bc| {
             faction_query.get(bc.player).ok().map(|f| f.faction)
         });
+        let city_is_pirate = built_city.is_some_and(|bc| pirate_query.get(bc.player).is_ok());
         
-        if !tokens_by_faction.is_empty() || city_owner.is_some() {
+        if !tokens_by_faction.is_empty() || city_owner.is_some() || city_is_pirate {
             area_populations.push(SavedAreaPopulation {
                 area_id: game_area.id,
                 tokens_by_faction,
                 city_owner,
+                city_is_pirate,
             });
         }
     }
@@ -597,6 +608,7 @@ fn restore_area_populations(
     mut area_query: Query<(Entity, &GameArea, &mut Population, &Transform)>,
     mut player_areas_query: Query<&mut PlayerAreas>,
     mut player_cities_query: Query<(Entity, &mut PlayerCities, &mut CityTokenStock)>,
+    pirate_query: Query<Entity, With<PirateNation>>,
     game_factions: Res<AvailableFactions>,
 ) {
     let Some(pending) = pending_pops else {
@@ -666,6 +678,41 @@ fn restore_area_populations(
         // Mark area for token position fixing
         commands.entity(area_entity).insert(FixTokenPositions);
         
+        // A Pirate city has no faction; rebuild it against the Pirate
+        // nation (found or spawned) so 30.913's "remains until attacked and
+        // destroyed" survives a reload.
+        if saved_area.city_is_pirate {
+            let pirate_nation = ensure_pirate_nation(&mut commands, &pirate_query);
+            let city_token = commands.spawn(CityToken::new(pirate_nation)).id();
+            commands
+                .entity(area_entity)
+                .insert(BuiltCity::new(city_token, pirate_nation));
+            if let Some(city_icon) = game_factions.faction_city_icons.values().next() {
+                commands.entity(city_token).insert((
+                    Sprite {
+                        image: city_icon.clone(),
+                        ..default()
+                    },
+                    Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
+                        .with_translation(area_position),
+                ));
+            }
+            // The Pirate nation is created through `Commands`, so its
+            // `PlayerCities` cannot be written directly here -- `entry`
+            // defers the update onto whichever component instance ends up on
+            // the entity, whether it was just spawned or already existed.
+            commands
+                .entity(pirate_nation)
+                .entry::<PlayerCities>()
+                .or_default()
+                .and_modify(move |mut cities| {
+                    cities.build_city_in_area(area_entity, city_token);
+                });
+
+            info!("  Area {}: Pirate city restored", saved_area.area_id);
+            continue;
+        }
+
         // Build city if needed
         if let Some(city_faction) = &saved_area.city_owner {
             let Some(&player_entity) = factions.0.get(city_faction) else {
@@ -786,6 +833,58 @@ mod tests {
         assert!(world.get::<ShipStock>(player).is_some(), "loaded player is missing ShipStock");
         assert!(world.get::<PlayerShips>(player).is_some(), "loaded player is missing PlayerShips");
         assert_eq!(world.get::<ShipStock>(player).unwrap().count_in_stock(), ShipStock::MAX_SHIPS);
+    }
+
+    /// Rule 30.913: a Pirate city "remains until attacked and destroyed".
+    /// It belongs to the `PirateNation`, which has no `GameFaction`, so
+    /// `city_owner` cannot name it -- before `city_is_pirate` existed the
+    /// city simply evaporated on reload.
+    #[test]
+    fn a_pirate_city_survives_a_reload() {
+        use crate::civilization::concepts::map::map_plugin::AvailableFactions;
+
+        let mut world = World::new();
+        world.init_resource::<AvailableFactions>();
+
+        let area = world
+            .spawn((
+                Name::new("pirate haven"),
+                GameArea::new(42),
+                Population::new(5),
+                Transform::default(),
+            ))
+            .id();
+
+        world.insert_resource(LoadedFactionMap(HashMap::default()));
+        world.insert_resource(PendingAreaPopulations(vec![SavedAreaPopulation {
+            area_id: 42,
+            tokens_by_faction: vec![],
+            city_owner: None,
+            city_is_pirate: true,
+        }]));
+
+        world.run_system_once(restore_area_populations).unwrap();
+        world.flush();
+
+        let built = world.get::<BuiltCity>(area).expect("the Pirate city is rebuilt");
+        assert!(
+            world.get::<PirateNation>(built.player).is_some(),
+            "it belongs to the Pirate nation, not a faction"
+        );
+        let cities = world
+            .get::<PlayerCities>(built.player)
+            .expect("the Pirate nation tracks its cities");
+        assert!(cities.has_city_in(area), "and knows it holds this one");
+    }
+
+    /// Save files written before `city_is_pirate` existed must still load.
+    #[test]
+    fn an_area_entry_without_the_pirate_flag_still_deserializes() {
+        let json = r#"{"area_id": 7, "tokens_by_faction": [], "city_owner": null}"#;
+        let parsed: SavedAreaPopulation =
+            serde_json::from_str(json).expect("older saves remain loadable");
+        assert_eq!(parsed.area_id, 7);
+        assert!(!parsed.city_is_pirate);
     }
 
     /// Every AI move-selection system (`select_stupid_movement` et al.)

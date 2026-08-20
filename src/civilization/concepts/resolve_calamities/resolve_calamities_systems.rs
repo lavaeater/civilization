@@ -2999,7 +2999,7 @@ pub fn advance_treachery(
 /// resulting in two functionally-identical Pirate nations instead of one.
 /// Harmless (neither behaves any differently), just inelegant; not worth a
 /// synchronization mechanism for how rare simultaneous Piracy resolution is.
-fn ensure_pirate_nation(commands: &mut Commands, existing: &Query<Entity, With<PirateNation>>) -> Entity {
+pub fn ensure_pirate_nation(commands: &mut Commands, existing: &Query<Entity, With<PirateNation>>) -> Entity {
     const CITY_STOCK: usize = 20;
     const TOKEN_STOCK: usize = 60;
 
