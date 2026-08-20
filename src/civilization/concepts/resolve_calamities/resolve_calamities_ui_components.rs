@@ -1200,7 +1200,16 @@ pub struct UnitLossSelectionState {
     pub areas: Vec<(Entity, usize, usize)>,
     /// Navigation cursor into `areas`.
     pub current_area_index: usize,
+    /// Cities that may be given up instead, and whether each is selected.
+    /// Rule 29.62 prices a city at up to five unit points, so a victim short
+    /// on tokens can (and sometimes must) meet the loss with a city.
+    pub cities: Vec<(Entity, bool)>,
+    /// Navigation cursor into `cities`.
+    pub current_city_index: usize,
 }
+
+/// A city is worth up to five unit points when resolving a calamity (29.62).
+pub const CITY_UNIT_POINTS: usize = 5;
 
 impl UnitLossSelectionState {
     pub fn populate(
@@ -1208,6 +1217,7 @@ impl UnitLossSelectionState {
         player: Entity,
         calamity_name: impl Into<String>,
         areas: Vec<(Entity, usize)>,
+        cities: Vec<Entity>,
         total_budget: usize,
     ) {
         self.acting_player = Some(player);
@@ -1218,6 +1228,8 @@ impl UnitLossSelectionState {
             .map(|(area, available)| (area, available, 0))
             .collect();
         self.current_area_index = 0;
+        self.cities = cities.into_iter().map(|city| (city, false)).collect();
+        self.current_city_index = 0;
     }
 
     pub fn clear(&mut self) {
@@ -1225,11 +1237,58 @@ impl UnitLossSelectionState {
     }
 
     pub fn allocated_total(&self) -> usize {
+        self.tokens_allocated() + self.cities_allocated() * CITY_UNIT_POINTS
+    }
+
+    pub fn tokens_allocated(&self) -> usize {
         self.areas.iter().map(|&(_, _, allocated)| allocated).sum()
     }
 
+    pub fn cities_allocated(&self) -> usize {
+        self.cities.iter().filter(|&&(_, selected)| selected).count()
+    }
+
     pub fn total_available(&self) -> usize {
-        self.areas.iter().map(|&(_, available, _)| available).sum()
+        self.tokens_available() + self.cities.len() * CITY_UNIT_POINTS
+    }
+
+    pub fn selected_cities(&self) -> Vec<Entity> {
+        self.cities
+            .iter()
+            .filter(|&&(_, selected)| selected)
+            .map(|&(city, _)| city)
+            .collect()
+    }
+
+    pub fn current_city(&self) -> Option<(Entity, bool)> {
+        self.cities.get(self.current_city_index).copied()
+    }
+
+    pub fn next_city(&mut self) {
+        if !self.cities.is_empty() {
+            self.current_city_index = (self.current_city_index + 1) % self.cities.len();
+        }
+    }
+
+    pub fn prev_city(&mut self) {
+        if self.cities.is_empty() {
+            return;
+        }
+        if self.current_city_index == 0 {
+            self.current_city_index = self.cities.len() - 1;
+        } else {
+            self.current_city_index -= 1;
+        }
+    }
+
+    /// Toggles whether the currently shown city is given up.
+    pub fn toggle_current_city(&mut self) -> bool {
+        let idx = self.current_city_index;
+        if let Some(&mut (_, ref mut selected)) = self.cities.get_mut(idx) {
+            *selected = !*selected;
+            return true;
+        }
+        false
     }
 
     /// The amount that actually has to be given up: the budget, or everything
@@ -1240,7 +1299,7 @@ impl UnitLossSelectionState {
     }
 
     pub fn remaining(&self) -> usize {
-        self.required_total().saturating_sub(self.allocated_total())
+        self.minimal_valid_total().saturating_sub(self.allocated_total())
     }
 
     pub fn current_area(&self) -> Option<(Entity, usize, usize)> {
@@ -1292,22 +1351,46 @@ impl UnitLossSelectionState {
         false
     }
 
-    /// Rule 29.63: the loss must be met exactly, so the panel only confirms
-    /// once every owed point has been assigned to an area.
-    pub fn selection_valid(&self) -> bool {
-        self.allocated_total() == self.required_total()
+    /// The total the victim must hand over, per rule 29.63: "Players must
+    /// fulfil calamity losses by the exact amount required. If unable, they
+    /// may exceed the amount, but only by as small an amount as necessary."
+    ///
+    /// Tokens are 1 point each, so any amount within reach of the tokens
+    /// alone can always be met exactly and no overshoot is permitted. Only
+    /// when the tokens fall short must cities (5 points each, 29.62) make up
+    /// the difference, and then the fewest possible are used -- which fixes
+    /// the total even though *which* tokens and cities go is still the
+    /// victim's choice.
+    pub fn minimal_valid_total(&self) -> usize {
+        let required = self.required_total();
+        let tokens = self.tokens_available();
+        if required <= tokens {
+            return required;
+        }
+        let cities_needed = (required - tokens).div_ceil(CITY_UNIT_POINTS);
+        required.max(cities_needed * CITY_UNIT_POINTS)
     }
 
-    /// Remove and return the confirmed per-area allocation, then clear.
-    pub fn take_allocation(&mut self) -> Vec<(Entity, usize)> {
-        let allocation = self
+    pub fn tokens_available(&self) -> usize {
+        self.areas.iter().map(|&(_, available, _)| available).sum()
+    }
+
+    pub fn selection_valid(&self) -> bool {
+        self.allocated_total() == self.minimal_valid_total()
+    }
+
+    /// Remove and return the confirmed loss -- per-area token counts and the
+    /// cities given up -- then clear.
+    pub fn take_allocation(&mut self) -> (Vec<(Entity, usize)>, Vec<Entity>) {
+        let tokens = self
             .areas
             .iter()
             .filter(|&&(_, _, allocated)| allocated > 0)
             .map(|&(area, _, allocated)| (area, allocated))
             .collect();
+        let cities = self.selected_cities();
         self.clear();
-        allocation
+        (tokens, cities)
     }
 }
 
@@ -1324,6 +1407,9 @@ pub struct UnitLossPointsText;
 pub struct UnitLossAreaNameText;
 
 #[derive(Component)]
+pub struct UnitLossCityText;
+
+#[derive(Component)]
 pub struct UnitLossConfirmButton;
 
 #[derive(Component, Debug, Clone)]
@@ -1332,6 +1418,9 @@ pub enum UnitLossButtonAction {
     NextArea,
     Increment,
     Decrement,
+    PrevCity,
+    NextCity,
+    ToggleCity,
     Confirm,
 }
 
@@ -1346,7 +1435,7 @@ mod unit_loss_selection_state_tests {
     #[test]
     fn allocation_is_capped_by_area_availability() {
         let mut state = UnitLossSelectionState::default();
-        state.populate(e(1), "Famine", vec![(e(2), 2), (e(3), 9)], 10);
+        state.populate(e(1), "Famine", vec![(e(2), 2), (e(3), 9)], Vec::new(), 10);
 
         // Area e(2) only holds 2 tokens, so the third increment must not take.
         assert!(state.increment_current());
@@ -1358,7 +1447,7 @@ mod unit_loss_selection_state_tests {
     #[test]
     fn allocation_is_capped_by_the_budget() {
         let mut state = UnitLossSelectionState::default();
-        state.populate(e(1), "Famine", vec![(e(2), 50)], 3);
+        state.populate(e(1), "Famine", vec![(e(2), 50)], Vec::new(), 3);
 
         assert!(state.increment_current());
         assert!(state.increment_current());
@@ -1373,7 +1462,7 @@ mod unit_loss_selection_state_tests {
     #[test]
     fn required_total_is_capped_by_what_the_player_owns() {
         let mut state = UnitLossSelectionState::default();
-        state.populate(e(1), "Epidemic", vec![(e(2), 1), (e(3), 2)], 16);
+        state.populate(e(1), "Epidemic", vec![(e(2), 1), (e(3), 2)], Vec::new(), 16);
 
         assert_eq!(state.required_total(), 3);
         assert!(state.increment_current(), "1 token in the first area");
@@ -1388,7 +1477,7 @@ mod unit_loss_selection_state_tests {
     #[test]
     fn confirming_requires_the_full_amount() {
         let mut state = UnitLossSelectionState::default();
-        state.populate(e(1), "Famine", vec![(e(2), 5), (e(3), 5)], 4);
+        state.populate(e(1), "Famine", vec![(e(2), 5), (e(3), 5)], Vec::new(), 4);
 
         assert!(!state.selection_valid());
         state.increment_current();
@@ -1399,16 +1488,74 @@ mod unit_loss_selection_state_tests {
         assert!(state.selection_valid());
     }
 
+    /// Rule 29.62 prices a city at five unit points, so a victim short on
+    /// tokens can settle the loss with one.
+    #[test]
+    fn a_city_covers_five_unit_points() {
+        let mut state = UnitLossSelectionState::default();
+        state.populate(e(1), "Famine", vec![(e(2), 2)], vec![e(3)], 7);
+
+        assert_eq!(state.total_available(), 7, "2 tokens + a 5-point city");
+        assert_eq!(state.required_total(), 7);
+
+        state.increment_current();
+        state.increment_current();
+        assert!(!state.selection_valid(), "2 of 7 points assigned");
+
+        state.toggle_current_city();
+        assert_eq!(state.allocated_total(), 7);
+        assert!(state.selection_valid());
+        assert_eq!(state.take_allocation(), (vec![(e(2), 2)], vec![e(3)]));
+    }
+
+    /// Rule 29.63: an overshoot is allowed when the amount cannot be met
+    /// exactly, but only by as little as necessary. A 5-point city covering a
+    /// 3-point shortfall is fine; a second, redundant city is not.
+    #[test]
+    fn an_overshoot_is_valid_only_when_it_cannot_be_trimmed() {
+        let mut state = UnitLossSelectionState::default();
+        state.populate(e(1), "Famine", vec![], vec![e(2), e(3)], 3);
+
+        assert!(!state.selection_valid(), "nothing assigned yet");
+
+        state.toggle_current_city();
+        assert_eq!(state.allocated_total(), 5);
+        assert!(state.selection_valid(), "5 for a 3-point loss: no smaller option exists");
+
+        state.next_city();
+        state.toggle_current_city();
+        assert_eq!(state.allocated_total(), 10);
+        assert!(!state.selection_valid(), "the second city is redundant");
+    }
+
+    /// Tokens are preferred where they can meet the amount exactly -- giving
+    /// a city instead would overshoot avoidably.
+    #[test]
+    fn a_city_may_not_be_given_when_tokens_cover_the_loss_exactly() {
+        let mut state = UnitLossSelectionState::default();
+        state.populate(e(1), "Famine", vec![(e(2), 9)], vec![e(3)], 3);
+
+        state.toggle_current_city();
+        assert!(!state.selection_valid(), "5 points for a 3-point loss with tokens available");
+
+        state.toggle_current_city();
+        for _ in 0..3 {
+            state.increment_current();
+        }
+        assert!(state.selection_valid());
+        assert_eq!(state.take_allocation(), (vec![(e(2), 3)], Vec::new()));
+    }
+
     #[test]
     fn take_allocation_returns_only_areas_with_losses_and_clears() {
         let mut state = UnitLossSelectionState::default();
-        state.populate(e(1), "Famine", vec![(e(2), 5), (e(3), 5)], 2);
+        state.populate(e(1), "Famine", vec![(e(2), 5), (e(3), 5)], Vec::new(), 2);
 
         state.next_area();
         state.increment_current();
         state.increment_current();
 
-        assert_eq!(state.take_allocation(), vec![(e(3), 2)]);
+        assert_eq!(state.take_allocation(), (vec![(e(3), 2)], Vec::new()));
         assert_eq!(state.acting_player, None);
         assert!(state.areas.is_empty());
     }
@@ -1416,7 +1563,7 @@ mod unit_loss_selection_state_tests {
     #[test]
     fn decrement_frees_budget_for_another_area() {
         let mut state = UnitLossSelectionState::default();
-        state.populate(e(1), "Famine", vec![(e(2), 5), (e(3), 5)], 1);
+        state.populate(e(1), "Famine", vec![(e(2), 5), (e(3), 5)], Vec::new(), 1);
 
         assert!(state.increment_current());
         state.next_area();
@@ -1425,6 +1572,6 @@ mod unit_loss_selection_state_tests {
         assert!(state.decrement_current());
         state.next_area();
         assert!(state.increment_current());
-        assert_eq!(state.take_allocation(), vec![(e(3), 1)]);
+        assert_eq!(state.take_allocation(), (vec![(e(3), 1)], Vec::new()));
     }
 }

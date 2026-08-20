@@ -1037,7 +1037,7 @@ mod tests {
         world.init_resource::<FamineSelectionState>();
         world.init_resource::<UnitLossSelectionState>();
 
-        let victim = world.spawn((Player, IsHuman)).id();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
 
         // Two areas, 6 tokens each: 12 available against a 4-point loss, so
         // there is a genuine choice to make.
@@ -1135,7 +1135,7 @@ mod tests {
         world.init_resource::<FamineSelectionState>();
         world.init_resource::<UnitLossSelectionState>();
 
-        let victim = world.spawn(Player).id(); // no IsHuman
+        let victim = world.spawn((Player, PlayerCities::default())).id(); // no IsHuman
         let mut pop = Population::new(20);
         let mut tokens = Vec::new();
         for _ in 0..6 {
@@ -1181,7 +1181,7 @@ mod tests {
         world.init_resource::<FamineSelectionState>();
         world.init_resource::<UnitLossSelectionState>();
 
-        let victim = world.spawn((Player, IsHuman)).id();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
         let mut pop = Population::new(20);
         let mut tokens = Vec::new();
         for _ in 0..3 {
@@ -1312,6 +1312,117 @@ mod tests {
         assert_eq!(world.get::<Population>(areas[1]).unwrap().population_for_player(victim), 3);
     }
 
+    /// Rule 29.62: cities are worth up to five unit points, so a victim
+    /// whose tokens cannot cover the loss must give up a city. The loss used
+    /// to stop at the last token, silently under-applying the calamity.
+    #[test]
+    fn an_ai_victim_gives_up_a_city_when_tokens_cannot_cover_the_loss() {
+        use crate::civilization::concepts::resolve_calamities::calamities::famine::{FaminePhase, FamineState};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{advance_famine, DestroyCity};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            FamineSelectionState, UnitLossSelectionState,
+        };
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<FamineSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        let victim = world.spawn(Player).id();
+
+        // 2 tokens on the board against a 5-point loss: 3 points short, so a
+        // single city (5 pts) has to cover it, and then no token is owed --
+        // 5 exactly, not 5 + the 2 tokens as well.
+        let mut pop = Population::new(20);
+        let mut tokens = Vec::new();
+        for _ in 0..2 {
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(victim, token);
+            tokens.push(token);
+        }
+        let area = world.spawn((Name::new("area"), GameArea::new(1), pop, LandPassage::default())).id();
+        let mut areas = PlayerAreas::default();
+        for token in tokens {
+            areas.add_token_to_area(area, token);
+        }
+        let city_area = world
+            .spawn((Name::new("city area"), GameArea::new(2), Population::new(6), LandPassage::default()))
+            .id();
+        let mut cities = PlayerCities::default();
+        cities.build_city_in_area(city_area, world.spawn_empty().id());
+        world.entity_mut(victim).insert((areas, cities));
+
+        let mut state = FamineState::new();
+        state.phase = FaminePhase::ComputeLosses;
+        state.primary_loss = 5;
+
+        let context = CalamityContext::new(TradeCard::Famine, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Famine(state),
+        ));
+
+        world.run_system_once(advance_famine).unwrap();
+
+        assert!(world.get::<DestroyCity>(city_area).is_some(), "a city covers the shortfall (29.62)");
+        assert_eq!(
+            world.get::<Population>(area).unwrap().population_for_player(victim),
+            2,
+            "the city alone already meets the 5 points -- 29.63 forbids paying more"
+        );
+    }
+
+    /// The mirror case: tokens that can cover the loss exactly must be used,
+    /// leaving cities alone.
+    #[test]
+    fn an_ai_victim_keeps_its_city_when_tokens_cover_the_loss() {
+        use crate::civilization::concepts::resolve_calamities::calamities::famine::{FaminePhase, FamineState};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{advance_famine, DestroyCity};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            FamineSelectionState, UnitLossSelectionState,
+        };
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<FamineSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        let victim = world.spawn(Player).id();
+        let mut pop = Population::new(20);
+        let mut tokens = Vec::new();
+        for _ in 0..8 {
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(victim, token);
+            tokens.push(token);
+        }
+        let area = world.spawn((Name::new("area"), GameArea::new(1), pop, LandPassage::default())).id();
+        let mut areas = PlayerAreas::default();
+        for token in tokens {
+            areas.add_token_to_area(area, token);
+        }
+        let city_area = world
+            .spawn((Name::new("city area"), GameArea::new(2), Population::new(6), LandPassage::default()))
+            .id();
+        let mut cities = PlayerCities::default();
+        cities.build_city_in_area(city_area, world.spawn_empty().id());
+        world.entity_mut(victim).insert((areas, cities));
+
+        let mut state = FamineState::new();
+        state.phase = FaminePhase::ComputeLosses;
+        state.primary_loss = 5;
+
+        let context = CalamityContext::new(TradeCard::Famine, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Famine(state),
+        ));
+
+        world.run_system_once(advance_famine).unwrap();
+
+        assert!(world.get::<DestroyCity>(city_area).is_none(), "tokens cover it exactly");
+        assert_eq!(world.get::<Population>(area).unwrap().population_for_player(victim), 3);
+    }
+
     /// Rule 30.311: "the secondary victims choose which units to remove" --
     /// the primary victim divides the total, but each victim picks their own
     /// tokens. A human secondary victim gets the same panel the primary does.
@@ -1331,8 +1442,8 @@ mod tests {
 
         // The primary victim is AI here so the *division* is automatic and the
         // only interaction under test is the human secondary victim's choice.
-        let victim = world.spawn(Player).id();
-        let human_secondary = world.spawn((Player, IsHuman)).id();
+        let victim = world.spawn((Player, PlayerCities::default())).id();
+        let human_secondary = world.spawn((Player, IsHuman, PlayerCities::default())).id();
 
         // Two areas, 5 tokens each for the human secondary: a real choice
         // against the 3 points they are told to lose.
@@ -1415,9 +1526,9 @@ mod tests {
         world.init_resource::<FamineSelectionState>();
         world.init_resource::<UnitLossSelectionState>();
 
-        let victim = world.spawn((Player, PlayerAreas::default())).id();
-        let ai_secondary = world.spawn(Player).id();
-        let human_secondary = world.spawn((Player, IsHuman)).id();
+        let victim = world.spawn((Player, PlayerAreas::default(), PlayerCities::default())).id();
+        let ai_secondary = world.spawn((Player, PlayerCities::default())).id();
+        let human_secondary = world.spawn((Player, IsHuman, PlayerCities::default())).id();
 
         let mut pop = Population::new(60);
         let mut ai_areas = PlayerAreas::default();
@@ -1965,7 +2076,7 @@ mod tests {
 
         let mut secondaries = Vec::new();
         for _ in 0..3 {
-            let sec = world.spawn(Player).id();
+            let sec = world.spawn((Player, PlayerCities::default())).id();
             let mut areas = PlayerAreas::default();
             for _ in 0..10 {
                 let token = world.spawn_empty().id();
@@ -1976,7 +2087,7 @@ mod tests {
             secondaries.push(sec);
         }
 
-        let victim = world.spawn(IsHuman).id();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
         let mut victim_areas = PlayerAreas::default();
         victim_areas.add_token_to_area(shared_area, world.spawn_empty().id());
         world.entity_mut(victim).insert(victim_areas);
@@ -2044,8 +2155,8 @@ mod tests {
             .spawn((Name::new("shared area"), GameArea::new(1), Population::new(60), LandPassage::default()))
             .id();
 
-        let sec_a = world.spawn(Player).id();
-        let sec_b = world.spawn(Player).id();
+        let sec_a = world.spawn((Player, PlayerCities::default())).id();
+        let sec_b = world.spawn((Player, PlayerCities::default())).id();
         let mut a_areas = PlayerAreas::default();
         let mut b_areas = PlayerAreas::default();
         for _ in 0..8 {
@@ -2061,7 +2172,7 @@ mod tests {
         world.entity_mut(sec_a).insert(a_areas);
         world.entity_mut(sec_b).insert(b_areas);
 
-        let victim = world.spawn(IsHuman).id();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
         let mut victim_areas = PlayerAreas::default();
         victim_areas.add_token_to_area(shared_area, world.spawn_empty().id());
         world.entity_mut(victim).insert(victim_areas);

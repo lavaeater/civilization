@@ -1689,6 +1689,47 @@ pub fn spawn_unit_loss_selection_ui(
                     )).with_child((Text::new("+"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
                 });
 
+            // City row (29.62: a city is worth up to 5 points). Present even
+            // when the victim has none, so the panel's shape is stable; the
+            // text simply reads that there is nothing to give.
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(6.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn((
+                        Button, UnitLossButtonAction::PrevCity,
+                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
+                    )).with_child((Text::new("<"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+
+                    row.spawn((
+                        UnitLossCityText,
+                        Text::new("City: —"),
+                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        TextColor(Color::srgb(1.0, 0.85, 0.85)),
+                        Node { min_width: Val::Px(240.0), ..default() },
+                    ));
+
+                    row.spawn((
+                        Button, UnitLossButtonAction::NextCity,
+                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
+                    )).with_child((Text::new(">"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+
+                    row.spawn((
+                        Button, UnitLossButtonAction::ToggleCity,
+                        Node { width: Val::Px(90.0), height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.35, 0.15, 0.15)),
+                    )).with_child((Text::new("Give up"), TextFont { font: font.clone(), font_size: 15.0, ..default() }, TextColor(Color::WHITE)));
+                });
+
             parent.spawn((
                 Button,
                 UnitLossButtonAction::Confirm,
@@ -1711,15 +1752,19 @@ pub fn update_unit_loss_selection_ui(
     area_names: Query<&Name, With<GameArea>>,
     mut points_text: Query<
         &mut Text,
-        (With<UnitLossPointsText>, Without<UnitLossAreaNameText>, Without<UnitLossTitleText>),
+        (With<UnitLossPointsText>, Without<UnitLossAreaNameText>, Without<UnitLossTitleText>, Without<UnitLossCityText>),
     >,
     mut area_text: Query<
         &mut Text,
-        (With<UnitLossAreaNameText>, Without<UnitLossPointsText>, Without<UnitLossTitleText>),
+        (With<UnitLossAreaNameText>, Without<UnitLossPointsText>, Without<UnitLossTitleText>, Without<UnitLossCityText>),
     >,
     mut title_text: Query<
         &mut Text,
-        (With<UnitLossTitleText>, Without<UnitLossPointsText>, Without<UnitLossAreaNameText>),
+        (With<UnitLossTitleText>, Without<UnitLossPointsText>, Without<UnitLossAreaNameText>, Without<UnitLossCityText>),
+    >,
+    mut city_text: Query<
+        &mut Text,
+        (With<UnitLossCityText>, Without<UnitLossPointsText>, Without<UnitLossAreaNameText>, Without<UnitLossTitleText>),
     >,
     mut confirm_button: Query<&mut BackgroundColor, With<UnitLossConfirmButton>>,
 ) {
@@ -1753,6 +1798,23 @@ pub fn update_unit_loss_selection_ui(
         );
     }
 
+    if let Ok(mut text) = city_text.single_mut() {
+        **text = match unit_loss.current_city() {
+            Some((city, selected)) => {
+                let name = area_names.get(city).map_or("?", Name::as_str);
+                format!(
+                    "City in {}: {} ({} pts)  [{}/{}]",
+                    name,
+                    if selected { "GIVEN UP" } else { "kept" },
+                    CITY_UNIT_POINTS,
+                    unit_loss.current_city_index + 1,
+                    unit_loss.cities.len()
+                )
+            }
+            None => "City: — (none to give)".to_string(),
+        };
+    }
+
     if let Ok(mut bg) = confirm_button.single_mut() {
         *bg = if unit_loss.selection_valid() {
             BackgroundColor(Color::srgb(0.2, 0.5, 0.2))
@@ -1781,6 +1843,9 @@ pub fn handle_unit_loss_selection_buttons(
             UnitLossButtonAction::NextArea => { unit_loss.next_area(); }
             UnitLossButtonAction::Increment => { unit_loss.increment_current(); }
             UnitLossButtonAction::Decrement => { unit_loss.decrement_current(); }
+            UnitLossButtonAction::PrevCity => { unit_loss.prev_city(); }
+            UnitLossButtonAction::NextCity => { unit_loss.next_city(); }
+            UnitLossButtonAction::ToggleCity => { unit_loss.toggle_current_city(); }
             UnitLossButtonAction::Confirm => {
                 // The acting player is the one that must be released -- other
                 // humans may hold the marker for a different calamity.

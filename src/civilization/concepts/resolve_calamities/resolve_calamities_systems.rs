@@ -51,7 +51,7 @@ use crate::civilization::concepts::resolve_calamities::resolve_calamities_events
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
     AwaitingHumanCalamitySelection, AwaitingMonotheismSelection, CalamitySelectionState,
     CivilWarSelectionState, EpidemicSelectionState, FamineSelectionState, FloodSelectionState,
-    MonotheismSelectionState, UnitLossSelectionState,
+    MonotheismSelectionState, UnitLossSelectionState, CITY_UNIT_POINTS,
 };
 use crate::civilization::concepts::conflict::{ConflictCounterResource, UnresolvedCityConflict, UnresolvedConflict};
 use crate::civilization::functions::return_all_tokens_to_stock;
@@ -1049,10 +1049,12 @@ enum UnitLossStep {
     AwaitingHuman,
 }
 
-/// Applies a confirmed per-area allocation, returning the tokens to stock.
+/// Applies a confirmed loss: tokens go back to stock, cities given up under
+/// rule 29.62 are destroyed.
 fn apply_unit_loss_allocation(
     player: Entity,
     allocation: &[(Entity, usize)],
+    cities: &[Entity],
     populations: &mut Query<&mut Population>,
     commands: &mut Commands,
 ) {
@@ -1068,6 +1070,36 @@ fn apply_unit_loss_allocation(
             }
         }
     }
+    for &city_area in cities {
+        commands.entity(city_area).insert(DestroyCity);
+    }
+}
+
+/// The cities a victim may give up to meet a unit-point loss (29.62).
+fn spendable_cities(player_cities: &PlayerCities) -> Vec<Entity> {
+    player_cities.areas_and_cities.keys().copied().collect()
+}
+
+/// Splits `points` the way an AI victim must under rule 29.63: tokens alone
+/// whenever they can meet the amount exactly, otherwise the fewest cities
+/// (29.62, five points each) that close the gap plus whatever tokens are
+/// still needed -- exceeding the amount by as little as possible.
+///
+/// Returns `(cities_given_up, tokens_to_remove)`.
+fn split_unit_loss(
+    tokens_available: usize,
+    cities: &[Entity],
+    points: usize,
+) -> (Vec<Entity>, i32) {
+    if points <= tokens_available {
+        return (Vec::new(), points as i32);
+    }
+    let cities_needed = (points - tokens_available)
+        .div_ceil(CITY_UNIT_POINTS)
+        .min(cities.len());
+    let city_points = cities_needed * CITY_UNIT_POINTS;
+    let tokens_needed = points.saturating_sub(city_points).min(tokens_available);
+    (cities[..cities_needed].to_vec(), tokens_needed as i32)
 }
 
 /// Takes `points` unit points off a victim, letting a human victim choose
@@ -1091,6 +1123,10 @@ fn take_unit_point_loss(
     is_human: bool,
     awaiting_human: bool,
     player_areas: &PlayerAreas,
+    // `spendable_cities`: cities the victim may give up at five points each
+    // (29.62). Empty when the calamity prices cities itself (Epidemic's
+    // 30.612 cap, Flood's own city handling) or the victim has none.
+    spendable_cities: &[Entity],
     populations: &mut Query<&mut Population>,
     unit_loss: &mut UnitLossSelectionState,
     commands: &mut Commands,
@@ -1099,17 +1135,35 @@ fn take_unit_point_loss(
         return UnitLossStep::Applied;
     }
 
+    let token_availability = |area_count: usize| {
+        if leave_one_per_area {
+            area_count.saturating_sub(1)
+        } else {
+            area_count
+        }
+    };
+    let tokens_available: usize = player_areas
+        .areas_and_population_count()
+        .values()
+        .map(|&count| token_availability(count))
+        .sum();
+
     if !is_human {
+        let (cities, token_points) =
+            split_unit_loss(tokens_available, spendable_cities, points as usize);
+        for &city_area in &cities {
+            commands.entity(city_area).insert(DestroyCity);
+        }
         if leave_one_per_area {
             remove_unit_points_leaving_one_per_area(
                 player,
-                points,
+                token_points,
                 player_areas,
                 populations,
                 commands,
             );
         } else {
-            remove_unit_points(player, points, player_areas, populations, commands);
+            remove_unit_points(player, token_points, player_areas, populations, commands);
         }
         return UnitLossStep::Applied;
     }
@@ -1121,14 +1175,15 @@ fn take_unit_point_loss(
 
     // Selection just confirmed for this player -- apply exactly what they chose.
     if unit_loss.acting_player == Some(player) {
-        let allocation = unit_loss.take_allocation();
+        let (allocation, cities) = unit_loss.take_allocation();
         info!(
-            "[{}] Human victim chose to lose {} point(s) across {} area(s)",
+            "[{}] Human victim chose to lose {} token(s) across {} area(s) and {} city/cities",
             calamity_name.to_uppercase(),
             allocation.iter().map(|&(_, n)| n).sum::<usize>(),
-            allocation.len()
+            allocation.len(),
+            cities.len()
         );
-        apply_unit_loss_allocation(player, &allocation, populations, commands);
+        apply_unit_loss_allocation(player, &allocation, &cities, populations, commands);
         return UnitLossStep::Applied;
     }
 
@@ -1140,19 +1195,11 @@ fn take_unit_point_loss(
     let available: Vec<(Entity, usize)> = player_areas
         .areas_and_population_count()
         .into_iter()
-        .map(|(area, count)| {
-            let capped = if leave_one_per_area {
-                count.saturating_sub(1)
-            } else {
-                count
-            };
-            (area, capped)
-        })
+        .map(|(area, count)| (area, token_availability(count)))
         .filter(|&(_, count)| count > 0)
         .collect();
 
-    let total_available: usize = available.iter().map(|&(_, c)| c).sum();
-    if total_available <= points as usize {
+    if tokens_available <= points as usize && spendable_cities.is_empty() {
         // Nothing to choose: the loss takes everything that is eligible.
         if leave_one_per_area {
             remove_unit_points_leaving_one_per_area(
@@ -1169,12 +1216,19 @@ fn take_unit_point_loss(
     }
 
     info!(
-        "[{}] Human victim must choose {} unit point(s) to lose across {} area(s)",
+        "[{}] Human victim must choose {} unit point(s) to lose across {} area(s) and {} city/cities",
         calamity_name.to_uppercase(),
         points,
-        available.len()
+        available.len(),
+        spendable_cities.len()
     );
-    unit_loss.populate(player, calamity_name, available, points as usize);
+    unit_loss.populate(
+        player,
+        calamity_name,
+        available,
+        spendable_cities.to_vec(),
+        points as usize,
+    );
     commands.entity(player).insert(AwaitingHumanCalamitySelection);
     UnitLossStep::AwaitingHuman
 }
@@ -1186,16 +1240,17 @@ pub fn advance_famine(
         &mut ResolvingCalamity,
         &mut ActiveCalamityResolution,
         &PlayerAreas,
+        &PlayerCities,
         Has<IsHuman>,
         Has<AwaitingHumanCalamitySelection>,
     )>,
     mut populations: Query<&mut Population>,
-    all_players: Query<(Entity, &PlayerAreas, Has<IsHuman>, Has<AwaitingHumanCalamitySelection>), With<Player>>,
+    all_players: Query<(Entity, &PlayerAreas, &PlayerCities, Has<IsHuman>, Has<AwaitingHumanCalamitySelection>), With<Player>>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut famine_selection: ResMut<FamineSelectionState>,
     mut unit_loss: ResMut<UnitLossSelectionState>,
 ) {
-    for (player_entity, mut resolving, mut resolution, player_areas, is_human, is_awaiting) in &mut player_query {
+    for (player_entity, mut resolving, mut resolution, player_areas, player_cities, is_human, is_awaiting) in &mut player_query {
         if resolution.phase == CalamityPhase::Resolved {
             continue;
         }
@@ -1216,6 +1271,7 @@ pub fn advance_famine(
                     is_human,
                     is_awaiting,
                     player_areas,
+                    &spendable_cities(player_cities),
                     &mut populations,
                     &mut unit_loss,
                     &mut commands,
@@ -1253,11 +1309,11 @@ pub fn advance_famine(
                 let max_per_player = state.max_per_secondary.max(0) as usize;
                 let secondary_players: Vec<(Entity, usize)> = all_players
                     .iter()
-                    .filter(|(e, areas, _, _)| {
+                    .filter(|(e, areas, _, _, _)| {
                         *e != player_entity
                             && areas.areas().iter().any(|a| primary_areas.contains(a))
                     })
-                    .map(|(e, areas, _, _)| {
+                    .map(|(e, areas, _, _, _)| {
                         let total_pop: usize =
                             areas.areas_and_population_count().values().sum();
                         (e, total_pop.min(max_per_player))
@@ -1314,7 +1370,7 @@ pub fn advance_famine(
                 let mut settled: Vec<Entity> = Vec::new();
                 let mut paused = false;
                 for (secondary_entity, loss) in state.secondary_allocations.clone() {
-                    let Ok((_, sec_areas, sec_is_human, sec_is_awaiting)) =
+                    let Ok((_, sec_areas, sec_cities, sec_is_human, sec_is_awaiting)) =
                         all_players.get(secondary_entity)
                     else {
                         // Player no longer resolvable (despawned) -- nothing to take.
@@ -1329,6 +1385,7 @@ pub fn advance_famine(
                         sec_is_human,
                         sec_is_awaiting,
                         sec_areas,
+                        &spendable_cities(sec_cities),
                         &mut populations,
                         &mut unit_loss,
                         &mut commands,
@@ -1696,6 +1753,7 @@ pub fn advance_epidemic(
                     is_human,
                     is_awaiting,
                     player_areas,
+                    &[], // cities already spent at 30.612's rate above
                     &mut populations,
                     &mut unit_loss,
                     &mut commands,
@@ -1815,6 +1873,7 @@ pub fn advance_epidemic(
                         sec_is_human,
                         sec_is_awaiting,
                         sec_areas,
+                        &[], // cities already spent at 30.612's rate above
                         &mut populations,
                         &mut unit_loss,
                         &mut commands,
