@@ -466,6 +466,87 @@ mod tests {
     }
 
     // ========================================================================
+    // Rules 29.61/30.221: who traded the calamity here
+    // ========================================================================
+    //
+    // The trader is barred from being named a secondary victim (29.61) and is
+    // the beneficiary of Treachery (30.221). `PendingCalamities` carried a
+    // `traded_by` slot for this all along, but nothing ever filled it in --
+    // it was hard-coded to `None`, so Treachery never had a beneficiary and
+    // the trader could be picked as a secondary victim of their own gift.
+
+    #[test]
+    fn a_traded_calamity_records_who_handed_it_over() {
+        let mut giver_hand = PlayerTradeCards::default();
+        giver_hand.add_trade_card(TradeCard::Treachery);
+
+        let giver = Entity::from_raw_u32(7).unwrap();
+        let mut receiver_hand = PlayerTradeCards::default();
+        receiver_hand.add_traded_cards(TradeCard::Treachery, 1, giver);
+
+        assert_eq!(receiver_hand.calamity_traded_by(TradeCard::Treachery), Some(giver));
+    }
+
+    #[test]
+    fn a_drawn_calamity_has_no_trader() {
+        let mut hand = PlayerTradeCards::default();
+        hand.add_trade_card(TradeCard::Treachery);
+        assert_eq!(hand.calamity_traded_by(TradeCard::Treachery), None);
+    }
+
+    /// Passing the card onwards must not leave the previous trader attached --
+    /// rule 29.3 lets a tradable calamity change hands any number of times,
+    /// and only the last hand-off counts.
+    #[test]
+    fn trading_a_calamity_onwards_clears_the_stale_provenance() {
+        let first = Entity::from_raw_u32(7).unwrap();
+        let mut hand = PlayerTradeCards::default();
+        hand.add_traded_cards(TradeCard::Treachery, 1, first);
+        assert_eq!(hand.calamity_traded_by(TradeCard::Treachery), Some(first));
+
+        hand.remove_n_trade_cards(1, TradeCard::Treachery);
+        assert_eq!(hand.calamity_traded_by(TradeCard::Treachery), None);
+
+        // Re-acquired from someone else later in the same round.
+        let second = Entity::from_raw_u32(9).unwrap();
+        hand.add_traded_cards(TradeCard::Treachery, 1, second);
+        assert_eq!(hand.calamity_traded_by(TradeCard::Treachery), Some(second));
+    }
+
+    #[test]
+    fn start_calamity_resolution_carries_the_trader_into_pending_calamities() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::start_calamity_resolution;
+        use crate::GameActivity;
+
+        let mut world = World::new();
+        world.init_resource::<NextState<GameActivity>>();
+
+        let trader = world.spawn((Player, Name::new("trader"), PlayerTradeCards::default())).id();
+
+        let mut cards = PlayerTradeCards::default();
+        cards.add_traded_cards(TradeCard::Treachery, 1, trader);
+        cards.add_trade_card(TradeCard::Famine); // drawn, not traded
+        let victim = world.spawn((Player, Name::new("victim"), cards)).id();
+
+        world.run_system_once(start_calamity_resolution).unwrap();
+
+        let pending = world.get::<PendingCalamities>(victim).unwrap();
+        let treachery = pending
+            .calamities
+            .iter()
+            .find(|(card, _)| *card == TradeCard::Treachery)
+            .expect("treachery pending");
+        assert_eq!(treachery.1, Some(trader), "the trader is recorded as beneficiary/immune");
+
+        let famine = pending
+            .calamities
+            .iter()
+            .find(|(card, _)| *card == TradeCard::Famine)
+            .expect("famine pending");
+        assert_eq!(famine.1, None, "a drawn calamity implicates nobody");
+    }
+
+    // ========================================================================
     // Rules 29.62/29.63: the victim chooses which of their own units to lose
     // ========================================================================
     //

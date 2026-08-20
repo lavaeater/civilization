@@ -97,10 +97,17 @@ pub fn start_calamity_resolution(
             calamity_cards
         );
 
-        let calamities_to_resolve = if calamity_cards.len() > 2 {
+        // The second element is who traded the calamity here (rules 29.61 /
+        // 30.221); `None` means it was drawn and kept, so no other player is
+        // implicated in it.
+        let traded_by = |card: &TradeCard| trade_cards.calamity_traded_by(*card);
+        let calamities_to_resolve: Vec<(TradeCard, Option<Entity>)> = if calamity_cards.len() > 2 {
             select_random_calamities(&calamity_cards, 2)
+                .into_iter()
+                .map(|(card, _)| (card, traded_by(&card)))
+                .collect()
         } else {
-            calamity_cards.iter().map(|c| (*c, None)).collect()
+            calamity_cards.iter().map(|c| (*c, traded_by(c))).collect()
         };
 
         // Rule 29.5: a player is the primary victim of at most two calamities

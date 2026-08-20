@@ -128,6 +128,12 @@ pub struct SavedPlayer {
     /// rather than rejecting the whole file.
     #[serde(default)]
     pub owned_civ_cards: Vec<CivCardName>,
+    /// Who traded each held calamity to this player (rules 29.61/30.221).
+    /// Stored by faction because entity ids are not stable across a load.
+    /// Older saves predate this field and load with no provenance, which is
+    /// the same as every calamity having been drawn rather than traded.
+    #[serde(default)]
+    pub calamity_traded_by: Vec<(TradeCard, GameFaction)>,
 }
 
 fn default_ast_space() -> u32 { 0 }
@@ -300,6 +306,13 @@ fn handle_save_request(
             done_with_current_activity: done,
             ast_space: ast_pos.map_or(0, |p| p.space),
             owned_civ_cards: civ_cards.map_or_else(Vec::new, |c| c.cards.iter().copied().collect()),
+            calamity_traded_by: trade_cards
+                .calamity_origins_as_vec()
+                .into_iter()
+                .filter_map(|(card, from)| {
+                    faction_query.get(from).ok().map(|f| (card, f.faction))
+                })
+                .collect(),
         };
         if done {
             info!("  Player {} ({:?}) is DONE with {:?}", name, faction.faction, activity);
@@ -456,34 +469,46 @@ fn load_game_from_save(
     // Set game round
     game_info.round = save_data.round;
     
-    // Create a map of faction -> player entity for later use
+    // Create a map of faction -> player entity for later use.
+    //
+    // Entities are reserved up front rather than as each player is built, so
+    // that cross-player references -- calamity provenance (29.61/30.221) --
+    // can be resolved during the build loop no matter which order the players
+    // appear in the file.
     let mut faction_to_player: HashMap<GameFaction, Entity> = HashMap::default();
+    for saved_player in &save_data.players {
+        faction_to_player.insert(saved_player.faction, commands.spawn_empty().id());
+    }
     
     // Create players
     for (n, saved_player) in save_data.players.iter().enumerate() {
         info!("Creating player: {} ({:?})", saved_player.name, saved_player.faction);
         
         // Create trade cards from saved data
-        let trade_cards = PlayerTradeCards::from_cards_vec(saved_player.trade_cards.clone());
+        let mut trade_cards = PlayerTradeCards::from_cards_vec(saved_player.trade_cards.clone());
+        for (card, trader_faction) in &saved_player.calamity_traded_by {
+            if let Some(&trader) = faction_to_player.get(trader_faction) {
+                trade_cards.set_calamity_traded_by(*card, trader);
+            }
+        }
         let civ_cards = PlayerCivilizationCards {
             cards: saved_player.owned_civ_cards.iter().copied().collect(),
         };
 
-        // Create player entity
-        let player = commands
-            .spawn((
-                Player,
-                Name::new(saved_player.name.clone()),
-                Census { population: saved_player.census_population },
-                Treasury::default(), // Treasury tokens will be created separately if needed
-                Faction::new(saved_player.faction),
-                PlayerAreas::default(),
-                PlayerCities::default(),
-                trade_cards,
-                civ_cards,
-                AstPosition::new(saved_player.ast_space),
-            ))
-            .id();
+        // Build onto the entity reserved for this faction above.
+        let player = faction_to_player[&saved_player.faction];
+        commands.entity(player).insert((
+            Player,
+            Name::new(saved_player.name.clone()),
+            Census { population: saved_player.census_population },
+            Treasury::default(), // Treasury tokens will be created separately if needed
+            Faction::new(saved_player.faction),
+            PlayerAreas::default(),
+            PlayerCities::default(),
+            trade_cards,
+            civ_cards,
+            AstPosition::new(saved_player.ast_space),
+        ));
         
         // Add AI or Human marker
         if saved_player.is_human {
@@ -537,7 +562,6 @@ fn load_game_from_save(
             player_ships,
         ));
 
-        faction_to_player.insert(saved_player.faction, player);
     }
     
     // Store faction_to_player mapping for area population restoration
@@ -741,6 +765,7 @@ mod tests {
             done_with_current_activity: false,
             ast_space: 0,
             owned_civ_cards: vec![],
+            calamity_traded_by: Vec::new(),
         };
         world.insert_resource(PendingGameLoad(GameSaveData {
             version: SAVE_GAME_VERSION.to_string(),
@@ -788,6 +813,7 @@ mod tests {
             done_with_current_activity: false,
             ast_space: 0,
             owned_civ_cards: vec![],
+            calamity_traded_by: Vec::new(),
         };
         world.insert_resource(PendingGameLoad(GameSaveData {
             version: SAVE_GAME_VERSION.to_string(),
@@ -831,6 +857,7 @@ mod tests {
             done_with_current_activity: false,
             ast_space: 0,
             owned_civ_cards: vec![CivCardName::Agriculture, CivCardName::Medicine],
+            calamity_traded_by: Vec::new(),
         };
         world.insert_resource(PendingGameLoad(GameSaveData {
             version: SAVE_GAME_VERSION.to_string(),
@@ -876,6 +903,7 @@ mod tests {
             done_with_current_activity: false,
             ast_space: 0,
             owned_civ_cards: vec![],
+            calamity_traded_by: Vec::new(),
         };
         world.insert_resource(PendingGameLoad(GameSaveData {
             version: SAVE_GAME_VERSION.to_string(),

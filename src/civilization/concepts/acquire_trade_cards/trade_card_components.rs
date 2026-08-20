@@ -1,6 +1,6 @@
 use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::{TradeCard, TradeCardTrait};
 use bevy::platform::collections::{HashMap, HashSet};
-use bevy::prelude::{Color, Component, Reflect, ReflectComponent, Resource};
+use bevy::prelude::{Color, Component, Entity, Reflect, ReflectComponent, Resource};
 use itertools::Itertools;
 use rand::seq::SliceRandom;
 use rand::RngExt;
@@ -55,6 +55,13 @@ pub struct PlayerCardStack {
 #[reflect(Component)]
 pub struct PlayerTradeCards {
     cards: HashMap<TradeCard, usize>,
+    /// Who most recently traded each held calamity card to this player.
+    ///
+    /// Rule 29.61 bars that player from being named a secondary victim of the
+    /// calamity, and rule 30.221 makes them the beneficiary of Treachery. The
+    /// provenance is only meaningful while the card is held, so it is dropped
+    /// as soon as the card leaves the hand.
+    calamity_traded_by: HashMap<TradeCard, Entity>,
 }
 
 impl PlayerTradeCards {
@@ -94,6 +101,35 @@ impl PlayerTradeCards {
 
     pub fn add_trade_cards(&mut self, trade_card: TradeCard, count: usize) {
         *self.cards.entry(trade_card).or_insert(0) += count;
+    }
+
+    /// Adds cards received in a trade, recording `from` as the trader for any
+    /// calamity among them (rules 29.61/30.221).
+    pub fn add_traded_cards(&mut self, trade_card: TradeCard, count: usize, from: Entity) {
+        self.add_trade_cards(trade_card, count);
+        if trade_card.is_calamity() {
+            self.calamity_traded_by.insert(trade_card, from);
+        }
+    }
+
+    /// Every recorded calamity provenance, for serialization.
+    pub fn calamity_origins_as_vec(&self) -> Vec<(TradeCard, Entity)> {
+        self.calamity_traded_by
+            .iter()
+            .map(|(card, from)| (*card, *from))
+            .collect()
+    }
+
+    /// Restores a provenance entry (used when loading a save).
+    pub fn set_calamity_traded_by(&mut self, trade_card: TradeCard, from: Entity) {
+        self.calamity_traded_by.insert(trade_card, from);
+    }
+
+    /// Who traded this calamity to us, if anyone. `None` means it was drawn
+    /// and kept -- rule 29.4's "retains a tradable calamity" case, where no
+    /// other player benefits or is barred from secondary selection.
+    pub fn calamity_traded_by(&self, trade_card: TradeCard) -> Option<Entity> {
+        self.calamity_traded_by.get(&trade_card).copied()
     }
 
     pub fn has_trade_card(&self, trade_card: TradeCard) -> bool {
@@ -333,6 +369,10 @@ impl PlayerTradeCards {
                     *count -= n;
                     if *count == 0 {
                         self.cards.remove(&trade_card);
+                        // The card is gone, and so is its provenance -- a
+                        // calamity traded onwards must not keep pointing at
+                        // whoever handed it to us.
+                        self.calamity_traded_by.remove(&trade_card);
                     }
                     Some(n)
                 } else {

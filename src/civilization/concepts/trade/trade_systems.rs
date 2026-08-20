@@ -260,7 +260,10 @@ pub fn handle_send_trading_cards_command(
                 .get_mut(event.receiving_player)
                 .unwrap();
             for (card, count) in cards_to_send {
-                target_trade_cards.add_trade_cards(card, count);
+                // Records the sender for any calamity in the bundle: rule
+                // 29.61 bars them from being a secondary victim of it, and
+                // 30.221 makes them the beneficiary of Treachery.
+                target_trade_cards.add_traded_cards(card, count, event.sending_player);
             }
         }
     }
