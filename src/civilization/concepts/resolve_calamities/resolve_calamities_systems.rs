@@ -1467,6 +1467,71 @@ pub fn advance_famine(
     }
 }
 
+/// Outcome of rule 30.525's tie-break for where Barbarians go next.
+enum BarbarianTieBreak {
+    Chosen(Entity),
+    /// A human decider is picking; hold the current phase and retry.
+    AwaitingHuman,
+}
+
+/// Rule 30.525: "The player who traded the calamity to the primary victim
+/// selects which area Barbarians enter when there is a tie. If not traded,
+/// the player with the most units in stock decides."
+///
+/// A single candidate is no tie at all and is returned immediately. An AI
+/// decider picks deterministically; a human decider is offered the tied
+/// areas on the selection panel.
+fn break_barbarian_tie(
+    tied: &[Entity],
+    traded_by: Option<Entity>,
+    stocks: &Query<(Entity, &TokenStock), With<Player>>,
+    human_flags: &Query<(Has<IsHuman>, Has<AwaitingHumanCalamitySelection>), With<Player>>,
+    calamity_selection: &mut CalamitySelectionState,
+    commands: &mut Commands,
+) -> BarbarianTieBreak {
+    let Some(&first) = tied.first() else {
+        unreachable!("callers only tie-break a non-empty candidate list");
+    };
+    if tied.len() == 1 {
+        return BarbarianTieBreak::Chosen(first);
+    }
+
+    let decider = traded_by.or_else(|| {
+        stocks
+            .iter()
+            .max_by_key(|(_, stock)| stock.tokens_in_stock())
+            .map(|(entity, _)| entity)
+    });
+
+    let Some(decider) = decider else {
+        return BarbarianTieBreak::Chosen(first);
+    };
+    let (is_human, awaiting) = human_flags.get(decider).unwrap_or((false, false));
+    if !is_human {
+        return BarbarianTieBreak::Chosen(first);
+    }
+
+    if awaiting {
+        return BarbarianTieBreak::AwaitingHuman;
+    }
+    if calamity_selection.player == Some(decider) {
+        let picked = calamity_selection.take_selected_cities().first().copied();
+        return BarbarianTieBreak::Chosen(picked.filter(|p| tied.contains(p)).unwrap_or(first));
+    }
+    if calamity_selection.player.is_none() {
+        calamity_selection.populate(
+            decider,
+            tied.to_vec(),
+            1,
+            "Barbarian Hordes — pick where they go",
+        );
+        commands
+            .entity(decider)
+            .insert(AwaitingHumanCalamitySelection);
+    }
+    BarbarianTieBreak::AwaitingHuman
+}
+
 pub fn advance_barbarian_hordes(
     mut commands: Commands,
     mut player_query: Query<(
@@ -1482,6 +1547,9 @@ pub fn advance_barbarian_hordes(
     conflict_marker_query: Query<(Has<UnresolvedConflict>, Has<UnresolvedCityConflict>)>,
     mut conflict_counter: ResMut<ConflictCounterResource>,
     mut populations: Query<&mut Population>,
+    stocks: Query<(Entity, &TokenStock), With<Player>>,
+    human_flags: Query<(Has<IsHuman>, Has<AwaitingHumanCalamitySelection>), With<Player>>,
+    mut calamity_selection: ResMut<CalamitySelectionState>,
     // Optional so headless/test worlds without the asset-loading resource
     // (which has ~20 unrelated Handle<Image> fields, tedious to construct
     // just to satisfy this) can still run the real placement/conflict/
@@ -1510,23 +1578,47 @@ pub fn advance_barbarian_hordes(
                 // every start area still scores >=0 and ties keep the first
                 // one seen.
                 let victim_faction = faction.faction;
-                let mut best_area: Option<Entity> = None;
-                let mut best_score = 0usize;
+                let mut scored: Vec<(Entity, usize)> = Vec::new();
 
                 for (area_entity, start_area) in start_areas.iter() {
                     if start_area.faction != victim_faction { continue; }
                     let victim_tokens = populations.get(area_entity)
                         .map_or(0, |pop| pop.population_for_player(player_entity));
                     let has_city = city_query.get(area_entity).is_ok_and(|c| c.player == player_entity);
-                    let score = barbarian_damage_score(victim_tokens, has_city);
-                    if best_area.is_none() || score > best_score {
-                        best_score = score;
-                        best_area = Some(area_entity);
-                    }
+                    scored.push((area_entity, barbarian_damage_score(victim_tokens, has_city)));
                 }
 
+                let best_score = scored.iter().map(|&(_, score)| score).max();
+                let tied: Vec<Entity> = best_score
+                    .map(|best| {
+                        scored
+                            .iter()
+                            .filter(|&&(_, score)| score == best)
+                            .map(|&(area, _)| area)
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                let best_area = if tied.is_empty() {
+                    None
+                } else {
+                    // Rule 30.525 hands the tie to the trader, or to whoever
+                    // holds the most units in stock.
+                    match break_barbarian_tie(
+                        &tied,
+                        resolution.context.traded_by,
+                        &stocks,
+                        &human_flags,
+                        &mut calamity_selection,
+                        &mut commands,
+                    ) {
+                        BarbarianTieBreak::AwaitingHuman => continue,
+                        BarbarianTieBreak::Chosen(area) => Some(area),
+                    }
+                };
+
                 info!(
-                    "[BARBARIAN_HORDES] {:?} landing in {:?} (damage score {})",
+                    "[BARBARIAN_HORDES] {:?} landing in {:?} (damage score {:?})",
                     victim_faction, best_area, best_score
                 );
                 state.landing_area = best_area;
@@ -1666,30 +1758,49 @@ pub fn advance_barbarian_hordes(
 
                 // Rule 30.5231/30.5234: adjacent area (land or coastal sea
                 // hop; never open sea, rule 30.5233) causing the greatest
-                // damage to the primary victim. Ties keep the first
-                // candidate seen (30.525's interactive tie-break -- the
-                // trading player, or highest-stock player, choosing among
-                // ties -- is out of scope for this pass; documented in
-                // docs/outline.md).
+                // damage to the primary victim, with 30.525's tie-break.
                 let (land, sea, _) = area_passages.get(area).unwrap_or((None, None, false));
                 let mut candidates: Vec<Entity> = Vec::new();
                 if let Some(lp) = land { candidates.extend(lp.to_areas.iter().copied()); }
                 if let Some(sp) = sea { candidates.extend(sp.to_areas.iter().copied()); }
 
-                let mut best: Option<(Entity, usize)> = None;
+                let mut scored: Vec<(Entity, usize)> = Vec::new();
                 for candidate in candidates {
                     let is_open_sea = area_passages.get(candidate).is_ok_and(|(_, _, open)| open);
                     if is_open_sea { continue; } // rule 30.5233
                     let has_city = city_query.get(candidate).is_ok_and(|c| c.player == player_entity);
                     let victim_tokens = populations.get(candidate)
                         .map_or(0, |p| p.population_for_player(player_entity));
-                    let score = barbarian_damage_score(victim_tokens, has_city);
-                    if best.is_none_or(|(_, b)| score > b) {
-                        best = Some((candidate, score));
-                    }
+                    scored.push((candidate, barbarian_damage_score(victim_tokens, has_city)));
                 }
+                let best_score = scored.iter().map(|&(_, score)| score).max();
+                let tied: Vec<Entity> = best_score
+                    .map(|best| {
+                        scored
+                            .iter()
+                            .filter(|&&(_, score)| score == best)
+                            .map(|&(area, _)| area)
+                            .collect()
+                    })
+                    .unwrap_or_default();
 
-                let Some((next_area, _)) = best else {
+                let next_area = if tied.is_empty() {
+                    None
+                } else {
+                    match break_barbarian_tie(
+                        &tied,
+                        resolution.context.traded_by,
+                        &stocks,
+                        &human_flags,
+                        &mut calamity_selection,
+                        &mut commands,
+                    ) {
+                        BarbarianTieBreak::AwaitingHuman => continue,
+                        BarbarianTieBreak::Chosen(area) => Some(area),
+                    }
+                };
+
+                let Some(next_area) = next_area else {
                     // Dead end: nowhere adjacent to send the surplus. No
                     // rules text covers this edge case on a real board;
                     // stopping here is the only sound option.

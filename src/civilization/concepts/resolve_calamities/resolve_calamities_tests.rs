@@ -2372,6 +2372,7 @@ mod tests {
         world.init_resource::<ConflictCounterResource>();
         world.init_resource::<NextState<GameActivity>>();
         world.init_resource::<CameraFocusQueue>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
         world.add_observer(on_add_unresolved_conflict);
         world.add_observer(on_add_unresolved_city_conflict);
         world
@@ -2400,6 +2401,116 @@ mod tests {
             ActiveCalamityResolution::new(context),
             ResolvingCalamity::BarbarianHordes(BarbarianHordesState::new()),
         ));
+    }
+
+    /// Rule 30.525: "The player who traded the calamity to the primary victim
+    /// selects which area Barbarians enter when there is a tie." Ties used to
+    /// go to whichever candidate was seen first.
+    #[test]
+    fn a_human_trader_breaks_the_barbarian_landing_tie() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, CalamitySelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = barbarian_test_world();
+        let victim = world.spawn((Player, Faction { faction: GameFaction::Egypt })).id();
+        let trader = world.spawn((Player, IsHuman, TokenStock::new(47, vec![]))).id();
+
+        // Two start areas with identical victim presence: a real tie.
+        let mut start_areas = Vec::new();
+        for n in 0..2 {
+            let mut pop = Population::new(6);
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(victim, token);
+            start_areas.push(
+                world
+                    .spawn((
+                        Name::new(format!("start-{n}")),
+                        GameArea::new(n),
+                        StartArea::new(GameFaction::Egypt),
+                        pop,
+                        LandPassage::default(),
+                        Transform::default(),
+                    ))
+                    .id(),
+            );
+        }
+
+        let context = CalamityContext::new(TradeCard::BarbarianHordes, victim, Some(trader));
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::BarbarianHordes(BarbarianHordesState::new()),
+        ));
+
+        world.run_system_once(advance_barbarian_hordes).unwrap();
+        world.flush();
+
+        assert!(
+            world.get::<AwaitingHumanCalamitySelection>(trader).is_some(),
+            "the trader directs the horde on a tie"
+        );
+        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_none());
+
+        {
+            let mut selection = world.resource_mut::<CalamitySelectionState>();
+            while selection.current_city() != Some(start_areas[1]) {
+                selection.next();
+            }
+            selection.toggle_current();
+        }
+        world.entity_mut(trader).remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_barbarian_hordes).unwrap();
+        world.flush();
+
+        let ResolvingCalamity::BarbarianHordes(ref state) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        assert_eq!(state.landing_area, Some(start_areas[1]), "the area the trader picked");
+    }
+
+    /// No tie, no prompt: the single worst start area is taken outright.
+    #[test]
+    fn a_clear_worst_start_area_needs_no_tie_break() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::AwaitingHumanCalamitySelection;
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = barbarian_test_world();
+        let victim = world.spawn((Player, Faction { faction: GameFaction::Egypt })).id();
+        let trader = world.spawn((Player, IsHuman, TokenStock::new(47, vec![]))).id();
+
+        let mut areas = Vec::new();
+        for (n, tokens) in [(0, 1usize), (1, 4usize)] {
+            let mut pop = Population::new(8);
+            for _ in 0..tokens {
+                let token = world.spawn_empty().id();
+                pop.add_token_to_area(victim, token);
+            }
+            areas.push(
+                world
+                    .spawn((
+                        Name::new(format!("start-{n}")),
+                        GameArea::new(n),
+                        StartArea::new(GameFaction::Egypt),
+                        pop,
+                        LandPassage::default(),
+                        Transform::default(),
+                    ))
+                    .id(),
+            );
+        }
+
+        let context = CalamityContext::new(TradeCard::BarbarianHordes, victim, Some(trader));
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::BarbarianHordes(BarbarianHordesState::new()),
+        ));
+
+        world.run_system_once(advance_barbarian_hordes).unwrap();
+        world.flush();
+
+        assert!(world.get::<AwaitingHumanCalamitySelection>(trader).is_none());
+        let ResolvingCalamity::BarbarianHordes(ref state) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        assert_eq!(state.landing_area, Some(areas[1]), "the area causing the most damage");
     }
 
     #[test]
