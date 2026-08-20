@@ -24,7 +24,7 @@ impl VolcanoEarthquakeState {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn as_volcano(volcano_area: Entity, areas_to_clear: Vec<Entity>) -> Self {
         Self {
             phase: VolcanoEarthquakePhase::ApplyEffects,
@@ -34,13 +34,25 @@ impl VolcanoEarthquakeState {
             ..Default::default()
         }
     }
-    
-    pub fn as_earthquake(city_to_destroy: Entity, city_to_reduce: Option<Entity>, has_engineering: bool) -> Self {
+
+    pub fn as_earthquake(
+        city_to_destroy: Entity,
+        city_to_reduce: Option<Entity>,
+        has_engineering: bool,
+    ) -> Self {
         Self {
             phase: VolcanoEarthquakePhase::ApplyEffects,
             is_volcano: false,
-            city_to_destroy: if has_engineering { None } else { Some(city_to_destroy) },
-            city_to_reduce: if has_engineering { Some(city_to_destroy) } else { city_to_reduce },
+            city_to_destroy: if has_engineering {
+                None
+            } else {
+                Some(city_to_destroy)
+            },
+            city_to_reduce: if has_engineering {
+                Some(city_to_destroy)
+            } else {
+                city_to_reduce
+            },
             has_engineering,
             ..Default::default()
         }

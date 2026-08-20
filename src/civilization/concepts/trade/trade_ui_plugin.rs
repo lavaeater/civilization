@@ -1,8 +1,10 @@
-use crate::civilization::components::{CityTokenStock, Faction, PlayerAreas, PlayerCities, TokenStock, Treasury};
-use crate::civilization::concepts::ships::ShipStock;
-use crate::civilization::concepts::*;
 use crate::civilization::RecalculatePlayerMoves;
 use crate::civilization::Z_PANEL;
+use crate::civilization::components::{
+    CityTokenStock, Faction, PlayerAreas, PlayerCities, TokenStock, Treasury,
+};
+use crate::civilization::concepts::ships::ShipStock;
+use crate::civilization::concepts::*;
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
 use crate::{GameActivity, GameState};
@@ -47,12 +49,19 @@ pub struct TradeUiPlugin;
 
 impl Plugin for TradeUiPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .insert_resource(LavaTheme::default())
-            .add_systems(OnEnter(GameActivity::StartGame), (setup_trade_ui, spawn_player_mat_ui))
+        app.insert_resource(LavaTheme::default())
+            .add_systems(
+                OnEnter(GameActivity::StartGame),
+                (setup_trade_ui, spawn_player_mat_ui),
+            )
             .add_systems(
                 Update,
-                (handle_player_draws_cards, update_hud_dynamic, update_census_status, update_player_mat),
+                (
+                    handle_player_draws_cards,
+                    update_hud_dynamic,
+                    update_census_status,
+                    update_player_mat,
+                ),
             );
     }
 }
@@ -176,13 +185,36 @@ fn update_player_mat(
     };
     let mut ui = UIBuilder::start_from_entity(commands, mat_entity, true, Some(ui_theme.clone()));
 
-    ui.add_text_child("Player Mat", Some(TextStyle::size_color(14.0, Color::WHITE)));
+    ui.add_text_child(
+        "Player Mat",
+        Some(TextStyle::size_color(14.0, Color::WHITE)),
+    );
 
     if let Ok((token_stock, treasury, ship_stock, city_stock)) = human_query.single() {
-        info_row(&mut ui, "Tokens in stock:", token_stock.tokens_in_stock().to_string());
-        info_row(&mut ui, "Tokens in treasury:", treasury.tokens_in_treasury().to_string());
-        info_row(&mut ui, "Ships in stock:", format!("{} / {}", ship_stock.count_in_stock(), ShipStock::MAX_SHIPS));
-        info_row(&mut ui, "Cities in stock:", format!("{} / {}", city_stock.city_tokens_in_stock(), city_stock.max_tokens));
+        info_row(
+            &mut ui,
+            "Tokens in stock:",
+            token_stock.tokens_in_stock().to_string(),
+        );
+        info_row(
+            &mut ui,
+            "Tokens in treasury:",
+            treasury.tokens_in_treasury().to_string(),
+        );
+        info_row(
+            &mut ui,
+            "Ships in stock:",
+            format!("{} / {}", ship_stock.count_in_stock(), ShipStock::MAX_SHIPS),
+        );
+        info_row(
+            &mut ui,
+            "Cities in stock:",
+            format!(
+                "{} / {}",
+                city_stock.city_tokens_in_stock(),
+                city_stock.max_tokens
+            ),
+        );
     } else {
         ui.add_text_child("No human player", None);
     }
@@ -220,16 +252,19 @@ fn handle_player_draws_cards(
 pub fn build_compact_trade_card_list(ui: &mut UIBuilder, trade_cards: &PlayerTradeCards) {
     let stacks = trade_cards.as_card_stacks_sorted_by_value();
     if stacks.is_empty() {
-        ui.add_text_child("(no cards)", Some(TextStyle::size_color(13.0, Color::srgb(0.5, 0.5, 0.5))));
+        ui.add_text_child(
+            "(no cards)",
+            Some(TextStyle::size_color(13.0, Color::srgb(0.5, 0.5, 0.5))),
+        );
         return;
     }
 
     // Header row
     ui.add_row(|row| {
         row.gap_px(0.0);
-        table_cell(row, "Val",   30.0, Color::srgb(0.6, 0.6, 0.6), 12.0);
-        table_cell(row, "Name",  140.0, Color::srgb(0.6, 0.6, 0.6), 12.0);
-        table_cell(row, "×N",    36.0, Color::srgb(0.6, 0.6, 0.6), 12.0);
+        table_cell(row, "Val", 30.0, Color::srgb(0.6, 0.6, 0.6), 12.0);
+        table_cell(row, "Name", 140.0, Color::srgb(0.6, 0.6, 0.6), 12.0);
+        table_cell(row, "×N", 36.0, Color::srgb(0.6, 0.6, 0.6), 12.0);
         table_cell(row, "Total", 60.0, Color::srgb(0.6, 0.6, 0.6), 12.0);
     });
 
@@ -248,10 +283,16 @@ pub fn build_compact_trade_card_list(ui: &mut UIBuilder, trade_cards: &PlayerTra
 
         ui.add_row(|row| {
             row.gap_px(0.0);
-            table_cell(row, stack.card_type.value().to_string(), 30.0, value_color, 13.0);
-            table_cell(row, stack.card_type.to_string(),         140.0, Color::WHITE, 13.0);
-            table_cell(row, count_str,                            36.0, Color::srgb(0.7, 0.9, 0.7), 13.0);
-            table_cell(row, total_str,                            60.0, Color::srgb(0.7, 0.8, 1.0), 13.0);
+            table_cell(
+                row,
+                stack.card_type.value().to_string(),
+                30.0,
+                value_color,
+                13.0,
+            );
+            table_cell(row, stack.card_type.to_string(), 140.0, Color::WHITE, 13.0);
+            table_cell(row, count_str, 36.0, Color::srgb(0.7, 0.9, 0.7), 13.0);
+            table_cell(row, total_str, 60.0, Color::srgb(0.7, 0.8, 1.0), 13.0);
         });
     }
 }
@@ -271,7 +312,13 @@ fn update_hud_dynamic(
     game_info: Res<GameInfoAndStuff>,
     // Human player stats
     human_query: Query<
-        (&TokenStock, &Treasury, &ShipStock, &PlayerAreas, &PlayerCities),
+        (
+            &TokenStock,
+            &Treasury,
+            &ShipStock,
+            &PlayerAreas,
+            &PlayerCities,
+        ),
         With<IsHuman>,
     >,
     human_manual_expansion_query: Query<Has<ExpandManually>, With<IsHuman>>,
@@ -298,11 +345,15 @@ fn update_hud_dynamic(
             let treasury_count = treasury.tokens_in_treasury();
             let ships = ship_stock.count_in_stock();
 
-            info_row(&mut ui, "Population:",   pop.to_string());
-            info_row(&mut ui, "Cities:",        cities.to_string());
+            info_row(&mut ui, "Population:", pop.to_string());
+            info_row(&mut ui, "Cities:", cities.to_string());
             info_row(&mut ui, "Tokens in stock:", tokens.to_string());
-            info_row(&mut ui, "Treasury:",      treasury_count.to_string());
-            info_row(&mut ui, "Ships in stock:", format!("{} / {}", ships, ShipStock::MAX_SHIPS));
+            info_row(&mut ui, "Treasury:", treasury_count.to_string());
+            info_row(
+                &mut ui,
+                "Ships in stock:",
+                format!("{} / {}", ships, ShipStock::MAX_SHIPS),
+            );
         } else {
             ui.add_text_child("No human player", None);
         }
@@ -356,7 +407,14 @@ fn update_census_status(
     current_activity: Option<Res<State<GameActivity>>>,
     game_info: Res<GameInfoAndStuff>,
     player_query: Query<
-        (&Name, &PlayerAreas, &PlayerCities, &PlayerTradeCards, &Faction, Has<IsHuman>),
+        (
+            &Name,
+            &PlayerAreas,
+            &PlayerCities,
+            &PlayerTradeCards,
+            &Faction,
+            Has<IsHuman>,
+        ),
         With<Player>,
     >,
     needs_expansion_query: Query<Entity, With<NeedsExpansion>>,
@@ -375,17 +433,18 @@ fn update_census_status(
     let Ok(census_entity) = census_query.single() else {
         return;
     };
-    let mut ui = UIBuilder::start_from_entity(commands, census_entity, true, Some(ui_theme.clone()));
+    let mut ui =
+        UIBuilder::start_from_entity(commands, census_entity, true, Some(ui_theme.clone()));
 
     // Header row
     ui.add_row(|row| {
         row.gap_px(0.0);
-        table_cell(row, "#",       22.0,  Color::srgb(0.6, 0.6, 0.6), 11.0);
-        table_cell(row, "Player",  160.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
-        table_cell(row, "Pop",      44.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
-        table_cell(row, "Cit",      44.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
-        table_cell(row, "Crd",      44.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
-        table_cell(row, "Status",   70.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
+        table_cell(row, "#", 22.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
+        table_cell(row, "Player", 160.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
+        table_cell(row, "Pop", 44.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
+        table_cell(row, "Cit", 44.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
+        table_cell(row, "Crd", 44.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
+        table_cell(row, "Status", 70.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
     });
 
     for (i, player_entity) in game_info.census_order.iter().enumerate() {
@@ -414,12 +473,12 @@ fn update_census_status(
 
             ui.add_row(|row| {
                 row.gap_px(0.0);
-                table_cell(row, (i + 1).to_string(), 22.0,  color, 12.0);
-                table_cell(row, display_name,         160.0, color, 12.0);
-                table_cell(row, pop.to_string(),       44.0, Color::WHITE, 12.0);
-                table_cell(row, cities.to_string(),    44.0, Color::WHITE, 12.0);
-                table_cell(row, cards.to_string(),     44.0, Color::WHITE, 12.0);
-                table_cell(row, status_text,            70.0, status_color, 12.0);
+                table_cell(row, (i + 1).to_string(), 22.0, color, 12.0);
+                table_cell(row, display_name, 160.0, color, 12.0);
+                table_cell(row, pop.to_string(), 44.0, Color::WHITE, 12.0);
+                table_cell(row, cities.to_string(), 44.0, Color::WHITE, 12.0);
+                table_cell(row, cards.to_string(), 44.0, Color::WHITE, 12.0);
+                table_cell(row, status_text, 70.0, status_color, 12.0);
             });
         }
     }
@@ -478,8 +537,10 @@ fn info_row(ui: &mut UIBuilder, label: &str, value: String) {
     ui.add_row(|row| {
         row.gap_px(4.0);
         row.with_child(|c| {
-            c.width_px(130.0)
-                .with_text(label, Some(TextStyle::size_color(13.0, Color::srgb(0.6, 0.6, 0.6))));
+            c.width_px(130.0).with_text(
+                label,
+                Some(TextStyle::size_color(13.0, Color::srgb(0.6, 0.6, 0.6))),
+            );
         });
         row.with_child(|c| {
             c.with_text(value, Some(TextStyle::size(13.0)));
@@ -535,7 +596,11 @@ pub fn build_trade_card(ui: &mut UIBuilder, stack: &PlayerCardStack) {
                 Some(TextStyle::size(medium_font_size)),
             );
             card.add_text_child(
-                if stack.is_tradeable { "Tradeable" } else { "Non-Tradeable" },
+                if stack.is_tradeable {
+                    "Tradeable"
+                } else {
+                    "Non-Tradeable"
+                },
                 Some(TextStyle::size(small_font_size)),
             );
         }

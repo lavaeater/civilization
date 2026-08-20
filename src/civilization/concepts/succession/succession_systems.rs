@@ -1,14 +1,16 @@
+use crate::GameActivity;
+use crate::civilization::PlayerCities;
 use crate::civilization::components::{Faction, Treasury};
 use crate::civilization::concepts::acquire_trade_cards::PlayerTradeCards;
 use crate::civilization::concepts::census::GameInfoAndStuff;
-use crate::civilization::concepts::civ_cards::{AvailableCivCards, CivCardType, PlayerCivilizationCards};
+use crate::civilization::concepts::civ_cards::{
+    AvailableCivCards, CivCardType, PlayerCivilizationCards,
+};
 use crate::civilization::concepts::succession::succession_components::{
     AstEpoch, AstPosition, AstTrack, GameResult, RoundLimit,
 };
-use crate::civilization::PlayerCities;
 use crate::player::Player;
-use crate::GameActivity;
-use bevy::prelude::{info, Commands, Name, NextState, Query, Res, ResMut, With};
+use bevy::prelude::{Commands, Name, NextState, Query, Res, ResMut, With, info};
 use enumflags2::BitFlags;
 
 /// Advances (or retreats) each player's AST marker at the end of a round (rule 33.1–33.4).
@@ -69,7 +71,10 @@ pub fn advance_succession_markers(
         } else if city_count == 0 && current_epoch != AstEpoch::StoneAge {
             // No cities outside the Stone Age → retreat one space (rule 33.4).
             position.space = position.space.saturating_sub(1);
-            info!("[AST] Player retreated to space {} (no cities)", position.space);
+            info!(
+                "[AST] Player retreated to space {} (no cities)",
+                position.space
+            );
         } else {
             info!(
                 "[AST] Player frozen at space {} (entering {} needs {} cities, has {})",

@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::civilization::concepts::resolve_calamities::calamities::civil_war::FactionChoice;
+use bevy::prelude::*;
 
 /// Marks the player entity that is currently waiting for a human to complete
 /// a calamity selection. The advance systems check `Has<AwaitingHumanCalamitySelection>`
@@ -84,7 +84,9 @@ impl CalamitySelectionState {
     }
 
     pub fn toggle_current(&mut self) {
-        let Some(city) = self.current_city() else { return };
+        let Some(city) = self.current_city() else {
+            return;
+        };
         if let Some(pos) = self.selected_cities.iter().position(|&c| c == city) {
             self.selected_cities.remove(pos);
         } else if self.selected_cities.len() < self.required_count {
@@ -93,7 +95,9 @@ impl CalamitySelectionState {
     }
 
     pub fn is_current_selected(&self) -> bool {
-        let Some(city) = self.current_city() else { return false };
+        let Some(city) = self.current_city() else {
+            return false;
+        };
         self.selected_cities.contains(&city)
     }
 
@@ -229,9 +233,11 @@ impl CivilWarSelectionState {
         if self.selected_token_count < self.total_available_tokens {
             let headroom = match self.role {
                 CivilWarUiRole::Victim | CivilWarUiRole::ChooseFaction => usize::MAX,
-                CivilWarUiRole::Beneficiary => self.target_points.saturating_sub(
-                    self.selected_cities.len() * 5 + self.selected_token_count,
-                ) + self.selected_token_count,
+                CivilWarUiRole::Beneficiary => {
+                    self.target_points
+                        .saturating_sub(self.selected_cities.len() * 5 + self.selected_token_count)
+                        + self.selected_token_count
+                }
             };
             if self.selected_token_count < headroom {
                 self.selected_token_count += 1;
@@ -266,7 +272,9 @@ impl CivilWarSelectionState {
     }
 
     pub fn toggle_current_city(&mut self) {
-        let Some(city) = self.current_city() else { return };
+        let Some(city) = self.current_city() else {
+            return;
+        };
         if let Some(pos) = self.selected_cities.iter().position(|&c| c == city) {
             self.selected_cities.remove(pos);
         } else {
@@ -281,7 +289,9 @@ impl CivilWarSelectionState {
     }
 
     pub fn is_current_city_selected(&self) -> bool {
-        let Some(city) = self.current_city() else { return false };
+        let Some(city) = self.current_city() else {
+            return false;
+        };
         self.selected_cities.contains(&city)
     }
 
@@ -347,11 +357,7 @@ pub struct MonotheismSelectionState {
 }
 
 impl MonotheismSelectionState {
-    pub fn populate(
-        &mut self,
-        player: Entity,
-        candidates: Vec<(Entity, Entity)>,
-    ) {
+    pub fn populate(&mut self, player: Entity, candidates: Vec<(Entity, Entity)>) {
         self.player = Some(player);
         self.candidates = candidates;
         self.selected.clear();
@@ -383,7 +389,9 @@ impl MonotheismSelectionState {
     }
 
     pub fn toggle_current(&mut self) {
-        let Some((token, _)) = self.current_candidate() else { return };
+        let Some((token, _)) = self.current_candidate() else {
+            return;
+        };
         if let Some(pos) = self.selected.iter().position(|&t| t == token) {
             self.selected.remove(pos);
         } else if self.selected.len() < 2 {
@@ -392,7 +400,9 @@ impl MonotheismSelectionState {
     }
 
     pub fn is_current_selected(&self) -> bool {
-        let Some((token, _)) = self.current_candidate() else { return false };
+        let Some((token, _)) = self.current_candidate() else {
+            return false;
+        };
         self.selected.contains(&token)
     }
 
@@ -493,7 +503,10 @@ impl FloodSelectionState {
     pub fn populate(&mut self, player: Entity, victims: Vec<(Entity, usize)>, total_budget: usize) {
         self.acting_player = Some(player);
         self.total_budget = total_budget;
-        self.victims = victims.into_iter().map(|(e, available)| (e, available, 0)).collect();
+        self.victims = victims
+            .into_iter()
+            .map(|(e, available)| (e, available, 0))
+            .collect();
         self.current_victim_index = 0;
     }
 
@@ -502,7 +515,10 @@ impl FloodSelectionState {
     }
 
     pub fn allocated_total(&self) -> usize {
-        self.victims.iter().map(|&(_, _, allocated)| allocated).sum()
+        self.victims
+            .iter()
+            .map(|&(_, _, allocated)| allocated)
+            .sum()
     }
 
     pub fn remaining_budget(&self) -> usize {
@@ -568,7 +584,11 @@ impl FloodSelectionState {
 
     /// Returns the (victim, allocated_points) list and clears the state.
     pub fn take_result(&mut self) -> Vec<(Entity, usize)> {
-        let result = self.victims.iter().map(|&(e, _, allocated)| (e, allocated)).collect();
+        let result = self
+            .victims
+            .iter()
+            .map(|&(e, _, allocated)| (e, allocated))
+            .collect();
         self.clear();
         result
     }
@@ -627,7 +647,10 @@ impl FamineSelectionState {
     pub fn populate(&mut self, player: Entity, victims: Vec<(Entity, usize)>, total_budget: usize) {
         self.acting_player = Some(player);
         self.total_budget = total_budget;
-        self.victims = victims.into_iter().map(|(e, available)| (e, available, 0)).collect();
+        self.victims = victims
+            .into_iter()
+            .map(|(e, available)| (e, available, 0))
+            .collect();
         self.current_victim_index = 0;
     }
 
@@ -636,7 +659,10 @@ impl FamineSelectionState {
     }
 
     pub fn allocated_total(&self) -> usize {
-        self.victims.iter().map(|&(_, _, allocated)| allocated).sum()
+        self.victims
+            .iter()
+            .map(|&(_, _, allocated)| allocated)
+            .sum()
     }
 
     pub fn remaining_budget(&self) -> usize {
@@ -702,7 +728,11 @@ impl FamineSelectionState {
 
     /// Returns the (victim, allocated_points) list and clears the state.
     pub fn take_result(&mut self) -> Vec<(Entity, usize)> {
-        let result = self.victims.iter().map(|&(e, _, allocated)| (e, allocated)).collect();
+        let result = self
+            .victims
+            .iter()
+            .map(|&(e, _, allocated)| (e, allocated))
+            .collect();
         self.clear();
         result
     }
@@ -866,7 +896,10 @@ impl EpidemicSelectionState {
     pub fn populate(&mut self, player: Entity, victims: Vec<(Entity, usize)>, total_budget: usize) {
         self.acting_player = Some(player);
         self.total_budget = total_budget;
-        self.victims = victims.into_iter().map(|(e, available)| (e, available, 0)).collect();
+        self.victims = victims
+            .into_iter()
+            .map(|(e, available)| (e, available, 0))
+            .collect();
         self.current_victim_index = 0;
     }
 
@@ -875,7 +908,10 @@ impl EpidemicSelectionState {
     }
 
     pub fn allocated_total(&self) -> usize {
-        self.victims.iter().map(|&(_, _, allocated)| allocated).sum()
+        self.victims
+            .iter()
+            .map(|&(_, _, allocated)| allocated)
+            .sum()
     }
 
     pub fn remaining_budget(&self) -> usize {
@@ -941,7 +977,11 @@ impl EpidemicSelectionState {
 
     /// Returns the (victim, allocated_points) list and clears the state.
     pub fn take_result(&mut self) -> Vec<(Entity, usize)> {
-        let result = self.victims.iter().map(|&(e, _, allocated)| (e, allocated)).collect();
+        let result = self
+            .victims
+            .iter()
+            .map(|&(e, _, allocated)| (e, allocated))
+            .collect();
         self.clear();
         result
     }
@@ -1245,7 +1285,10 @@ impl UnitLossSelectionState {
     }
 
     pub fn cities_allocated(&self) -> usize {
-        self.cities.iter().filter(|&&(_, selected)| selected).count()
+        self.cities
+            .iter()
+            .filter(|&&(_, selected)| selected)
+            .count()
     }
 
     pub fn total_available(&self) -> usize {
@@ -1299,7 +1342,8 @@ impl UnitLossSelectionState {
     }
 
     pub fn remaining(&self) -> usize {
-        self.minimal_valid_total().saturating_sub(self.allocated_total())
+        self.minimal_valid_total()
+            .saturating_sub(self.allocated_total())
     }
 
     pub fn current_area(&self) -> Option<(Entity, usize, usize)> {
@@ -1520,7 +1564,10 @@ mod unit_loss_selection_state_tests {
 
         state.toggle_current_city();
         assert_eq!(state.allocated_total(), 5);
-        assert!(state.selection_valid(), "5 for a 3-point loss: no smaller option exists");
+        assert!(
+            state.selection_valid(),
+            "5 for a 3-point loss: no smaller option exists"
+        );
 
         state.next_city();
         state.toggle_current_city();
@@ -1536,7 +1583,10 @@ mod unit_loss_selection_state_tests {
         state.populate(e(1), "Famine", vec![(e(2), 9)], vec![e(3)], 3);
 
         state.toggle_current_city();
-        assert!(!state.selection_valid(), "5 points for a 3-point loss with tokens available");
+        assert!(
+            !state.selection_valid(),
+            "5 points for a 3-point loss with tokens available"
+        );
 
         state.toggle_current_city();
         for _ in 0..3 {

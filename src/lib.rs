@@ -1,13 +1,13 @@
 #![allow(clippy::type_complexity)]
 
+pub mod agent_api;
 pub mod audio;
+pub mod civilization;
 pub mod loading;
 pub mod menu;
-pub mod player;
-pub mod civilization;
-pub mod stupid_ai;
-pub mod agent_api;
 pub mod network_client;
+pub mod player;
+pub mod stupid_ai;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
@@ -40,7 +40,18 @@ pub enum GameState {
 #[derive(Resource, Default)]
 pub struct GamePaused;
 
-#[derive(SubStates, Clone, PartialEq, Eq, Hash, Debug, Default, Reflect, serde::Serialize, serde::Deserialize)]
+#[derive(
+    SubStates,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Default,
+    Reflect,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 #[source(GameState = GameState::Playing)]
 pub enum GameActivity {
     #[default]
@@ -100,9 +111,7 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_state::<GameState>()
-            .add_plugins((
+        app.init_state::<GameState>().add_plugins((
             LoadingPlugin,
             MenuPlugin,
             SandboxPlugin,
@@ -112,9 +121,7 @@ impl Plugin for GamePlugin {
 
         #[cfg(debug_assertions)]
         {
-            app.add_plugins((
-                LogDiagnosticsPlugin::default(),
-            ));
+            app.add_plugins((LogDiagnosticsPlugin::default(),));
         }
     }
 }

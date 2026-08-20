@@ -1,5 +1,5 @@
 use crate::GameActivity;
-use bevy::prelude::{in_state, App, IntoScheduleConfigs, OnEnter, OnExit, Plugin, Update};
+use bevy::prelude::{App, IntoScheduleConfigs, OnEnter, OnExit, Plugin, Update, in_state};
 
 use crate::civilization::concepts::resolve_calamities::calamities::ResolvingCalamity;
 use crate::civilization::concepts::resolve_calamities::context::ActiveCalamityResolution;
@@ -19,8 +19,7 @@ pub struct ResolveCalamitiesPlugin;
 
 impl Plugin for ResolveCalamitiesPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_message::<ResolveNextCalamity>()
+        app.add_message::<ResolveNextCalamity>()
             .add_message::<VolcanoEruption>()
             .add_message::<Earthquake>()
             .add_message::<CalamityResolved>()
@@ -58,6 +57,7 @@ impl Plugin for ResolveCalamitiesPlugin {
                     focus_camera_on_calamity_selection,
                     focus_camera_on_unit_loss_selection,
                     focus_camera_on_monotheism_selection,
+                    focus_camera_on_civil_war_selection,
                 )
                     .run_if(in_state(GameActivity::ResolveCalamities)),
             )
@@ -88,7 +88,8 @@ impl Plugin for ResolveCalamitiesPlugin {
                     advance_superstition,
                     advance_slave_revolt,
                     advance_civil_disorder,
-                ).run_if(in_state(GameActivity::ResolveCalamities)),
+                )
+                    .run_if(in_state(GameActivity::ResolveCalamities)),
             )
             .add_systems(
                 Update,
@@ -114,7 +115,8 @@ impl Plugin for ResolveCalamitiesPlugin {
                     update_civil_war_selection_ui,
                     handle_civil_war_selection_buttons,
                     cleanup_civil_war_selection_ui,
-                ).run_if(in_state(GameActivity::ResolveCalamities)),
+                )
+                    .run_if(in_state(GameActivity::ResolveCalamities)),
             )
             .add_systems(
                 Update,
@@ -143,7 +145,8 @@ impl Plugin for ResolveCalamitiesPlugin {
                     update_epidemic_selection_ui,
                     handle_epidemic_selection_buttons,
                     cleanup_epidemic_selection_ui,
-                ).run_if(in_state(GameActivity::ResolveCalamities)),
+                )
+                    .run_if(in_state(GameActivity::ResolveCalamities)),
             );
     }
 }

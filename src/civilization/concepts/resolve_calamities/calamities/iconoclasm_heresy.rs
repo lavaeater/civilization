@@ -119,20 +119,40 @@ mod tests {
     #[test]
     fn law_and_philosophy_each_reduce_by_1() {
         assert_eq!(IconoclasmHeresyState::new().with_law().cities_to_reduce, 3);
-        assert_eq!(IconoclasmHeresyState::new().with_philosophy().cities_to_reduce, 3);
+        assert_eq!(
+            IconoclasmHeresyState::new()
+                .with_philosophy()
+                .cities_to_reduce,
+            3
+        );
     }
 
     /// Rule 30.814: Theology reduces primary cities by 3.
     #[test]
     fn theology_reduces_by_3() {
-        assert_eq!(IconoclasmHeresyState::new().with_theology().cities_to_reduce, 1);
+        assert_eq!(
+            IconoclasmHeresyState::new()
+                .with_theology()
+                .cities_to_reduce,
+            1
+        );
     }
 
     /// Rule 30.815/30.816: Monotheism and Road Building each increase primary cities by 1.
     #[test]
     fn monotheism_and_road_building_each_increase_by_1() {
-        assert_eq!(IconoclasmHeresyState::new().with_monotheism().cities_to_reduce, 5);
-        assert_eq!(IconoclasmHeresyState::new().with_road_building().cities_to_reduce, 5);
+        assert_eq!(
+            IconoclasmHeresyState::new()
+                .with_monotheism()
+                .cities_to_reduce,
+            5
+        );
+        assert_eq!(
+            IconoclasmHeresyState::new()
+                .with_road_building()
+                .cities_to_reduce,
+            5
+        );
     }
 
     /// Rule 30.817: all modifiers are cumulative.
@@ -179,6 +199,9 @@ mod tests {
             .with_philosophy();
         assert_eq!(negatives_first.cities_to_reduce, 1);
         assert_eq!(positives_first.cities_to_reduce, 1);
-        assert_eq!(negatives_first.cities_to_reduce, positives_first.cities_to_reduce);
+        assert_eq!(
+            negatives_first.cities_to_reduce,
+            positives_first.cities_to_reduce
+        );
     }
 }

@@ -7,7 +7,7 @@ use crate::civilization::concepts::succession::succession_systems::{
 };
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Update};
-use bevy::prelude::{in_state, IntoScheduleConfigs, OnEnter, Plugin};
+use bevy::prelude::{IntoScheduleConfigs, OnEnter, Plugin, in_state};
 
 pub struct SuccessionPlugin;
 

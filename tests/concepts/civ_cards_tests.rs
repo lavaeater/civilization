@@ -6,11 +6,11 @@
 // tests exercise it directly through the real ECS system, not a stand-in.
 
 use adv_civ::civilization::{
-    begin_acquire_civ_cards, process_civ_card_purchase,
-    resolve_calamities::resolve_calamities_components::GrainLockedForPurchase,
     CardsHeldBeforePurchasing, CivCardName, CivCardSelectionState, CivCardsAcquisition,
     CivilizationTradeCards, ConfirmCivCardPurchase, PlayerCivilizationCards,
     PlayerDoneAcquiringCivilizationCards, PlayerTradeCards, RecalculatePlayerMoves, TradeCard,
+    begin_acquire_civ_cards, process_civ_card_purchase,
+    resolve_calamities::resolve_calamities_components::GrainLockedForPurchase,
 };
 use adv_civ::player::Player;
 use bevy::platform::collections::{HashMap, HashSet};
@@ -27,12 +27,18 @@ fn setup_app() -> App {
     app
 }
 
-fn spawn_player_with_grain(app: &mut App, grain_held: usize, grain_locked: Option<usize>) -> bevy::prelude::Entity {
+fn spawn_player_with_grain(
+    app: &mut App,
+    grain_held: usize,
+    grain_locked: Option<usize>,
+) -> bevy::prelude::Entity {
     let mut trade_cards = PlayerTradeCards::default();
     for _ in 0..grain_held {
         trade_cards.add_trade_card(TradeCard::Grain);
     }
-    let mut entity = app.world_mut().spawn((PlayerCivilizationCards::default(), trade_cards));
+    let mut entity = app
+        .world_mut()
+        .spawn((PlayerCivilizationCards::default(), trade_cards));
     if let Some(locked) = grain_locked {
         entity.insert(GrainLockedForPurchase(locked));
     }
@@ -58,7 +64,10 @@ fn fully_locked_grain_cannot_be_spent_even_if_the_message_requests_it() {
     let civ_cards = app.world().get::<PlayerCivilizationCards>(player).unwrap();
     assert!(civ_cards.owns(&CivCardName::Pottery));
     let trade_cards = app.world().get::<PlayerTradeCards>(player).unwrap();
-    assert_eq!(trade_cards.number_of_cards_for_trade_card(TradeCard::Grain), 5);
+    assert_eq!(
+        trade_cards.number_of_cards_for_trade_card(TradeCard::Grain),
+        5
+    );
 }
 
 #[test]
@@ -78,7 +87,10 @@ fn partially_locked_grain_only_the_unlocked_portion_is_spent() {
 
     let trade_cards = app.world().get::<PlayerTradeCards>(player).unwrap();
     // Only 2 (the usable amount) were removed: 5 - 2 = 3 remain.
-    assert_eq!(trade_cards.number_of_cards_for_trade_card(TradeCard::Grain), 3);
+    assert_eq!(
+        trade_cards.number_of_cards_for_trade_card(TradeCard::Grain),
+        3
+    );
 }
 
 #[test]
@@ -96,7 +108,10 @@ fn no_lock_component_allows_full_normal_grain_spending() {
     app.update();
 
     let trade_cards = app.world().get::<PlayerTradeCards>(player).unwrap();
-    assert_eq!(trade_cards.number_of_cards_for_trade_card(TradeCard::Grain), 0);
+    assert_eq!(
+        trade_cards.number_of_cards_for_trade_card(TradeCard::Grain),
+        0
+    );
 }
 
 #[test]
@@ -111,7 +126,11 @@ fn grain_lock_does_not_affect_other_commodity_types_in_the_same_payment() {
     }
     let player = app
         .world_mut()
-        .spawn((PlayerCivilizationCards::default(), trade_cards, GrainLockedForPurchase(3)))
+        .spawn((
+            PlayerCivilizationCards::default(),
+            trade_cards,
+            GrainLockedForPurchase(3),
+        ))
         .id();
 
     let mut payment = HashMap::default();
@@ -126,8 +145,14 @@ fn grain_lock_does_not_affect_other_commodity_types_in_the_same_payment() {
 
     let trade_cards = app.world().get::<PlayerTradeCards>(player).unwrap();
     // Grain fully blocked (locked), Salt spent normally.
-    assert_eq!(trade_cards.number_of_cards_for_trade_card(TradeCard::Grain), 3);
-    assert_eq!(trade_cards.number_of_cards_for_trade_card(TradeCard::Salt), 1);
+    assert_eq!(
+        trade_cards.number_of_cards_for_trade_card(TradeCard::Grain),
+        3
+    );
+    assert_eq!(
+        trade_cards.number_of_cards_for_trade_card(TradeCard::Salt),
+        1
+    );
 }
 
 // ── Rule 31.53: credits from a card can't be used the same turn it's bought ──
@@ -156,8 +181,13 @@ fn begin_acquire_snapshots_currently_held_cards() {
 
     app.update();
 
-    let snapshot = app.world().get::<CardsHeldBeforePurchasing>(player).unwrap();
-    let expected: HashSet<CivCardName> = [CivCardName::Pottery, CivCardName::Mining].into_iter().collect();
+    let snapshot = app
+        .world()
+        .get::<CardsHeldBeforePurchasing>(player)
+        .unwrap();
+    let expected: HashSet<CivCardName> = [CivCardName::Pottery, CivCardName::Mining]
+        .into_iter()
+        .collect();
     assert_eq!(snapshot.0, expected);
 }
 
@@ -168,7 +198,10 @@ fn begin_acquire_snapshots_empty_hand_for_a_player_with_no_civ_cards_yet() {
 
     app.update();
 
-    let snapshot = app.world().get::<CardsHeldBeforePurchasing>(player).unwrap();
+    let snapshot = app
+        .world()
+        .get::<CardsHeldBeforePurchasing>(player)
+        .unwrap();
     assert!(snapshot.0.is_empty());
 }
 
@@ -191,7 +224,10 @@ fn begin_acquire_snapshot_is_frozen_even_if_the_live_hand_grows_afterward() {
     // The snapshot taken at the start of the turn must not have changed --
     // this is the actual guarantee rule 31.53 needs: a card bought earlier
     // this turn can't discount a card bought later the same turn.
-    let snapshot = app.world().get::<CardsHeldBeforePurchasing>(player).unwrap();
+    let snapshot = app
+        .world()
+        .get::<CardsHeldBeforePurchasing>(player)
+        .unwrap();
     let expected: HashSet<CivCardName> = [CivCardName::Pottery].into_iter().collect();
     assert_eq!(snapshot.0, expected);
 }

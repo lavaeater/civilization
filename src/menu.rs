@@ -26,12 +26,7 @@ impl Plugin for MenuPlugin {
                 Update,
                 spawn_victory_screen.run_if(in_state(GameActivity::GameOver)),
             )
-            .add_systems(
-                Update,
-                (
-                    toggle_pause.run_if(in_state(GameState::Playing)),
-                ),
-            );
+            .add_systems(Update, (toggle_pause.run_if(in_state(GameState::Playing)),));
     }
 }
 
@@ -137,7 +132,13 @@ struct VictoryScreen;
 /// The camera is handled separately (kept for New Game, despawned for Main Menu).
 type GameWorldRoots = (
     Without<ChildOf>,
-    Or<(With<Player>, With<Token>, With<CityToken>, With<GameArea>, With<Node>)>,
+    Or<(
+        With<Player>,
+        With<Token>,
+        With<CityToken>,
+        With<GameArea>,
+        With<Node>,
+    )>,
 );
 
 fn reset_game_resources(commands: &mut Commands) {

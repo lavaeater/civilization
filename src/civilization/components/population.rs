@@ -1,5 +1,5 @@
 use bevy::platform::collections::{HashMap, HashSet};
-use bevy::prelude::{default, Component, Entity, Reflect, ReflectComponent};
+use bevy::prelude::{Component, Entity, Reflect, ReflectComponent, default};
 
 #[derive(Component, Debug, Reflect, Default)]
 #[reflect(Component)]
@@ -106,7 +106,11 @@ impl Population {
 
     /// Like `max_expansion_for_player`, but grants +1 in areas solely occupied
     /// by this player if they hold Agriculture (rule 26.11).
-    pub fn max_expansion_for_player_with_agriculture(&self, player: Entity, has_agriculture: bool) -> usize {
+    pub fn max_expansion_for_player_with_agriculture(
+        &self,
+        player: Entity,
+        has_agriculture: bool,
+    ) -> usize {
         if let Some(player_tokens) = self.player_tokens.get(&player) {
             let solely_occupied = self.player_tokens.len() == 1;
             let agriculture_bonus = usize::from(has_agriculture && solely_occupied);
@@ -400,7 +404,10 @@ mod tests {
         let p1 = create_entity();
         pop.add_token_to_area(p1, create_entity());
 
-        assert!(!pop.is_conflict_zone(false), "Single player at max should not be conflict");
+        assert!(
+            !pop.is_conflict_zone(false),
+            "Single player at max should not be conflict"
+        );
     }
 
     #[test]
@@ -411,7 +418,10 @@ mod tests {
         pop.add_token_to_area(p1, create_entity());
         pop.add_token_to_area(p1, create_entity());
 
-        assert!(!pop.is_conflict_zone(false), "Single player over max is not a conflict zone");
+        assert!(
+            !pop.is_conflict_zone(false),
+            "Single player over max is not a conflict zone"
+        );
     }
 
     #[test]
@@ -423,7 +433,10 @@ mod tests {
         pop.add_token_to_area(p1, create_entity());
         pop.add_token_to_area(p2, create_entity());
 
-        assert!(pop.is_conflict_zone(false), "Two players exceeding max=1 should be conflict");
+        assert!(
+            pop.is_conflict_zone(false),
+            "Two players exceeding max=1 should be conflict"
+        );
     }
 
     #[test]
@@ -437,7 +450,10 @@ mod tests {
         pop.add_token_to_area(p1, create_entity());
         pop.add_token_to_area(p2, create_entity());
 
-        assert!(pop.is_conflict_zone(false), "Two players with 4 tokens in max=1 should be conflict");
+        assert!(
+            pop.is_conflict_zone(false),
+            "Two players with 4 tokens in max=1 should be conflict"
+        );
     }
 
     #[test]
@@ -450,7 +466,10 @@ mod tests {
         pop.add_token_to_area(p1, create_entity());
         pop.add_token_to_area(p2, create_entity());
 
-        assert!(!pop.is_conflict_zone(false), "Two players at exactly max=3 should NOT be conflict");
+        assert!(
+            !pop.is_conflict_zone(false),
+            "Two players at exactly max=3 should NOT be conflict"
+        );
     }
 
     #[test]
@@ -464,7 +483,10 @@ mod tests {
         pop.add_token_to_area(p2, create_entity());
         pop.add_token_to_area(p2, create_entity());
 
-        assert!(pop.is_conflict_zone(false), "Two players with 4 tokens in max=3 should be conflict");
+        assert!(
+            pop.is_conflict_zone(false),
+            "Two players with 4 tokens in max=3 should be conflict"
+        );
     }
 
     #[test]
@@ -478,7 +500,10 @@ mod tests {
         pop.add_token_to_area(p2, create_entity());
         pop.add_token_to_area(p3, create_entity());
 
-        assert!(!pop.is_conflict_zone(false), "Three players at exactly max=3 should NOT be conflict");
+        assert!(
+            !pop.is_conflict_zone(false),
+            "Three players at exactly max=3 should NOT be conflict"
+        );
     }
 
     #[test]
@@ -493,21 +518,30 @@ mod tests {
         pop.add_token_to_area(p2, create_entity());
         pop.add_token_to_area(p3, create_entity());
 
-        assert!(pop.is_conflict_zone(false), "Three players with 4 tokens in max=3 should be conflict");
+        assert!(
+            pop.is_conflict_zone(false),
+            "Three players with 4 tokens in max=3 should be conflict"
+        );
     }
 
     #[test]
     fn test_is_conflict_zone_empty_area_no_city() {
         // Empty area, no city → no conflict
         let pop = Population::new(3);
-        assert!(!pop.is_conflict_zone(false), "Empty area without city should not be conflict");
+        assert!(
+            !pop.is_conflict_zone(false),
+            "Empty area without city should not be conflict"
+        );
     }
 
     #[test]
     fn test_is_conflict_zone_empty_area_with_city() {
         // Empty area with city → no conflict (no population)
         let pop = Population::new(3);
-        assert!(!pop.is_conflict_zone(true), "Empty area with city should not be conflict");
+        assert!(
+            !pop.is_conflict_zone(true),
+            "Empty area with city should not be conflict"
+        );
     }
 
     #[test]
@@ -517,7 +551,10 @@ mod tests {
         let owner = create_entity();
         pop.add_token_to_area(owner, create_entity());
 
-        assert!(pop.is_conflict_zone(true), "City with owner tokens should be conflict zone");
+        assert!(
+            pop.is_conflict_zone(true),
+            "City with owner tokens should be conflict zone"
+        );
     }
 
     #[test]
@@ -529,7 +566,10 @@ mod tests {
         pop.add_token_to_area(owner, create_entity());
         pop.add_token_to_area(invader, create_entity());
 
-        assert!(pop.is_conflict_zone(true), "City with invader should be conflict zone");
+        assert!(
+            pop.is_conflict_zone(true),
+            "City with invader should be conflict zone"
+        );
     }
 
     #[test]
@@ -541,7 +581,10 @@ mod tests {
         pop.add_token_to_area(p1, create_entity());
         pop.add_token_to_area(p2, create_entity());
 
-        assert!(!pop.is_conflict_zone(false), "Two players at exactly max=2 should NOT be conflict");
+        assert!(
+            !pop.is_conflict_zone(false),
+            "Two players at exactly max=2 should NOT be conflict"
+        );
     }
 
     #[test]
@@ -554,7 +597,10 @@ mod tests {
         pop.add_token_to_area(p1, create_entity());
         pop.add_token_to_area(p2, create_entity());
 
-        assert!(pop.is_conflict_zone(false), "Two players with 3 tokens in max=2 should be conflict");
+        assert!(
+            pop.is_conflict_zone(false),
+            "Two players with 3 tokens in max=2 should be conflict"
+        );
     }
 
     #[test]
@@ -571,11 +617,17 @@ mod tests {
         pop.add_token_to_area(p2, create_entity());
         pop.add_token_to_area(p2, create_entity());
 
-        assert!(!pop.is_conflict_zone(false), "Two players at exactly max=5 should NOT be conflict");
+        assert!(
+            !pop.is_conflict_zone(false),
+            "Two players at exactly max=5 should NOT be conflict"
+        );
 
         // Add one more to go over
         pop.add_token_to_area(p2, create_entity());
-        assert!(pop.is_conflict_zone(false), "Two players with 6 tokens in max=5 should be conflict");
+        assert!(
+            pop.is_conflict_zone(false),
+            "Two players with 6 tokens in max=5 should be conflict"
+        );
     }
 
     #[test]
@@ -589,7 +641,13 @@ mod tests {
         pop.add_token_to_area(p1, create_entity());
         pop.add_token_to_area(p1, create_entity());
 
-        assert!(!pop.is_conflict_zone(false), "Single player over max is NOT a conflict zone");
-        assert!(pop.has_too_many_tokens(), "But should have too many tokens for surplus removal");
+        assert!(
+            !pop.is_conflict_zone(false),
+            "Single player over max is NOT a conflict zone"
+        );
+        assert!(
+            pop.has_too_many_tokens(),
+            "But should have too many tokens for surplus removal"
+        );
     }
 }

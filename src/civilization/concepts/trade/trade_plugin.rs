@@ -1,10 +1,12 @@
-use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
-use crate::civilization::concepts::trade::trade_resources::{CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState};
-use crate::civilization::concepts::trade::trade_triggers::{can_trade_removed, offer_published};
 use crate::GameActivity;
-use bevy::app::App;
-use bevy::prelude::{in_state, IntoScheduleConfigs, OnEnter, OnExit, Plugin, Update};
+use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
+use crate::civilization::concepts::trade::trade_resources::{
+    CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState,
+};
 use crate::civilization::concepts::trade::trade_systems::*;
+use crate::civilization::concepts::trade::trade_triggers::{can_trade_removed, offer_published};
+use bevy::app::App;
+use bevy::prelude::{IntoScheduleConfigs, OnEnter, OnExit, Plugin, Update, in_state};
 
 pub struct TradePlugin;
 
@@ -15,7 +17,10 @@ impl Plugin for TradePlugin {
             .init_resource::<TradePhaseState>()
             .init_resource::<CreateOfferState>()
             .add_message::<SendTradingCardsCommand>()
-            .add_systems(OnEnter(GameActivity::Trade), (setup_trade, setup_trade_phase_ui))
+            .add_systems(
+                OnEnter(GameActivity::Trade),
+                (setup_trade, setup_trade_phase_ui),
+            )
             .add_systems(OnExit(GameActivity::Trade), cleanup_trade_phase_ui)
             .add_systems(
                 Update,

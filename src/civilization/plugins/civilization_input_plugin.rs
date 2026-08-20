@@ -1,5 +1,5 @@
-use crate::civilization::{ActivityDisplay, CensusDisplay, PlayerInfoDisplay, TradeCardList};
 use crate::GameActivity;
+use crate::civilization::{ActivityDisplay, CensusDisplay, PlayerInfoDisplay, TradeCardList};
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 use lava_ui_builder::{Collapsible, CollapsibleContent};

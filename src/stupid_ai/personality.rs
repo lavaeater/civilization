@@ -108,10 +108,7 @@ impl Personality {
     /// Build a personality from a named archetype.
     pub fn from_playstyle(playstyle: Playstyle) -> Self {
         let (weights, picker) = match playstyle {
-            Playstyle::Balanced => (
-                Weights::uniform(0.5),
-                Picker::Softmax { temperature: 0.35 },
-            ),
+            Playstyle::Balanced => (Weights::uniform(0.5), Picker::Softmax { temperature: 0.35 }),
             Playstyle::Warlord => (
                 Weights {
                     aggression: 0.95,

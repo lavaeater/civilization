@@ -432,7 +432,7 @@ impl CityTokenStock {
     pub fn return_token_to_stock(&mut self, token: Entity) {
         self.tokens.push(token);
     }
-    
+
     pub fn city_tokens_in_stock(&self) -> usize {
         self.tokens.len()
     }

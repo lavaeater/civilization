@@ -2,7 +2,7 @@ use crate::civilization::components::*;
 use crate::civilization::concepts::BuildCityCommand;
 use bevy::asset::Handle;
 use bevy::math::Vec3;
-use bevy::prelude::{default, Commands, Entity, Image, Mut, Sprite, Transform};
+use bevy::prelude::{Commands, Entity, Image, Mut, Sprite, Transform, default};
 
 pub fn move_from_stock_to_area(
     player: Entity,

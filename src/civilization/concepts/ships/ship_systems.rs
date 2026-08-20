@@ -1,4 +1,5 @@
 use crate::GameActivity;
+use crate::civilization::CivCardName;
 use crate::civilization::components::{
     GameArea, PlayerAreas, Population, ReturnTokenToStock, SeaPassage, Treasury,
 };
@@ -8,7 +9,6 @@ use crate::civilization::concepts::ships::ship_components::{PlayerShips, Ship, S
 use crate::civilization::concepts::ships::ship_ui_components::{
     AwaitingShipPlacement, ShipConstructionState,
 };
-use crate::civilization::CivCardName;
 use crate::loading::TextureAssets;
 use crate::player::Player;
 use crate::stupid_ai::{AgentControlled, IsHuman};
@@ -21,7 +21,10 @@ use bevy::prelude::{
 /// preserved as the tiebreaker within each group. `census_order` is already
 /// sorted highest-population-first by `perform_census`; this only needs to
 /// stable-sort Military holders to the back without disturbing that order.
-pub fn ship_build_order(census_order: &[Entity], has_military: impl Fn(Entity) -> bool) -> Vec<Entity> {
+pub fn ship_build_order(
+    census_order: &[Entity],
+    has_military: impl Fn(Entity) -> bool,
+) -> Vec<Entity> {
     let mut ordered: Vec<Entity> = census_order.to_vec();
     ordered.sort_by_key(|&e| has_military(e));
     ordered
@@ -111,7 +114,9 @@ pub fn enter_ship_construction(
     // without running the Census phase first) is appended afterward in query
     // order, so nobody is silently skipped.
     let mut build_order = ship_build_order(&game_info.census_order, |e| {
-        civ_cards_query.get(e).is_ok_and(|c| c.owns(&CivCardName::Military))
+        civ_cards_query
+            .get(e)
+            .is_ok_and(|c| c.owns(&CivCardName::Military))
     });
     let already_ordered: bevy::platform::collections::HashSet<Entity> =
         build_order.iter().copied().collect();
@@ -416,7 +421,8 @@ mod tests {
         assert_eq!(treasury.tokens_in_treasury(), 1);
 
         // Simulate the maintenance payment (rule 22.3): treasury preferred.
-        let paid = treasury.tokens_in_treasury() >= 1 && treasury.remove_token_from_treasury().is_some();
+        let paid =
+            treasury.tokens_in_treasury() >= 1 && treasury.remove_token_from_treasury().is_some();
 
         assert!(paid);
         assert_eq!(treasury.tokens_in_treasury(), 0);
@@ -440,8 +446,8 @@ mod tests {
         assert_eq!(player_ships.total_ships_on_board(), 1);
 
         // Simulate: treasury has nothing, area has nothing to levy -> unpaid.
-        let paid = treasury.tokens_in_treasury() >= 1
-            || population.population_for_player(player) > 0;
+        let paid =
+            treasury.tokens_in_treasury() >= 1 || population.population_for_player(player) > 0;
         assert!(!paid);
 
         if !paid && let Some(unpaid_ship) = player_ships.remove_ship_from_area(area) {

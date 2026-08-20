@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::civilization::components::GameCamera;
+use bevy::prelude::*;
 
 /// Resource that holds a queue of positions the camera should focus on
 #[derive(Resource, Default)]
@@ -34,18 +34,23 @@ pub enum CameraFocusState {
 }
 
 impl CameraFocusQueue {
-    pub fn add_focus(&mut self, position: Vec3, hold_duration: f32, description: impl Into<String>) {
+    pub fn add_focus(
+        &mut self,
+        position: Vec3,
+        hold_duration: f32,
+        description: impl Into<String>,
+    ) {
         self.targets.push(CameraFocusTarget {
             position,
             hold_duration,
             description: description.into(),
         });
     }
-    
+
     pub fn is_busy(&self) -> bool {
         !matches!(self.state, CameraFocusState::Idle) || !self.targets.is_empty()
     }
-    
+
     pub fn clear(&mut self) {
         self.targets.clear();
         self.state = CameraFocusState::Idle;
@@ -61,9 +66,9 @@ pub fn process_camera_focus(
     let Ok(mut camera_transform) = camera_query.single_mut() else {
         return;
     };
-    
+
     let dt = time.delta_secs();
-    
+
     match &mut focus_queue.state {
         CameraFocusState::Idle => {
             if let Some(target) = focus_queue.targets.first().cloned() {
@@ -71,7 +76,7 @@ pub fn process_camera_focus(
                 let start_position = camera_transform.translation;
                 let distance = start_position.distance(target.position);
                 let move_duration = (distance / 500.0).clamp(0.3, 1.5);
-                
+
                 info!("[CAMERA] Focusing on: {}", target.description);
                 focus_queue.state = CameraFocusState::MovingTo {
                     target,
@@ -81,13 +86,18 @@ pub fn process_camera_focus(
                 };
             }
         }
-        CameraFocusState::MovingTo { target, start_position, elapsed, move_duration } => {
+        CameraFocusState::MovingTo {
+            target,
+            start_position,
+            elapsed,
+            move_duration,
+        } => {
             *elapsed += dt;
             let t = (*elapsed / *move_duration).min(1.0);
             let eased_t = ease_out_cubic(t);
-            
+
             camera_transform.translation = start_position.lerp(target.position, eased_t);
-            
+
             if t >= 1.0 {
                 camera_transform.translation = target.position;
                 focus_queue.state = CameraFocusState::Holding {

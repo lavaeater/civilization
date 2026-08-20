@@ -1,9 +1,9 @@
 use crate::{setup_bevy_app, setup_player};
-use adv_civ::civilization::{
-    advance_succession_markers, AstPosition, AstTrack, GameFaction, GameInfoAndStuff,
-    PlayerCities, RoundLimit,
-};
 use adv_civ::GameActivity;
+use adv_civ::civilization::{
+    AstPosition, AstTrack, GameFaction, GameInfoAndStuff, PlayerCities, RoundLimit,
+    advance_succession_markers,
+};
 use bevy::app::Update;
 use bevy::prelude::NextState::Pending;
 use bevy::prelude::{Entity, NextState};
@@ -41,7 +41,9 @@ fn player_advances_in_stone_age_with_one_city() {
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
     add_cities(&mut app, player, 1);
     // START (0) → 1, still Stone Age
-    app.world_mut().entity_mut(player).insert(AstPosition::new(0));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(0));
 
     app.update();
 
@@ -55,7 +57,9 @@ fn player_frozen_at_early_bronze_threshold_with_one_city() {
     let mut app = setup_app();
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
     add_cities(&mut app, player, 1);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(4));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(4));
 
     app.update();
 
@@ -68,12 +72,17 @@ fn player_enters_early_bronze_with_two_cities() {
     let mut app = setup_app();
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
     add_cities(&mut app, player, 2);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(4));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(4));
 
     app.update();
 
     let pos = app.world().entity(player).get::<AstPosition>().unwrap();
-    assert_eq!(pos.space, 5, "should advance into Early Bronze with 2 cities");
+    assert_eq!(
+        pos.space, 5,
+        "should advance into Early Bronze with 2 cities"
+    );
 }
 
 #[test]
@@ -81,7 +90,9 @@ fn player_retreats_when_no_cities() {
     let mut app = setup_app();
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
     // No cities
-    app.world_mut().entity_mut(player).insert(AstPosition::new(5));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(5));
 
     app.update();
 
@@ -96,12 +107,17 @@ fn player_with_no_cities_still_advances_in_stone_age() {
     let mut app = setup_app();
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
     // No cities, at START
-    app.world_mut().entity_mut(player).insert(AstPosition::new(0));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(0));
 
     app.update();
 
     let pos = app.world().entity(player).get::<AstPosition>().unwrap();
-    assert_eq!(pos.space, 1, "city-less marker advances through the Stone Age");
+    assert_eq!(
+        pos.space, 1,
+        "city-less marker advances through the Stone Age"
+    );
 }
 
 #[test]
@@ -111,12 +127,17 @@ fn player_with_no_cities_freezes_at_bronze_threshold() {
     // does not retreat either — it freezes.
     let mut app = setup_app();
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(4));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(4));
 
     app.update();
 
     let pos = app.world().entity(player).get::<AstPosition>().unwrap();
-    assert_eq!(pos.space, 4, "city-less marker freezes at the Bronze threshold");
+    assert_eq!(
+        pos.space, 4,
+        "city-less marker freezes at the Bronze threshold"
+    );
 }
 
 #[test]
@@ -124,7 +145,9 @@ fn finished_marker_stays_at_finish() {
     let mut app = setup_app();
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
     add_cities(&mut app, player, 9);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(16));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(16));
 
     app.update();
 
@@ -142,11 +165,16 @@ fn game_ends_when_a_marker_is_already_at_finish() {
     let mut app = setup_app();
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
     add_cities(&mut app, player, 9);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(16));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(16));
 
     app.update();
 
-    let state = app.world().get_resource::<NextState<GameActivity>>().unwrap();
+    let state = app
+        .world()
+        .get_resource::<NextState<GameActivity>>()
+        .unwrap();
     assert!(matches!(state, Pending(GameActivity::GameOver)));
 }
 
@@ -155,11 +183,16 @@ fn game_continues_when_no_marker_is_at_finish() {
     let mut app = setup_app();
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
     add_cities(&mut app, player, 1);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(0));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(0));
 
     app.update();
 
-    let state = app.world().get_resource::<NextState<GameActivity>>().unwrap();
+    let state = app
+        .world()
+        .get_resource::<NextState<GameActivity>>()
+        .unwrap();
     assert!(matches!(state, Pending(GameActivity::CollectTaxes)));
 }
 
@@ -175,11 +208,16 @@ fn game_ends_at_configured_round_limit_even_without_finish() {
     });
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
     add_cities(&mut app, player, 1);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(2));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(2));
 
     app.update();
 
-    let state = app.world().get_resource::<NextState<GameActivity>>().unwrap();
+    let state = app
+        .world()
+        .get_resource::<NextState<GameActivity>>()
+        .unwrap();
     assert!(matches!(state, Pending(GameActivity::GameOver)));
 }
 
@@ -193,11 +231,16 @@ fn game_continues_below_the_configured_round_limit() {
     });
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
     add_cities(&mut app, player, 1);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(2));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(2));
 
     app.update();
 
-    let state = app.world().get_resource::<NextState<GameActivity>>().unwrap();
+    let state = app
+        .world()
+        .get_resource::<NextState<GameActivity>>()
+        .unwrap();
     assert!(matches!(state, Pending(GameActivity::CollectTaxes)));
 }
 
@@ -212,11 +255,16 @@ fn no_round_limit_configured_never_ends_the_game_early() {
     });
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
     add_cities(&mut app, player, 1);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(2));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(2));
 
     app.update();
 
-    let state = app.world().get_resource::<NextState<GameActivity>>().unwrap();
+    let state = app
+        .world()
+        .get_resource::<NextState<GameActivity>>()
+        .unwrap();
     assert!(matches!(state, Pending(GameActivity::CollectTaxes)));
 }
 

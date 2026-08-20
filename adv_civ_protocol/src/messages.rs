@@ -76,10 +76,16 @@ pub enum NetTradeMove {
         to: GameFaction,
         matching_cards: Vec<(TradeCard, usize)>,
     },
-    AcceptOrDeclineTrade { offer: NetOfferId },
-    AutoDeclineTrade { offer: NetOfferId },
+    AcceptOrDeclineTrade {
+        offer: NetOfferId,
+    },
+    AutoDeclineTrade {
+        offer: NetOfferId,
+    },
     StopTrading,
-    SettleTrade { offer: NetOfferId },
+    SettleTrade {
+        offer: NetOfferId,
+    },
 }
 
 /// Network mirror of `GameActivity`. The server reports phase transitions so

@@ -1,3 +1,4 @@
+use crate::civilization::Z_ACTION_UI;
 use crate::civilization::components::{GameArea, GameCamera};
 use crate::civilization::concepts::movement::movement_components::PerformingMovement;
 use crate::civilization::concepts::movement::movement_events::{
@@ -7,7 +8,6 @@ use crate::civilization::concepts::movement::movement_ui_components::{
     MovementSelectionState, MovementUiRoot, SourceAreaDisplay, TokenCountDisplay,
 };
 use crate::civilization::game_moves::{AvailableMoves, GameMove, MovementMove};
-use crate::civilization::Z_ACTION_UI;
 use crate::stupid_ai::IsHuman;
 use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
@@ -36,7 +36,9 @@ pub fn setup_human_movement_options(
                 }
                 _ => None,
             };
-            if let Some(s) = source && !source_areas.contains(&s) {
+            if let Some(s) = source
+                && !source_areas.contains(&s)
+            {
                 source_areas.push(s);
             }
         }
@@ -97,7 +99,9 @@ pub fn draw_movement_arrows(
 
         for (source, targets) in &source_targets {
             // Skip sources that aren't the focused one
-            if let Some(focused) = focused_source && *source != focused {
+            if let Some(focused) = focused_source
+                && *source != focused
+            {
                 continue;
             }
 
@@ -180,7 +184,9 @@ pub fn handle_movement_target_click(
 
             if let Some(m) = movement_move {
                 // Only allow clicking targets from the focused source
-                if let Some(focused) = focused_source && m.source != focused {
+                if let Some(focused) = focused_source
+                    && m.source != focused
+                {
                     continue;
                 }
 
@@ -299,7 +305,13 @@ pub fn spawn_movement_controls_ui(
                         .component::<SourceAreaDisplay>()
                         .with_text(
                             "Source: ?",
-                            Some(TextStyle { font: Some(font.clone()), font_size: Some(12.0), color: Some(Color::WHITE), justify: Some(Justify::Center), line_break: Some(LineBreak::NoWrap) })
+                            Some(TextStyle {
+                                font: Some(font.clone()),
+                                font_size: Some(12.0),
+                                color: Some(Color::WHITE),
+                                justify: Some(Justify::Center),
+                                line_break: Some(LineBreak::NoWrap),
+                            }),
                         )
                         .text_justify_center()
                         .align_items_center()
@@ -349,8 +361,7 @@ pub fn spawn_movement_controls_ui(
                         .justify_content(JustifyContent::Center)
                         .align_items(AlignItems::Center);
                 },
-                |_activate: On<Activate>,
-                 mut selection_state: ResMut<MovementSelectionState>| {
+                |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
                     info!("Minus clicked");
                     selection_state.decrement();
                 },
@@ -361,25 +372,29 @@ pub fn spawn_movement_controls_ui(
                     .component::<TokenCountDisplay>()
                     .with_text(
                         "Click target",
-                        Some(TextStyle { font: Some(font.clone()), font_size: Some(16.0), color: Some(Color::WHITE), justify: Some(Justify::Center), line_break: Some(LineBreak::NoWrap) })
+                        Some(TextStyle {
+                            font: Some(font.clone()),
+                            font_size: Some(16.0),
+                            color: Some(Color::WHITE),
+                            justify: Some(Justify::Center),
+                            line_break: Some(LineBreak::NoWrap),
+                        }),
                     )
                     .width(px(120.));
             });
-            token_count_row
-                .add_button_observe(
-                    "+",
-                    |button| {
-                        button
-                            .size(px(36.0), px(36.0))
-                            .justify_content(JustifyContent::Center)
-                            .align_items(AlignItems::Center);
-                    },
-                    |_activate: On<Activate>,
-                     mut selection_state: ResMut<MovementSelectionState>| {
-                        info!("Plus clicked");
-                        selection_state.increment();
-                    },
-                );
+            token_count_row.add_button_observe(
+                "+",
+                |button| {
+                    button
+                        .size(px(36.0), px(36.0))
+                        .justify_content(JustifyContent::Center)
+                        .align_items(AlignItems::Center);
+                },
+                |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
+                    info!("Plus clicked");
+                    selection_state.increment();
+                },
+            );
         });
         // Action buttons row - OK and End Movement use markers for global observers (need MessageWriter)
         builder.add_row(|action_row| {
@@ -486,7 +501,9 @@ pub fn update_source_area_display(
         if selection_state.all_skipped() {
             **text = "All sources skipped".to_string();
         } else if let Some(source) = selection_state.current_source() {
-            let area_name = area_names.get(source).map_or("?", bevy::prelude::Name::as_str);
+            let area_name = area_names
+                .get(source)
+                .map_or("?", bevy::prelude::Name::as_str);
             let skipped = if selection_state.is_current_skipped() {
                 " [SKIPPED]"
             } else {
@@ -558,4 +575,3 @@ pub fn pan_camera_to_current_source(
     camera_transform.translation.x = area_transform.translation.x;
     camera_transform.translation.y = area_transform.translation.y;
 }
-

@@ -13,4 +13,3 @@ pub use stupid_ai_events::*;
 pub use stupid_ai_plugin::*;
 pub use stupid_ai_systems::*;
 pub use stupid_ai_triggers::*;
-

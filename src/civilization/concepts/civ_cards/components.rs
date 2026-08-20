@@ -26,11 +26,13 @@ impl PlayerCivilizationCards {
     pub fn owns(&self, card: &CivCardName) -> bool {
         self.cards.contains(card)
     }
-    
+
     pub fn has_prerequisites(&self, prerequisites: &[CivCardName]) -> bool {
-        prerequisites.iter().all(|prereq| self.cards.contains(prereq))
+        prerequisites
+            .iter()
+            .all(|prereq| self.cards.contains(prereq))
     }
-    
+
     pub fn add_card(&mut self, card: CivCardName) {
         self.cards.insert(card);
     }
@@ -65,16 +67,16 @@ impl CivCardSelectionState {
             self.selected_cards.insert(card);
         }
     }
-    
+
     pub fn is_selected(&self, card: &CivCardName) -> bool {
         self.selected_cards.contains(card)
     }
-    
+
     pub fn clear(&mut self) {
         self.selected_cards.clear();
         self.phase = CivCardPurchasePhase::SelectingCards;
     }
-    
+
     pub fn total_selected(&self) -> usize {
         self.selected_cards.len()
     }

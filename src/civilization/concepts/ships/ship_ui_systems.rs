@@ -2,10 +2,10 @@ use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
 use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
 
+use crate::civilization::Z_ACTION_UI;
 use crate::civilization::components::GameArea;
 use crate::civilization::concepts::map::CameraFocusQueue;
 use crate::civilization::concepts::ships::ship_ui_components::*;
-use crate::civilization::Z_ACTION_UI;
 use crate::stupid_ai::IsHuman;
 
 /// Spawn the ship construction panel when a human player has `AwaitingShipPlacement`.
@@ -41,17 +41,18 @@ pub fn spawn_ship_construction_ui(
     );
 
     // Count row: [−] N ships (max N) [+]
-    let initial_count = format!(
-        "0 ships  (max {})",
-        ship_state.max_buildable
-    );
+    let initial_count = format!("0 ships  (max {})", ship_state.max_buildable);
     ui.add_row(|row| {
         row.align_items_center().gap_px(6.0);
 
         row.add_button_observe(
             "−",
-            |btn| { btn.size_px(22.0, 22.0).font_size(12.0); },
-            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.decrement(); },
+            |btn| {
+                btn.size_px(22.0, 22.0).font_size(12.0);
+            },
+            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| {
+                s.decrement();
+            },
         );
 
         row.with_child(|c| {
@@ -62,8 +63,12 @@ pub fn spawn_ship_construction_ui(
 
         row.add_button_observe(
             "+",
-            |btn| { btn.size_px(22.0, 22.0).font_size(12.0); },
-            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.increment(); },
+            |btn| {
+                btn.size_px(22.0, 22.0).font_size(12.0);
+            },
+            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| {
+                s.increment();
+            },
         );
     });
 
@@ -73,8 +78,12 @@ pub fn spawn_ship_construction_ui(
 
         row.add_button_observe(
             "◄",
-            |btn| { btn.size_px(20.0, 20.0).font_size(11.0); },
-            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.prev_slot(); },
+            |btn| {
+                btn.size_px(20.0, 20.0).font_size(11.0);
+            },
+            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| {
+                s.prev_slot();
+            },
         );
 
         row.with_child(|c| {
@@ -85,8 +94,12 @@ pub fn spawn_ship_construction_ui(
 
         row.add_button_observe(
             "►",
-            |btn| { btn.size_px(20.0, 20.0).font_size(11.0); },
-            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.next_slot(); },
+            |btn| {
+                btn.size_px(20.0, 20.0).font_size(11.0);
+            },
+            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| {
+                s.next_slot();
+            },
         );
     });
 
@@ -96,8 +109,12 @@ pub fn spawn_ship_construction_ui(
 
         row.add_button_observe(
             "<",
-            |btn| { btn.size_px(22.0, 22.0).font_size(12.0); },
-            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.prev_area(); },
+            |btn| {
+                btn.size_px(22.0, 22.0).font_size(12.0);
+            },
+            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| {
+                s.prev_area();
+            },
         );
 
         row.with_child(|c| {
@@ -108,15 +125,21 @@ pub fn spawn_ship_construction_ui(
 
         row.add_button_observe(
             ">",
-            |btn| { btn.size_px(22.0, 22.0).font_size(12.0); },
-            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| { s.next_area(); },
+            |btn| {
+                btn.size_px(22.0, 22.0).font_size(12.0);
+            },
+            |_: On<Activate>, mut s: ResMut<ShipConstructionState>| {
+                s.next_area();
+            },
         );
     });
 
     // Confirm button — removes the waiting marker to unblock the advance system
     ui.add_button_observe(
         "Confirm",
-        |btn| { btn.size_px(110.0, 28.0).font_size(12.0); },
+        |btn| {
+            btn.size_px(110.0, 28.0).font_size(12.0);
+        },
         |_: On<Activate>,
          mut commands: Commands,
          ship_state: Res<ShipConstructionState>,
@@ -140,15 +163,27 @@ pub fn update_ship_construction_ui(
     area_names: Query<&Name, With<GameArea>>,
     mut count_text: Query<
         &mut Text,
-        (With<ShipCountText>, Without<ShipSlotText>, Without<ShipAreaText>),
+        (
+            With<ShipCountText>,
+            Without<ShipSlotText>,
+            Without<ShipAreaText>,
+        ),
     >,
     mut slot_text: Query<
         &mut Text,
-        (With<ShipSlotText>, Without<ShipCountText>, Without<ShipAreaText>),
+        (
+            With<ShipSlotText>,
+            Without<ShipCountText>,
+            Without<ShipAreaText>,
+        ),
     >,
     mut area_text: Query<
         &mut Text,
-        (With<ShipAreaText>, Without<ShipCountText>, Without<ShipSlotText>),
+        (
+            With<ShipAreaText>,
+            Without<ShipCountText>,
+            Without<ShipSlotText>,
+        ),
     >,
 ) {
     if !ship_state.is_changed() {
@@ -159,7 +194,11 @@ pub fn update_ship_construction_ui(
         **t = format!(
             "{} ship{}  (max {})",
             ship_state.ships_to_build,
-            if ship_state.ships_to_build == 1 { "" } else { "s" },
+            if ship_state.ships_to_build == 1 {
+                ""
+            } else {
+                "s"
+            },
             ship_state.max_buildable
         );
     }
@@ -180,7 +219,9 @@ pub fn update_ship_construction_ui(
         if ship_state.ships_to_build == 0 {
             **t = "—".to_string();
         } else if let Some(area) = ship_state.current_area() {
-            let name = area_names.get(area).map_or("?", bevy::prelude::Name::as_str);
+            let name = area_names
+                .get(area)
+                .map_or("?", bevy::prelude::Name::as_str);
             **t = format!(
                 "{} ({}/{})",
                 name,
@@ -227,11 +268,7 @@ pub fn focus_camera_on_ship_area(
     if let Some(area) = ship_state.current_area()
         && let Ok(transform) = area_transforms.get(area)
     {
-        focus_queue.add_focus(
-            transform.translation,
-            0.5,
-            "ship construction area",
-        );
+        focus_queue.add_focus(transform.translation, 0.5, "ship construction area");
     }
 }
 

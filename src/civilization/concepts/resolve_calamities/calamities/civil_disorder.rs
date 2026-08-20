@@ -118,7 +118,9 @@ mod tests {
     /// Rule 30.713/30.714: Military and Road Building each reduce the keep threshold by 1.
     #[test]
     fn military_and_road_building_reduce_keep_threshold() {
-        let mut state = CivilDisorderState::new().with_military().with_road_building();
+        let mut state = CivilDisorderState::new()
+            .with_military()
+            .with_road_building();
         state.compute_cities_to_reduce(8);
         assert_eq!(state.cities_to_reduce, 7); // keep 3-2=1, reduce 8-1=7
     }

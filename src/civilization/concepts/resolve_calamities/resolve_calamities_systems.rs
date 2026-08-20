@@ -5,9 +5,12 @@ use rand::seq::SliceRandom;
 use crate::GameActivity;
 use crate::civilization::components::*;
 use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
+use crate::civilization::concepts::conflict::{
+    ConflictCounterResource, UnresolvedCityConflict, UnresolvedConflict,
+};
 use crate::civilization::concepts::resolve_calamities::calamities::ResolvingCalamity;
 use crate::civilization::concepts::resolve_calamities::calamities::barbarian_hordes::{
-    barbarian_damage_score, BarbarianHordesPhase, BarbarianHordesState, MAX_CASCADE_ITERATIONS,
+    BarbarianHordesPhase, BarbarianHordesState, MAX_CASCADE_ITERATIONS, barbarian_damage_score,
 };
 use crate::civilization::concepts::resolve_calamities::calamities::civil_disorder::{
     CivilDisorderPhase, CivilDisorderState,
@@ -16,14 +19,14 @@ use crate::civilization::concepts::resolve_calamities::calamities::civil_war::{
     CivilWarPhase, CivilWarState, FactionChoice,
 };
 use crate::civilization::concepts::resolve_calamities::calamities::epidemic::{
-    allocate_removal_leaving_one_per_area, allocate_secondary_loss as allocate_epidemic_secondary_loss,
-    EpidemicPhase, EpidemicState,
+    EpidemicPhase, EpidemicState, allocate_removal_leaving_one_per_area,
+    allocate_secondary_loss as allocate_epidemic_secondary_loss,
 };
 use crate::civilization::concepts::resolve_calamities::calamities::famine::{
-    allocate_secondary_loss as allocate_famine_secondary_loss, FaminePhase, FamineState,
+    FaminePhase, FamineState, allocate_secondary_loss as allocate_famine_secondary_loss,
 };
 use crate::civilization::concepts::resolve_calamities::calamities::flood::{
-    allocate_secondary_loss, FloodPhase, FloodState,
+    FloodPhase, FloodState, allocate_secondary_loss,
 };
 use crate::civilization::concepts::resolve_calamities::calamities::iconoclasm_heresy::{
     IconoclasmHeresyPhase, IconoclasmHeresyState,
@@ -49,11 +52,10 @@ use crate::civilization::concepts::resolve_calamities::context::{
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_events::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
-    AwaitingHumanCalamitySelection, AwaitingMonotheismSelection, CalamitySelectionState,
-    CivilWarSelectionState, EpidemicSelectionState, FamineSelectionState, FloodSelectionState,
-    MonotheismSelectionState, UnitLossSelectionState, CITY_UNIT_POINTS,
+    AwaitingHumanCalamitySelection, AwaitingMonotheismSelection, CITY_UNIT_POINTS,
+    CalamitySelectionState, CivilWarSelectionState, EpidemicSelectionState, FamineSelectionState,
+    FloodSelectionState, MonotheismSelectionState, UnitLossSelectionState,
 };
-use crate::civilization::concepts::conflict::{ConflictCounterResource, UnresolvedCityConflict, UnresolvedConflict};
 use crate::civilization::functions::return_all_tokens_to_stock;
 use crate::civilization::triggers::retire_city_token_visuals;
 use crate::civilization::{CivCardName, PlayerTradeCards, TradeCard, TradeCardTrait};
@@ -75,7 +77,10 @@ pub fn clear_grain_lock_for_new_turn(
 
 pub fn start_calamity_resolution(
     mut commands: Commands,
-    mut players_with_calamities: Query<(Entity, &mut PlayerTradeCards, Option<&Name>), With<Player>>,
+    mut players_with_calamities: Query<
+        (Entity, &mut PlayerTradeCards, Option<&Name>),
+        With<Player>,
+    >,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     info!("[CALAMITIES] Starting calamity resolution phase");
@@ -90,7 +95,10 @@ pub fn start_calamity_resolution(
         }
 
         any_calamities = true;
-        let player_label = name.map_or_else(|| format!("{player_entity:?}"), std::string::ToString::to_string);
+        let player_label = name.map_or_else(
+            || format!("{player_entity:?}"),
+            std::string::ToString::to_string,
+        );
         info!(
             "[CALAMITIES] Player {} has {} calamities: {:?}",
             player_label,
@@ -117,15 +125,18 @@ pub fn start_calamity_resolution(
         // held for future turns (29.4), and leaving the unselected ones in
         // hand made them resolve again on the following turn, so a player who
         // drew three calamities kept suffering the extra one indefinitely.
-        let selected: Vec<TradeCard> =
-            calamities_to_resolve.iter().map(|(c, _)| *c).collect();
+        let selected: Vec<TradeCard> = calamities_to_resolve.iter().map(|(c, _)| *c).collect();
         for discarded in calamity_cards.iter().filter(|c| !selected.contains(c)) {
             let removed = trade_cards.remove_n_trade_cards(1, *discarded);
             info!(
                 "[CALAMITIES] {} exceeds the two-calamity limit (29.5): {:?} discarded{}",
                 player_label,
                 discarded,
-                if removed.is_some() { "" } else { " (not in hand?)" }
+                if removed.is_some() {
+                    ""
+                } else {
+                    " (not in hand?)"
+                }
             );
         }
 
@@ -225,9 +236,10 @@ pub fn process_pending_calamities(
     });
 
     if let Some((player_entity, calamity, traded_by)) = all_calamities.first() {
-        let player_label = names
-            .get(*player_entity)
-            .map_or_else(|_| format!("{player_entity:?}"), std::string::ToString::to_string);
+        let player_label = names.get(*player_entity).map_or_else(
+            |_| format!("{player_entity:?}"),
+            std::string::ToString::to_string,
+        );
         info!(
             "[CALAMITIES] Resolving {:?} for player {}",
             calamity, player_label
@@ -257,8 +269,7 @@ pub fn process_pending_calamities(
                 }
                 TradeCard::Famine => {
                     let grain_count = trade_cards.number_of_cards_for_trade_card(TradeCard::Grain);
-                    let has_pottery = civ_cards
-                        .is_some_and(|c| c.owns(&CivCardName::Pottery));
+                    let has_pottery = civ_cards.is_some_and(|c| c.owns(&CivCardName::Pottery));
                     let state = FamineState::new().with_grain_reduction(grain_count, has_pottery);
                     commands.entity(*player_entity).insert((
                         ActiveCalamityResolution::new(context),
@@ -312,10 +323,9 @@ pub fn process_pending_calamities(
                 }
                 TradeCard::SlaveRevolt => {
                     // 15 tokens can't support cities (30.421); Mining +5, Enlightenment -5, both cancel (30.423).
-                    let has_mining = civ_cards
-                        .is_some_and(|c| c.owns(&CivCardName::Mining));
-                    let has_enlightenment = civ_cards
-                        .is_some_and(|c| c.owns(&CivCardName::Enlightenment));
+                    let has_mining = civ_cards.is_some_and(|c| c.owns(&CivCardName::Mining));
+                    let has_enlightenment =
+                        civ_cards.is_some_and(|c| c.owns(&CivCardName::Enlightenment));
                     let state = match (has_mining, has_enlightenment) {
                         (true, true) => SlaveRevoltState::new().with_mining_and_enlightenment(),
                         (true, false) => SlaveRevoltState::new().with_mining(),
@@ -328,8 +338,8 @@ pub fn process_pending_calamities(
                     ));
                 }
                 TradeCard::Flood => {
-                    let has_engineering = civ_cards
-                        .is_some_and(|c| c.owns(&CivCardName::Engineering));
+                    let has_engineering =
+                        civ_cards.is_some_and(|c| c.owns(&CivCardName::Engineering));
                     let mut state = FloodState::new();
                     if has_engineering {
                         state = state.with_engineering();
@@ -348,10 +358,9 @@ pub fn process_pending_calamities(
                     ));
                 }
                 TradeCard::Epidemic => {
-                    let has_medicine = civ_cards
-                        .is_some_and(|c| c.owns(&CivCardName::Medicine));
-                    let has_road_building = civ_cards
-                        .is_some_and(|c| c.owns(&CivCardName::RoadBuilding));
+                    let has_medicine = civ_cards.is_some_and(|c| c.owns(&CivCardName::Medicine));
+                    let has_road_building =
+                        civ_cards.is_some_and(|c| c.owns(&CivCardName::RoadBuilding));
                     let mut state = EpidemicState::new();
                     if has_medicine {
                         state = state.with_medicine();
@@ -545,8 +554,12 @@ pub fn resolve_volcano_earthquake(
                     VolcanoEarthquakeState::new()
                 } else {
                     let city_to_destroy = city_areas[0];
-                    let city_to_reduce =
-                        find_adjacent_city_to_reduce(city_to_destroy, primary_victim, &area_query, &player_civ_cards);
+                    let city_to_reduce = find_adjacent_city_to_reduce(
+                        city_to_destroy,
+                        primary_victim,
+                        &area_query,
+                        &player_civ_cards,
+                    );
 
                     info!(
                         "[EARTHQUAKE] City to destroy: {:?}, city to reduce: {:?}, has_engineering: {}",
@@ -770,7 +783,9 @@ pub fn advance_flood(
     mut flood_selection: ResMut<FloodSelectionState>,
     mut calamity_selection: ResMut<CalamitySelectionState>,
 ) {
-    for (player_entity, mut resolving, mut resolution, player_cities, is_human, is_awaiting) in &mut player_query {
+    for (player_entity, mut resolving, mut resolution, player_cities, is_human, is_awaiting) in
+        &mut player_query
+    {
         if resolution.phase == CalamityPhase::Resolved {
             continue;
         }
@@ -815,7 +830,8 @@ pub fn advance_flood(
                 if let Some(fp_area) = state.flood_plain_area {
                     let mut cap = state.primary_max_loss.max(0) as usize;
                     if let Ok((built_city, _)) = area_query.get(fp_area) {
-                        let victim_owns_city = built_city.is_some_and(|c| c.player == player_entity);
+                        let victim_owns_city =
+                            built_city.is_some_and(|c| c.player == player_entity);
                         if victim_owns_city && cap > 0 {
                             let city_cost = cap.min(5);
                             if state.has_engineering {
@@ -832,7 +848,8 @@ pub fn advance_flood(
                         let available = pop.population_for_player(player_entity);
                         let to_remove = cap.min(available);
                         if to_remove > 0
-                            && let Some(removed) = pop.remove_tokens_from_area(&player_entity, to_remove)
+                            && let Some(removed) =
+                                pop.remove_tokens_from_area(&player_entity, to_remove)
                         {
                             for token in removed {
                                 commands.entity(token).insert(ReturnTokenToStock);
@@ -879,8 +896,14 @@ pub fn advance_flood(
                     allocate_secondary_loss(&secondary_players, total_loss, None)
                 } else if is_human {
                     if flood_selection.acting_player.is_none() {
-                        flood_selection.populate(player_entity, secondary_players.clone(), total_loss);
-                        commands.entity(player_entity).insert(AwaitingHumanCalamitySelection);
+                        flood_selection.populate(
+                            player_entity,
+                            secondary_players.clone(),
+                            total_loss,
+                        );
+                        commands
+                            .entity(player_entity)
+                            .insert(AwaitingHumanCalamitySelection);
                         continue; // wait for the human this frame
                     } else if is_awaiting {
                         continue; // still waiting on the UI
@@ -906,7 +929,10 @@ pub fn advance_flood(
                         }
                     }
                 }
-                info!("[FLOOD] Applied secondary loss of {} pts ({} secondary victims)", total_loss, n);
+                info!(
+                    "[FLOOD] Applied secondary loss of {} pts ({} secondary victims)",
+                    total_loss, n
+                );
                 state.phase = FloodPhase::Complete;
             }
             FloodPhase::FallbackCoastalCity => {
@@ -949,7 +975,8 @@ pub fn advance_flood(
                     if is_awaiting {
                         continue; // still waiting on the human's pick
                     }
-                    state.fallback_city = calamity_selection.take_selected_cities().first().copied();
+                    state.fallback_city =
+                        calamity_selection.take_selected_cities().first().copied();
                 }
                 let Some(area) = state.fallback_city else {
                     state.phase = FloodPhase::Complete;
@@ -960,7 +987,10 @@ pub fn advance_flood(
                     info!("[FLOOD] Coastal city in area {:?} reduced (30.515)", area);
                 } else {
                     commands.entity(area).insert(DestroyCity);
-                    info!("[FLOOD] Coastal city in area {:?} eliminated (30.514)", area);
+                    info!(
+                        "[FLOOD] Coastal city in area {:?} eliminated (30.514)",
+                        area
+                    );
                 }
                 state.phase = FloodPhase::Complete;
             }
@@ -1022,8 +1052,10 @@ fn remove_unit_points_leaving_one_per_area(
     if points <= 0 {
         return;
     }
-    let areas_and_counts: Vec<(Entity, usize)> =
-        player_areas.areas_and_population_count().into_iter().collect();
+    let areas_and_counts: Vec<(Entity, usize)> = player_areas
+        .areas_and_population_count()
+        .into_iter()
+        .collect();
     let counts: Vec<usize> = areas_and_counts.iter().map(|(_, c)| *c).collect();
     let allocation = allocate_removal_leaving_one_per_area(&counts, points as usize);
 
@@ -1076,7 +1108,6 @@ fn spend_epidemic_budget_on_cities(
     }
     remaining
 }
-
 
 /// Outcome of asking a victim to give up unit points.
 #[derive(Debug, PartialEq, Eq)]
@@ -1268,7 +1299,9 @@ fn take_unit_point_loss(
         spendable_cities.to_vec(),
         points as usize,
     );
-    commands.entity(player).insert(AwaitingHumanCalamitySelection);
+    commands
+        .entity(player)
+        .insert(AwaitingHumanCalamitySelection);
     UnitLossStep::AwaitingHuman
 }
 
@@ -1284,12 +1317,30 @@ pub fn advance_famine(
         Has<AwaitingHumanCalamitySelection>,
     )>,
     mut populations: Query<&mut Population>,
-    all_players: Query<(Entity, &PlayerAreas, &PlayerCities, Has<IsHuman>, Has<AwaitingHumanCalamitySelection>), With<Player>>,
+    all_players: Query<
+        (
+            Entity,
+            &PlayerAreas,
+            &PlayerCities,
+            Has<IsHuman>,
+            Has<AwaitingHumanCalamitySelection>,
+        ),
+        With<Player>,
+    >,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut famine_selection: ResMut<FamineSelectionState>,
     mut unit_loss: ResMut<UnitLossSelectionState>,
 ) {
-    for (player_entity, mut resolving, mut resolution, player_areas, player_cities, is_human, is_awaiting) in &mut player_query {
+    for (
+        player_entity,
+        mut resolving,
+        mut resolution,
+        player_areas,
+        player_cities,
+        is_human,
+        is_awaiting,
+    ) in &mut player_query
+    {
         if resolution.phase == CalamityPhase::Resolved {
             continue;
         }
@@ -1353,8 +1404,7 @@ pub fn advance_famine(
                             && areas.areas().iter().any(|a| primary_areas.contains(a))
                     })
                     .map(|(e, areas, _, _, _)| {
-                        let total_pop: usize =
-                            areas.areas_and_population_count().values().sum();
+                        let total_pop: usize = areas.areas_and_population_count().values().sum();
                         (e, total_pop.min(max_per_player))
                     })
                     .collect();
@@ -1366,22 +1416,31 @@ pub fn advance_famine(
                 }
 
                 let total_loss = state.secondary_total.max(0) as usize;
-                let combined_available: usize =
-                    secondary_players.iter().map(|&(_, a)| a).sum();
+                let combined_available: usize = secondary_players.iter().map(|&(_, a)| a).sum();
                 let needs_choice = combined_available > total_loss;
 
                 let allocation = if !needs_choice {
                     allocate_famine_secondary_loss(&secondary_players, total_loss, None)
                 } else if is_human {
                     if famine_selection.acting_player.is_none() {
-                        famine_selection.populate(player_entity, secondary_players.clone(), total_loss);
-                        commands.entity(player_entity).insert(AwaitingHumanCalamitySelection);
+                        famine_selection.populate(
+                            player_entity,
+                            secondary_players.clone(),
+                            total_loss,
+                        );
+                        commands
+                            .entity(player_entity)
+                            .insert(AwaitingHumanCalamitySelection);
                         continue; // wait for the human this frame
                     } else if is_awaiting {
                         continue; // still waiting on the UI
                     } else if famine_selection.acting_player == Some(player_entity) {
                         let choice = famine_selection.take_result();
-                        allocate_famine_secondary_loss(&secondary_players, total_loss, Some(&choice))
+                        allocate_famine_secondary_loss(
+                            &secondary_players,
+                            total_loss,
+                            Some(&choice),
+                        )
                     } else {
                         continue; // selection resource is owned by a different player right now
                     }
@@ -1559,8 +1618,12 @@ pub fn advance_barbarian_hordes(
     mut calamity_resolved: MessageWriter<CalamityResolved>,
 ) {
     for (player_entity, mut resolving, mut resolution, faction) in &mut player_query {
-        if resolution.phase == CalamityPhase::Resolved { continue; }
-        let ResolvingCalamity::BarbarianHordes(ref mut state) = *resolving else { continue };
+        if resolution.phase == CalamityPhase::Resolved {
+            continue;
+        }
+        let ResolvingCalamity::BarbarianHordes(ref mut state) = *resolving else {
+            continue;
+        };
 
         match state.phase {
             BarbarianHordesPhase::FindLandingArea => {
@@ -1582,10 +1645,15 @@ pub fn advance_barbarian_hordes(
                 let mut scored: Vec<(Entity, usize)> = Vec::new();
 
                 for (area_entity, start_area) in start_areas.iter() {
-                    if start_area.faction != victim_faction { continue; }
-                    let victim_tokens = populations.get(area_entity)
+                    if start_area.faction != victim_faction {
+                        continue;
+                    }
+                    let victim_tokens = populations
+                        .get(area_entity)
                         .map_or(0, |pop| pop.population_for_player(player_entity));
-                    let has_city = city_query.get(area_entity).is_ok_and(|c| c.player == player_entity);
+                    let has_city = city_query
+                        .get(area_entity)
+                        .is_ok_and(|c| c.player == player_entity);
                     scored.push((area_entity, barbarian_damage_score(victim_tokens, has_city)));
                 }
 
@@ -1647,7 +1715,10 @@ pub fn advance_barbarian_hordes(
                 let barbarian_entity = commands.spawn(Name::new("Barbarian Horde")).id();
                 state.barbarian_entity = Some(barbarian_entity);
 
-                let base = area_transforms.get(landing).map(|t| t.translation).unwrap_or_default();
+                let base = area_transforms
+                    .get(landing)
+                    .map(|t| t.translation)
+                    .unwrap_or_default();
 
                 if let Ok(mut pop) = populations.get_mut(landing) {
                     for i in 0..TOKEN_COUNT {
@@ -1693,7 +1764,8 @@ pub fn advance_barbarian_hordes(
                 }
 
                 let has_city = city_query.get(area).is_ok();
-                let is_conflict_zone = populations.get(area)
+                let is_conflict_zone = populations
+                    .get(area)
                     .is_ok_and(|p| p.is_conflict_zone(has_city));
 
                 if is_conflict_zone {
@@ -1725,8 +1797,7 @@ pub fn advance_barbarian_hordes(
                     state.phase = BarbarianHordesPhase::Complete;
                     continue;
                 };
-                let still_pending = conflict_marker_query.get(area)
-                    .is_ok_and(|(a, b)| a || b);
+                let still_pending = conflict_marker_query.get(area).is_ok_and(|(a, b)| a || b);
                 if still_pending {
                     continue; // Commands haven't flushed / observer hasn't run yet -- poll again next tick.
                 }
@@ -1762,15 +1833,24 @@ pub fn advance_barbarian_hordes(
                 // damage to the primary victim, with 30.525's tie-break.
                 let (land, sea, _) = area_passages.get(area).unwrap_or((None, None, false));
                 let mut candidates: Vec<Entity> = Vec::new();
-                if let Some(lp) = land { candidates.extend(lp.to_areas.iter().copied()); }
-                if let Some(sp) = sea { candidates.extend(sp.to_areas.iter().copied()); }
+                if let Some(lp) = land {
+                    candidates.extend(lp.to_areas.iter().copied());
+                }
+                if let Some(sp) = sea {
+                    candidates.extend(sp.to_areas.iter().copied());
+                }
 
                 let mut scored: Vec<(Entity, usize)> = Vec::new();
                 for candidate in candidates {
                     let is_open_sea = area_passages.get(candidate).is_ok_and(|(_, _, open)| open);
-                    if is_open_sea { continue; } // rule 30.5233
-                    let has_city = city_query.get(candidate).is_ok_and(|c| c.player == player_entity);
-                    let victim_tokens = populations.get(candidate)
+                    if is_open_sea {
+                        continue;
+                    } // rule 30.5233
+                    let has_city = city_query
+                        .get(candidate)
+                        .is_ok_and(|c| c.player == player_entity);
+                    let victim_tokens = populations
+                        .get(candidate)
                         .map_or(0, |p| p.population_for_player(player_entity));
                     scored.push((candidate, barbarian_damage_score(victim_tokens, has_city)));
                 }
@@ -1846,7 +1926,13 @@ pub fn advance_barbarian_hordes(
                 for token in state.all_tokens.drain(..) {
                     commands.entity(token).despawn();
                 }
-                finish_calamity(&mut resolution, &mut calamity_resolved, &mut commands, player_entity, TradeCard::BarbarianHordes);
+                finish_calamity(
+                    &mut resolution,
+                    &mut calamity_resolved,
+                    &mut commands,
+                    player_entity,
+                    TradeCard::BarbarianHordes,
+                );
             }
         }
     }
@@ -1864,14 +1950,29 @@ pub fn advance_epidemic(
         Has<AwaitingHumanCalamitySelection>,
     )>,
     mut populations: Query<&mut Population>,
-    all_players: Query<(Entity, &PlayerAreas, &PlayerCities, Option<&PlayerCivilizationCards>), With<Player>>,
+    all_players: Query<
+        (
+            Entity,
+            &PlayerAreas,
+            &PlayerCities,
+            Option<&PlayerCivilizationCards>,
+        ),
+        With<Player>,
+    >,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut epidemic_selection: ResMut<EpidemicSelectionState>,
     mut unit_loss: ResMut<UnitLossSelectionState>,
     human_flags: Query<(Has<IsHuman>, Has<AwaitingHumanCalamitySelection>), With<Player>>,
 ) {
-    for (player_entity, mut resolving, mut resolution, player_areas, player_cities, is_human, is_awaiting) in
-        &mut player_query
+    for (
+        player_entity,
+        mut resolving,
+        mut resolution,
+        player_areas,
+        player_cities,
+        is_human,
+        is_awaiting,
+    ) in &mut player_query
     {
         if resolution.phase == CalamityPhase::Resolved {
             continue;
@@ -1953,22 +2054,31 @@ pub fn advance_epidemic(
                 // victim, same as Famine's 30.311) -- never re-divides or
                 // re-charges anyone.
                 if !state.secondary_divided {
-                    let combined_available: usize =
-                        secondary_players.iter().map(|&(_, a)| a).sum();
+                    let combined_available: usize = secondary_players.iter().map(|&(_, a)| a).sum();
                     let needs_choice = combined_available > secondary_total;
 
                     let allocation = if !needs_choice {
                         allocate_epidemic_secondary_loss(&secondary_players, secondary_total, None)
                     } else if is_human {
                         if epidemic_selection.acting_player.is_none() {
-                            epidemic_selection.populate(player_entity, secondary_players.clone(), secondary_total);
-                            commands.entity(player_entity).insert(AwaitingHumanCalamitySelection);
+                            epidemic_selection.populate(
+                                player_entity,
+                                secondary_players.clone(),
+                                secondary_total,
+                            );
+                            commands
+                                .entity(player_entity)
+                                .insert(AwaitingHumanCalamitySelection);
                             continue; // wait for the human this frame
                         } else if is_awaiting {
                             continue; // still waiting on the UI
                         } else if epidemic_selection.acting_player == Some(player_entity) {
                             let choice = epidemic_selection.take_result();
-                            allocate_epidemic_secondary_loss(&secondary_players, secondary_total, Some(&choice))
+                            allocate_epidemic_secondary_loss(
+                                &secondary_players,
+                                secondary_total,
+                                Some(&choice),
+                            )
                         } else {
                             continue; // selection resource is owned by a different player right now
                         }
@@ -2131,7 +2241,6 @@ pub fn advance_iconoclasm_heresy(
                 state.phase = IconoclasmHeresyPhase::SelectSecondaryVictims;
             }
 
-
             IconoclasmHeresyPhase::SelectSecondaryVictims => {
                 // Rule 30.818: the primary victim "must also order the
                 // reduction of two cities belonging to other players", and
@@ -2179,8 +2288,7 @@ pub fn advance_iconoclasm_heresy(
                     if awaiting_human {
                         // still choosing -- hold this phase
                     } else if calamity_selection.player == Some(player_entity) {
-                        state.selected_secondary_cities =
-                            calamity_selection.take_selected_cities();
+                        state.selected_secondary_cities = calamity_selection.take_selected_cities();
                         state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
                     } else if calamity_selection.player.is_none() {
                         calamity_selection.populate(
@@ -2554,11 +2662,22 @@ pub fn advance_civil_war(
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut cw_selection: ResMut<CivilWarSelectionState>,
 ) {
-    for (player_entity, mut resolving, mut resolution, victim_areas, victim_cities, victim_is_human, victim_awaiting) in
-        &mut player_query
+    for (
+        player_entity,
+        mut resolving,
+        mut resolution,
+        victim_areas,
+        victim_cities,
+        victim_is_human,
+        victim_awaiting,
+    ) in &mut player_query
     {
-        if resolution.phase == CalamityPhase::Resolved { continue; }
-        let ResolvingCalamity::CivilWar(ref mut state) = *resolving else { continue };
+        if resolution.phase == CalamityPhase::Resolved {
+            continue;
+        }
+        let ResolvingCalamity::CivilWar(ref mut state) = *resolving else {
+            continue;
+        };
 
         match state.phase {
             CivilWarPhase::DetermineBeneficiary => {
@@ -2580,7 +2699,9 @@ pub fn advance_civil_war(
                         .is_ok_and(|(_, c)| c.owns(&CivCardName::Military));
                     if victim_has_military || beneficiary_has_military {
                         state.military_penalty = true;
-                        info!("[CIVIL_WAR] Military held by a participant -- 5 pts will be removed from each faction (30.414)");
+                        info!(
+                            "[CIVIL_WAR] Military held by a participant -- 5 pts will be removed from each faction (30.414)"
+                        );
                     }
                     info!(
                         "[CIVIL_WAR] Beneficiary {:?}; victim yields {} pts, beneficiary takes up to {} pts",
@@ -2604,35 +2725,50 @@ pub fn advance_civil_war(
                         .into_iter()
                         .map(|(_, tokens)| tokens.len())
                         .sum();
-                    let cities: Vec<Entity> = victim_cities.areas_and_cities.keys().copied().collect();
+                    let cities: Vec<Entity> =
+                        victim_cities.areas_and_cities.keys().copied().collect();
                     cw_selection.populate_victim(
                         player_entity,
                         total_tokens,
                         cities,
                         state.victim_selection_points,
                     );
-                    commands.entity(player_entity).insert(AwaitingHumanCalamitySelection);
+                    commands
+                        .entity(player_entity)
+                        .insert(AwaitingHumanCalamitySelection);
                 } else if victim_is_human && victim_awaiting {
                     // Still waiting for human UI
-                } else if victim_is_human && !victim_awaiting && cw_selection.acting_player == Some(player_entity) {
+                } else if victim_is_human
+                    && !victim_awaiting
+                    && cw_selection.acting_player == Some(player_entity)
+                {
                     // Human confirmed — read result
                     let (token_count, selected_city_areas) = cw_selection.take_result();
                     // Collect actual token entities (pick first N from areas)
                     let mut remaining = token_count;
                     for (_, tokens) in victim_areas.areas_and_population() {
                         for token in tokens {
-                            if remaining == 0 { break; }
+                            if remaining == 0 {
+                                break;
+                            }
                             state.victim_selected_units.push(token);
                             remaining -= 1;
                         }
-                        if remaining == 0 { break; }
+                        if remaining == 0 {
+                            break;
+                        }
                     }
                     for area in selected_city_areas {
                         state.victim_selected_cities.push(area);
                     }
-                    let pts = state.victim_selected_units.len() + state.victim_selected_cities.len() * 5;
-                    info!("[CIVIL_WAR] Human victim selected {} pts ({} tokens, {} cities)",
-                        pts, state.victim_selected_units.len(), state.victim_selected_cities.len());
+                    let pts =
+                        state.victim_selected_units.len() + state.victim_selected_cities.len() * 5;
+                    info!(
+                        "[CIVIL_WAR] Human victim selected {} pts ({} tokens, {} cities)",
+                        pts,
+                        state.victim_selected_units.len(),
+                        state.victim_selected_cities.len()
+                    );
                     state.phase = CivilWarPhase::BeneficiarySelectsUnits;
                 } else {
                     // AI victim: auto-select tokens then cities
@@ -2640,20 +2776,28 @@ pub fn advance_civil_war(
                     let mut pts = 0usize;
                     'outer: for (_, tokens) in victim_areas.areas_and_population() {
                         for token in tokens {
-                            if pts >= target { break 'outer; }
+                            if pts >= target {
+                                break 'outer;
+                            }
                             state.victim_selected_units.push(token);
                             pts += 1;
                         }
                     }
                     if pts < target {
                         for &area in victim_cities.areas_and_cities.keys() {
-                            if pts >= target { break; }
+                            if pts >= target {
+                                break;
+                            }
                             state.victim_selected_cities.push(area);
                             pts += 5;
                         }
                     }
-                    info!("[CIVIL_WAR] AI victim selected {} pts ({} tokens, {} cities)",
-                        pts, state.victim_selected_units.len(), state.victim_selected_cities.len());
+                    info!(
+                        "[CIVIL_WAR] AI victim selected {} pts ({} tokens, {} cities)",
+                        pts,
+                        state.victim_selected_units.len(),
+                        state.victim_selected_cities.len()
+                    );
                     state.phase = CivilWarPhase::BeneficiarySelectsUnits;
                 }
             }
@@ -2693,16 +2837,22 @@ pub fn advance_civil_war(
                         pool_cities.clone(),
                         state.beneficiary_selection_points,
                     );
-                    commands.entity(beneficiary).insert(AwaitingHumanCalamitySelection);
+                    commands
+                        .entity(beneficiary)
+                        .insert(AwaitingHumanCalamitySelection);
                 } else if beneficiary_is_human && beneficiary_still_waiting {
                     // Still waiting for beneficiary UI
-                } else if beneficiary_is_human && !beneficiary_still_waiting && cw_selection.acting_player == Some(beneficiary) {
+                } else if beneficiary_is_human
+                    && !beneficiary_still_waiting
+                    && cw_selection.acting_player == Some(beneficiary)
+                {
                     // Beneficiary human confirmed
                     let (token_count, selected_city_areas) = cw_selection.take_result();
-                    state.beneficiary_selected_units = pool_tokens
-                        .iter().copied().take(token_count).collect();
+                    state.beneficiary_selected_units =
+                        pool_tokens.iter().copied().take(token_count).collect();
                     state.beneficiary_selected_cities = selected_city_areas;
-                    let pts = state.beneficiary_selected_units.len() + state.beneficiary_selected_cities.len() * 5;
+                    let pts = state.beneficiary_selected_units.len()
+                        + state.beneficiary_selected_cities.len() * 5;
                     info!("[CIVIL_WAR] Human beneficiary takes {} pts", pts);
                     finalize_first_faction(state, victim_areas, victim_cities);
                 } else {
@@ -2712,13 +2862,17 @@ pub fn advance_civil_war(
                     let mut take_tokens = Vec::new();
                     let mut take_cities = Vec::new();
                     for &token in &pool_tokens {
-                        if pts >= target { break; }
+                        if pts >= target {
+                            break;
+                        }
                         take_tokens.push(token);
                         pts += 1;
                     }
                     if pts < target {
                         for &area in &pool_cities {
-                            if pts >= target { break; }
+                            if pts >= target {
+                                break;
+                            }
                             take_cities.push(area);
                             pts += 5;
                         }
@@ -2733,7 +2887,9 @@ pub fn advance_civil_war(
                 if !state.has_second_faction() {
                     // Rule 30.413: no second faction means no Civil War --
                     // the calamity fizzles, nothing on the board changes.
-                    info!("[CIVIL_WAR] First faction consumed the whole board -- no second faction, no Civil War (30.413)");
+                    info!(
+                        "[CIVIL_WAR] First faction consumed the whole board -- no second faction, no Civil War (30.413)"
+                    );
                     state.phase = CivilWarPhase::Complete;
                     continue;
                 }
@@ -2744,12 +2900,22 @@ pub fn advance_civil_war(
                         state.first_faction_points(),
                         state.second_faction_points(),
                     );
-                    commands.entity(player_entity).insert(AwaitingHumanCalamitySelection);
+                    commands
+                        .entity(player_entity)
+                        .insert(AwaitingHumanCalamitySelection);
                 } else if victim_is_human && victim_awaiting {
                     // Still waiting for human UI
-                } else if victim_is_human && !victim_awaiting && cw_selection.acting_player == Some(player_entity) {
-                    let choice = cw_selection.take_faction_choice().unwrap_or(FactionChoice::First);
-                    info!("[CIVIL_WAR] Human victim keeps {:?} faction (30.415)", choice);
+                } else if victim_is_human
+                    && !victim_awaiting
+                    && cw_selection.acting_player == Some(player_entity)
+                {
+                    let choice = cw_selection
+                        .take_faction_choice()
+                        .unwrap_or(FactionChoice::First);
+                    info!(
+                        "[CIVIL_WAR] Human victim keeps {:?} faction (30.415)",
+                        choice
+                    );
                     state.kept_faction = Some(choice);
                     state.phase = CivilWarPhase::TransferFaction;
                 } else {
@@ -2886,7 +3052,13 @@ pub fn advance_civil_war(
                 state.phase = CivilWarPhase::Complete;
             }
             CivilWarPhase::Complete => {
-                finish_calamity(&mut resolution, &mut calamity_resolved, &mut commands, player_entity, TradeCard::CivilWar);
+                finish_calamity(
+                    &mut resolution,
+                    &mut calamity_resolved,
+                    &mut commands,
+                    player_entity,
+                    TradeCard::CivilWar,
+                );
             }
         }
     }
@@ -3000,19 +3172,32 @@ pub fn advance_treachery(
 /// resulting in two functionally-identical Pirate nations instead of one.
 /// Harmless (neither behaves any differently), just inelegant; not worth a
 /// synchronization mechanism for how rare simultaneous Piracy resolution is.
-pub fn ensure_pirate_nation(commands: &mut Commands, existing: &Query<Entity, With<PirateNation>>) -> Entity {
+pub fn ensure_pirate_nation(
+    commands: &mut Commands,
+    existing: &Query<Entity, With<PirateNation>>,
+) -> Entity {
     const CITY_STOCK: usize = 20;
     const TOKEN_STOCK: usize = 60;
 
     if let Some(e) = existing.iter().next() {
         return e;
     }
-    let pirate_entity = commands.spawn((Name::new("Pirate Nation"), PirateNation)).id();
+    let pirate_entity = commands
+        .spawn((Name::new("Pirate Nation"), PirateNation))
+        .id();
     let city_tokens: Vec<Entity> = (0..CITY_STOCK)
-        .map(|_| commands.spawn((Name::new("Pirate City"), CityToken::new(pirate_entity))).id())
+        .map(|_| {
+            commands
+                .spawn((Name::new("Pirate City"), CityToken::new(pirate_entity)))
+                .id()
+        })
         .collect();
     let tokens: Vec<Entity> = (0..TOKEN_STOCK)
-        .map(|_| commands.spawn((Name::new("Pirate"), Token::new(pirate_entity))).id())
+        .map(|_| {
+            commands
+                .spawn((Name::new("Pirate"), Token::new(pirate_entity)))
+                .id()
+        })
         .collect();
     commands.entity(pirate_entity).insert((
         CityTokenStock::new(CITY_STOCK, city_tokens),
@@ -3042,9 +3227,15 @@ pub fn advance_piracy(
     mut calamity_selection: ResMut<CalamitySelectionState>,
     human_flags: Query<(Has<IsHuman>, Has<AwaitingHumanCalamitySelection>), With<Player>>,
 ) {
-    for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in &mut player_query {
-        if resolution.phase == CalamityPhase::Resolved { continue; }
-        let ResolvingCalamity::Piracy(ref mut state) = *resolving else { continue };
+    for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in
+        &mut player_query
+    {
+        if resolution.phase == CalamityPhase::Resolved {
+            continue;
+        }
+        let ResolvingCalamity::Piracy(ref mut state) = *resolving else {
+            continue;
+        };
 
         match state.phase {
             PiracyPhase::EnsurePirateNation => {
@@ -3100,7 +3291,9 @@ pub fn advance_piracy(
                         2,
                         "Piracy — pick 2 of the victim's coastal cities",
                     );
-                    commands.entity(trader).insert(AwaitingHumanCalamitySelection);
+                    commands
+                        .entity(trader)
+                        .insert(AwaitingHumanCalamitySelection);
                 }
                 // else: the panel belongs to someone else right now; retry later.
             }
@@ -3110,7 +3303,8 @@ pub fn advance_piracy(
 
                 if is_human && calamity_selection.player.is_none() && !awaiting_human {
                     // Collect all coastal cities from eligible secondary players
-                    let available: Vec<Entity> = all_players.iter()
+                    let available: Vec<Entity> = all_players
+                        .iter()
                         .filter(|(e, _, cities)| {
                             *e != player_entity
                                 && Some(*e) != immune
@@ -3140,11 +3334,16 @@ pub fn advance_piracy(
                             2,
                             "Piracy — Select 2 secondary victims",
                         );
-                        commands.entity(player_entity).insert(AwaitingHumanCalamitySelection);
+                        commands
+                            .entity(player_entity)
+                            .insert(AwaitingHumanCalamitySelection);
                     }
                 } else if is_human && awaiting_human {
                     // Waiting for UI
-                } else if is_human && !awaiting_human && calamity_selection.player == Some(player_entity) {
+                } else if is_human
+                    && !awaiting_human
+                    && calamity_selection.player == Some(player_entity)
+                {
                     // Human confirmed
                     state.secondary_cities = calamity_selection.take_selected_cities();
                     state.phase = PiracyPhase::ApplyEffects;
@@ -3152,8 +3351,12 @@ pub fn advance_piracy(
                     // AI: auto-select up to 1 coastal city from each of 2 other eligible players
                     let mut secondary: Vec<Entity> = Vec::new();
                     for (e, _, cities) in all_players.iter() {
-                        if secondary.len() >= 2 { break; }
-                        if e == player_entity || Some(e) == immune { continue; }
+                        if secondary.len() >= 2 {
+                            break;
+                        }
+                        if e == player_entity || Some(e) == immune {
+                            continue;
+                        }
                         let coastal: Option<Entity> = cities
                             .areas_and_cities
                             .keys()
@@ -3190,12 +3393,19 @@ pub fn advance_piracy(
                 }
                 info!(
                     "[PIRACY] Primary: {} cities, Secondary: {} cities replaced by Pirate cities",
-                    state.cities_to_replace.len(), state.secondary_cities.len()
+                    state.cities_to_replace.len(),
+                    state.secondary_cities.len()
                 );
                 state.phase = PiracyPhase::Complete;
             }
             PiracyPhase::Complete => {
-                finish_calamity(&mut resolution, &mut calamity_resolved, &mut commands, player_entity, TradeCard::Piracy);
+                finish_calamity(
+                    &mut resolution,
+                    &mut calamity_resolved,
+                    &mut commands,
+                    player_entity,
+                    TradeCard::Piracy,
+                );
             }
         }
     }
@@ -3277,7 +3487,9 @@ pub fn apply_monotheism_conversions(
                 for &adj_area in &passages.to_areas {
                     if let Ok(pop) = population_query.get(adj_area) {
                         for (&enemy_player, tokens) in pop.player_tokens() {
-                            if enemy_player == holder_entity || theology_immune.contains(&enemy_player) {
+                            if enemy_player == holder_entity
+                                || theology_immune.contains(&enemy_player)
+                            {
                                 continue;
                             }
                             for &token in tokens {
@@ -3304,20 +3516,32 @@ pub fn apply_monotheism_conversions(
                     commands.entity(token).insert(ReturnTokenToStock);
                     info!("[MONOTHEISM] Human eliminated token {:?}", token);
                 }
-                commands.entity(holder_entity).remove::<NeedsMonotheismConversion>();
+                commands
+                    .entity(holder_entity)
+                    .remove::<NeedsMonotheismConversion>();
             } else if mono_state.player.is_none() {
                 // First time for this human holder: set up UI.
                 mono_state.populate(holder_entity, candidates);
-                commands.entity(holder_entity).insert(AwaitingMonotheismSelection);
-                info!("[MONOTHEISM] Human player {:?} selecting targets", holder_entity);
+                commands
+                    .entity(holder_entity)
+                    .insert(AwaitingMonotheismSelection);
+                info!(
+                    "[MONOTHEISM] Human player {:?} selecting targets",
+                    holder_entity
+                );
             }
         } else {
             // AI: auto-select up to 2 candidates.
             for (token, _) in candidates.into_iter().take(2) {
                 commands.entity(token).insert(ReturnTokenToStock);
-                info!("[MONOTHEISM] {:?} eliminates token {:?}", holder_entity, token);
+                info!(
+                    "[MONOTHEISM] {:?} eliminates token {:?}",
+                    holder_entity, token
+                );
             }
-            commands.entity(holder_entity).remove::<NeedsMonotheismConversion>();
+            commands
+                .entity(holder_entity)
+                .remove::<NeedsMonotheismConversion>();
         }
     }
 }
@@ -3436,7 +3660,8 @@ pub fn reduce_city_in_area(
                 crate::civilization::events::MoveTokensFromStockToAreaCommand {
                     player_entity: built_city.player,
                     area_entity,
-                    number_of_tokens: (population.max_population + usize::from(has_agriculture)).min(6),
+                    number_of_tokens: (population.max_population + usize::from(has_agriculture))
+                        .min(6),
                 },
             );
         }

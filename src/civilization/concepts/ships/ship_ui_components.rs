@@ -36,12 +36,7 @@ pub struct ShipConstructionState {
 }
 
 impl ShipConstructionState {
-    pub fn populate(
-        &mut self,
-        player: Entity,
-        available_areas: Vec<Entity>,
-        max_buildable: usize,
-    ) {
+    pub fn populate(&mut self, player: Entity, available_areas: Vec<Entity>, max_buildable: usize) {
         self.player = Some(player);
         self.available_areas = available_areas;
         self.ships_to_build = 0;
@@ -154,4 +149,3 @@ pub struct ShipSlotText;
 
 #[derive(Component, Default)]
 pub struct ShipAreaText;
-

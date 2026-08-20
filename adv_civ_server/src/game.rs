@@ -18,8 +18,8 @@ use adv_civ::stupid_ai::{AgentControlled, IsHuman, StupidAi};
 use adv_civ::{GameActivity, GameState};
 use adv_civ_protocol::GameFaction;
 use bevy::asset::AssetPlugin;
-use bevy::input::touch::Touches;
 use bevy::input::ButtonInput;
+use bevy::input::touch::Touches;
 use bevy::prelude::*;
 
 /// Faction claim order for human seats.
@@ -72,8 +72,11 @@ impl Plugin for HeadlessGamePlugin {
         // is AI-controlled.
         let human_seats = env_count("SEATS", 2).min(SEAT_FACTION_ORDER.len());
         let total_players = env_count("NUM_PLAYERS", 5).clamp(human_seats.max(1), 9);
-        let seat_factions: Vec<GameFaction> =
-            SEAT_FACTION_ORDER.iter().copied().take(human_seats).collect();
+        let seat_factions: Vec<GameFaction> = SEAT_FACTION_ORDER
+            .iter()
+            .copied()
+            .take(human_seats)
+            .collect();
         info!("Hosting {total_players} players, {human_seats} human seat(s): {seat_factions:?}");
 
         app.add_plugins(AssetPlugin::default())
@@ -218,7 +221,10 @@ fn bind_seats(
 ) {
     for seat in seats.0.iter_mut() {
         let Some((player, _)) = players.iter().find(|(_, f)| f.faction == seat.faction) else {
-            error!("No player spawned for reserved seat faction {}", seat.faction);
+            error!(
+                "No player spawned for reserved seat faction {}",
+                seat.faction
+            );
             continue;
         };
         seat.player = Some(player);
@@ -227,7 +233,9 @@ fn bind_seats(
         // driving it. AgentControlled: phases without a remote endpoint yet
         // (ship placement) route down the AI auto path instead of waiting
         // for a local UI that doesn't exist — same trick the agent API uses.
-        entity.remove::<StupidAi>().insert((IsHuman, AgentControlled));
+        entity
+            .remove::<StupidAi>()
+            .insert((IsHuman, AgentControlled));
         if let Some(name) = &seat.name {
             entity.insert(Name::new(name.clone()));
         }

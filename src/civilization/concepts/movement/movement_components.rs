@@ -27,7 +27,7 @@ impl TokenMoveAnimation {
             duration,
         }
     }
-    
+
     /// Returns the interpolated position based on elapsed time
     pub fn current_position(&self) -> Vec3 {
         let t = (self.elapsed / self.duration).clamp(0.0, 1.0);
@@ -35,7 +35,7 @@ impl TokenMoveAnimation {
         let t = t * t * (3.0 - 2.0 * t);
         self.start_pos.lerp(self.end_pos, t)
     }
-    
+
     /// Returns true if the animation is complete
     pub fn is_complete(&self) -> bool {
         self.elapsed >= self.duration

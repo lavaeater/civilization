@@ -1,5 +1,5 @@
-use bevy::prelude::{Component, Entity, Reflect, ReflectComponent};
 use crate::civilization::TradeCard;
+use bevy::prelude::{Component, Entity, Reflect, ReflectComponent};
 
 #[derive(Debug, Clone, Reflect)]
 pub struct CalamityContext {
@@ -16,7 +16,7 @@ impl CalamityContext {
             traded_by,
         }
     }
-    
+
     pub fn is_immune_to_secondary(&self, player: Entity) -> bool {
         self.traded_by == Some(player)
     }
@@ -36,22 +36,22 @@ impl CalamityEffects {
         self.unit_points_to_lose = amount;
         self
     }
-    
+
     pub fn with_cities_destroyed(mut self, count: usize) -> Self {
         self.cities_to_destroy = count;
         self
     }
-    
+
     pub fn with_cities_reduced(mut self, count: usize) -> Self {
         self.cities_to_reduce = count;
         self
     }
-    
+
     pub fn with_secondary_effect(mut self, effect: SecondaryEffect) -> Self {
         self.secondary_effects.push(effect);
         self
     }
-    
+
     pub fn with_special_effect(mut self, effect: SpecialEffect) -> Self {
         self.special_effect = Some(effect);
         self
@@ -75,14 +75,31 @@ impl SecondaryEffect {
 
 #[derive(Debug, Clone, Reflect)]
 pub enum SpecialEffect {
-    VolcanoEruption { volcano_area: Entity },
-    Earthquake { city_to_destroy: Entity, city_to_reduce: Option<Entity> },
-    Treachery { city_to_replace: Entity, beneficiary: Option<Entity> },
+    VolcanoEruption {
+        volcano_area: Entity,
+    },
+    Earthquake {
+        city_to_destroy: Entity,
+        city_to_reduce: Option<Entity>,
+    },
+    Treachery {
+        city_to_replace: Entity,
+        beneficiary: Option<Entity>,
+    },
     CivilWar(CivilWarEffect),
-    SlaveRevolt { cities_to_reduce: Vec<Entity> },
-    Flood { flood_plain_area: Entity },
-    BarbarianHordes { areas_to_attack: Vec<Entity> },
-    Piracy { coastal_cities: Vec<Entity>, beneficiary: Entity },
+    SlaveRevolt {
+        cities_to_reduce: Vec<Entity>,
+    },
+    Flood {
+        flood_plain_area: Entity,
+    },
+    BarbarianHordes {
+        areas_to_attack: Vec<Entity>,
+    },
+    Piracy {
+        coastal_cities: Vec<Entity>,
+        beneficiary: Entity,
+    },
 }
 
 #[derive(Debug, Clone, Reflect)]
@@ -160,22 +177,22 @@ impl ActiveCalamityResolution {
             pending_input: None,
         }
     }
-    
+
     pub fn with_effects(mut self, effects: CalamityEffects) -> Self {
         self.effects = effects;
         self
     }
-    
+
     pub fn request_input(&mut self, request: CalamityInputRequest) {
         self.pending_input = Some(request);
         self.phase = CalamityPhase::AwaitingInput;
     }
-    
+
     pub fn advance_to_apply(&mut self) {
         self.pending_input = None;
         self.phase = CalamityPhase::ApplyEffects;
     }
-    
+
     pub fn mark_resolved(&mut self) {
         self.phase = CalamityPhase::Resolved;
     }

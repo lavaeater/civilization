@@ -2,7 +2,7 @@ use crate::civilization::{CivCardName, CivCardType, Credits};
 use bevy::asset::{Asset, Handle};
 use bevy::platform::collections::HashSet;
 use bevy::prelude::{Resource, TypePath};
-use enumflags2::{BitFlags};
+use enumflags2::BitFlags;
 use serde::{Deserialize, Serialize};
 
 #[derive(Resource)]
@@ -20,7 +20,7 @@ impl AvailableCivCards {
             .filter(|card| card.card_type.contains(*card_type))
             .collect()
     }
-    
+
     pub fn cards_for_names(&self, names: &HashSet<CivCardName>) -> Vec<&CivCardDefinition> {
         self.cards
             .iter()
@@ -48,7 +48,10 @@ pub struct CivCardDefinition {
 }
 
 impl CivCardDefinition {
-    pub fn get_applicable_credits(&self, player_cards: Vec<&CivCardDefinition>) -> Vec<(CivCardName, u32)> {
+    pub fn get_applicable_credits(
+        &self,
+        player_cards: Vec<&CivCardDefinition>,
+    ) -> Vec<(CivCardName, u32)> {
         player_cards
             .iter()
             .flat_map(|card_def| {
@@ -76,7 +79,7 @@ impl CivCardDefinition {
             })
             .collect()
     }
-    
+
     pub fn calculate_cost(&self, credits: &[Credits]) -> u32 {
         let total_credits = credits
             .iter()

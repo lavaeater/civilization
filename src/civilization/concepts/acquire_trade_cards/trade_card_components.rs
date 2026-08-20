@@ -1,9 +1,11 @@
-use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::{TradeCard, TradeCardTrait};
+use crate::civilization::concepts::acquire_trade_cards::trade_card_enums::{
+    TradeCard, TradeCardTrait,
+};
 use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{Color, Component, Entity, Reflect, ReflectComponent, Resource};
 use itertools::Itertools;
-use rand::seq::SliceRandom;
 use rand::RngExt;
+use rand::seq::SliceRandom;
 
 pub const MIN_CARDS_REQUIRED_TO_TRADE: usize = 5;
 
@@ -26,9 +28,7 @@ impl CivilizationTradeCards {
         for pile in cards.values_mut() {
             pile.shuffle(&mut rng);
         }
-        Self {
-            card_piles: cards,
-        }
+        Self { card_piles: cards }
     }
     pub fn pull_card_from(&mut self, pile: usize) -> Option<TradeCard> {
         if let Some(p) = self.card_piles.get_mut(&pile) {
@@ -82,14 +82,18 @@ impl PlayerTradeCards {
     }
 
     pub fn get_what_we_want(&self) -> Option<HashMap<TradeCard, usize>> {
-        if self.can_trade() && let Some(top_commodity) = self.top_commodity() {
+        if self.can_trade()
+            && let Some(top_commodity) = self.top_commodity()
+        {
             return Some(HashMap::from([(top_commodity, 2)]));
         }
         None
     }
 
     pub fn get_what_we_can_pay(&self) -> Option<HashMap<TradeCard, usize>> {
-        if self.can_trade() && let Some(bottom_commodity) = self.worst_commodity() {
+        if self.can_trade()
+            && let Some(bottom_commodity) = self.worst_commodity()
+        {
             return Some(HashMap::from([(bottom_commodity, 2)]));
         }
         None
@@ -231,7 +235,7 @@ impl PlayerTradeCards {
             .max_by_key(|(_commodity, value)| *value)
             .map(|(commodity, _value)| *commodity)
     }
-    
+
     pub fn is_top_commodity(&self, card: TradeCard) -> bool {
         self.top_commodity() == Some(card)
     }
@@ -249,8 +253,7 @@ impl PlayerTradeCards {
     }
 
     pub fn worst_tradeable_calamity(&self) -> Option<TradeCard> {
-        self
-            .calamity_cards()
+        self.calamity_cards()
             .iter()
             .filter(|card| card.is_tradeable())
             .max_by(|a, b| a.value().cmp(&b.value()))
@@ -382,12 +385,15 @@ impl PlayerTradeCards {
             None => None, // No cards of this type
         }
     }
-    
+
     /// Returns cards as a vector of (TradeCard, count) tuples for serialization
     pub fn cards_as_vec(&self) -> Vec<(TradeCard, usize)> {
-        self.cards.iter().map(|(card, count)| (*card, *count)).collect()
+        self.cards
+            .iter()
+            .map(|(card, count)| (*card, *count))
+            .collect()
     }
-    
+
     /// Restores cards from a vector of (TradeCard, count) tuples
     pub fn from_cards_vec(cards: Vec<(TradeCard, usize)>) -> Self {
         let mut player_cards = Self::default();
@@ -466,6 +472,10 @@ mod tests {
                 seen.insert(card);
             }
         }
-        assert_eq!(seen.len(), 3, "expected all 3 card types to be drawn at least once across 200 trials");
+        assert_eq!(
+            seen.len(),
+            3,
+            "expected all 3 card types to be drawn at least once across 200 trials"
+        );
     }
 }

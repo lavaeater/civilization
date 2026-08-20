@@ -1,12 +1,12 @@
+use crate::GameActivity;
 use crate::civilization::concepts::taxation::taxation_components::{
     CityInRevolt, CoinageTaxRate, NeedsToPayTaxes,
 };
 use crate::civilization::concepts::taxation::taxation_systems::{
     ai_set_coinage_rate, collect_taxes, enter_collect_taxes, resolve_revolts, taxation_gate,
 };
-use crate::GameActivity;
 use bevy::app::{App, Plugin, Update};
-use bevy::prelude::{in_state, IntoScheduleConfigs, OnEnter};
+use bevy::prelude::{IntoScheduleConfigs, OnEnter, in_state};
 
 pub struct TaxationPlugin;
 

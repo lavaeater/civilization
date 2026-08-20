@@ -1,24 +1,11 @@
 use crate::setup_player;
 use adv_civ::{
+    GameActivity, GameState,
     civilization::{
-        TradeCard,
-        PlayerTradeCards,
-        begin_trade_settlement,
-        recalculate_trade_moves_for_player,
-        CanTrade,
-        InSettlement,
-        PlayerSettlements,
-        PlayerTradeInterests,
-        PublishedOffer,
-        TradeOffer,
-        GameFaction,
-        RecalculatePlayerMoves,
-        AvailableMoves,
-        GameMove,
-        TradeMove
+        AvailableMoves, CanTrade, GameFaction, GameMove, InSettlement, PlayerSettlements,
+        PlayerTradeCards, PlayerTradeInterests, PublishedOffer, RecalculatePlayerMoves, TradeCard,
+        TradeMove, TradeOffer, begin_trade_settlement, recalculate_trade_moves_for_player,
     },
-    GameActivity,
-    GameState
 };
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
@@ -69,7 +56,10 @@ pub fn setup_trade_test_app() -> (App, Entity, Entity) {
 fn get_trade_moves(app: &mut App, player: Entity) -> HashMap<usize, GameMove> {
     app.update();
     let player_moves = app.world().entity(player).get::<AvailableMoves>();
-    assert!(player_moves.is_some(), "No available moves found for player");
+    assert!(
+        player_moves.is_some(),
+        "No available moves found for player"
+    );
     player_moves.unwrap().moves.clone()
 }
 
@@ -79,12 +69,18 @@ fn a_simple_trade_move_is_created() {
     app.add_systems(Update, recalculate_trade_moves_for_player);
 
     // On move recalculation for player one
-    let mut events = app.world_mut().resource_mut::<Messages<RecalculatePlayerMoves>>();
+    let mut events = app
+        .world_mut()
+        .resource_mut::<Messages<RecalculatePlayerMoves>>();
     events.write(RecalculatePlayerMoves::new(player_one));
 
     // Get and verify trade moves
     let moves = get_trade_moves(&mut app, player_one);
-    assert_eq!(moves.len(), 2, "Expected 2 trade moves (propose or stop trading)");
+    assert_eq!(
+        moves.len(),
+        2,
+        "Expected 2 trade moves (propose or stop trading)"
+    );
 
     for (_, p_move) in &moves {
         if let GameMove::Trade(TradeMove::ProposeTrade(to, cards)) = p_move {
@@ -111,7 +107,9 @@ fn trade_accept_moves_are_created() {
     let trade_entity = app.world_mut().spawn((trade_offer, PublishedOffer)).id();
 
     // On move recalculation for player_two (the receiver)
-    let mut events = app.world_mut().resource_mut::<Messages<RecalculatePlayerMoves>>();
+    let mut events = app
+        .world_mut()
+        .resource_mut::<Messages<RecalculatePlayerMoves>>();
     events.write(RecalculatePlayerMoves::new(player_two));
 
     // Get and verify trade moves
@@ -135,21 +133,32 @@ fn trade_settlement_moves_are_created() {
 
     // Create a trade offer from player_one to player_two
     let mut trade_offer = create_trade_offer(player_one, player_two);
-    
+
     trade_offer.accept(&player_two);
 
-    let trade_entity = app.world_mut().spawn((trade_offer, PublishedOffer, InSettlement)).id();
+    let trade_entity = app
+        .world_mut()
+        .spawn((trade_offer, PublishedOffer, InSettlement))
+        .id();
 
     // Add player settlements
-    app.world_mut().entity_mut(player_one)
-        .insert(PlayerSettlements { trades: VecDeque::from(vec![trade_entity]),
-            current_trade: None });
-    app.world_mut().entity_mut(player_two)
-        .insert(PlayerSettlements { trades: VecDeque::from(vec![trade_entity]),
-            current_trade: None });
+    app.world_mut()
+        .entity_mut(player_one)
+        .insert(PlayerSettlements {
+            trades: VecDeque::from(vec![trade_entity]),
+            current_trade: None,
+        });
+    app.world_mut()
+        .entity_mut(player_two)
+        .insert(PlayerSettlements {
+            trades: VecDeque::from(vec![trade_entity]),
+            current_trade: None,
+        });
 
     // On move recalculation for player_two (the receiver)
-    let mut events = app.world_mut().resource_mut::<Messages<RecalculatePlayerMoves>>();
+    let mut events = app
+        .world_mut()
+        .resource_mut::<Messages<RecalculatePlayerMoves>>();
     events.write(RecalculatePlayerMoves::new(player_two));
 
     // Get and verify trade moves
@@ -167,12 +176,8 @@ fn trade_settlement_moves_are_created() {
 }
 
 fn create_trade_offer(player_one: Entity, player_two: Entity) -> TradeOffer {
-    let mut trade_offer = TradeOffer::propose_trade(
-        player_one,
-        "player_one",
-        player_two,
-        "player_two"
-    );
+    let mut trade_offer =
+        TradeOffer::propose_trade(player_one, "player_one", player_two, "player_two");
     trade_offer.pay_even_more(TradeCard::Silver, 2);
     trade_offer.pay_even_more(TradeCard::Hides, 1);
     trade_offer.get_even_more(TradeCard::Salt, 2);
@@ -189,14 +194,18 @@ fn no_trade_moves_when_cannot_trade() {
     app.world_mut().entity_mut(player_one).remove::<CanTrade>();
 
     // On move recalculation
-    let mut events = app.world_mut().resource_mut::<Messages<RecalculatePlayerMoves>>();
+    let mut events = app
+        .world_mut()
+        .resource_mut::<Messages<RecalculatePlayerMoves>>();
     events.write(RecalculatePlayerMoves::new(player_one));
 
     // Verify no moves were created
     app.update();
     let player_moves = app.world().entity(player_one).get::<AvailableMoves>();
-    assert!(player_moves.is_none() || player_moves.unwrap().moves.is_empty(),
-            "No trade moves should be available when player cannot trade");
+    assert!(
+        player_moves.is_none() || player_moves.unwrap().moves.is_empty(),
+        "No trade moves should be available when player cannot trade"
+    );
 }
 
 #[test]
@@ -207,17 +216,20 @@ fn test_begin_trade_settlement_basic() {
     // Create an accepted trade offer
     let mut trade_offer = create_trade_offer(player_one, player_two);
     trade_offer.accept(&player_two);
-    
+
     // Spawn the trade offer
     let trade_entity = app.world_mut().spawn((trade_offer, PublishedOffer)).id();
-    
+
     // Run the system
     app.update();
-    
+
     // Verify the trade was marked as InSettlement
     let trade = app.world().entity(trade_entity);
-    assert!(trade.get::<InSettlement>().is_some(), "Trade should be marked as InSettlement");
-    // 
+    assert!(
+        trade.get::<InSettlement>().is_some(),
+        "Trade should be marked as InSettlement"
+    );
+    //
     // // Verify both players have the trade in their settlement queue
     // for &player in &[player_one, player_two] {
     //     let settlements = app.world().entity(player).get::<PlayerSettlements>().unwrap();
@@ -238,24 +250,37 @@ fn test_begin_trade_settlement_existing_settlements() {
         trades: VecDeque::from(vec![existing_trade]),
         current_trade: None,
     };
-    
-    app.world_mut().entity_mut(player_one).insert(settlements.clone());
+
+    app.world_mut()
+        .entity_mut(player_one)
+        .insert(settlements.clone());
     app.world_mut().entity_mut(player_two).insert(settlements);
 
     // Create and accept a new trade
     let mut trade_offer = create_trade_offer(player_one, player_two);
     trade_offer.accept(&player_two);
-    
+
     let new_trade_entity = app.world_mut().spawn((trade_offer, PublishedOffer)).id();
-    
+
     // Run the system
     app.update();
-    
+
     // Verify the trade was added to existing settlements
     for &player in &[player_one, player_two] {
-        let settlements = app.world().entity(player).get::<PlayerSettlements>().unwrap();
-        assert_eq!(settlements.trades.len(), 2, "Player should have 2 trades in settlement");
-        assert_eq!(settlements.trades[1], new_trade_entity, "New trade should be at the end of the queue");
+        let settlements = app
+            .world()
+            .entity(player)
+            .get::<PlayerSettlements>()
+            .unwrap();
+        assert_eq!(
+            settlements.trades.len(),
+            2,
+            "Player should have 2 trades in settlement"
+        );
+        assert_eq!(
+            settlements.trades[1], new_trade_entity,
+            "New trade should be at the end of the queue"
+        );
     }
 }
 
@@ -266,20 +291,26 @@ fn test_begin_trade_settlement_only_processes_accepted() {
 
     // Create a non-accepted trade offer
     let trade_offer = create_trade_offer(player_one, player_two);
-    
+
     let trade_entity = app.world_mut().spawn((trade_offer, PublishedOffer)).id();
-    
+
     // Run the system
     app.update();
-    
+
     // Verify the trade was not marked as InSettlement
     let trade = app.world().entity(trade_entity);
-    assert!(trade.get::<InSettlement>().is_none(), "Non-accepted trade should not be in settlement");
-    
+    assert!(
+        trade.get::<InSettlement>().is_none(),
+        "Non-accepted trade should not be in settlement"
+    );
+
     // Verify no settlements were created
     for &player in &[player_one, player_two] {
         let settlements = app.world().entity(player).get::<PlayerSettlements>();
-        assert!(settlements.is_none(), "No settlements should be created for non-accepted trades");
+        assert!(
+            settlements.is_none(),
+            "No settlements should be created for non-accepted trades"
+        );
     }
 }
 
@@ -291,20 +322,29 @@ fn test_begin_trade_settlement_does_not_process_already_settled() {
     // Create an accepted trade offer that's already in settlement
     let mut trade_offer = create_trade_offer(player_one, player_two);
     trade_offer.accept(&player_two);
-    
-    let trade_entity = app.world_mut().spawn((trade_offer, PublishedOffer, InSettlement)).id();
-    
+
+    let trade_entity = app
+        .world_mut()
+        .spawn((trade_offer, PublishedOffer, InSettlement))
+        .id();
+
     // Run the system
     app.update();
-    
+
     // Verify the trade is still only in settlement once
     let trade = app.world().entity(trade_entity);
-    assert!(trade.get::<InSettlement>().is_some(), "Trade should still be in settlement");
-    
+    assert!(
+        trade.get::<InSettlement>().is_some(),
+        "Trade should still be in settlement"
+    );
+
     // Verify settlements were not modified (should still be empty)
     for &player in &[player_one, player_two] {
         let settlements = app.world().entity(player).get::<PlayerSettlements>();
-        assert!(settlements.is_none(), "No new settlements should be created for already settled trades");
+        assert!(
+            settlements.is_none(),
+            "No new settlements should be created for already settled trades"
+        );
     }
 }
 
@@ -314,21 +354,26 @@ fn stop_trading_move_is_available() {
     app.add_systems(Update, recalculate_trade_moves_for_player);
 
     // On move recalculation
-    let mut events = app.world_mut().resource_mut::<Messages<RecalculatePlayerMoves>>();
+    let mut events = app
+        .world_mut()
+        .resource_mut::<Messages<RecalculatePlayerMoves>>();
     events.write(RecalculatePlayerMoves::new(player_one));
 
     // Get and verify stop trading move exists
     let moves = get_trade_moves(&mut app, player_one);
-    let has_stop_trading = moves.values().any(|m|
-        matches!(m, GameMove::Trade(TradeMove::StopTrading))
-    );
+    let has_stop_trading = moves
+        .values()
+        .any(|m| matches!(m, GameMove::Trade(TradeMove::StopTrading)));
 
-    assert!(has_stop_trading, "Expected stop trading move to be available");
+    assert!(
+        has_stop_trading,
+        "Expected stop trading move to be available"
+    );
 }
 
-// 
+//
 // pub struct TradeTestPlugin;
-// 
+//
 // impl Plugin for TradeTestPlugin {
 //     fn build(&self, app: &mut App) {
 //         app.add_message::<SendTradingCardsCommand>()
@@ -353,15 +398,15 @@ fn stop_trading_move_is_available() {
 //             .add_observer(can_trade_removed);
 //     }
 // }
-// 
+//
 // #[test]
 // fn when_open_offer_available() {
 //     let mut app = App::new();
 //     app.add_plugins(TradeTestPlugin);
 //     let (p_one, _, _) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
-// 
+//
 //     let (p_two, _, _) = setup_player(&mut app, "Player 2", GameFaction::Babylon);
-// 
+//
 //     let mut p_one_trading_cards = PlayerTradeCards::default();
 //     p_one_trading_cards.add_trade_cards(vec![
 //         TradeCard::new(1, CommodityCard(Ochre), true),
@@ -370,7 +415,7 @@ fn stop_trading_move_is_available() {
 //         TradeCard::new(3, CommodityCard(Iron), true),
 //         TradeCard::new(3, CommodityCard(Salt), true),
 //     ]);
-// 
+//
 //     let mut p_two_trading_cards = PlayerTradeCards::default();
 //     p_two_trading_cards.add_trade_cards(vec![
 //         TradeCard::new(1, CommodityCard(Ochre), true),
@@ -379,7 +424,7 @@ fn stop_trading_move_is_available() {
 //         TradeCard::new(3, CommodityCard(Salt), true),
 //         TradeCard::new(3, CommodityCard(Iron), true),
 //     ]);
-// 
+//
 //     // let trade_offer = TradeOffer::propose_trade_to(p_two, "Player 2", HashMap::from([(Salt,2)]));
 //     //
 //     // app.world_mut()
@@ -414,38 +459,38 @@ fn stop_trading_move_is_available() {
 //     // print!("p_one_moves: {:#?}", p_one_moves);
 //     // // print!("p_two_moves: {:#?}", p_two_moves);
 // }
-// 
+//
 // #[test]
 // fn basic_recalc() {
 //     let mut app = App::new();
 //     app.add_plugins(TradeTestPlugin);
 //     let (p_one, _p_one_tokens, _p_one_city_tokens) =
 //         setup_player(&mut app, "Player 1", GameFaction::Egypt);
-// 
+//
 //     let mut p_one_trading_cards = PlayerTradeCards::default();
 //     p_one_trading_cards.add_trade_cards(vec![
 //         TradeCard::new(2, CommodityCard(Ochre), true),
 //         TradeCard::new(2, CommodityCard(Ochre), true),
 //         TradeCard::new(3, CommodityCard(Iron), true),
 //     ]);
-// 
+//
 //     app.world_mut()
 //         .entity_mut(p_one)
 //         .insert((p_one_trading_cards, CanTrade));
-// 
+//
 //     let mut events = app
 //         .world_mut()
 //         .resource_mut::<Messages<RecalculatePlayerMoves>>();
-// 
+//
 //     let _ = events.write(RecalculatePlayerMoves::new(p_one));
-// 
+//
 //     // Act
 //     app.update();
-// 
+//
 //     let p_one_moves = app.world().entity(p_one).get::<AvailableMoves>().unwrap();
-// 
+//
 //     let second_move = p_one_moves.moves.get(&1).unwrap();
-// 
+//
 //     // match &first_move {
 //     //     Trade(trade_move) => {
 //     //         assert_eq!(trade_move.trade_move_type, OpenTradeOffer)
@@ -454,7 +499,7 @@ fn stop_trading_move_is_available() {
 //     //         panic!("Expected Trade variant");
 //     //     }
 //     // }
-// 
+//
 //     match &second_move {
 //         Trade(trade_move) => {
 //             assert_eq!(trade_move.trade_move_type, StopTrading)
@@ -464,7 +509,7 @@ fn stop_trading_move_is_available() {
 //         }
 //     }
 // }
-// 
+//
 // #[test]
 // fn start_game() {
 //     let mut app = setup_bevy_app(|mut app| {
@@ -472,23 +517,23 @@ fn stop_trading_move_is_available() {
 //             .add_systems(Update, start_check_city_support);
 //         app
 //     });
-// 
+//
 //     setup_player(&mut app, "Player 1", GameFaction::Egypt);
 //     create_area(&mut app, "Egypt", 1);
-// 
+//
 //     app.update();
-// 
+//
 //     let state = app
 //         .world()
 //         .get_resource::<NextState<GameActivity>>()
 //         .unwrap();
 //     assert!(matches!(state, Pending(GameActivity::AcquireTradeCards)));
 // }
-// 
+//
 // thread_local! {
 //     static ENTITY_COUNTER: RefCell<u32> = RefCell::new(0);
 // }
-// 
+//
 // fn create_entity() -> Entity {
 //     ENTITY_COUNTER.with(|counter| {
 //         let index = *counter.borrow();
@@ -496,7 +541,7 @@ fn stop_trading_move_is_available() {
 //         Entity::from_raw(index)
 //     })
 // }
-// 
+//
 // // #[test]
 // // fn accept_trade_offer_test() {
 // //     let mut trade_offer = TradeOffer::new(create_entity(), Name::new("Initiator"));
@@ -619,7 +664,7 @@ fn stop_trading_move_is_available() {
 // //     player_cards.add_trade_card(TradeCard::new(7, CalamityCard(Famine), false));
 // //     assert_eq!(player_cards.worst_tradeable_calamity().unwrap(), CivilWar);
 // // }
-// 
+//
 // #[test]
 // fn send_trade_cards_simple() {
 //     /*
@@ -631,37 +676,37 @@ fn stop_trading_move_is_available() {
 //             .add_systems(Update, handle_send_trading_cards_command);
 //         app
 //     });
-// 
+//
 //     let (p_one, _p_one_tokens, _p_one_city_tokens) =
 //         setup_player(&mut app, "Player 1", GameFaction::Egypt);
 //     let (p_two, _p_two_tokens, _p_two_city_tokens) =
 //         setup_player(&mut app, "Player 2", GameFaction::Thrace);
-// 
+//
 //     let mut p_one_trading_cards = PlayerTradeCards::default();
 //     p_one_trading_cards.add_trade_cards(vec![
 //         TradeCard::new(2, CommodityCard(Ochre), true),
 //         TradeCard::new(2, CommodityCard(Ochre), true),
 //         TradeCard::new(3, CommodityCard(Iron), true),
 //     ]);
-// 
+//
 //     let mut p_two_trading_cards = PlayerTradeCards::default();
 //     p_two_trading_cards.add_trade_cards(vec![
 //         TradeCard::new(2, CommodityCard(Hides), true),
 //         TradeCard::new(2, CommodityCard(Hides), true),
 //         TradeCard::new(3, CommodityCard(Salt), true),
 //     ]);
-// 
+//
 //     app.world_mut()
 //         .entity_mut(p_one)
 //         .insert(p_one_trading_cards);
 //     app.world_mut()
 //         .entity_mut(p_two)
 //         .insert(p_two_trading_cards);
-// 
+//
 //     let mut events = app
 //         .world_mut()
 //         .resource_mut::<Messages<SendTradingCardsCommand>>();
-// 
+//
 //     events.write(SendTradingCardsCommand::new(
 //         p_one,
 //         p_two,
@@ -672,10 +717,10 @@ fn stop_trading_move_is_available() {
 //         p_one,
 //         HashMap::from([(CommodityCard(Salt), 1), (CommodityCard(Hides), 2)]),
 //     ));
-// 
+//
 //     // Act
 //     app.update();
-// 
+//
 //     let p_one_trading_cards = app.world().entity(p_one).get::<PlayerTradeCards>().unwrap();
 //     let p_two_trading_cards = app.world().entity(p_two).get::<PlayerTradeCards>().unwrap();
 //     assert_eq!(
@@ -702,7 +747,7 @@ fn stop_trading_move_is_available() {
 //         "Salt should be 1, actual: {}",
 //         p_one_trading_cards.number_of_cards_for_trade_card(&Salt)
 //     );
-// 
+//
 //     assert_eq!(
 //         p_two_trading_cards.number_of_cards_for_trade_card(&Iron),
 //         1,

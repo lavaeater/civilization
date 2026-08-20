@@ -2,12 +2,12 @@ use bevy::prelude::*;
 use bevy::ui::ZIndex;
 use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
 
+use crate::civilization::Z_PANEL;
 use crate::civilization::components::Faction;
 use crate::civilization::concepts::succession::succession_components::{
     AstEpoch, AstPosition, AstTrack,
 };
 use crate::civilization::enums::GameFaction;
-use crate::civilization::Z_PANEL;
 use crate::player::Player;
 
 /// Root node of the A.S.T. panel.
@@ -199,10 +199,8 @@ pub fn update_ast_markers(
     mut marker_query: Query<(&AstMarker, &mut Node)>,
 ) {
     // Snapshot positions, then assign a deterministic stack order per space.
-    let mut positions: Vec<(Entity, u32)> = player_query
-        .iter()
-        .map(|(e, pos)| (e, pos.space))
-        .collect();
+    let mut positions: Vec<(Entity, u32)> =
+        player_query.iter().map(|(e, pos)| (e, pos.space)).collect();
     positions.sort_by_key(|(e, space)| (*space, e.index()));
 
     for (marker, mut node) in &mut marker_query {
@@ -256,7 +254,11 @@ mod tests {
 
         app.world_mut().run_system_once(spawn_ast_ui).unwrap();
 
-        let cells = app.world_mut().query::<&AstCell>().iter(app.world()).count();
+        let cells = app
+            .world_mut()
+            .query::<&AstCell>()
+            .iter(app.world())
+            .count();
         let markers = app
             .world_mut()
             .query::<&AstMarker>()
@@ -292,7 +294,10 @@ mod tests {
         let (left_a, top_a) = by_player[&a];
         let (left_b, top_b) = by_player[&b];
         assert_eq!(top_a, top_b, "first two stacked markers share a row");
-        assert_ne!(left_a, left_b, "first two stacked markers sit in different columns");
+        assert_ne!(
+            left_a, left_b,
+            "first two stacked markers sit in different columns"
+        );
     }
 
     #[test]
@@ -319,7 +324,8 @@ mod tests {
         app.world_mut().run_system_once(update_ast_markers).unwrap();
 
         let mut q = app.world_mut().query::<(&AstMarker, &Node)>();
-        let positions: Vec<(Val, Val)> = q.iter(app.world()).map(|(_, n)| (n.left, n.top)).collect();
+        let positions: Vec<(Val, Val)> =
+            q.iter(app.world()).map(|(_, n)| (n.left, n.top)).collect();
         assert_eq!(positions.len(), 9);
 
         let mut seen = std::collections::HashSet::new();
@@ -329,7 +335,10 @@ mod tests {
                 (Val::Px(l), Val::Px(t)) => (l.to_bits(), t.to_bits()),
                 _ => panic!("expected Val::Px for both axes"),
             };
-            assert!(seen.insert(key), "two markers landed on the exact same spot: {pos:?}");
+            assert!(
+                seen.insert(key),
+                "two markers landed on the exact same spot: {pos:?}"
+            );
         }
     }
 }

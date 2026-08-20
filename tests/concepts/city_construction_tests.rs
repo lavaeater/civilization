@@ -53,5 +53,8 @@ fn build_move_is_offered_from_real_population_even_if_player_areas_cache_is_stal
         .moves
         .values()
         .any(|m| matches!(m, GameMove::CityConstruction(build) if build.target == area));
-    assert!(has_build_move, "expected a CityConstruction move for the area");
+    assert!(
+        has_build_move,
+        "expected a CityConstruction move for the area"
+    );
 }

@@ -1,4 +1,4 @@
-use super::{enemy_pressure, saturating, AreaSummary};
+use super::{AreaSummary, enemy_pressure, saturating};
 use crate::civilization::GameMove;
 use crate::stupid_ai::Weights;
 use bevy::platform::collections::HashMap;
@@ -40,11 +40,7 @@ fn area(areas: &HashMap<Entity, AreaSummary>, e: Entity) -> Option<&AreaSummary>
 /// The "do nothing / hold position" baseline. Its value is mostly the *defensive*
 /// worth of staying put: holding city squares and not exposing positions. A modest
 /// floor so the AI doesn't shuffle tokens around for no gain.
-fn score_end_movement(
-    player: Entity,
-    areas: &HashMap<Entity, AreaSummary>,
-    w: &Weights,
-) -> f32 {
+fn score_end_movement(player: Entity, areas: &HashMap<Entity, AreaSummary>, w: &Weights) -> f32 {
     let mut hold_value = 0.15; // small floor: standing pat is a legitimate option
     for (entity, s) in areas {
         if s.my_pop == 0 {
@@ -112,7 +108,11 @@ fn score_peaceful_move(
     if pressure > 0.0 {
         // Stripping a pressured area is bad; abandoning a held city is worse.
         let exposure = saturating(pressure, 4.0);
-        let thinness = if remaining == 0 { 1.0 } else { 1.0 / remaining as f32 };
+        let thinness = if remaining == 0 {
+            1.0
+        } else {
+            1.0 / remaining as f32
+        };
         let mut penalty = w.defense * exposure * thinness;
         if src.city_is_mine && remaining == 0 {
             penalty += w.defense * 0.8; // walked away from our own city

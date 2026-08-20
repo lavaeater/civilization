@@ -1,7 +1,7 @@
 use crate::civilization::components::*;
-use crate::civilization::functions::return_token_to_stock;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::ReturnCityToStock;
-use bevy::prelude::{warn, Add, Commands, Entity, On, Query, Sprite, Transform, Visibility};
+use crate::civilization::functions::return_token_to_stock;
+use bevy::prelude::{Add, Commands, Entity, On, Query, Sprite, Transform, Visibility, warn};
 
 pub fn on_add_return_token_to_stock(
     trigger: On<Add, ReturnTokenToStock>,
@@ -13,15 +13,22 @@ pub fn on_add_return_token_to_stock(
     commands
         .entity(entity)
         .remove::<(ReturnTokenToStock, Sprite, Transform, Visibility)>();
-    
+
     if let Ok(token) = token_query.get(entity) {
         if let Ok((mut token_stock, mut player_areas)) = player_query.get_mut(token.player()) {
             return_token_to_stock(entity, &mut token_stock, &mut player_areas);
         } else {
-            warn!("[RETURN_TOKEN] Failed to get player components for token {:?}, player {:?}", entity, token.player());
+            warn!(
+                "[RETURN_TOKEN] Failed to get player components for token {:?}, player {:?}",
+                entity,
+                token.player()
+            );
         }
     } else {
-        warn!("[RETURN_TOKEN] Failed to get Token component for entity {:?}", entity);
+        warn!(
+            "[RETURN_TOKEN] Failed to get Token component for entity {:?}",
+            entity
+        );
     }
 }
 

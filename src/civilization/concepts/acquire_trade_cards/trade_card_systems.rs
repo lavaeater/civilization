@@ -1,3 +1,4 @@
+use crate::GameActivity;
 use crate::civilization::components::Faction;
 use crate::civilization::components::{PlayerCities, TokenStock, Treasury};
 use crate::civilization::concepts::acquire_trade_cards::trade_card_components::{
@@ -8,8 +9,9 @@ use crate::civilization::concepts::acquire_trade_cards::trade_card_events::{
 };
 use crate::civilization::plugins::DebugOptions;
 use crate::stupid_ai::IsHuman;
-use crate::GameActivity;
-use bevy::prelude::{debug, info, Entity, MessageReader, MessageWriter, Has, NextState, Query, Res, ResMut};
+use bevy::prelude::{
+    Entity, Has, MessageReader, MessageWriter, NextState, Query, Res, ResMut, debug, info,
+};
 
 /// The ninth trade-card pile holds Gold, Ivory and Piracy shuffled together
 /// (all three have `TradeCard::value() == 9`), so "the ninth stack" in rule
@@ -66,8 +68,16 @@ pub fn acquire_trade_cards(
     info!("[TRADE_CARDS] Starting acquire trade cards phase");
     let mut total_players = 0;
     let mut players_with_cities = 0;
-    
-    for (player_entity, faction, player_cities, mut player_trade_cards, mut treasury, mut token_stock, is_human) in player_query
+
+    for (
+        player_entity,
+        faction,
+        player_cities,
+        mut player_trade_cards,
+        mut treasury,
+        mut token_stock,
+        is_human,
+    ) in player_query
         .iter_mut()
         .sort_by::<&PlayerCities>(|v1, v2| v1.number_of_cities().cmp(&v2.number_of_cities()))
     {
@@ -76,7 +86,7 @@ pub fn acquire_trade_cards(
         if num_cities > 0 {
             players_with_cities += 1;
         }
-        
+
         let mut pulled_cards = false;
         if is_human && debug_options.human_always_pulls_trade_cards {
             (1..=num_cities + 1).for_each(|pile| {
@@ -142,8 +152,11 @@ pub fn acquire_trade_cards(
             }
         }
     }
-    
-    info!("[TRADE_CARDS] Processed {} players, {} have cities, sending CheckIfWeCanTrade", total_players, players_with_cities);
+
+    info!(
+        "[TRADE_CARDS] Processed {} players, {} have cities, sending CheckIfWeCanTrade",
+        total_players, players_with_cities
+    );
     check_if_we_can_trade.write(CheckIfWeCanTrade);
 }
 
@@ -157,9 +170,12 @@ pub fn transition_to_trade(
             .iter()
             .filter(|(trade, _)| trade.can_trade())
             .count();
-        
-        info!("[TRADE_CARDS] CheckIfWeCanTrade received: {} players can trade", can_trade_count);
-        
+
+        info!(
+            "[TRADE_CARDS] CheckIfWeCanTrade received: {} players can trade",
+            can_trade_count
+        );
+
         if can_trade_count >= 2 {
             info!("[TRADE_CARDS] Transitioning to Trade phase");
             next_state.set(GameActivity::Trade);

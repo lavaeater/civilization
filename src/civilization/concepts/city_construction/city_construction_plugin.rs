@@ -1,10 +1,10 @@
+use crate::GameActivity;
 use crate::civilization::concepts::city_construction::city_construction_events::*;
 use crate::civilization::concepts::city_construction::city_construction_systems::*;
 use crate::civilization::concepts::city_construction::city_construction_ui_components::CityConstructionSelectionState;
 use crate::civilization::concepts::city_construction::city_construction_ui_systems::*;
-use crate::GameActivity;
 use bevy::app::{App, Update};
-use bevy::prelude::{in_state, IntoScheduleConfigs, OnEnter, OnExit, Plugin};
+use bevy::prelude::{IntoScheduleConfigs, OnEnter, OnExit, Plugin, in_state};
 
 pub struct CityConstructionPlugin;
 
@@ -24,15 +24,22 @@ impl Plugin for CityConstructionPlugin {
                     build_city.run_if(in_state(GameActivity::CityConstruction)),
                     city_building_gate.run_if(in_state(GameActivity::CityConstruction)),
                     // Human player city construction UI systems
-                    setup_human_city_construction_options.run_if(in_state(GameActivity::CityConstruction)),
-                    spawn_city_construction_controls_ui.run_if(in_state(GameActivity::CityConstruction)),
-                    draw_city_construction_highlight.run_if(in_state(GameActivity::CityConstruction)),
+                    setup_human_city_construction_options
+                        .run_if(in_state(GameActivity::CityConstruction)),
+                    spawn_city_construction_controls_ui
+                        .run_if(in_state(GameActivity::CityConstruction)),
+                    draw_city_construction_highlight
+                        .run_if(in_state(GameActivity::CityConstruction)),
                     focus_camera_on_build_site.run_if(in_state(GameActivity::CityConstruction)),
-                    handle_city_construction_button_clicks.run_if(in_state(GameActivity::CityConstruction)),
+                    handle_city_construction_button_clicks
+                        .run_if(in_state(GameActivity::CityConstruction)),
                     update_build_site_display.run_if(in_state(GameActivity::CityConstruction)),
                     cleanup_city_construction_ui.run_if(in_state(GameActivity::CityConstruction)),
                 ),
             )
-            .add_systems(OnExit(GameActivity::CityConstruction), cleanup_city_construction_ui_on_exit);
+            .add_systems(
+                OnExit(GameActivity::CityConstruction),
+                cleanup_city_construction_ui_on_exit,
+            );
     }
 }

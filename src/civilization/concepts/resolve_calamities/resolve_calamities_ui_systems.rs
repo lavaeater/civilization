@@ -2,11 +2,13 @@ use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
 use lava_ui_builder::{InteractionPalette, LavaTheme, TextStyle, UIBuilder};
 
+use crate::civilization::Z_DIALOG;
 use crate::civilization::components::GameArea;
+use crate::civilization::concepts::map::camera_focus::{
+    CameraFocusQueue, focus_camera_on_selection,
+};
 use crate::civilization::concepts::resolve_calamities::calamities::civil_war::FactionChoice;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::*;
-use crate::civilization::concepts::map::camera_focus::{focus_camera_on_selection, CameraFocusQueue};
-use crate::civilization::Z_DIALOG;
 use crate::stupid_ai::IsHuman;
 
 /// Spawn the calamity city-selection panel when a human player gets
@@ -51,9 +53,17 @@ pub fn spawn_calamity_selection_ui(
                     "{} — Select {} cit{}",
                     calamity_selection.calamity_name,
                     calamity_selection.required_count,
-                    if calamity_selection.required_count == 1 { "y" } else { "ies" }
+                    if calamity_selection.required_count == 1 {
+                        "y"
+                    } else {
+                        "ies"
+                    }
                 )),
-                TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 20.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(1.0, 0.7, 0.2)),
             ));
 
@@ -81,7 +91,11 @@ pub fn spawn_calamity_selection_ui(
                     ))
                     .with_child((
                         Text::new("<"),
-                        TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 20.0,
+                            ..default()
+                        },
                         TextColor(Color::WHITE),
                     ));
 
@@ -89,9 +103,16 @@ pub fn spawn_calamity_selection_ui(
                     row.spawn((
                         CalamitySelectionCityNameText,
                         Text::new("?"),
-                        TextFont { font: font.clone(), font_size: 18.0, ..default() },
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 18.0,
+                            ..default()
+                        },
                         TextColor(Color::srgb(1.0, 1.0, 0.7)),
-                        Node { min_width: Val::Px(180.0), ..default() },
+                        Node {
+                            min_width: Val::Px(180.0),
+                            ..default()
+                        },
                     ));
 
                     // Next button
@@ -109,7 +130,11 @@ pub fn spawn_calamity_selection_ui(
                     ))
                     .with_child((
                         Text::new(">"),
-                        TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 20.0,
+                            ..default()
+                        },
                         TextColor(Color::WHITE),
                     ));
                 });
@@ -139,7 +164,11 @@ pub fn spawn_calamity_selection_ui(
                     ))
                     .with_child((
                         Text::new("Select"),
-                        TextFont { font: font.clone(), font_size: 18.0, ..default() },
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 18.0,
+                            ..default()
+                        },
                         TextColor(Color::WHITE),
                     ));
 
@@ -147,7 +176,11 @@ pub fn spawn_calamity_selection_ui(
                     row.spawn((
                         CalamitySelectionProgressText,
                         Text::new(format!("0 / {}", calamity_selection.required_count)),
-                        TextFont { font: font.clone(), font_size: 18.0, ..default() },
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 18.0,
+                            ..default()
+                        },
                         TextColor(Color::srgb(0.8, 0.8, 0.8)),
                     ));
                 });
@@ -169,7 +202,11 @@ pub fn spawn_calamity_selection_ui(
                 ))
                 .with_child((
                     Text::new("Confirm"),
-                    TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                    TextFont {
+                        font: font.clone(),
+                        font_size: 20.0,
+                        ..default()
+                    },
                     TextColor(Color::srgb(0.5, 0.5, 0.5)),
                 ));
         });
@@ -179,12 +216,49 @@ pub fn spawn_calamity_selection_ui(
 pub fn update_calamity_selection_ui(
     calamity_selection: Res<CalamitySelectionState>,
     area_names: Query<&Name, With<GameArea>>,
-    mut title_text: Query<&mut Text, (With<CalamitySelectionTitleText>, Without<CalamitySelectionCityNameText>, Without<CalamitySelectionProgressText>)>,
-    mut city_name_text: Query<&mut Text, (With<CalamitySelectionCityNameText>, Without<CalamitySelectionTitleText>, Without<CalamitySelectionProgressText>)>,
-    mut progress_text: Query<&mut Text, (With<CalamitySelectionProgressText>, Without<CalamitySelectionTitleText>, Without<CalamitySelectionCityNameText>)>,
-    mut toggle_button: Query<(&mut BackgroundColor, &Children), With<CalamitySelectionToggleButton>>,
-    mut confirm_button: Query<(&mut BackgroundColor, &Children), (With<CalamitySelectionConfirmButton>, Without<CalamitySelectionToggleButton>)>,
-    mut child_texts: Query<&mut Text, (Without<CalamitySelectionTitleText>, Without<CalamitySelectionCityNameText>, Without<CalamitySelectionProgressText>)>,
+    mut title_text: Query<
+        &mut Text,
+        (
+            With<CalamitySelectionTitleText>,
+            Without<CalamitySelectionCityNameText>,
+            Without<CalamitySelectionProgressText>,
+        ),
+    >,
+    mut city_name_text: Query<
+        &mut Text,
+        (
+            With<CalamitySelectionCityNameText>,
+            Without<CalamitySelectionTitleText>,
+            Without<CalamitySelectionProgressText>,
+        ),
+    >,
+    mut progress_text: Query<
+        &mut Text,
+        (
+            With<CalamitySelectionProgressText>,
+            Without<CalamitySelectionTitleText>,
+            Without<CalamitySelectionCityNameText>,
+        ),
+    >,
+    mut toggle_button: Query<
+        (&mut BackgroundColor, &Children),
+        With<CalamitySelectionToggleButton>,
+    >,
+    mut confirm_button: Query<
+        (&mut BackgroundColor, &Children),
+        (
+            With<CalamitySelectionConfirmButton>,
+            Without<CalamitySelectionToggleButton>,
+        ),
+    >,
+    mut child_texts: Query<
+        &mut Text,
+        (
+            Without<CalamitySelectionTitleText>,
+            Without<CalamitySelectionCityNameText>,
+            Without<CalamitySelectionProgressText>,
+        ),
+    >,
 ) {
     if !calamity_selection.is_changed() {
         return;
@@ -196,15 +270,25 @@ pub fn update_calamity_selection_ui(
             "{} — Select {} cit{}",
             calamity_selection.calamity_name,
             calamity_selection.required_count,
-            if calamity_selection.required_count == 1 { "y" } else { "ies" }
+            if calamity_selection.required_count == 1 {
+                "y"
+            } else {
+                "ies"
+            }
         );
     }
 
     // Update city name
     if let Ok(mut text) = city_name_text.single_mut() {
         if let Some(city) = calamity_selection.current_city() {
-            let name = area_names.get(city).map_or("?", bevy::prelude::Name::as_str);
-            let selected_marker = if calamity_selection.is_current_selected() { " [X]" } else { "" };
+            let name = area_names
+                .get(city)
+                .map_or("?", bevy::prelude::Name::as_str);
+            let selected_marker = if calamity_selection.is_current_selected() {
+                " [X]"
+            } else {
+                ""
+            };
             **text = format!(
                 "{}{} ({}/{})",
                 name,
@@ -236,7 +320,11 @@ pub fn update_calamity_selection_ui(
         };
         for child in children.iter() {
             if let Ok(mut text) = child_texts.get_mut(child) {
-                **text = if is_selected { "Deselect".to_string() } else { "Select".to_string() };
+                **text = if is_selected {
+                    "Deselect".to_string()
+                } else {
+                    "Select".to_string()
+                };
             }
         }
     }
@@ -281,9 +369,13 @@ pub fn handle_calamity_selection_buttons(
                 if calamity_selection.selection_complete() {
                     // Signal the advance system by removing the waiting marker
                     if let Ok(player) = human_waiting.single() {
-                        info!("[CALAMITY UI] Human confirmed {} city selection(s)",
-                            calamity_selection.selected_cities.len());
-                        commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
+                        info!(
+                            "[CALAMITY UI] Human confirmed {} city selection(s)",
+                            calamity_selection.selected_cities.len()
+                        );
+                        commands
+                            .entity(player)
+                            .remove::<AwaitingHumanCalamitySelection>();
                     }
                 }
             }
@@ -360,8 +452,14 @@ pub fn spawn_civil_war_selection_ui(
         CivilWarUiRole::ChooseFaction => unreachable!("handled above"),
     };
     let hint = match cw_selection.role {
-        CivilWarUiRole::Victim => format!("Select at least {} pts to yield", cw_selection.target_points),
-        CivilWarUiRole::Beneficiary => format!("Take up to {} pts from the pool", cw_selection.target_points),
+        CivilWarUiRole::Victim => format!(
+            "Select at least {} pts to yield",
+            cw_selection.target_points
+        ),
+        CivilWarUiRole::Beneficiary => format!(
+            "Take up to {} pts from the pool",
+            cw_selection.target_points
+        ),
         CivilWarUiRole::ChooseFaction => unreachable!("handled above"),
     };
 
@@ -386,14 +484,22 @@ pub fn spawn_civil_war_selection_ui(
             parent.spawn((
                 CivilWarTitleText,
                 Text::new(role_label),
-                TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 20.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(1.0, 0.5, 0.3)),
             ));
 
             // Hint
             parent.spawn((
                 Text::new(hint),
-                TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 14.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(0.7, 0.7, 0.7)),
             ));
 
@@ -401,7 +507,11 @@ pub fn spawn_civil_war_selection_ui(
             parent.spawn((
                 CivilWarPointsText,
                 Text::new("Points: 0 / ?"),
-                TextFont { font: font.clone(), font_size: 18.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 18.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(1.0, 1.0, 0.5)),
             ));
 
@@ -427,7 +537,11 @@ pub fn spawn_civil_war_selection_ui(
                     ))
                     .with_child((
                         Text::new("Tokens"),
-                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 16.0,
+                            ..default()
+                        },
                         TextColor(Color::WHITE),
                     ));
                     row.spawn((
@@ -444,7 +558,11 @@ pub fn spawn_civil_war_selection_ui(
                     ))
                     .with_child((
                         Text::new("Cities"),
-                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 16.0,
+                            ..default()
+                        },
                         TextColor(Color::WHITE),
                     ));
                 });
@@ -462,35 +580,63 @@ pub fn spawn_civil_war_selection_ui(
                         Button,
                         CivilWarButtonAction::DecrementTokens,
                         Node {
-                            width: Val::Px(32.0), height: Val::Px(32.0),
+                            width: Val::Px(32.0),
+                            height: Val::Px(32.0),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
                             ..default()
                         },
                         BackgroundColor(Color::srgb(0.3, 0.1, 0.1)),
                     ))
-                    .with_child((Text::new("−"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+                    .with_child((
+                        Text::new("−"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 22.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
 
                     row.spawn((
                         CivilWarTokenCountText,
-                        Text::new(format!("0 tokens  (of {})", cw_selection.total_available_tokens)),
-                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        Text::new(format!(
+                            "0 tokens  (of {})",
+                            cw_selection.total_available_tokens
+                        )),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 16.0,
+                            ..default()
+                        },
                         TextColor(Color::srgb(0.9, 0.9, 0.9)),
-                        Node { min_width: Val::Px(160.0), ..default() },
+                        Node {
+                            min_width: Val::Px(160.0),
+                            ..default()
+                        },
                     ));
 
                     row.spawn((
                         Button,
                         CivilWarButtonAction::IncrementTokens,
                         Node {
-                            width: Val::Px(32.0), height: Val::Px(32.0),
+                            width: Val::Px(32.0),
+                            height: Val::Px(32.0),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
                             ..default()
                         },
                         BackgroundColor(Color::srgb(0.1, 0.3, 0.1)),
                     ))
-                    .with_child((Text::new("+"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+                    .with_child((
+                        Text::new("+"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 22.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
                 });
 
             // City navigation row (only shown when cities exist)
@@ -504,51 +650,114 @@ pub fn spawn_civil_war_selection_ui(
                     })
                     .with_children(|row| {
                         row.spawn((
-                            Button, CivilWarButtonAction::PrevCity,
-                            Node { width: Val::Px(28.0), height: Val::Px(28.0),
-                                justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                            Button,
+                            CivilWarButtonAction::PrevCity,
+                            Node {
+                                width: Val::Px(28.0),
+                                height: Val::Px(28.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
                             BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                        )).with_child((Text::new("<"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+                        ))
+                        .with_child((
+                            Text::new("<"),
+                            TextFont {
+                                font: font.clone(),
+                                font_size: 18.0,
+                                ..default()
+                            },
+                            TextColor(Color::WHITE),
+                        ));
 
                         row.spawn((
                             CivilWarCityNameText,
                             Text::new("City: ?"),
-                            TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                            TextFont {
+                                font: font.clone(),
+                                font_size: 16.0,
+                                ..default()
+                            },
                             TextColor(Color::srgb(1.0, 1.0, 0.7)),
-                            Node { min_width: Val::Px(160.0), ..default() },
+                            Node {
+                                min_width: Val::Px(160.0),
+                                ..default()
+                            },
                         ));
 
                         row.spawn((
-                            Button, CivilWarButtonAction::NextCity,
-                            Node { width: Val::Px(28.0), height: Val::Px(28.0),
-                                justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                            Button,
+                            CivilWarButtonAction::NextCity,
+                            Node {
+                                width: Val::Px(28.0),
+                                height: Val::Px(28.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
                             BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                        )).with_child((Text::new(">"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+                        ))
+                        .with_child((
+                            Text::new(">"),
+                            TextFont {
+                                font: font.clone(),
+                                font_size: 18.0,
+                                ..default()
+                            },
+                            TextColor(Color::WHITE),
+                        ));
 
                         row.spawn((
-                            Button, CivilWarButtonAction::ToggleCity,
+                            Button,
+                            CivilWarButtonAction::ToggleCity,
                             CivilWarToggleCityButton,
-                            Node { width: Val::Px(80.0), height: Val::Px(28.0),
-                                justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                            Node {
+                                width: Val::Px(80.0),
+                                height: Val::Px(28.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
                             BackgroundColor(Color::srgb(0.2, 0.4, 0.2)),
-                        )).with_child((Text::new("Select"), TextFont { font: font.clone(), font_size: 14.0, ..default() }, TextColor(Color::WHITE)));
+                        ))
+                        .with_child((
+                            Text::new("Select"),
+                            TextFont {
+                                font: font.clone(),
+                                font_size: 14.0,
+                                ..default()
+                            },
+                            TextColor(Color::WHITE),
+                        ));
                     });
             }
 
             // Confirm button
-            parent.spawn((
-                Button,
-                CivilWarButtonAction::Confirm,
-                CivilWarConfirmButton,
-                Node {
-                    width: Val::Px(160.0), height: Val::Px(40.0),
-                    justify_content: JustifyContent::Center, align_items: AlignItems::Center,
-                    margin: UiRect::top(Val::Px(4.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
-            ))
-            .with_child((Text::new("Confirm"), TextFont { font: font.clone(), font_size: 20.0, ..default() }, TextColor(Color::WHITE)));
+            parent
+                .spawn((
+                    Button,
+                    CivilWarButtonAction::Confirm,
+                    CivilWarConfirmButton,
+                    Node {
+                        width: Val::Px(160.0),
+                        height: Val::Px(40.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        margin: UiRect::top(Val::Px(4.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
+                ))
+                .with_child((
+                    Text::new("Confirm"),
+                    TextFont {
+                        font: font.clone(),
+                        font_size: 20.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE),
+                ));
         });
 }
 
@@ -579,12 +788,20 @@ fn spawn_civil_war_faction_choice_ui(
             parent.spawn((
                 CivilWarTitleText,
                 Text::new("Civil War — Choose Your Faction"),
-                TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 20.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(1.0, 0.5, 0.3)),
             ));
             parent.spawn((
                 Text::new("Whichever faction you don't keep is annexed by the beneficiary"),
-                TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 14.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(0.7, 0.7, 0.7)),
             ));
 
@@ -600,15 +817,24 @@ fn spawn_civil_war_faction_choice_ui(
                         CivilWarButtonAction::KeepFirstFaction,
                         CivilWarKeepFirstButton,
                         Node {
-                            width: Val::Px(180.0), height: Val::Px(40.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center,
+                            width: Val::Px(180.0),
+                            height: Val::Px(40.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
                             ..default()
                         },
                         BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
                     ))
                     .with_child((
-                        Text::new(format!("Keep First Faction ({} pts)", cw_selection.first_faction_points)),
-                        TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                        Text::new(format!(
+                            "Keep First Faction ({} pts)",
+                            cw_selection.first_faction_points
+                        )),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 14.0,
+                            ..default()
+                        },
                         TextColor(Color::WHITE),
                     ));
 
@@ -617,15 +843,24 @@ fn spawn_civil_war_faction_choice_ui(
                         CivilWarButtonAction::KeepSecondFaction,
                         CivilWarKeepSecondButton,
                         Node {
-                            width: Val::Px(180.0), height: Val::Px(40.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center,
+                            width: Val::Px(180.0),
+                            height: Val::Px(40.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
                             ..default()
                         },
                         BackgroundColor(Color::srgb(0.2, 0.2, 0.5)),
                     ))
                     .with_child((
-                        Text::new(format!("Keep Second Faction ({} pts)", cw_selection.second_faction_points)),
-                        TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                        Text::new(format!(
+                            "Keep Second Faction ({} pts)",
+                            cw_selection.second_faction_points
+                        )),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 14.0,
+                            ..default()
+                        },
                         TextColor(Color::WHITE),
                     ));
                 });
@@ -636,22 +871,62 @@ fn spawn_civil_war_faction_choice_ui(
 pub fn update_civil_war_selection_ui(
     cw_selection: Res<CivilWarSelectionState>,
     area_names: Query<&Name, With<GameArea>>,
-    mut points_text: Query<&mut Text, (With<CivilWarPointsText>, Without<CivilWarTokenCountText>, Without<CivilWarCityNameText>)>,
-    mut token_text: Query<&mut Text, (With<CivilWarTokenCountText>, Without<CivilWarPointsText>, Without<CivilWarCityNameText>)>,
-    mut city_text: Query<&mut Text, (With<CivilWarCityNameText>, Without<CivilWarPointsText>, Without<CivilWarTokenCountText>)>,
+    mut points_text: Query<
+        &mut Text,
+        (
+            With<CivilWarPointsText>,
+            Without<CivilWarTokenCountText>,
+            Without<CivilWarCityNameText>,
+        ),
+    >,
+    mut token_text: Query<
+        &mut Text,
+        (
+            With<CivilWarTokenCountText>,
+            Without<CivilWarPointsText>,
+            Without<CivilWarCityNameText>,
+        ),
+    >,
+    mut city_text: Query<
+        &mut Text,
+        (
+            With<CivilWarCityNameText>,
+            Without<CivilWarPointsText>,
+            Without<CivilWarTokenCountText>,
+        ),
+    >,
     mut toggle_button: Query<(&mut BackgroundColor, &Children), With<CivilWarToggleCityButton>>,
-    mut confirm_button: Query<(&mut BackgroundColor, &Children), (With<CivilWarConfirmButton>, Without<CivilWarToggleCityButton>)>,
-    mut child_texts: Query<&mut Text, (Without<CivilWarPointsText>, Without<CivilWarTokenCountText>, Without<CivilWarCityNameText>)>,
+    mut confirm_button: Query<
+        (&mut BackgroundColor, &Children),
+        (
+            With<CivilWarConfirmButton>,
+            Without<CivilWarToggleCityButton>,
+        ),
+    >,
+    mut child_texts: Query<
+        &mut Text,
+        (
+            Without<CivilWarPointsText>,
+            Without<CivilWarTokenCountText>,
+            Without<CivilWarCityNameText>,
+        ),
+    >,
 ) {
-    if !cw_selection.is_changed() { return; }
-    if cw_selection.role == CivilWarUiRole::ChooseFaction { return; }
+    if !cw_selection.is_changed() {
+        return;
+    }
+    if cw_selection.role == CivilWarUiRole::ChooseFaction {
+        return;
+    }
 
     if let Ok(mut text) = points_text.single_mut() {
         let pts = cw_selection.current_points();
         let target = cw_selection.target_points;
         let label = match cw_selection.role {
             CivilWarUiRole::Victim => format!("Points: {pts} / {target} (need ≥{target})"),
-            CivilWarUiRole::Beneficiary => format!("Points: {pts} / {target} (take up to {target})"),
+            CivilWarUiRole::Beneficiary => {
+                format!("Points: {pts} / {target} (take up to {target})")
+            }
             CivilWarUiRole::ChooseFaction => String::new(),
         };
         **text = label;
@@ -660,19 +935,25 @@ pub fn update_civil_war_selection_ui(
     if let Ok(mut text) = token_text.single_mut() {
         **text = format!(
             "{} tokens  (of {})",
-            cw_selection.selected_token_count,
-            cw_selection.total_available_tokens
+            cw_selection.selected_token_count, cw_selection.total_available_tokens
         );
     }
 
     if let Ok(mut text) = city_text.single_mut()
         && let Some(city) = cw_selection.current_city()
     {
-        let name = area_names.get(city).map_or("?", bevy::prelude::Name::as_str);
-        let sel = if cw_selection.is_current_city_selected() { " [✓]" } else { "" };
+        let name = area_names
+            .get(city)
+            .map_or("?", bevy::prelude::Name::as_str);
+        let sel = if cw_selection.is_current_city_selected() {
+            " [✓]"
+        } else {
+            ""
+        };
         **text = format!(
             "{}{} ({}/{})",
-            name, sel,
+            name,
+            sel,
             cw_selection.current_city_index + 1,
             cw_selection.available_cities.len()
         );
@@ -687,7 +968,11 @@ pub fn update_civil_war_selection_ui(
         };
         for child in children.iter() {
             if let Ok(mut text) = child_texts.get_mut(child) {
-                **text = if is_selected { "Deselect".to_string() } else { "Select".to_string() };
+                **text = if is_selected {
+                    "Deselect".to_string()
+                } else {
+                    "Select".to_string()
+                };
             }
         }
     }
@@ -713,36 +998,61 @@ pub fn handle_civil_war_selection_buttons(
     human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
 ) {
     for (interaction, action) in interaction_query.iter() {
-        if *interaction != Interaction::Pressed { continue; }
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
         match action {
-            CivilWarButtonAction::TokensTab => { cw_selection.showing_cities = false; }
-            CivilWarButtonAction::CitiesTab => { cw_selection.showing_cities = true; }
-            CivilWarButtonAction::IncrementTokens => { cw_selection.increment_tokens(); }
-            CivilWarButtonAction::DecrementTokens => { cw_selection.decrement_tokens(); }
-            CivilWarButtonAction::PrevCity => { cw_selection.prev_city(); }
-            CivilWarButtonAction::NextCity => { cw_selection.next_city(); }
-            CivilWarButtonAction::ToggleCity => { cw_selection.toggle_current_city(); }
+            CivilWarButtonAction::TokensTab => {
+                cw_selection.showing_cities = false;
+            }
+            CivilWarButtonAction::CitiesTab => {
+                cw_selection.showing_cities = true;
+            }
+            CivilWarButtonAction::IncrementTokens => {
+                cw_selection.increment_tokens();
+            }
+            CivilWarButtonAction::DecrementTokens => {
+                cw_selection.decrement_tokens();
+            }
+            CivilWarButtonAction::PrevCity => {
+                cw_selection.prev_city();
+            }
+            CivilWarButtonAction::NextCity => {
+                cw_selection.next_city();
+            }
+            CivilWarButtonAction::ToggleCity => {
+                cw_selection.toggle_current_city();
+            }
             CivilWarButtonAction::Confirm => {
                 if cw_selection.selection_valid()
                     && let Ok(player) = human_waiting.single()
                 {
-                    info!("[CIVIL WAR UI] Human confirmed: {} tokens, {} cities",
-                        cw_selection.selected_token_count, cw_selection.selected_cities.len());
-                    commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
+                    info!(
+                        "[CIVIL WAR UI] Human confirmed: {} tokens, {} cities",
+                        cw_selection.selected_token_count,
+                        cw_selection.selected_cities.len()
+                    );
+                    commands
+                        .entity(player)
+                        .remove::<AwaitingHumanCalamitySelection>();
                 }
             }
             CivilWarButtonAction::KeepFirstFaction => {
                 if let Ok(player) = human_waiting.single() {
                     info!("[CIVIL WAR UI] Human victim keeps First faction (30.415)");
                     cw_selection.choose_faction(FactionChoice::First);
-                    commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
+                    commands
+                        .entity(player)
+                        .remove::<AwaitingHumanCalamitySelection>();
                 }
             }
             CivilWarButtonAction::KeepSecondFaction => {
                 if let Ok(player) = human_waiting.single() {
                     info!("[CIVIL WAR UI] Human victim keeps Second faction (30.415)");
                     cw_selection.choose_faction(FactionChoice::Second);
-                    commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
+                    commands
+                        .entity(player)
+                        .remove::<AwaitingHumanCalamitySelection>();
                 }
             }
         }
@@ -816,20 +1126,31 @@ pub fn spawn_monotheism_selection_ui(
 
         row.add_button_observe(
             "<",
-            |btn| { btn.size_px(32.0, 32.0); },
-            |_: On<Activate>, mut s: ResMut<MonotheismSelectionState>| { s.prev(); },
+            |btn| {
+                btn.size_px(32.0, 32.0);
+            },
+            |_: On<Activate>, mut s: ResMut<MonotheismSelectionState>| {
+                s.prev();
+            },
         );
 
         row.with_child(|c| {
             c.component::<MonotheismTargetText>()
-                .with_text("?", Some(TextStyle::size_color(18.0, Color::srgb(1.0, 1.0, 0.7))))
+                .with_text(
+                    "?",
+                    Some(TextStyle::size_color(18.0, Color::srgb(1.0, 1.0, 0.7))),
+                )
                 .width_px(200.0);
         });
 
         row.add_button_observe(
             ">",
-            |btn| { btn.size_px(32.0, 32.0); },
-            |_: On<Activate>, mut s: ResMut<MonotheismSelectionState>| { s.next(); },
+            |btn| {
+                btn.size_px(32.0, 32.0);
+            },
+            |_: On<Activate>, mut s: ResMut<MonotheismSelectionState>| {
+                s.next();
+            },
         );
     });
 
@@ -845,22 +1166,25 @@ pub fn spawn_monotheism_selection_ui(
                     .insert(MonotheismToggleButton)
                     .bg_color(toggle_color);
             },
-            |_: On<Activate>, mut s: ResMut<MonotheismSelectionState>| { s.toggle_current(); },
+            |_: On<Activate>, mut s: ResMut<MonotheismSelectionState>| {
+                s.toggle_current();
+            },
         );
 
         row.with_child(|c| {
-            c.component::<MonotheismProgressText>()
-                .with_text(
-                    format!("0 / {max}"),
-                    Some(TextStyle::size_color(18.0, Color::srgb(0.8, 0.8, 0.8))),
-                );
+            c.component::<MonotheismProgressText>().with_text(
+                format!("0 / {max}"),
+                Some(TextStyle::size_color(18.0, Color::srgb(0.8, 0.8, 0.8))),
+            );
         });
     });
 
     // Confirm button (0 selections is valid — "do nothing")
     ui.add_button_observe(
         "Confirm",
-        |btn| { btn.size_px(160.0, 40.0); },
+        |btn| {
+            btn.size_px(160.0, 40.0);
+        },
         |_: On<Activate>,
          mut commands: Commands,
          human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingMonotheismSelection>)>,
@@ -870,7 +1194,9 @@ pub fn spawn_monotheism_selection_ui(
                     "[MONOTHEISM UI] Human confirmed: {} token(s) eliminated",
                     mono_state.selected.len()
                 );
-                commands.entity(player).remove::<AwaitingMonotheismSelection>();
+                commands
+                    .entity(player)
+                    .remove::<AwaitingMonotheismSelection>();
             }
         },
     );
@@ -896,7 +1222,10 @@ pub fn update_monotheism_selection_ui(
     >,
     mut child_texts: Query<
         &mut Text,
-        (Without<MonotheismTargetText>, Without<MonotheismProgressText>),
+        (
+            Without<MonotheismTargetText>,
+            Without<MonotheismProgressText>,
+        ),
     >,
 ) {
     if !mono_state.is_changed() {
@@ -905,8 +1234,14 @@ pub fn update_monotheism_selection_ui(
 
     if let Ok(mut t) = target_text.single_mut() {
         if let Some((_, area)) = mono_state.current_candidate() {
-            let area_name = area_names.get(area).map_or("?", bevy::prelude::Name::as_str);
-            let sel = if mono_state.is_current_selected() { " [✓]" } else { "" };
+            let area_name = area_names
+                .get(area)
+                .map_or("?", bevy::prelude::Name::as_str);
+            let sel = if mono_state.is_current_selected() {
+                " [✓]"
+            } else {
+                ""
+            };
             **t = format!(
                 "{}{} ({}/{})",
                 area_name,
@@ -936,7 +1271,11 @@ pub fn update_monotheism_selection_ui(
         palette.none = toggle_color;
         for child in children.iter() {
             if let Ok(mut text) = child_texts.get_mut(child) {
-                **text = if is_sel { "Spare".to_string() } else { "Eliminate".to_string() };
+                **text = if is_sel {
+                    "Spare".to_string()
+                } else {
+                    "Eliminate".to_string()
+                };
             }
         }
     }
@@ -996,20 +1335,32 @@ pub fn spawn_flood_selection_ui(
         .with_children(|parent| {
             parent.spawn((
                 Text::new("Flood — Divide the secondary loss"),
-                TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 20.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(0.4, 0.7, 1.0)),
             ));
 
             parent.spawn((
                 Text::new("Choose how many points each secondary victim loses"),
-                TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 14.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(0.7, 0.7, 0.7)),
             ));
 
             parent.spawn((
                 FloodPointsText,
                 Text::new("Allocated: 0 / ?"),
-                TextFont { font: font.clone(), font_size: 18.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 18.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(1.0, 1.0, 0.5)),
             ));
 
@@ -1023,55 +1374,133 @@ pub fn spawn_flood_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button, FloodButtonAction::PrevVictim,
-                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        FloodButtonAction::PrevVictim,
+                        Node {
+                            width: Val::Px(28.0),
+                            height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    )).with_child((Text::new("<"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new("<"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 18.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
 
                     row.spawn((
                         FloodVictimNameText,
                         Text::new("Victim: ?"),
-                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 16.0,
+                            ..default()
+                        },
                         TextColor(Color::srgb(1.0, 1.0, 0.7)),
-                        Node { min_width: Val::Px(200.0), ..default() },
+                        Node {
+                            min_width: Val::Px(200.0),
+                            ..default()
+                        },
                     ));
 
                     row.spawn((
-                        Button, FloodButtonAction::NextVictim,
-                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        FloodButtonAction::NextVictim,
+                        Node {
+                            width: Val::Px(28.0),
+                            height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    )).with_child((Text::new(">"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new(">"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 18.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
 
                     row.spawn((
-                        Button, FloodButtonAction::Decrement,
-                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        FloodButtonAction::Decrement,
+                        Node {
+                            width: Val::Px(32.0),
+                            height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.3, 0.1, 0.1)),
-                    )).with_child((Text::new("−"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new("−"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 22.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
 
                     row.spawn((
-                        Button, FloodButtonAction::Increment,
-                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        FloodButtonAction::Increment,
+                        Node {
+                            width: Val::Px(32.0),
+                            height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.1, 0.3, 0.1)),
-                    )).with_child((Text::new("+"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new("+"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 22.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
                 });
 
-            parent.spawn((
-                Button,
-                FloodButtonAction::Confirm,
-                FloodConfirmButton,
-                Node {
-                    width: Val::Px(160.0), height: Val::Px(40.0),
-                    justify_content: JustifyContent::Center, align_items: AlignItems::Center,
-                    margin: UiRect::top(Val::Px(4.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
-            ))
-            .with_child((Text::new("Confirm"), TextFont { font: font.clone(), font_size: 20.0, ..default() }, TextColor(Color::WHITE)));
+            parent
+                .spawn((
+                    Button,
+                    FloodButtonAction::Confirm,
+                    FloodConfirmButton,
+                    Node {
+                        width: Val::Px(160.0),
+                        height: Val::Px(40.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        margin: UiRect::top(Val::Px(4.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
+                ))
+                .with_child((
+                    Text::new("Confirm"),
+                    TextFont {
+                        font: font.clone(),
+                        font_size: 20.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE),
+                ));
         });
 }
 
@@ -1133,10 +1562,18 @@ pub fn handle_flood_selection_buttons(
             continue;
         }
         match action {
-            FloodButtonAction::PrevVictim => { flood_selection.prev_victim(); }
-            FloodButtonAction::NextVictim => { flood_selection.next_victim(); }
-            FloodButtonAction::Increment => { flood_selection.increment_current(); }
-            FloodButtonAction::Decrement => { flood_selection.decrement_current(); }
+            FloodButtonAction::PrevVictim => {
+                flood_selection.prev_victim();
+            }
+            FloodButtonAction::NextVictim => {
+                flood_selection.next_victim();
+            }
+            FloodButtonAction::Increment => {
+                flood_selection.increment_current();
+            }
+            FloodButtonAction::Decrement => {
+                flood_selection.decrement_current();
+            }
             FloodButtonAction::Confirm => {
                 if flood_selection.selection_valid()
                     && let Ok(player) = human_waiting.single()
@@ -1145,7 +1582,9 @@ pub fn handle_flood_selection_buttons(
                         "[FLOOD UI] Human primary victim confirmed allocation: {:?}",
                         flood_selection.victims
                     );
-                    commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
+                    commands
+                        .entity(player)
+                        .remove::<AwaitingHumanCalamitySelection>();
                 }
             }
         }
@@ -1206,20 +1645,32 @@ pub fn spawn_famine_selection_ui(
         .with_children(|parent| {
             parent.spawn((
                 Text::new("Famine — Divide the secondary loss"),
-                TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 20.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(1.0, 0.6, 0.3)),
             ));
 
             parent.spawn((
                 Text::new("Choose how many points each secondary victim loses"),
-                TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 14.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(0.7, 0.7, 0.7)),
             ));
 
             parent.spawn((
                 FaminePointsText,
                 Text::new("Allocated: 0 / ?"),
-                TextFont { font: font.clone(), font_size: 18.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 18.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(1.0, 1.0, 0.5)),
             ));
 
@@ -1233,55 +1684,133 @@ pub fn spawn_famine_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button, FamineButtonAction::PrevVictim,
-                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        FamineButtonAction::PrevVictim,
+                        Node {
+                            width: Val::Px(28.0),
+                            height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    )).with_child((Text::new("<"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new("<"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 18.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
 
                     row.spawn((
                         FamineVictimNameText,
                         Text::new("Victim: ?"),
-                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 16.0,
+                            ..default()
+                        },
                         TextColor(Color::srgb(1.0, 1.0, 0.7)),
-                        Node { min_width: Val::Px(200.0), ..default() },
+                        Node {
+                            min_width: Val::Px(200.0),
+                            ..default()
+                        },
                     ));
 
                     row.spawn((
-                        Button, FamineButtonAction::NextVictim,
-                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        FamineButtonAction::NextVictim,
+                        Node {
+                            width: Val::Px(28.0),
+                            height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    )).with_child((Text::new(">"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new(">"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 18.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
 
                     row.spawn((
-                        Button, FamineButtonAction::Decrement,
-                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        FamineButtonAction::Decrement,
+                        Node {
+                            width: Val::Px(32.0),
+                            height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.3, 0.1, 0.1)),
-                    )).with_child((Text::new("−"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new("−"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 22.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
 
                     row.spawn((
-                        Button, FamineButtonAction::Increment,
-                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        FamineButtonAction::Increment,
+                        Node {
+                            width: Val::Px(32.0),
+                            height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.1, 0.3, 0.1)),
-                    )).with_child((Text::new("+"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new("+"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 22.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
                 });
 
-            parent.spawn((
-                Button,
-                FamineButtonAction::Confirm,
-                FamineConfirmButton,
-                Node {
-                    width: Val::Px(160.0), height: Val::Px(40.0),
-                    justify_content: JustifyContent::Center, align_items: AlignItems::Center,
-                    margin: UiRect::top(Val::Px(4.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
-            ))
-            .with_child((Text::new("Confirm"), TextFont { font: font.clone(), font_size: 20.0, ..default() }, TextColor(Color::WHITE)));
+            parent
+                .spawn((
+                    Button,
+                    FamineButtonAction::Confirm,
+                    FamineConfirmButton,
+                    Node {
+                        width: Val::Px(160.0),
+                        height: Val::Px(40.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        margin: UiRect::top(Val::Px(4.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
+                ))
+                .with_child((
+                    Text::new("Confirm"),
+                    TextFont {
+                        font: font.clone(),
+                        font_size: 20.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE),
+                ));
         });
 }
 
@@ -1343,10 +1872,18 @@ pub fn handle_famine_selection_buttons(
             continue;
         }
         match action {
-            FamineButtonAction::PrevVictim => { famine_selection.prev_victim(); }
-            FamineButtonAction::NextVictim => { famine_selection.next_victim(); }
-            FamineButtonAction::Increment => { famine_selection.increment_current(); }
-            FamineButtonAction::Decrement => { famine_selection.decrement_current(); }
+            FamineButtonAction::PrevVictim => {
+                famine_selection.prev_victim();
+            }
+            FamineButtonAction::NextVictim => {
+                famine_selection.next_victim();
+            }
+            FamineButtonAction::Increment => {
+                famine_selection.increment_current();
+            }
+            FamineButtonAction::Decrement => {
+                famine_selection.decrement_current();
+            }
             FamineButtonAction::Confirm => {
                 if famine_selection.selection_valid()
                     && let Ok(player) = human_waiting.single()
@@ -1355,7 +1892,9 @@ pub fn handle_famine_selection_buttons(
                         "[FAMINE UI] Human primary victim confirmed allocation: {:?}",
                         famine_selection.victims
                     );
-                    commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
+                    commands
+                        .entity(player)
+                        .remove::<AwaitingHumanCalamitySelection>();
                 }
             }
         }
@@ -1416,20 +1955,32 @@ pub fn spawn_epidemic_selection_ui(
         .with_children(|parent| {
             parent.spawn((
                 Text::new("Epidemic — Divide the secondary loss"),
-                TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 20.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(0.4, 0.7, 1.0)),
             ));
 
             parent.spawn((
                 Text::new("Choose how many points each secondary victim loses"),
-                TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 14.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(0.7, 0.7, 0.7)),
             ));
 
             parent.spawn((
                 EpidemicPointsText,
                 Text::new("Allocated: 0 / ?"),
-                TextFont { font: font.clone(), font_size: 18.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 18.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(1.0, 1.0, 0.5)),
             ));
 
@@ -1443,55 +1994,133 @@ pub fn spawn_epidemic_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button, EpidemicButtonAction::PrevVictim,
-                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        EpidemicButtonAction::PrevVictim,
+                        Node {
+                            width: Val::Px(28.0),
+                            height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    )).with_child((Text::new("<"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new("<"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 18.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
 
                     row.spawn((
                         EpidemicVictimNameText,
                         Text::new("Victim: ?"),
-                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 16.0,
+                            ..default()
+                        },
                         TextColor(Color::srgb(1.0, 1.0, 0.7)),
-                        Node { min_width: Val::Px(200.0), ..default() },
+                        Node {
+                            min_width: Val::Px(200.0),
+                            ..default()
+                        },
                     ));
 
                     row.spawn((
-                        Button, EpidemicButtonAction::NextVictim,
-                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        EpidemicButtonAction::NextVictim,
+                        Node {
+                            width: Val::Px(28.0),
+                            height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    )).with_child((Text::new(">"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new(">"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 18.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
 
                     row.spawn((
-                        Button, EpidemicButtonAction::Decrement,
-                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        EpidemicButtonAction::Decrement,
+                        Node {
+                            width: Val::Px(32.0),
+                            height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.3, 0.1, 0.1)),
-                    )).with_child((Text::new("−"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new("−"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 22.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
 
                     row.spawn((
-                        Button, EpidemicButtonAction::Increment,
-                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        EpidemicButtonAction::Increment,
+                        Node {
+                            width: Val::Px(32.0),
+                            height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.1, 0.3, 0.1)),
-                    )).with_child((Text::new("+"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new("+"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 22.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
                 });
 
-            parent.spawn((
-                Button,
-                EpidemicButtonAction::Confirm,
-                EpidemicConfirmButton,
-                Node {
-                    width: Val::Px(160.0), height: Val::Px(40.0),
-                    justify_content: JustifyContent::Center, align_items: AlignItems::Center,
-                    margin: UiRect::top(Val::Px(4.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
-            ))
-            .with_child((Text::new("Confirm"), TextFont { font: font.clone(), font_size: 20.0, ..default() }, TextColor(Color::WHITE)));
+            parent
+                .spawn((
+                    Button,
+                    EpidemicButtonAction::Confirm,
+                    EpidemicConfirmButton,
+                    Node {
+                        width: Val::Px(160.0),
+                        height: Val::Px(40.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        margin: UiRect::top(Val::Px(4.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
+                ))
+                .with_child((
+                    Text::new("Confirm"),
+                    TextFont {
+                        font: font.clone(),
+                        font_size: 20.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE),
+                ));
         });
 }
 
@@ -1553,10 +2182,18 @@ pub fn handle_epidemic_selection_buttons(
             continue;
         }
         match action {
-            EpidemicButtonAction::PrevVictim => { epidemic_selection.prev_victim(); }
-            EpidemicButtonAction::NextVictim => { epidemic_selection.next_victim(); }
-            EpidemicButtonAction::Increment => { epidemic_selection.increment_current(); }
-            EpidemicButtonAction::Decrement => { epidemic_selection.decrement_current(); }
+            EpidemicButtonAction::PrevVictim => {
+                epidemic_selection.prev_victim();
+            }
+            EpidemicButtonAction::NextVictim => {
+                epidemic_selection.next_victim();
+            }
+            EpidemicButtonAction::Increment => {
+                epidemic_selection.increment_current();
+            }
+            EpidemicButtonAction::Decrement => {
+                epidemic_selection.decrement_current();
+            }
             EpidemicButtonAction::Confirm => {
                 if epidemic_selection.selection_valid()
                     && let Ok(player) = human_waiting.single()
@@ -1565,7 +2202,9 @@ pub fn handle_epidemic_selection_buttons(
                         "[EPIDEMIC UI] Human primary victim confirmed allocation: {:?}",
                         epidemic_selection.victims
                     );
-                    commands.entity(player).remove::<AwaitingHumanCalamitySelection>();
+                    commands
+                        .entity(player)
+                        .remove::<AwaitingHumanCalamitySelection>();
                 }
             }
         }
@@ -1579,7 +2218,8 @@ pub fn cleanup_epidemic_selection_ui(
     human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
     epidemic_selection: Res<EpidemicSelectionState>,
 ) {
-    if !ui_root.is_empty() && human_waiting.is_empty() && epidemic_selection.acting_player.is_none() {
+    if !ui_root.is_empty() && human_waiting.is_empty() && epidemic_selection.acting_player.is_none()
+    {
         for entity in ui_root.iter() {
             commands.entity(entity).despawn();
         }
@@ -1627,20 +2267,32 @@ pub fn spawn_unit_loss_selection_ui(
             parent.spawn((
                 UnitLossTitleText,
                 Text::new(format!("{} — Choose your losses", unit_loss.calamity_name)),
-                TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 20.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(1.0, 0.6, 0.3)),
             ));
 
             parent.spawn((
                 Text::new("Pick which areas your units are removed from"),
-                TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 14.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(0.7, 0.7, 0.7)),
             ));
 
             parent.spawn((
                 UnitLossPointsText,
                 Text::new("Assigned: 0 / ?"),
-                TextFont { font: font.clone(), font_size: 18.0, ..default() },
+                TextFont {
+                    font: font.clone(),
+                    font_size: 18.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(1.0, 1.0, 0.5)),
             ));
 
@@ -1654,40 +2306,107 @@ pub fn spawn_unit_loss_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button, UnitLossButtonAction::PrevArea,
-                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        UnitLossButtonAction::PrevArea,
+                        Node {
+                            width: Val::Px(28.0),
+                            height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    )).with_child((Text::new("<"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new("<"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 18.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
 
                     row.spawn((
                         UnitLossAreaNameText,
                         Text::new("Area: ?"),
-                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 16.0,
+                            ..default()
+                        },
                         TextColor(Color::srgb(1.0, 1.0, 0.7)),
-                        Node { min_width: Val::Px(240.0), ..default() },
+                        Node {
+                            min_width: Val::Px(240.0),
+                            ..default()
+                        },
                     ));
 
                     row.spawn((
-                        Button, UnitLossButtonAction::NextArea,
-                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        UnitLossButtonAction::NextArea,
+                        Node {
+                            width: Val::Px(28.0),
+                            height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    )).with_child((Text::new(">"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new(">"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 18.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
 
                     row.spawn((
-                        Button, UnitLossButtonAction::Decrement,
-                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        UnitLossButtonAction::Decrement,
+                        Node {
+                            width: Val::Px(32.0),
+                            height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.3, 0.1, 0.1)),
-                    )).with_child((Text::new("−"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new("−"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 22.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
 
                     row.spawn((
-                        Button, UnitLossButtonAction::Increment,
-                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        UnitLossButtonAction::Increment,
+                        Node {
+                            width: Val::Px(32.0),
+                            height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.1, 0.3, 0.1)),
-                    )).with_child((Text::new("+"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new("+"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 22.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
                 });
 
             // City row (29.62: a city is worth up to 5 points). Present even
@@ -1702,48 +2421,111 @@ pub fn spawn_unit_loss_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button, UnitLossButtonAction::PrevCity,
-                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        UnitLossButtonAction::PrevCity,
+                        Node {
+                            width: Val::Px(28.0),
+                            height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    )).with_child((Text::new("<"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new("<"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 18.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
 
                     row.spawn((
                         UnitLossCityText,
                         Text::new("City: —"),
-                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 16.0,
+                            ..default()
+                        },
                         TextColor(Color::srgb(1.0, 0.85, 0.85)),
-                        Node { min_width: Val::Px(240.0), ..default() },
+                        Node {
+                            min_width: Val::Px(240.0),
+                            ..default()
+                        },
                     ));
 
                     row.spawn((
-                        Button, UnitLossButtonAction::NextCity,
-                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        UnitLossButtonAction::NextCity,
+                        Node {
+                            width: Val::Px(28.0),
+                            height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
-                    )).with_child((Text::new(">"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new(">"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 18.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
 
                     row.spawn((
-                        Button, UnitLossButtonAction::ToggleCity,
-                        Node { width: Val::Px(90.0), height: Val::Px(32.0),
-                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        Button,
+                        UnitLossButtonAction::ToggleCity,
+                        Node {
+                            width: Val::Px(90.0),
+                            height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                         BackgroundColor(Color::srgb(0.35, 0.15, 0.15)),
-                    )).with_child((Text::new("Give up"), TextFont { font: font.clone(), font_size: 15.0, ..default() }, TextColor(Color::WHITE)));
+                    ))
+                    .with_child((
+                        Text::new("Give up"),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 15.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
                 });
 
-            parent.spawn((
-                Button,
-                UnitLossButtonAction::Confirm,
-                UnitLossConfirmButton,
-                Node {
-                    width: Val::Px(160.0), height: Val::Px(40.0),
-                    justify_content: JustifyContent::Center, align_items: AlignItems::Center,
-                    margin: UiRect::top(Val::Px(4.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
-            ))
-            .with_child((Text::new("Confirm"), TextFont { font: font.clone(), font_size: 20.0, ..default() }, TextColor(Color::WHITE)));
+            parent
+                .spawn((
+                    Button,
+                    UnitLossButtonAction::Confirm,
+                    UnitLossConfirmButton,
+                    Node {
+                        width: Val::Px(160.0),
+                        height: Val::Px(40.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        margin: UiRect::top(Val::Px(4.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
+                ))
+                .with_child((
+                    Text::new("Confirm"),
+                    TextFont {
+                        font: font.clone(),
+                        font_size: 20.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE),
+                ));
         });
 }
 
@@ -1753,19 +2535,39 @@ pub fn update_unit_loss_selection_ui(
     area_names: Query<&Name, With<GameArea>>,
     mut points_text: Query<
         &mut Text,
-        (With<UnitLossPointsText>, Without<UnitLossAreaNameText>, Without<UnitLossTitleText>, Without<UnitLossCityText>),
+        (
+            With<UnitLossPointsText>,
+            Without<UnitLossAreaNameText>,
+            Without<UnitLossTitleText>,
+            Without<UnitLossCityText>,
+        ),
     >,
     mut area_text: Query<
         &mut Text,
-        (With<UnitLossAreaNameText>, Without<UnitLossPointsText>, Without<UnitLossTitleText>, Without<UnitLossCityText>),
+        (
+            With<UnitLossAreaNameText>,
+            Without<UnitLossPointsText>,
+            Without<UnitLossTitleText>,
+            Without<UnitLossCityText>,
+        ),
     >,
     mut title_text: Query<
         &mut Text,
-        (With<UnitLossTitleText>, Without<UnitLossPointsText>, Without<UnitLossAreaNameText>, Without<UnitLossCityText>),
+        (
+            With<UnitLossTitleText>,
+            Without<UnitLossPointsText>,
+            Without<UnitLossAreaNameText>,
+            Without<UnitLossCityText>,
+        ),
     >,
     mut city_text: Query<
         &mut Text,
-        (With<UnitLossCityText>, Without<UnitLossPointsText>, Without<UnitLossAreaNameText>, Without<UnitLossTitleText>),
+        (
+            With<UnitLossCityText>,
+            Without<UnitLossPointsText>,
+            Without<UnitLossAreaNameText>,
+            Without<UnitLossTitleText>,
+        ),
     >,
     mut confirm_button: Query<&mut BackgroundColor, With<UnitLossConfirmButton>>,
 ) {
@@ -1840,13 +2642,27 @@ pub fn handle_unit_loss_selection_buttons(
             continue;
         }
         match action {
-            UnitLossButtonAction::PrevArea => { unit_loss.prev_area(); }
-            UnitLossButtonAction::NextArea => { unit_loss.next_area(); }
-            UnitLossButtonAction::Increment => { unit_loss.increment_current(); }
-            UnitLossButtonAction::Decrement => { unit_loss.decrement_current(); }
-            UnitLossButtonAction::PrevCity => { unit_loss.prev_city(); }
-            UnitLossButtonAction::NextCity => { unit_loss.next_city(); }
-            UnitLossButtonAction::ToggleCity => { unit_loss.toggle_current_city(); }
+            UnitLossButtonAction::PrevArea => {
+                unit_loss.prev_area();
+            }
+            UnitLossButtonAction::NextArea => {
+                unit_loss.next_area();
+            }
+            UnitLossButtonAction::Increment => {
+                unit_loss.increment_current();
+            }
+            UnitLossButtonAction::Decrement => {
+                unit_loss.decrement_current();
+            }
+            UnitLossButtonAction::PrevCity => {
+                unit_loss.prev_city();
+            }
+            UnitLossButtonAction::NextCity => {
+                unit_loss.next_city();
+            }
+            UnitLossButtonAction::ToggleCity => {
+                unit_loss.toggle_current_city();
+            }
             UnitLossButtonAction::Confirm => {
                 // The acting player is the one that must be released -- other
                 // humans may hold the marker for a different calamity.
@@ -1859,7 +2675,9 @@ pub fn handle_unit_loss_selection_buttons(
                         unit_loss.allocated_total(),
                         unit_loss.areas.len()
                     );
-                    commands.entity(acting).remove::<AwaitingHumanCalamitySelection>();
+                    commands
+                        .entity(acting)
+                        .remove::<AwaitingHumanCalamitySelection>();
                 }
             }
         }
@@ -1968,5 +2786,35 @@ pub fn focus_camera_on_monotheism_selection(
             transform.translation,
             format!("Monotheism — {name}"),
         );
+    }
+}
+
+/// Follows the Civil War city cursor so the player can see which of their
+/// areas they are about to hand over (or keep). The token spinner has no
+/// area of its own, so the camera only moves while the city list is showing.
+pub fn focus_camera_on_civil_war_selection(
+    cw_selection: Res<CivilWarSelectionState>,
+    area_query: Query<(&Transform, &Name), With<GameArea>>,
+    mut focus_queue: ResMut<CameraFocusQueue>,
+    mut last_focused: Local<Option<Entity>>,
+) {
+    let current = if cw_selection.showing_cities {
+        cw_selection.current_city()
+    } else {
+        None
+    };
+    if current == *last_focused {
+        return;
+    }
+    *last_focused = current;
+
+    let Some(area) = current else { return };
+    if let Ok((transform, name)) = area_query.get(area) {
+        let role = match cw_selection.role {
+            CivilWarUiRole::Victim => "Civil War — you lose",
+            CivilWarUiRole::Beneficiary => "Civil War — you gain",
+            CivilWarUiRole::ChooseFaction => "Civil War",
+        };
+        focus_camera_on_selection(&mut focus_queue, transform.translation, format!("{role} {name}"));
     }
 }

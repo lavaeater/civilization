@@ -1,20 +1,14 @@
 use bevy::prelude::NextState::Pending;
 use bevy::prelude::{Messages, NextState, Update};
 
-use adv_civ::civilization::{BuiltCity, PlayerCities, Population};
-use adv_civ::civilization::{
-    check_player_city_support, eliminate_city, start_check_city_support,
-};
-use adv_civ::civilization::{
-    CheckPlayerCitySupport, EliminateCity,
-};
-use adv_civ::civilization::{
-    HasTooManyCities, NeedsToCheckCitySupport,
-};
+use crate::{create_area, setup_bevy_app, setup_player};
+use adv_civ::GameActivity;
 use adv_civ::civilization::GameFaction;
 use adv_civ::civilization::MoveTokensFromStockToAreaCommand;
-use adv_civ::GameActivity;
-use crate::{create_area, setup_bevy_app, setup_player};
+use adv_civ::civilization::{BuiltCity, PlayerCities, Population};
+use adv_civ::civilization::{CheckPlayerCitySupport, EliminateCity};
+use adv_civ::civilization::{HasTooManyCities, NeedsToCheckCitySupport};
+use adv_civ::civilization::{check_player_city_support, eliminate_city, start_check_city_support};
 
 #[test]
 fn given_no_cities_next_state_is_set() {
@@ -137,7 +131,7 @@ fn given_a_city_to_eliminate_the_correct_things_happen() {
 
     let mut events = app.world_mut().resource_mut::<Messages<EliminateCity>>();
 
-    let _ = events.write(EliminateCity::new(player, city_token, area, false));    // Act
+    let _ = events.write(EliminateCity::new(player, city_token, area, false)); // Act
     app.update();
 
     // Assert

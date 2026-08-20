@@ -39,7 +39,7 @@ impl MovementSelectionState {
         self.is_city_attack = false;
         self.skipped_sources.clear();
     }
-    
+
     /// Clears selection state but preserves skipped sources for the rest of the movement phase
     pub fn clear_preserving_skips(&mut self) {
         self.source_area = None;
@@ -49,7 +49,7 @@ impl MovementSelectionState {
         self.is_attack = false;
         self.is_city_attack = false;
     }
-    
+
     pub fn clear_target(&mut self) {
         self.target_area = None;
         self.token_count = 0;
@@ -57,7 +57,7 @@ impl MovementSelectionState {
         self.is_attack = false;
         self.is_city_attack = false;
     }
-    
+
     /// Rebuilds `source_areas` after the player's moves were recalculated,
     /// keeping the player where they were instead of throwing them back to the
     /// top of the list.
@@ -114,9 +114,7 @@ impl MovementSelectionState {
                         .cycle()
                         .skip(previous_index + 1)
                         .take(previous_order.len())
-                        .find_map(|area| {
-                            self.source_areas.iter().position(|a| a == area)
-                        })
+                        .find_map(|area| self.source_areas.iter().position(|a| a == area))
                 })
                 .unwrap_or(0),
             None => 0,
@@ -130,11 +128,12 @@ impl MovementSelectionState {
     pub fn current_source(&self) -> Option<Entity> {
         self.source_areas.get(self.current_source_index).copied()
     }
-    
+
     pub fn is_current_skipped(&self) -> bool {
-        self.current_source().is_some_and(|s| self.skipped_sources.contains(&s))
+        self.current_source()
+            .is_some_and(|s| self.skipped_sources.contains(&s))
     }
-    
+
     pub fn skip_current_source(&mut self) {
         if let Some(source) = self.current_source() {
             self.skipped_sources.insert(source);
@@ -143,18 +142,21 @@ impl MovementSelectionState {
             self.advance_to_unskipped();
         }
     }
-    
+
     pub fn unskip_current_source(&mut self) {
         if let Some(source) = self.current_source() {
             self.skipped_sources.remove(&source);
         }
     }
-    
+
     pub fn all_skipped(&self) -> bool {
         !self.source_areas.is_empty()
-            && self.source_areas.iter().all(|s| self.skipped_sources.contains(s))
+            && self
+                .source_areas
+                .iter()
+                .all(|s| self.skipped_sources.contains(s))
     }
-    
+
     fn advance_to_unskipped(&mut self) {
         if self.source_areas.is_empty() {
             return;
@@ -167,20 +169,21 @@ impl MovementSelectionState {
             }
         }
     }
-    
+
     pub fn next_source(&mut self) {
         if !self.source_areas.is_empty() {
             self.clear_target();
             let start = self.current_source_index;
             loop {
-                self.current_source_index = (self.current_source_index + 1) % self.source_areas.len();
+                self.current_source_index =
+                    (self.current_source_index + 1) % self.source_areas.len();
                 if !self.is_current_skipped() || self.current_source_index == start {
                     break;
                 }
             }
         }
     }
-    
+
     pub fn prev_source(&mut self) {
         if !self.source_areas.is_empty() {
             self.clear_target();
@@ -197,12 +200,20 @@ impl MovementSelectionState {
             }
         }
     }
-    
+
     pub fn has_selection(&self) -> bool {
         self.target_area.is_some() && self.token_count > 0
     }
-    
-    pub fn select_target(&mut self, player: Entity, source: Entity, target: Entity, max_tokens: usize, is_attack: bool, is_city_attack: bool) {
+
+    pub fn select_target(
+        &mut self,
+        player: Entity,
+        source: Entity,
+        target: Entity,
+        max_tokens: usize,
+        is_attack: bool,
+        is_city_attack: bool,
+    ) {
         self.player = Some(player);
         self.source_area = Some(source);
         self.target_area = Some(target);
@@ -211,13 +222,13 @@ impl MovementSelectionState {
         self.is_attack = is_attack;
         self.is_city_attack = is_city_attack;
     }
-    
+
     pub fn increment(&mut self) {
         if self.token_count < self.max_tokens {
             self.token_count += 1;
         }
     }
-    
+
     pub fn decrement(&mut self) {
         if self.token_count > 0 {
             self.token_count -= 1;
@@ -303,7 +314,11 @@ mod movement_selection_state_tests {
         // A move was made; the same three areas can still move.
         state.resync_sources(&[e(1), e(2), e(3)]);
 
-        assert_eq!(state.current_source(), Some(e(3)), "stayed where the player was");
+        assert_eq!(
+            state.current_source(),
+            Some(e(3)),
+            "stayed where the player was"
+        );
     }
 
     /// When the area the player was working on is finished, resume from the
@@ -318,7 +333,11 @@ mod movement_selection_state_tests {
         // e(2) is spent and drops out of the offered sources.
         state.resync_sources(&[e(1), e(3), e(4)]);
 
-        assert_eq!(state.current_source(), Some(e(3)), "carries on past the finished area");
+        assert_eq!(
+            state.current_source(),
+            Some(e(3)),
+            "carries on past the finished area"
+        );
     }
 
     /// Finishing the last area wraps to the first remaining one, since there
@@ -365,7 +384,11 @@ mod movement_selection_state_tests {
         // e(3) finishes; the next in line is the skipped e(2), so step over it.
         state.resync_sources(&[e(1), e(2)]);
 
-        assert_eq!(state.current_source(), Some(e(1)), "skipped areas are not offered again");
+        assert_eq!(
+            state.current_source(),
+            Some(e(1)),
+            "skipped areas are not offered again"
+        );
     }
 
     /// A fresh phase starts on the first area, not the second.

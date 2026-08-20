@@ -1,7 +1,7 @@
 use crate::stupid_ai::*;
 use crate::{GameActivity, GameState};
 use bevy::app::{Plugin, Update};
-use bevy::prelude::{App, IntoScheduleConfigs, in_state, OnEnter, SystemCondition};
+use bevy::prelude::{App, IntoScheduleConfigs, OnEnter, SystemCondition, in_state};
 
 pub struct StupidAiPlugin;
 
@@ -12,10 +12,7 @@ impl Plugin for StupidAiPlugin {
             .register_type::<Personality>()
             .init_resource::<AiMoveQueue>()
             .init_resource::<MovementLoopGuard>()
-            .add_systems(
-                OnEnter(GameActivity::Movement),
-                reset_movement_loop_guard,
-            )
+            .add_systems(OnEnter(GameActivity::Movement), reset_movement_loop_guard)
             .add_systems(
                 Update,
                 (
@@ -25,8 +22,9 @@ impl Plugin for StupidAiPlugin {
                     select_stupid_movement.run_if(in_state(GameActivity::Movement)),
                     select_stupid_city_building.run_if(in_state(GameActivity::CityConstruction)),
                     select_stupid_city_elimination.run_if(
-                        in_state(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation)
-                            .or(in_state(GameActivity::CheckCitySupportAfterResolveCalamities)),
+                        in_state(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation).or(
+                            in_state(GameActivity::CheckCitySupportAfterResolveCalamities),
+                        ),
                     ),
                     select_stupid_trade_move.run_if(in_state(GameActivity::Trade)),
                     select_stupid_civ_card_move

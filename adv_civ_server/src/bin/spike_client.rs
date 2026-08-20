@@ -14,8 +14,8 @@ use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 use core::time::Duration;
-use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Mutex;
+use std::sync::mpsc::{Receiver, Sender};
 
 use adv_civ_protocol::*;
 use lightyear::netcode::Key;
@@ -175,7 +175,14 @@ fn receive_messages(
                 .iter()
                 .map(|(card, count)| format!("{card} ×{count}"))
                 .collect();
-            println!("Your hand: {}", if cards.is_empty() { "(empty)".into() } else { cards.join(", ") });
+            println!(
+                "Your hand: {}",
+                if cards.is_empty() {
+                    "(empty)".into()
+                } else {
+                    cards.join(", ")
+                }
+            );
         }
     }
     for mut receiver in accepted.iter_mut() {
@@ -321,10 +328,7 @@ fn describe_move(game_move: &NetGameMove) -> String {
 }
 
 /// Parse `<index>` or `<index> <tokens>` lines from stdin into SubmitMove.
-fn submit_typed_moves(
-    stdin: Res<StdinLines>,
-    mut senders: Query<&mut MessageSender<SubmitMove>>,
-) {
+fn submit_typed_moves(stdin: Res<StdinLines>, mut senders: Query<&mut MessageSender<SubmitMove>>) {
     let Ok(lines) = stdin.0.lock() else { return };
     while let Ok(line) = lines.try_recv() {
         let mut parts = line.split_whitespace();

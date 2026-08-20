@@ -10,7 +10,12 @@ use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Name, Query, in
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: MessageReader<RecalculatePlayerMoves>,
-    player_move_query: Query<(&PlayerAreas, &TokenStock, Option<&PlayerCivilizationCards>, Option<&NeedsExpansion>)>,
+    player_move_query: Query<(
+        &PlayerAreas,
+        &TokenStock,
+        Option<&PlayerCivilizationCards>,
+        Option<&NeedsExpansion>,
+    )>,
     area_population_query: Query<&Population>,
     mut commands: Commands,
 ) {
@@ -18,9 +23,10 @@ pub fn recalculate_pop_exp_moves_for_player(
         commands.entity(event.player).remove::<AvailableMoves>();
         let mut moves = HashMap::default();
         let mut command_index = 0;
-        if let Ok((player_areas, stock, civ_cards, Some(needs_expansion))) = player_move_query.get(event.player) {
-            let has_agriculture = civ_cards
-                .is_some_and(|c| c.owns(&CivCardName::Agriculture));
+        if let Ok((player_areas, stock, civ_cards, Some(needs_expansion))) =
+            player_move_query.get(event.player)
+        {
+            let has_agriculture = civ_cards.is_some_and(|c| c.owns(&CivCardName::Agriculture));
             // Only offer areas still pending this round's expansion --
             // `player_areas.areas()` alone doesn't shrink once an area is
             // expanded, and `max_expansion_for_player_with_agriculture` is
@@ -78,12 +84,9 @@ pub fn recalculate_movement_moves_for_player(
         let mut moves = HashMap::default();
         let mut command_index = 0;
         if let Ok((player_areas, player_ships, civ_cards)) = player_move_query.get(event.player) {
-            let has_road_building = civ_cards
-                .is_some_and(|c| c.owns(&CivCardName::RoadBuilding));
-            let has_astronomy = civ_cards
-                .is_some_and(|c| c.owns(&CivCardName::Astronomy));
-            let has_cloth_making = civ_cards
-                .is_some_and(|c| c.owns(&CivCardName::ClothMaking));
+            let has_road_building = civ_cards.is_some_and(|c| c.owns(&CivCardName::RoadBuilding));
+            let has_astronomy = civ_cards.is_some_and(|c| c.owns(&CivCardName::Astronomy));
+            let has_cloth_making = civ_cards.is_some_and(|c| c.owns(&CivCardName::ClothMaking));
 
             let areas_and_population = player_areas.areas_and_population();
 
@@ -185,9 +188,7 @@ pub fn recalculate_movement_moves_for_player(
 
                     // Cloth Making: generate one additional hop through this target
                     // (rule 28.18: +1 sea movement range, cannot use open sea without Astronomy)
-                    if has_cloth_making
-                        && let Ok(sea2) = sea_connections_query.get(target_area)
-                    {
+                    if has_cloth_making && let Ok(sea2) = sea_connections_query.get(target_area) {
                         for &final_area in &sea2.to_areas {
                             if final_area == area {
                                 continue;
@@ -211,7 +212,9 @@ pub fn recalculate_movement_moves_for_player(
             }
         }
 
-        let _player_name = names.get(event.player).map_or("?", bevy::prelude::Name::as_str);
+        let _player_name = names
+            .get(event.player)
+            .map_or("?", bevy::prelude::Name::as_str);
         if moves.is_empty() {
             end_player_movement.write(PlayerMovementEnded::new(event.player));
         } else {
@@ -268,8 +271,7 @@ pub fn recalculate_city_construction_moves_for_player(
         {
             // Architecture (rule 25.3): holder can build with 1 fewer population token
             // (minimum 1); the saved token goes to treasury.
-            let has_architecture = civ_cards
-                .is_some_and(|c| c.owns(&CivCardName::Architecture));
+            let has_architecture = civ_cards.is_some_and(|c| c.owns(&CivCardName::Architecture));
             let city_site_threshold: usize = if has_architecture { 5 } else { 6 };
             let no_site_threshold: usize = if has_architecture { 11 } else { 12 };
 

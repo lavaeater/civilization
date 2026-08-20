@@ -18,9 +18,9 @@ use crate::game::Seats;
 use base64::Engine;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use lightyear::netcode::{generate_key, ConnectToken, Key};
-use std::sync::mpsc::{Receiver, Sender, SyncSender};
+use lightyear::netcode::{ConnectToken, Key, generate_key};
 use std::sync::Mutex;
+use std::sync::mpsc::{Receiver, Sender, SyncSender};
 use std::time::Duration;
 
 pub use adv_civ_protocol::PROTOCOL_ID;
@@ -155,18 +155,14 @@ fn serve(tx: Sender<JoinRequest>, port: u16) {
         let method = request.method().as_str().to_string();
         let url = request.url().to_string();
         let respond = |request: tiny_http::Request, status: u16, body: String| {
-            let content_type = tiny_http::Header::from_bytes(
-                &b"Content-Type"[..],
-                &b"application/json"[..],
-            )
-            .expect("static header");
+            let content_type =
+                tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..])
+                    .expect("static header");
             // Dev convenience: lets a trunk-served (different-origin) web
             // client call the API. Production is same-origin behind Caddy.
-            let cors = tiny_http::Header::from_bytes(
-                &b"Access-Control-Allow-Origin"[..],
-                &b"*"[..],
-            )
-            .expect("static header");
+            let cors =
+                tiny_http::Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..])
+                    .expect("static header");
             let _ = request.respond(
                 tiny_http::Response::from_string(body)
                     .with_status_code(status)
@@ -207,12 +203,21 @@ fn serve(tx: Sender<JoinRequest>, port: u16) {
                     continue;
                 }
                 let (reply_tx, reply_rx) = std::sync::mpsc::sync_channel(1);
-                if tx.send(JoinRequest { name, reply: reply_tx }).is_err() {
+                if tx
+                    .send(JoinRequest {
+                        name,
+                        reply: reply_tx,
+                    })
+                    .is_err()
+                {
                     respond(request, 500, r#"{"error":"server shutting down"}"#.into());
                     continue;
                 }
                 match reply_rx.recv_timeout(Duration::from_secs(2)) {
-                    Ok(JoinReply::Ok { token_b64, client_id }) => {
+                    Ok(JoinReply::Ok {
+                        token_b64,
+                        client_id,
+                    }) => {
                         let body = serde_json::json!({
                             "connect_token": token_b64,
                             "client_id": client_id,
@@ -243,7 +248,8 @@ fn serve(tx: Sender<JoinRequest>, port: u16) {
 /// guarded.
 fn serve_static(request: tiny_http::Request, url: &str) {
     let not_found = |request: tiny_http::Request| {
-        let _ = request.respond(tiny_http::Response::from_string("not found").with_status_code(404));
+        let _ =
+            request.respond(tiny_http::Response::from_string("not found").with_status_code(404));
     };
 
     let path = url.split('?').next().unwrap_or("/");
@@ -315,7 +321,10 @@ fn process_join_requests(
                     request.name
                 );
                 pending.0.insert(client_id, request.name.clone());
-                JoinReply::Ok { token_b64, client_id }
+                JoinReply::Ok {
+                    token_b64,
+                    client_id,
+                }
             }
             Err(e) => JoinReply::Error(e),
         };

@@ -1,7 +1,7 @@
-use bevy::prelude::{Entity, Message};
 use crate::civilization::CivCardName;
 use crate::civilization::concepts::acquire_trade_cards::TradeCard;
 use bevy::platform::collections::HashMap;
+use bevy::prelude::{Entity, Message};
 
 #[derive(Message)]
 pub struct PlayerDoneAcquiringCivilizationCards(pub Entity);

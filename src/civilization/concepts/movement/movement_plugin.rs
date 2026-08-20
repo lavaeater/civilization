@@ -1,18 +1,19 @@
 use crate::GameActivity;
 use crate::civilization::camera_auto_pan_enabled;
-use bevy::app::App;
-use bevy::prelude::{in_state, IntoScheduleConfigs, OnEnter, OnExit, Plugin, SystemCondition, Update};
 use crate::civilization::concepts::movement::movement_events::*;
 use crate::civilization::concepts::movement::movement_systems::{
-    animate_token_movement, execute_ship_ferry, move_tokens_from_area_to_area,
-    on_exit_movement, player_end_movement, prepare_next_mover, start_movement_activity,
+    animate_token_movement, execute_ship_ferry, move_tokens_from_area_to_area, on_exit_movement,
+    player_end_movement, prepare_next_mover, start_movement_activity,
 };
 use crate::civilization::concepts::movement::movement_ui_components::MovementSelectionState;
 use crate::civilization::concepts::movement::movement_ui_systems::{
     cleanup_movement_ui, cleanup_movement_ui_on_exit, draw_movement_arrows,
-    handle_movement_target_click,
-    pan_camera_to_current_source, setup_human_movement_options, spawn_movement_controls_ui,
-    update_source_area_display, update_token_count_display,
+    handle_movement_target_click, pan_camera_to_current_source, setup_human_movement_options,
+    spawn_movement_controls_ui, update_source_area_display, update_token_count_display,
+};
+use bevy::app::App;
+use bevy::prelude::{
+    IntoScheduleConfigs, OnEnter, OnExit, Plugin, SystemCondition, Update, in_state,
 };
 
 pub struct MovementPlugin;
@@ -45,6 +46,9 @@ impl Plugin for MovementPlugin {
                     cleanup_movement_ui.run_if(in_state(GameActivity::Movement)),
                 ),
             )
-            .add_systems(OnExit(GameActivity::Movement), (on_exit_movement, cleanup_movement_ui_on_exit));
+            .add_systems(
+                OnExit(GameActivity::Movement),
+                (on_exit_movement, cleanup_movement_ui_on_exit),
+            );
     }
 }

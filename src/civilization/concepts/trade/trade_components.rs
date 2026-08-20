@@ -57,9 +57,12 @@ impl PlayerTradeInterests {
             wants: player_trade_cards.wants(),
         }
     }
-    
+
     pub fn get_trade_thingie(&self, rng: &mut ThreadRng) -> HashMap<TradeCard, usize> {
-        HashMap::from([(*self.wants.choose(&mut *rng).unwrap(), 2), (*self.wants.choose(&mut *rng).unwrap(), 1)])
+        HashMap::from([
+            (*self.wants.choose(&mut *rng).unwrap(), 2),
+            (*self.wants.choose(&mut *rng).unwrap(), 1),
+        ])
     }
 }
 /*
@@ -148,11 +151,8 @@ impl TradeOffer {
         }
     }
 
-
     pub fn can_be_accepted(&self) -> bool {
-        self.gets_number_of_cards() > 2
-            && self.pays_number_of_cards() > 2
-            && self.rejects.is_none()
+        self.gets_number_of_cards() > 2 && self.pays_number_of_cards() > 2 && self.rejects.is_none()
     }
 
     pub fn settle(&mut self, entity: Entity, cards_to_use: HashMap<TradeCard, usize>) -> bool {
@@ -178,9 +178,7 @@ impl TradeOffer {
     }
 
     pub fn accept(&mut self, entity: &Entity) -> bool {
-        if self.can_be_accepted()
-            && self.am_i_the_receiver(*entity)
-        {
+        if self.can_be_accepted() && self.am_i_the_receiver(*entity) {
             self.accepts = Some(*entity);
             true
         } else {
@@ -196,7 +194,7 @@ impl TradeOffer {
     }
 
     pub fn receiver_accepts(&self) -> bool {
-        self.accepts == Some(self.receiver) 
+        self.accepts == Some(self.receiver)
     }
 
     /// Returns true if both the initiator and the receiver have accepted the trade offer.
@@ -210,7 +208,7 @@ impl TradeOffer {
     }
 
     pub fn trade_rejected(&self) -> bool {
-        self.receiver_rejects() 
+        self.receiver_rejects()
     }
 
     pub fn pays_number_of_cards(&self) -> usize {
@@ -238,17 +236,17 @@ impl TradeOffer {
             *self.initiator_pays_guaranteed.entry(commodity).or_insert(0) += 1;
         }
     }
-    
+
     pub fn pay_even_more(&mut self, commodity: TradeCard, count: usize) {
         for _ in 0..count {
             self.initiator_pays_more(commodity);
-        }   
+        }
     }
-    
+
     pub fn pay_even_less(&mut self, commodity: TradeCard, count: usize) {
         for _ in 0..count {
             self.pay_less(commodity);
-        }   
+        }
     }
 
     pub fn pay_less(&mut self, commodity: TradeCard) {
@@ -276,17 +274,17 @@ impl TradeOffer {
             *self.initiator_gets_guaranteed.entry(commodity).or_insert(0) += 1;
         }
     }
-    
+
     pub fn get_even_more(&mut self, commodity: TradeCard, count: usize) {
         for _ in 0..count {
             self.initiator_gets_more(commodity);
-        }   
+        }
     }
-    
+
     pub fn get_even_less(&mut self, commodity: TradeCard, count: usize) {
         for _ in 0..count {
             self.get_less(commodity);
-        }   
+        }
     }
 
     pub fn get_less(&mut self, commodity: TradeCard) {
@@ -314,28 +312,28 @@ impl TradeOffer {
 pub struct OpenTradeOffer {
     pub creator: Entity,
     pub creator_name: String,
-    
+
     /// Optional target - None means open offer (anyone can accept)
     pub target: Option<Entity>,
     pub target_name: Option<String>,
-    
+
     /// What creator offers - guaranteed cards (exactly 2 total, must be truthful)
     pub offering_guaranteed: HashMap<TradeCard, usize>,
     /// How many additional hidden cards the creator offers
     pub offering_hidden_count: usize,
-    
+
     /// What creator wants - guaranteed cards (exactly 2 total, must be truthful)
     pub wanting_guaranteed: HashMap<TradeCard, usize>,
     /// How many additional hidden cards the creator wants
     pub wanting_hidden_count: usize,
-    
+
     /// Who accepted this offer (if any)
     pub accepted_by: Option<Entity>,
     pub accepted_by_name: Option<String>,
-    
+
     /// Whether the offer was rejected/withdrawn
     pub withdrawn: bool,
-    
+
     /// Settlement: actual cards chosen by creator
     pub creator_actual_cards: Option<HashMap<TradeCard, usize>>,
     /// Settlement: actual cards chosen by acceptor
@@ -365,28 +363,28 @@ impl OpenTradeOffer {
             acceptor_actual_cards: None,
         }
     }
-    
+
     /// Total cards being offered
     pub fn total_offering(&self) -> usize {
         self.offering_guaranteed.values().sum::<usize>() + self.offering_hidden_count
     }
-    
+
     /// Total cards being requested
     pub fn total_wanting(&self) -> usize {
         self.wanting_guaranteed.values().sum::<usize>() + self.wanting_hidden_count
     }
-    
+
     /// Check if offer is valid (min 3 cards each side, exactly 2 guaranteed each side)
     pub fn is_valid(&self) -> bool {
         let guaranteed_offering: usize = self.offering_guaranteed.values().sum();
         let guaranteed_wanting: usize = self.wanting_guaranteed.values().sum();
-        
+
         guaranteed_offering == 2
             && guaranteed_wanting == 2
             && self.total_offering() >= 3
             && self.total_wanting() >= 3
     }
-    
+
     /// Can this player accept the offer?
     pub fn can_accept(&self, player: Entity) -> bool {
         // Can't accept your own offer
@@ -404,7 +402,7 @@ impl OpenTradeOffer {
         // Open offer - anyone can accept
         true
     }
-    
+
     /// Accept the offer
     pub fn accept(&mut self, player: Entity, player_name: impl Into<String>) -> bool {
         if self.can_accept(player) {
@@ -415,22 +413,22 @@ impl OpenTradeOffer {
             false
         }
     }
-    
+
     /// Is this offer in settlement phase?
     pub fn is_settling(&self) -> bool {
         self.accepted_by.is_some() && !self.is_settled()
     }
-    
+
     /// Is this offer fully settled (both parties assigned cards)?
     pub fn is_settled(&self) -> bool {
         self.creator_actual_cards.is_some() && self.acceptor_actual_cards.is_some()
     }
-    
+
     /// Settle creator's side
     pub fn settle_creator(&mut self, cards: HashMap<TradeCard, usize>) {
         self.creator_actual_cards = Some(cards);
     }
-    
+
     /// Settle acceptor's side
     pub fn settle_acceptor(&mut self, cards: HashMap<TradeCard, usize>) {
         self.acceptor_actual_cards = Some(cards);

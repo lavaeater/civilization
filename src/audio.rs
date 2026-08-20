@@ -2,9 +2,9 @@
 // use crate::loading::AudioAssets;
 // use bevy::prelude::*;
 // use bevy_kira_audio::prelude::*;
-// 
+//
 // pub struct InternalAudioPlugin;
-// 
+//
 // // This plugin is responsible to control the game audio
 // impl Plugin for InternalAudioPlugin {
 //     fn build(&self, app: &mut App) {
@@ -18,10 +18,10 @@
 //             // );
 //     }
 // }
-// 
+//
 // #[derive(Resource)]
 // struct FlyingAudio(Handle<AudioInstance>);
-// 
+//
 // fn start_audio(mut commands: Commands, audio_assets: Res<AudioAssets>, audio: Res<Audio>) {
 //     audio.pause();
 //     let handle = audio
@@ -31,7 +31,7 @@
 //         .handle();
 //     commands.insert_resource(FlyingAudio(handle));
 // }
-// 
+//
 // fn control_flying_sound(
 //     actions: Res<Actions>,
 //     audio: Res<FlyingAudio>,

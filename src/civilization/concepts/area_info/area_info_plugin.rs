@@ -1,11 +1,9 @@
 use bevy::platform::collections::HashSet;
 use bevy::prelude::*;
-use lava_ui_builder::{UIBuilder, LavaTheme, TextStyle};
 use bevy::ui::ZIndex;
+use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
 
-use crate::civilization::components::{
-    BuiltCity, Faction, GameArea, GameCamera, Population,
-};
+use crate::civilization::components::{BuiltCity, Faction, GameArea, GameCamera, Population};
 use crate::civilization::game_moves::{AvailableMoves, GameMove};
 use crate::civilization::{MovementSelectionState, Z_AREA_INDICATOR};
 use crate::player::Player;
@@ -76,7 +74,10 @@ fn spawn_area_info_markers(
             marker.with_child(|text_node| {
                 text_node
                     .insert(Name::new(area_info_text_name(game_area.id)))
-                    .with_text(text_content, Some(TextStyle::size_color(10.0, Color::WHITE)));
+                    .with_text(
+                        text_content,
+                        Some(TextStyle::size_color(10.0, Color::WHITE)),
+                    );
             });
         });
     }
@@ -85,7 +86,13 @@ fn spawn_area_info_markers(
 }
 
 fn update_area_info_markers(
-    area_query: Query<(Entity, &GameArea, &Population, &GlobalTransform, Has<BuiltCity>)>,
+    area_query: Query<(
+        Entity,
+        &GameArea,
+        &Population,
+        &GlobalTransform,
+        Has<BuiltCity>,
+    )>,
     player_query: Query<(Entity, &Faction, &Name), With<Player>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
     mut marker_query: Query<(&AreaInfoMarker, &mut Node, &mut Visibility)>,
@@ -99,7 +106,8 @@ fn update_area_info_markers(
     };
 
     let scale = ui_scale.0;
-    let relevant_areas = relevant_areas_for_current_action(&human_available_moves, &movement_selection);
+    let relevant_areas =
+        relevant_areas_for_current_action(&human_available_moves, &movement_selection);
 
     // Visibility is independent of on-screen projection succeeding this
     // frame -- a marker whose area's viewport projection fails shouldn't
@@ -153,7 +161,11 @@ fn relevant_areas_for_current_action(
     let focused_source = movement_selection.current_source();
     let mut relevant = HashSet::default();
     for available_moves in human_available_moves {
-        relevant_areas_from_moves(available_moves.moves.values(), focused_source, &mut relevant);
+        relevant_areas_from_moves(
+            available_moves.moves.values(),
+            focused_source,
+            &mut relevant,
+        );
     }
     relevant
 }
@@ -247,8 +259,10 @@ mod tests {
 
     #[test]
     fn movement_moves_with_no_focused_source_mark_every_source_and_target() {
-        let moves = [GameMove::Movement(MovementMove::new(e(1), e(2), e(9), 3)),
-            GameMove::AttackArea(MovementMove::new(e(3), e(4), e(9), 2))];
+        let moves = [
+            GameMove::Movement(MovementMove::new(e(1), e(2), e(9), 3)),
+            GameMove::AttackArea(MovementMove::new(e(3), e(4), e(9), 2)),
+        ];
         let mut relevant = HashSet::default();
         relevant_areas_from_moves(moves.iter(), None, &mut relevant);
         assert_eq!(relevant, HashSet::from_iter([e(1), e(2), e(3), e(4)]));
@@ -260,9 +274,11 @@ mod tests {
     /// `draw_movement_arrows`'s behavior exactly.
     #[test]
     fn movement_moves_with_a_focused_source_only_mark_that_sources_targets() {
-        let moves = [GameMove::Movement(MovementMove::new(e(1), e(2), e(9), 3)),
+        let moves = [
+            GameMove::Movement(MovementMove::new(e(1), e(2), e(9), 3)),
             GameMove::AttackCity(MovementMove::new(e(1), e(5), e(9), 1)),
-            GameMove::ShipFerry(MovementMove::new(e(3), e(4), e(9), 2))];
+            GameMove::ShipFerry(MovementMove::new(e(3), e(4), e(9), 2)),
+        ];
         let mut relevant = HashSet::default();
         relevant_areas_from_moves(moves.iter(), Some(e(1)), &mut relevant);
         // Both of source e(1)'s moves are included (source + both targets)...

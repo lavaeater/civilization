@@ -4,8 +4,8 @@ mod enums;
 mod events;
 mod functions;
 mod game_moves;
-mod plugins;
 mod general_systems;
+mod plugins;
 mod triggers;
 mod ui;
 
@@ -15,7 +15,7 @@ pub use enums::*;
 pub use events::*;
 pub use functions::*;
 pub use game_moves::*;
-pub use plugins::*;
 pub use general_systems::*;
+pub use plugins::*;
 pub use triggers::*;
 pub use ui::*;

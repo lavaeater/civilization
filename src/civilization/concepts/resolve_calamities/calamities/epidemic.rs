@@ -90,7 +90,10 @@ impl EpidemicState {
 /// tokens and never enumerates or eliminates `BuiltCity` entities, so there
 /// is no city-point-cap to apply yet. Giving Epidemic real city-awareness is
 /// a larger, separate feature; flagged in docs/outline.md.
-pub fn allocate_removal_leaving_one_per_area(areas_and_counts: &[usize], points: usize) -> Vec<usize> {
+pub fn allocate_removal_leaving_one_per_area(
+    areas_and_counts: &[usize],
+    points: usize,
+) -> Vec<usize> {
     let mut remaining = points;
     let mut result = Vec::with_capacity(areas_and_counts.len());
     for &count in areas_and_counts {

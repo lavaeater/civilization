@@ -1,9 +1,14 @@
 use crate::{create_area, create_area_w_components, setup_bevy_app, setup_player};
+use adv_civ::civilization::{
+    AvailableMoves, CameraFocusQueue, GameArea, GameFaction, GameMove, LandPassage,
+    MoveTokenFromAreaToAreaCommand, PlayerAreas, PlayerMovementEnded, PlayerShips, Population,
+    RecalculatePlayerMoves, SeaPassage, ShipFerryCommand, TokenHasMoved, TokenStock,
+    execute_ship_ferry, move_tokens_from_area_to_area, recalculate_movement_moves_for_player,
+};
 use adv_civ::{GameActivity, GameState};
 use bevy::app::Update;
 use bevy::prelude::{App, AppExtStates, Messages, Name, Transform};
 use bevy::state::app::StatesPlugin;
-use adv_civ::civilization::{move_tokens_from_area_to_area, recalculate_movement_moves_for_player, AvailableMoves, CameraFocusQueue, GameArea, GameFaction, GameMove, LandPassage, MoveTokenFromAreaToAreaCommand, PlayerAreas, PlayerMovementEnded, Population, RecalculatePlayerMoves, TokenHasMoved, TokenStock, execute_ship_ferry, ShipFerryCommand, PlayerShips, SeaPassage};
 
 fn setup_app() -> App {
     let mut app = App::new();
@@ -483,12 +488,14 @@ fn ship_ferry_moves_tokens_and_the_ship_to_the_target_area() {
     player_ships.place_ship(source_area, ship);
     app.world_mut().entity_mut(player_one).insert(player_ships);
 
-    app.world_mut().resource_mut::<Messages<ShipFerryCommand>>().write(ShipFerryCommand::new(
-        source_area,
-        target_area,
-        3,
-        player_one,
-    ));
+    app.world_mut()
+        .resource_mut::<Messages<ShipFerryCommand>>()
+        .write(ShipFerryCommand::new(
+            source_area,
+            target_area,
+            3,
+            player_one,
+        ));
 
     // Act
     app.update();
@@ -536,7 +543,9 @@ fn ship_ferry_only_moves_tokens_that_have_not_already_moved() {
     let source_area = create_area_w_components(&mut app, "source", Some(source_population));
     let target_area = create_area_w_components(&mut app, "target", Some(Population::new(6)));
 
-    app.world_mut().entity_mut(already_moved).insert(TokenHasMoved);
+    app.world_mut()
+        .entity_mut(already_moved)
+        .insert(TokenHasMoved);
 
     let mut player_areas = PlayerAreas::default();
     player_areas.add_token_to_area(source_area, already_moved);
@@ -549,12 +558,14 @@ fn ship_ferry_only_moves_tokens_that_have_not_already_moved() {
     app.world_mut().entity_mut(player_one).insert(player_ships);
 
     // Ask to ferry up to 5 -- only the 1 unmoved token is eligible.
-    app.world_mut().resource_mut::<Messages<ShipFerryCommand>>().write(ShipFerryCommand::new(
-        source_area,
-        target_area,
-        5,
-        player_one,
-    ));
+    app.world_mut()
+        .resource_mut::<Messages<ShipFerryCommand>>()
+        .write(ShipFerryCommand::new(
+            source_area,
+            target_area,
+            5,
+            player_one,
+        ));
 
     // Act
     app.update();
@@ -586,19 +597,23 @@ fn ship_ferry_moves_an_empty_ship_with_no_tokens_along() {
     let source_area = create_area_w_components(&mut app, "source", Some(Population::new(6)));
     let target_area = create_area_w_components(&mut app, "target", Some(Population::new(6)));
 
-    app.world_mut().entity_mut(player_one).insert(PlayerAreas::default());
+    app.world_mut()
+        .entity_mut(player_one)
+        .insert(PlayerAreas::default());
 
     let ship = app.world_mut().spawn(Name::new("Ship")).id();
     let mut player_ships = PlayerShips::default();
     player_ships.place_ship(source_area, ship);
     app.world_mut().entity_mut(player_one).insert(player_ships);
 
-    app.world_mut().resource_mut::<Messages<ShipFerryCommand>>().write(ShipFerryCommand::new(
-        source_area,
-        target_area,
-        0,
-        player_one,
-    ));
+    app.world_mut()
+        .resource_mut::<Messages<ShipFerryCommand>>()
+        .write(ShipFerryCommand::new(
+            source_area,
+            target_area,
+            0,
+            player_one,
+        ));
 
     // Act
     app.update();

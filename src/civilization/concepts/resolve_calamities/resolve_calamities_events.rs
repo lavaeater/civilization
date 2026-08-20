@@ -1,5 +1,5 @@
-use bevy::prelude::{Entity, Message};
 use crate::civilization::TradeCard;
+use bevy::prelude::{Entity, Message};
 
 #[derive(Message, Debug)]
 pub struct ResolveNextCalamity;

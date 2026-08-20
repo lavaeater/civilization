@@ -1,4 +1,4 @@
-use super::{saturating, AreaSummary};
+use super::{AreaSummary, saturating};
 use crate::civilization::GameMove;
 use crate::stupid_ai::Weights;
 use bevy::platform::collections::HashMap;
