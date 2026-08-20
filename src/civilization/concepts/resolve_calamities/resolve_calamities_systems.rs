@@ -2695,6 +2695,7 @@ pub fn advance_treachery(
     )>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut calamity_selection: ResMut<CalamitySelectionState>,
+    human_flags: Query<(Has<IsHuman>, Has<AwaitingHumanCalamitySelection>), With<Player>>,
 ) {
     for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in
         &mut player_query
@@ -2708,41 +2709,44 @@ pub fn advance_treachery(
 
         match state.phase {
             TreacheryPhase::SelectCity => {
-                if !is_human {
-                    // AI: auto-select first city
-                    let city_area = player_cities.areas_and_cities.keys().next().copied();
-                    if let Some(area) = city_area {
-                        state.city_to_replace = Some(area);
-                        state.beneficiary = resolution.context.traded_by;
-                        state.phase = TreacheryPhase::ApplyEffects;
-                    } else {
-                        info!("[TREACHERY] No cities for player {:?}", player_entity);
-                        state.phase = TreacheryPhase::Complete;
-                    }
-                } else if awaiting_human {
-                    // Waiting for human UI
-                } else if calamity_selection.player == Some(player_entity) {
-                    // Human confirmed their selection
-                    let selected = calamity_selection.take_selected_cities();
-                    if let Some(&area) = selected.first() {
-                        state.city_to_replace = Some(area);
-                        state.beneficiary = resolution.context.traded_by;
-                    }
-                    state.phase = TreacheryPhase::ApplyEffects;
-                } else {
-                    // First time: set up human UI
-                    let available: Vec<Entity> =
-                        player_cities.areas_and_cities.keys().copied().collect();
-                    if available.is_empty() {
-                        info!("[TREACHERY] No cities for human player {:?}", player_entity);
-                        state.phase = TreacheryPhase::Complete;
-                    } else {
-                        calamity_selection.populate(player_entity, available, 1, "Treachery");
-                        commands
-                            .entity(player_entity)
-                            .insert(AwaitingHumanCalamitySelection);
-                    }
+                let available: Vec<Entity> =
+                    player_cities.areas_and_cities.keys().copied().collect();
+                if available.is_empty() {
+                    info!("[TREACHERY] No cities for player {:?}", player_entity);
+                    state.phase = TreacheryPhase::Complete;
+                    continue;
                 }
+
+                // Rule 30.221: "The trader selects the city" -- it is the
+                // trader's city to take, not the victim's to offer up. Only
+                // when the card was never traded (30.222, victim reduces one
+                // of their own and nobody benefits) does the choice fall to
+                // the victim.
+                state.beneficiary = resolution.context.traded_by;
+                let (chooser, chooser_is_human, chooser_awaiting) = match state.beneficiary {
+                    Some(trader) => {
+                        let (h, a) = human_flags.get(trader).unwrap_or((false, false));
+                        (trader, h, a)
+                    }
+                    None => (player_entity, is_human, awaiting_human),
+                };
+
+                if !chooser_is_human {
+                    state.city_to_replace = available.first().copied();
+                    state.phase = TreacheryPhase::ApplyEffects;
+                } else if chooser_awaiting {
+                    // Waiting for the chooser's pick.
+                } else if calamity_selection.player == Some(chooser) {
+                    state.city_to_replace =
+                        calamity_selection.take_selected_cities().first().copied();
+                    state.phase = TreacheryPhase::ApplyEffects;
+                } else if calamity_selection.player.is_none() {
+                    calamity_selection.populate(chooser, available, 1, "Treachery");
+                    commands
+                        .entity(chooser)
+                        .insert(AwaitingHumanCalamitySelection);
+                }
+                // else: the panel belongs to someone else; retry next frame.
             }
             TreacheryPhase::ApplyEffects => {
                 if let Some(city_area) = state.city_to_replace {

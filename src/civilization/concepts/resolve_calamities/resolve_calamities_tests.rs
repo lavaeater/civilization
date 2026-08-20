@@ -468,6 +468,112 @@ mod tests {
     }
 
     // ========================================================================
+    // Rule 30.221: the *trader* picks which city Treachery takes
+    // ========================================================================
+
+    fn start_treachery(world: &mut World, victim: Entity, traded_by: Option<Entity>) {
+        use crate::civilization::concepts::resolve_calamities::calamities::treachery::TreacheryState;
+
+        let context = CalamityContext::new(TradeCard::Treachery, victim, traded_by);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Treachery(TreacheryState::new()),
+        ));
+    }
+
+    /// 30.221 gives the choice to the trader -- they are taking the city, so
+    /// they pick which one. The victim used to be prompted instead.
+    #[test]
+    fn treachery_lets_the_trader_choose_which_city_they_take() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{advance_treachery, TransferCityTo};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, CalamitySelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = iconoclasm_world();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+        let trader = world.spawn((Player, IsHuman)).id();
+
+        let cities: Vec<Entity> = (0..2)
+            .map(|n| give_city(&mut world, victim, &format!("victim-{n}")))
+            .collect();
+
+        start_treachery(&mut world, victim, Some(trader));
+
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+
+        assert!(
+            world.get::<AwaitingHumanCalamitySelection>(trader).is_some(),
+            "the trader selects the city (30.221)"
+        );
+        assert!(
+            world.get::<AwaitingHumanCalamitySelection>(victim).is_none(),
+            "the victim does not get to offer one up"
+        );
+
+        {
+            let mut selection = world.resource_mut::<CalamitySelectionState>();
+            while selection.current_city() != Some(cities[1]) {
+                selection.next();
+            }
+            selection.toggle_current();
+        }
+        world.entity_mut(trader).remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+
+        let transfer = world.get::<TransferCityTo>(cities[1]).expect("city changes hands");
+        assert_eq!(transfer.0, trader, "the trader annexes it");
+        assert!(world.get::<TransferCityTo>(cities[0]).is_none());
+    }
+
+    /// 30.222: an untraded Treachery reduces one of the victim's own cities
+    /// and nobody benefits -- there the victim is the one who chooses.
+    #[test]
+    fn an_untraded_treachery_lets_the_victim_choose_and_benefits_nobody() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{advance_treachery, ReduceCity, TransferCityTo};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, CalamitySelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = iconoclasm_world();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+        let cities: Vec<Entity> = (0..2)
+            .map(|n| give_city(&mut world, victim, &format!("victim-{n}")))
+            .collect();
+
+        start_treachery(&mut world, victim, None);
+
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+
+        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_some());
+
+        {
+            let mut selection = world.resource_mut::<CalamitySelectionState>();
+            while selection.current_city() != Some(cities[0]) {
+                selection.next();
+            }
+            selection.toggle_current();
+        }
+        world.entity_mut(victim).remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+
+        assert!(world.get::<ReduceCity>(cities[0]).is_some(), "reduced, not annexed");
+        assert!(world.get::<TransferCityTo>(cities[0]).is_none());
+    }
+
+    // ========================================================================
     // Rules 30.818/30.819/29.64: ordering enemy cities reduced
     // ========================================================================
 
