@@ -468,6 +468,154 @@ mod tests {
     }
 
     // ========================================================================
+    // Rule 30.211: choosing the eruption site
+    // ========================================================================
+
+    fn volcano_world() -> World {
+        let mut world = World::new();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
+        world
+    }
+
+    /// Spawns a volcano area holding a city for `owner` plus `tokens` tokens
+    /// belonging to `token_owner`.
+    fn spawn_volcano_area(
+        world: &mut World,
+        name: &str,
+        city_owner: Entity,
+        token_owner: Entity,
+        tokens: usize,
+    ) -> Entity {
+        let mut pop = Population::new(20);
+        for _ in 0..tokens {
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(token_owner, token);
+        }
+        let city_token = world.spawn_empty().id();
+        world
+            .spawn((
+                Name::new(name.to_string()),
+                GameArea::new(world.entities().len() as i32),
+                Volcano,
+                pop,
+                LandPassage::default(),
+                BuiltCity::new(city_token, city_owner),
+            ))
+            .id()
+    }
+
+    fn start_volcano(world: &mut World, victim: Entity) {
+        use crate::civilization::concepts::resolve_calamities::calamities::volcano_earthquake::VolcanoEarthquakeState;
+
+        let context = CalamityContext::new(TradeCard::VolcanoEarthquake, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::VolcanoEarthquake(VolcanoEarthquakeState::new()),
+        ));
+    }
+
+    /// 30.211: "On a tie, the primary victim chooses."
+    #[test]
+    fn a_human_victim_breaks_a_volcano_damage_tie() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::resolve_volcano_earthquake;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, CalamitySelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = volcano_world();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+
+        // Two volcano sites, identical damage -- a genuine tie.
+        let site_a = spawn_volcano_area(&mut world, "site-a", victim, victim, 3);
+        let site_b = spawn_volcano_area(&mut world, "site-b", victim, victim, 3);
+
+        start_volcano(&mut world, victim);
+
+        world.run_system_once(resolve_volcano_earthquake).unwrap();
+        world.flush();
+
+        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_some(), "victim breaks the tie");
+        assert_eq!(world.resource::<CalamitySelectionState>().available_cities.len(), 2);
+
+        {
+            let mut selection = world.resource_mut::<CalamitySelectionState>();
+            while selection.current_city() != Some(site_b) {
+                selection.next();
+            }
+            selection.toggle_current();
+        }
+        world.entity_mut(victim).remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(resolve_volcano_earthquake).unwrap();
+        world.flush();
+
+        let ResolvingCalamity::VolcanoEarthquake(ref state) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        assert!(state.is_volcano);
+        assert_eq!(state.volcano_area, Some(site_b), "the site the victim picked");
+        assert_ne!(state.volcano_area, Some(site_a));
+    }
+
+    /// With one clearly worst site there is no tie and no prompt.
+    #[test]
+    fn a_clear_worst_volcano_site_needs_no_choice() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::resolve_volcano_earthquake;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::AwaitingHumanCalamitySelection;
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = volcano_world();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+
+        let small = spawn_volcano_area(&mut world, "small", victim, victim, 1);
+        let big = spawn_volcano_area(&mut world, "big", victim, victim, 8);
+
+        start_volcano(&mut world, victim);
+
+        world.run_system_once(resolve_volcano_earthquake).unwrap();
+        world.flush();
+
+        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_none());
+        let ResolvingCalamity::VolcanoEarthquake(ref state) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        assert_eq!(state.volcano_area, Some(big));
+        assert_ne!(state.volcano_area, Some(small));
+    }
+
+    /// 30.211 scores damage "to the primary victim and any secondary
+    /// victims" -- the eruption wipes every unit in the touched areas, so
+    /// another player's tokens count towards choosing the site. Only the
+    /// victim's losses used to be counted.
+    #[test]
+    fn volcano_damage_counts_every_players_units_not_just_the_victims() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::resolve_volcano_earthquake;
+
+        let mut world = volcano_world();
+        let victim = world.spawn((Player, PlayerCities::default())).id();
+        let bystander = world.spawn(Player).id();
+
+        // Equal victim losses (2 tokens + own city each), but site_b also
+        // sits on a big pile of someone else's tokens.
+        let site_a = spawn_volcano_area(&mut world, "site-a", victim, victim, 2);
+        let site_b = spawn_volcano_area(&mut world, "site-b", victim, victim, 2);
+        let bystander_tokens: Vec<Entity> =
+            (0..9).map(|_| world.spawn_empty().id()).collect();
+        {
+            let mut pop = world.get_mut::<Population>(site_b).unwrap();
+            for token in bystander_tokens {
+                pop.add_token_to_area(bystander, token);
+            }
+        }
+
+        start_volcano(&mut world, victim);
+
+        world.run_system_once(resolve_volcano_earthquake).unwrap();
+        world.flush();
+
+        let ResolvingCalamity::VolcanoEarthquake(ref state) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        assert_eq!(state.volcano_area, Some(site_b), "greatest total damage, all owners counted");
+        assert_ne!(state.volcano_area, Some(site_a));
+    }
+
+    // ========================================================================
     // Rule 30.221: the *trader* picks which city Treachery takes
     // ========================================================================
 

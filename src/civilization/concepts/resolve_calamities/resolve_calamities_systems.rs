@@ -454,7 +454,15 @@ pub fn process_pending_calamities(
 /// machine the dispatcher already attached, rather than creating one from a
 /// message.
 pub fn resolve_volcano_earthquake(
-    mut players_resolving: Query<(Entity, &ActiveCalamityResolution, &mut ResolvingCalamity)>,
+    mut commands: Commands,
+    mut players_resolving: Query<(
+        Entity,
+        &ActiveCalamityResolution,
+        &mut ResolvingCalamity,
+        Has<IsHuman>,
+        Has<AwaitingHumanCalamitySelection>,
+    )>,
+    mut calamity_selection: ResMut<CalamitySelectionState>,
     player_cities: Query<&PlayerCities>,
     player_civ_cards: Query<&PlayerCivilizationCards>,
     area_query: Query<(
@@ -467,7 +475,9 @@ pub fn resolve_volcano_earthquake(
     volcano_areas: Query<Entity, With<Volcano>>,
     names: Query<&Name>,
 ) {
-    for (primary_victim, resolution, mut resolving) in &mut players_resolving {
+    for (primary_victim, resolution, mut resolving, is_human, awaiting_human) in
+        &mut players_resolving
+    {
         if resolution.phase != CalamityPhase::ComputeEffects {
             continue;
         }
@@ -490,10 +500,38 @@ pub fn resolve_volcano_earthquake(
 
         let player_cities_component = player_cities.get(primary_victim).ok();
 
-        let volcano_result =
+        let mut tied_sites =
             find_best_volcano_eruption(primary_victim, &volcano_areas, &area_query);
 
-        let state = if let Some((volcano_area, areas_to_clear)) = volcano_result {
+        // Rule 30.211: "On a tie, the primary victim chooses." With one clear
+        // best site there is nothing to ask.
+        if tied_sites.len() > 1 {
+            if is_human {
+                if awaiting_human {
+                    continue; // still choosing
+                } else if calamity_selection.player == Some(primary_victim) {
+                    let picked = calamity_selection.take_selected_cities().first().copied();
+                    tied_sites.retain(|(area, _)| Some(*area) == picked);
+                } else if calamity_selection.player.is_none() {
+                    calamity_selection.populate(
+                        primary_victim,
+                        tied_sites.iter().map(|&(area, _)| area).collect(),
+                        1,
+                        "Volcano — pick the eruption site",
+                    );
+                    commands
+                        .entity(primary_victim)
+                        .insert(AwaitingHumanCalamitySelection);
+                    continue;
+                } else {
+                    continue; // panel busy; retry next frame
+                }
+            } else {
+                tied_sites.truncate(1);
+            }
+        }
+
+        let state = if let Some((volcano_area, areas_to_clear)) = tied_sites.into_iter().next() {
             info!("[VOLCANO] Eruption at area {:?}", volcano_area);
             VolcanoEarthquakeState::as_volcano(volcano_area, areas_to_clear)
         } else {
@@ -539,40 +577,36 @@ fn find_best_volcano_eruption(
         Has<Volcano>,
         &LandPassage,
     )>,
-) -> Option<(Entity, Vec<Entity>)> {
+) -> Vec<(Entity, Vec<Entity>)> {
     let mut volcano_candidates: Vec<(Entity, usize, Vec<Entity>)> = Vec::new();
 
     for volcano_area in volcano_areas.iter() {
         if let Ok((_area_entity, population, built_city, _, land_passage)) =
             area_query.get(volcano_area)
         {
+            // 30.211 scores "the greatest total damage to the primary victim
+            // and any secondary victims" -- the eruption eliminates *all*
+            // units in every touched area regardless of ownership, so every
+            // player's losses count towards the score, not just the victim's.
+            // What gates eligibility is only that the victim has a city there.
             let mut total_damage = 0usize;
             let mut victim_has_city_in_touched_areas = false;
             let mut areas_to_clear = vec![volcano_area];
 
-            if let Some(city) = built_city
-                && city.player == primary_victim
-            {
-                total_damage += 5;
-                victim_has_city_in_touched_areas = true;
+            if let Some(city) = built_city {
+                total_damage += CITY_UNIT_POINTS;
+                victim_has_city_in_touched_areas |= city.player == primary_victim;
             }
-
-            if let Some(tokens) = population.tokens_for_player(&primary_victim) {
-                total_damage += tokens.len();
-            }
+            total_damage += population.total_population();
 
             for adjacent_area in &land_passage.to_areas {
                 areas_to_clear.push(*adjacent_area);
                 if let Ok((_, adj_pop, adj_city, _, _)) = area_query.get(*adjacent_area) {
-                    if let Some(city) = adj_city
-                        && city.player == primary_victim
-                    {
-                        total_damage += 5;
-                        victim_has_city_in_touched_areas = true;
+                    if let Some(city) = adj_city {
+                        total_damage += CITY_UNIT_POINTS;
+                        victim_has_city_in_touched_areas |= city.player == primary_victim;
                     }
-                    if let Some(tokens) = adj_pop.tokens_for_player(&primary_victim) {
-                        total_damage += tokens.len();
-                    }
+                    total_damage += adj_pop.total_population();
                 }
             }
 
@@ -583,12 +617,16 @@ fn find_best_volcano_eruption(
     }
 
     if volcano_candidates.is_empty() {
-        return None;
+        return Vec::new();
     }
 
     volcano_candidates.sort_by_key(|b| std::cmp::Reverse(b.1));
-    let (volcano_area, _, areas_to_clear) = volcano_candidates.remove(0);
-    Some((volcano_area, areas_to_clear))
+    let best = volcano_candidates[0].1;
+    volcano_candidates
+        .into_iter()
+        .filter(|&(_, damage, _)| damage == best)
+        .map(|(area, _, areas_to_clear)| (area, areas_to_clear))
+        .collect()
 }
 
 /// Rule 30.612: find an adjacent enemy city to reduce as the earthquake secondary victim.
