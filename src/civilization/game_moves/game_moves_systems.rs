@@ -6,7 +6,7 @@ use crate::civilization::{
     RecalculatePlayerMoves, SeaPassage, TokenHasMoved, TokenStock,
 };
 use bevy::platform::collections::HashMap;
-use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Name, Query};
+use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Name, Query, info};
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: MessageReader<RecalculatePlayerMoves>,
@@ -297,6 +297,12 @@ pub fn recalculate_city_construction_moves_for_player(
                 }
             }
             if moves.is_empty() {
+                info!(
+                    "[CITY_CONSTRUCTION] No build moves for {:?} (city tokens in stock: {}, areas: {}) - removing IsBuilding",
+                    event.player,
+                    city_token_stock.city_tokens_in_stock(),
+                    player_areas.areas().len()
+                );
                 commands.entity(event.player).remove::<IsBuilding>();
             } else {
                 command_index += 1;

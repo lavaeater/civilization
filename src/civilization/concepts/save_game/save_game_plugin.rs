@@ -572,8 +572,7 @@ fn restore_area_populations(
     faction_map: Option<Res<LoadedFactionMap>>,
     mut area_query: Query<(Entity, &GameArea, &mut Population, &Transform)>,
     mut player_areas_query: Query<&mut PlayerAreas>,
-    mut player_cities_query: Query<&mut PlayerCities>,
-    mut city_stock_query: Query<&mut CityTokenStock>,
+    mut player_cities_query: Query<(Entity, &mut PlayerCities, &mut CityTokenStock)>,
     game_factions: Res<AvailableFactions>,
 ) {
     let Some(pending) = pending_pops else {
@@ -650,39 +649,59 @@ fn restore_area_populations(
                 continue;
             };
             
-            // Get a city token from the player's stock
-            if let Ok(mut city_stock) = city_stock_query.get_mut(player_entity) {
-                if let Some(city_token) = city_stock.get_token_from_stock() {
-                    // Add BuiltCity component to the area
-                    commands.entity(area_entity).insert(BuiltCity::new(city_token, player_entity));
-                    
-                    // Add sprite and transform to the city token
-                    if let Some(city_icon) = game_factions.faction_city_icons.get(city_faction) {
-                        commands.entity(city_token).insert((
-                            Sprite {
-                                image: city_icon.clone(),
-                                ..default()
-                            },
-                            Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
-                                .with_translation(area_position),
-                        ));
-                    } else {
-                        warn!("No city icon for faction {:?}", city_faction);
-                    }
-                    
-                    // Update player cities
-                    if let Ok(mut player_cities) = player_cities_query.get_mut(player_entity) {
-                        player_cities.build_city_in_area(area_entity, city_token);
-                    }
-                    
-                    info!("  Area {}: city built by {:?}", saved_area.area_id, city_faction);
-                } else {
-                    warn!("No city tokens available for {:?}", city_faction);
-                }
+            // Spawn a fresh city token for the restored city rather than
+            // popping one off `CityTokenStock`. `city_tokens_in_stock` in the
+            // save already excludes tokens sitting on the board as cities, so
+            // drawing from the stock here charged the player twice -- every
+            // save/load round trip silently shrank their city stock by the
+            // number of cities they owned, until an empty stock made
+            // `recalculate_city_construction_moves_for_player` produce no
+            // moves, strip `IsBuilding`, and skip them in CityConstruction.
+            let city_token = commands
+                .spawn(CityToken::new(player_entity))
+                .id();
+
+            commands
+                .entity(area_entity)
+                .insert(BuiltCity::new(city_token, player_entity));
+
+            if let Some(city_icon) = game_factions.faction_city_icons.get(city_faction) {
+                commands.entity(city_token).insert((
+                    Sprite {
+                        image: city_icon.clone(),
+                        ..default()
+                    },
+                    Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
+                        .with_translation(area_position),
+                ));
+            } else {
+                warn!("No city icon for faction {:?}", city_faction);
             }
+
+            // Update player cities
+            if let Ok((_, mut player_cities, _)) = player_cities_query.get_mut(player_entity) {
+                player_cities.build_city_in_area(area_entity, city_token);
+            }
+
+            info!("  Area {}: city built by {:?}", saved_area.area_id, city_faction);
         }
     }
     
+    // A player's city tokens are either in stock or on the board, so the stock
+    // is fully derivable once the cities are placed. Recomputing it here repairs
+    // saves written by the version that double-charged the stock on load -- an
+    // empty stock leaves a player with no city-construction moves at all, which
+    // reads as the game skipping them in that phase.
+    for (player_entity, player_cities, mut city_stock) in &mut player_cities_query {
+        let expected_in_stock = city_stock
+            .max_tokens
+            .saturating_sub(player_cities.number_of_cities());
+        while city_stock.city_tokens_in_stock() < expected_in_stock {
+            let token = commands.spawn(CityToken::new(player_entity)).id();
+            city_stock.return_token_to_stock(token);
+        }
+    }
+
     // Clean up area-related load resources (but keep LoadingFromSave for OnEnter systems)
     commands.remove_resource::<PendingAreaPopulations>();
     commands.remove_resource::<LoadedFactionMap>();
