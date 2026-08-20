@@ -72,6 +72,18 @@ fn score_peaceful_move(
         return 0.0;
     };
 
+    // A move carrying zero tokens brings no population anywhere -- it's not
+    // expansion, just repositioning (a ship with nothing aboard). Score it flat
+    // at the neutral floor so it never outbids `EndMovement`'s 0.15 baseline;
+    // otherwise the "grabbing new territory" and ferry bonuses below apply
+    // regardless of cargo, and since neither area involved has our population,
+    // the same false bonus fires symmetrically in both directions -- an empty
+    // ship can oscillate between two connected areas forever (this tripped the
+    // 120-selection movement loop guard in practice).
+    if max_tokens == 0 {
+        return 0.0;
+    }
+
     let mut score = 0.0;
 
     // Reaching territory: grabbing new land is expansion; reinforcing my own is
@@ -264,6 +276,51 @@ mod tests {
             attack_score < hold_score,
             "turtle should not throw tokens at a lost cause: attack {attack_score} vs hold {hold_score}"
         );
+    }
+
+    /// Regression test: an empty ferry (0 tokens aboard) between two areas
+    /// neither of which the player occupies must never outscore `EndMovement`
+    /// -- previously it did (both the "grabbing new territory" and ferry
+    /// bonuses ignored cargo), which let an empty ship oscillate between the
+    /// same two sea areas forever and trip the movement loop guard.
+    #[test]
+    fn empty_ferry_never_outscores_ending_movement() {
+        let player = e(1);
+        let home = e(10);
+        let empty_coast = e(20);
+        let mut areas = HashMap::default();
+        areas.insert(
+            home,
+            AreaSummary {
+                max_population: 8,
+                is_city_site: true,
+                neighbours: vec![empty_coast],
+                ..Default::default()
+            },
+        );
+        areas.insert(
+            empty_coast,
+            AreaSummary {
+                max_population: 8,
+                is_city_site: true,
+                neighbours: vec![home],
+                ..Default::default()
+            },
+        );
+        for playstyle in [
+            Playstyle::Warlord,
+            Playstyle::Turtle,
+            Playstyle::Expansionist,
+        ] {
+            let w = Personality::from_playstyle(playstyle).weights;
+            let empty_ferry = GameMove::ShipFerry(MovementMove::new(home, empty_coast, player, 0));
+            let ferry_score = score_movement(&empty_ferry, player, &areas, &w);
+            let hold_score = score_movement(&GameMove::EndMovement, player, &areas, &w);
+            assert!(
+                ferry_score <= hold_score,
+                "{playstyle:?}: empty ferry ({ferry_score}) should never outscore EndMovement ({hold_score})"
+            );
+        }
     }
 
     #[test]
