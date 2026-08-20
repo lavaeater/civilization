@@ -2630,6 +2630,7 @@ pub fn apply_monotheism_conversions(
     mut commands: Commands,
     monotheism_holders: Query<(Entity, &PlayerAreas), With<NeedsMonotheismConversion>>,
     awaiting_query: Query<Entity, With<AwaitingMonotheismSelection>>,
+    still_resolving: Query<Entity, Or<(With<NeedsCalamityResolution>, With<ResolvingCalamity>)>>,
     human_query: Query<(), With<IsHuman>>,
     all_players_civ: Query<(Entity, &PlayerCivilizationCards)>,
     land_passage_query: Query<&LandPassage>,
@@ -2637,6 +2638,16 @@ pub fn apply_monotheism_conversions(
     mut mono_state: ResMut<MonotheismSelectionState>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
+    // This system owns the phase's exit, so it must not fire while calamities
+    // are still being worked through -- on the phase's first frame no holder is
+    // marked yet (`process_pending_calamities` only inserts
+    // `NeedsMonotheismConversion` once the last calamity is done), and without
+    // this guard the empty-holders check transitioned straight out of
+    // ResolveCalamities, silently discarding every calamity.
+    if !still_resolving.is_empty() {
+        return;
+    }
+
     // All done → transition.
     if monotheism_holders.is_empty() && awaiting_query.is_empty() {
         info!("[MONOTHEISM] All conversions done, transitioning to CheckCitySupport");
