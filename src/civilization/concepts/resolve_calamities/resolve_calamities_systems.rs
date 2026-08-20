@@ -1885,7 +1885,10 @@ pub fn advance_iconoclasm_heresy(
                     state.cities_to_reduce
                 );
                 if state.cities_to_reduce == 0 {
-                    state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
+                    // 30.811 and 30.818 are separate obligations: reducing
+                    // none of your own cities (Theology's -3, 30.814) does
+                    // not excuse you from ordering the enemy reductions.
+                    state.phase = IconoclasmHeresyPhase::SelectSecondaryVictims;
                 } else if is_human {
                     let available: Vec<Entity> =
                         player_cities.areas_and_cities.keys().copied().collect();
@@ -1909,65 +1912,100 @@ pub fn advance_iconoclasm_heresy(
                     for area in &areas {
                         state.select_city(*area);
                     }
-                    state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
+                    state.phase = IconoclasmHeresyPhase::SelectSecondaryVictims;
                 }
             }
             IconoclasmHeresyPhase::SelectCities if !awaiting_human => {
                 for area in calamity_selection.take_selected_cities() {
                     state.select_city(area);
                 }
-                state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
+                state.phase = IconoclasmHeresyPhase::SelectSecondaryVictims;
             }
 
 
-            IconoclasmHeresyPhase::ApplySecondaryLosses => {
-                // Apply primary reductions
-                for &area in &state.selected_cities {
-                    commands.entity(area).insert(ReduceCity);
-                }
-
-                // Primary victim orders 2 secondary cities reduced from other players (30.818).
-                // Auto-select: Theology holders are immune; Philosophy holders lose max 1.
-                let mut secondary_cities_left = state.secondary_cities;
-
-                let candidates: Vec<(Entity, Vec<Entity>, bool)> = all_players
+            IconoclasmHeresyPhase::SelectSecondaryVictims => {
+                // Rule 30.818: the primary victim "must also order the
+                // reduction of two cities belonging to other players", and
+                // 29.64 makes directing effects at other players mandatory,
+                // not optional -- so a human victim picks the targets rather
+                // than having them chosen for them.
+                //
+                // 30.819 shapes the candidate list: a Theology holder cannot
+                // be named at all, and a Philosophy holder may lose at most
+                // one city -- expressed by offering only one of their cities,
+                // so no selection can exceed the cap.
+                let candidates: Vec<Entity> = all_players
                     .iter()
                     .filter(|(e, cities, _)| {
                         *e != player_entity
                             && Some(*e) != state.immune_player
                             && !cities.areas_and_cities.is_empty()
                     })
-                    .filter_map(|(e, cities, cards)| {
-                        let has_theology = cards
-                            .is_some_and(|c| c.owns(&CivCardName::Theology));
-                        if has_theology {
-                            return None;
-                        } // Theology immune (30.819)
-                        let has_philosophy = cards
-                            .is_some_and(|c| c.owns(&CivCardName::Philosophy));
-                        let city_areas: Vec<Entity> =
-                            cities.areas_and_cities.keys().copied().collect();
-                        Some((e, city_areas, has_philosophy))
+                    .filter_map(|(_, cities, cards)| {
+                        if cards.is_some_and(|c| c.owns(&CivCardName::Theology)) {
+                            return None; // 30.819: cannot be named
+                        }
+                        let limit = if cards.is_some_and(|c| c.owns(&CivCardName::Philosophy)) {
+                            1 // 30.819: at most one city from a Philosophy holder
+                        } else {
+                            usize::MAX
+                        };
+                        Some(
+                            cities
+                                .areas_and_cities
+                                .keys()
+                                .copied()
+                                .take(limit)
+                                .collect::<Vec<_>>(),
+                        )
                     })
+                    .flatten()
                     .collect();
 
-                for (_secondary_entity, city_areas, has_philosophy) in &candidates {
-                    if secondary_cities_left == 0 {
-                        break;
+                let required = state.secondary_cities.min(candidates.len());
+
+                if required == 0 {
+                    state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
+                } else if is_human {
+                    if awaiting_human {
+                        // still choosing -- hold this phase
+                    } else if calamity_selection.player == Some(player_entity) {
+                        state.selected_secondary_cities =
+                            calamity_selection.take_selected_cities();
+                        state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
+                    } else if calamity_selection.player.is_none() {
+                        calamity_selection.populate(
+                            player_entity,
+                            candidates,
+                            required,
+                            "Iconoclasm — order 2 enemy cities reduced",
+                        );
+                        commands
+                            .entity(player_entity)
+                            .insert(AwaitingHumanCalamitySelection);
                     }
-                    let max_from_this = if *has_philosophy {
-                        1
-                    } else {
-                        secondary_cities_left
-                    };
-                    let to_take = max_from_this.min(secondary_cities_left);
-                    for &area in city_areas.iter().take(to_take) {
-                        commands.entity(area).insert(ReduceCity);
-                        secondary_cities_left -= 1;
-                    }
+                    // else: panel belongs to someone else; retry next frame.
+                } else {
+                    state.selected_secondary_cities =
+                        candidates.into_iter().take(required).collect();
+                    state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
+                }
+            }
+            IconoclasmHeresyPhase::ApplySecondaryLosses => {
+                // Apply primary reductions
+                for &area in &state.selected_cities {
+                    commands.entity(area).insert(ReduceCity);
                 }
 
-                info!("[ICONOCLASM] Secondary reductions applied");
+                for &area in &state.selected_secondary_cities {
+                    commands.entity(area).insert(ReduceCity);
+                }
+
+                info!(
+                    "[ICONOCLASM] {} own and {} enemy cities reduced",
+                    state.selected_cities.len(),
+                    state.selected_secondary_cities.len()
+                );
                 state.phase = IconoclasmHeresyPhase::Complete;
             }
             IconoclasmHeresyPhase::Complete => {
@@ -1979,7 +2017,9 @@ pub fn advance_iconoclasm_heresy(
                     TradeCard::IconoclasmAndHeresy,
                 );
             }
-            _ => {}
+            // SelectCities while still awaiting the human's pick: the guarded
+            // arm above declines, and there is nothing to do but wait.
+            IconoclasmHeresyPhase::SelectCities => {}
         }
     }
 }

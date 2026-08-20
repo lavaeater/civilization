@@ -27,6 +27,9 @@ pub struct IconoclasmHeresyState {
     /// Number of secondary-victim cities the primary victim must order reduced (always 2).
     pub secondary_cities: usize,
     pub selected_cities: Vec<Entity>,
+    /// The other players' cities the primary victim has ordered reduced
+    /// (30.818), once chosen.
+    pub selected_secondary_cities: Vec<Entity>,
     pub immune_player: Option<Entity>,
 }
 

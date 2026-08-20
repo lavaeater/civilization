@@ -468,6 +468,190 @@ mod tests {
     }
 
     // ========================================================================
+    // Rules 30.818/30.819/29.64: ordering enemy cities reduced
+    // ========================================================================
+
+    fn iconoclasm_world() -> World {
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
+        world
+    }
+
+    /// Gives `owner` a city in a fresh area and returns the area.
+    fn give_city(world: &mut World, owner: Entity, name: &str) -> Entity {
+        let city_token = world.spawn_empty().id();
+        let area = world
+            .spawn((
+                Name::new(name.to_string()),
+                GameArea::new(world.entities().len() as i32),
+                Population::new(6),
+                LandPassage::default(),
+            ))
+            .id();
+        if let Some(mut cities) = world.get_mut::<PlayerCities>(owner) {
+            cities.build_city_in_area(area, city_token);
+        } else {
+            let mut cities = PlayerCities::default();
+            cities.build_city_in_area(area, city_token);
+            world.entity_mut(owner).insert(cities);
+        }
+        area
+    }
+
+    fn start_iconoclasm(world: &mut World, victim: Entity, own_cities_to_reduce: usize) {
+        use crate::civilization::concepts::resolve_calamities::calamities::iconoclasm_heresy::IconoclasmHeresyState;
+
+        let mut state = IconoclasmHeresyState::new();
+        state.cities_to_reduce = own_cities_to_reduce;
+        let context = CalamityContext::new(TradeCard::IconoclasmAndHeresy, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::IconoclasmAndHeresy(state),
+        ));
+    }
+
+    /// 30.818 + 29.64: the primary victim must order two enemy cities
+    /// reduced, and a human victim chooses which. They used to be picked in
+    /// iteration order with no prompt.
+    #[test]
+    fn a_human_victim_chooses_which_enemy_cities_iconoclasm_reduces() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{advance_iconoclasm_heresy, ReduceCity};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, CalamitySelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = iconoclasm_world();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+        let rival = world.spawn(Player).id();
+        let bystander = world.spawn(Player).id();
+
+        let rival_cities: Vec<Entity> = (0..2)
+            .map(|n| give_city(&mut world, rival, &format!("rival-{n}")))
+            .collect();
+        let bystander_city = give_city(&mut world, bystander, "bystander");
+
+        start_iconoclasm(&mut world, victim, 0); // no own cities to reduce
+
+        world.run_system_once(advance_iconoclasm_heresy).unwrap();
+        world.flush();
+        world.run_system_once(advance_iconoclasm_heresy).unwrap();
+        world.flush();
+
+        assert!(
+            world.get::<AwaitingHumanCalamitySelection>(victim).is_some(),
+            "the victim orders the reductions themselves"
+        );
+        assert_eq!(world.resource::<CalamitySelectionState>().required_count, 2);
+
+        // Victim orders both of the rival's cities reduced -- legal, the rival
+        // holds no Philosophy.
+        {
+            let mut selection = world.resource_mut::<CalamitySelectionState>();
+            for want in rival_cities.clone() {
+                while selection.current_city() != Some(want) {
+                    selection.next();
+                }
+                selection.toggle_current();
+            }
+        }
+        world.entity_mut(victim).remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_iconoclasm_heresy).unwrap();
+        world.flush();
+        world.run_system_once(advance_iconoclasm_heresy).unwrap();
+        world.flush();
+
+        for area in &rival_cities {
+            assert!(world.get::<ReduceCity>(*area).is_some(), "ordered reduced");
+        }
+        assert!(world.get::<ReduceCity>(bystander_city).is_none(), "not ordered");
+    }
+
+    /// 30.819: a Theology holder cannot be named a secondary victim, and a
+    /// Philosophy holder may lose at most one city -- enforced by what the
+    /// victim is offered, so no selection can break the cap.
+    #[test]
+    fn iconoclasm_secondary_candidates_respect_theology_and_philosophy() {
+        use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_iconoclasm_heresy;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, CalamitySelectionState,
+        };
+        use crate::civilization::CivCardName;
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = iconoclasm_world();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+
+        let theologian = world.spawn(Player).id();
+        let philosopher = world.spawn(Player).id();
+        let ordinary = world.spawn(Player).id();
+
+        let theologian_cities: Vec<Entity> = (0..2)
+            .map(|n| give_city(&mut world, theologian, &format!("theology-{n}")))
+            .collect();
+        let philosopher_cities: Vec<Entity> = (0..3)
+            .map(|n| give_city(&mut world, philosopher, &format!("philosophy-{n}")))
+            .collect();
+        let ordinary_cities: Vec<Entity> = (0..2)
+            .map(|n| give_city(&mut world, ordinary, &format!("ordinary-{n}")))
+            .collect();
+
+        world.entity_mut(theologian).insert(PlayerCivilizationCards {
+            cards: [CivCardName::Theology].into_iter().collect(),
+        });
+        world.entity_mut(philosopher).insert(PlayerCivilizationCards {
+            cards: [CivCardName::Philosophy].into_iter().collect(),
+        });
+
+        start_iconoclasm(&mut world, victim, 0);
+
+        world.run_system_once(advance_iconoclasm_heresy).unwrap();
+        world.flush();
+        world.run_system_once(advance_iconoclasm_heresy).unwrap();
+        world.flush();
+
+        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_some());
+        let offered = world.resource::<CalamitySelectionState>().available_cities.clone();
+
+        for area in &theologian_cities {
+            assert!(!offered.contains(area), "Theology holders cannot be named (30.819)");
+        }
+        let philosophy_offered = philosopher_cities.iter().filter(|a| offered.contains(a)).count();
+        assert_eq!(philosophy_offered, 1, "at most one city from a Philosophy holder (30.819)");
+        for area in &ordinary_cities {
+            assert!(offered.contains(area), "an unprotected player's cities are all fair game");
+        }
+    }
+
+    /// An AI victim still discharges 30.818 without any prompt.
+    #[test]
+    fn an_ai_victim_still_orders_the_enemy_reductions() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{advance_iconoclasm_heresy, ReduceCity};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::AwaitingHumanCalamitySelection;
+
+        let mut world = iconoclasm_world();
+        let victim = world.spawn((Player, PlayerCities::default())).id();
+        let rival = world.spawn(Player).id();
+        let rival_cities: Vec<Entity> = (0..2)
+            .map(|n| give_city(&mut world, rival, &format!("rival-{n}")))
+            .collect();
+
+        start_iconoclasm(&mut world, victim, 0);
+
+        for _ in 0..4 {
+            world.run_system_once(advance_iconoclasm_heresy).unwrap();
+            world.flush();
+        }
+
+        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_none());
+        let reduced = rival_cities.iter().filter(|a| world.get::<ReduceCity>(**a).is_some()).count();
+        assert_eq!(reduced, 2, "both enemy cities reduced (30.818)");
+    }
+
+    // ========================================================================
     // Rule 30.514: the coastal-city fallback
     // ========================================================================
 
