@@ -306,6 +306,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::FloodSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
 
         let victim = world.spawn(PlayerCities::default()).id();
         let other_player = world.spawn_empty().id();
@@ -365,6 +366,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::FloodSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
 
         let victim = world.spawn(PlayerCities::default()).id();
         let other_player = world.spawn_empty().id();
@@ -463,6 +465,181 @@ mod tests {
         let pending = world.get::<PendingCalamities>(player).unwrap();
         assert_eq!(pending.calamities.len(), 2);
         assert_eq!(world.get::<PlayerTradeCards>(player).unwrap().calamity_cards().len(), 2);
+    }
+
+    // ========================================================================
+    // Rule 30.514: the coastal-city fallback
+    // ========================================================================
+
+    fn flood_fallback_world() -> (World, Entity) {
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::FloodSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
+        let victim = world.spawn_empty().id();
+        (world, victim)
+    }
+
+    /// 30.514: "If the victim has no coastal cities, he is unaffected." An
+    /// inland city used to be destroyed as a substitute.
+    #[test]
+    fn flood_fallback_leaves_an_inland_only_victim_untouched() {
+        use crate::civilization::concepts::resolve_calamities::calamities::flood::{FloodPhase, FloodState};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{advance_flood, ReduceCity};
+
+        let (mut world, victim) = flood_fallback_world();
+
+        // One city, landlocked (no SeaPassage component).
+        let inland = world
+            .spawn((Name::new("inland"), GameArea::new(1), Population::new(5), LandPassage::default()))
+            .id();
+        let mut cities = PlayerCities::default();
+        cities.areas_and_cities.insert(inland, world.spawn_empty().id());
+        world.entity_mut(victim).insert(cities);
+
+        let mut state = FloodState::new();
+        state.phase = FloodPhase::FallbackCoastalCity;
+
+        let context = CalamityContext::new(TradeCard::Flood, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Flood(state),
+        ));
+
+        world.run_system_once(advance_flood).unwrap();
+
+        assert!(world.get::<DestroyCity>(inland).is_none(), "an inland city is never a substitute");
+        assert!(world.get::<ReduceCity>(inland).is_none());
+        let ResolvingCalamity::Flood(ref done) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        assert_eq!(done.phase, FloodPhase::Complete);
+    }
+
+    /// With exactly one coastal city there is nothing to choose, so it goes
+    /// without prompting -- even for a human.
+    #[test]
+    fn flood_fallback_takes_the_only_coastal_city_without_prompting() {
+        use crate::civilization::concepts::resolve_calamities::calamities::flood::{FloodPhase, FloodState};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_flood;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::AwaitingHumanCalamitySelection;
+        use crate::stupid_ai::IsHuman;
+
+        let (mut world, victim) = flood_fallback_world();
+        world.entity_mut(victim).insert(IsHuman);
+
+        let inland = world
+            .spawn((Name::new("inland"), GameArea::new(1), Population::new(5), LandPassage::default()))
+            .id();
+        let coastal = world
+            .spawn((Name::new("coastal"), GameArea::new(2), Population::new(5), LandPassage::default(), SeaPassage::default()))
+            .id();
+        let mut cities = PlayerCities::default();
+        cities.areas_and_cities.insert(inland, world.spawn_empty().id());
+        cities.areas_and_cities.insert(coastal, world.spawn_empty().id());
+        world.entity_mut(victim).insert(cities);
+
+        let mut state = FloodState::new();
+        state.phase = FloodPhase::FallbackCoastalCity;
+
+        let context = CalamityContext::new(TradeCard::Flood, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Flood(state),
+        ));
+
+        world.run_system_once(advance_flood).unwrap();
+        world.run_system_once(advance_flood).unwrap();
+
+        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_none(), "no choice to offer");
+        assert!(world.get::<DestroyCity>(coastal).is_some(), "the coastal city is eliminated");
+        assert!(world.get::<DestroyCity>(inland).is_none());
+    }
+
+    /// 30.514: "The primary victim chooses" which coastal city goes.
+    #[test]
+    fn flood_fallback_lets_a_human_choose_between_coastal_cities() {
+        use crate::civilization::concepts::resolve_calamities::calamities::flood::{FloodPhase, FloodState};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_flood;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, CalamitySelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let (mut world, victim) = flood_fallback_world();
+        world.entity_mut(victim).insert(IsHuman);
+
+        let mut coastal_areas = Vec::new();
+        let mut cities = PlayerCities::default();
+        for n in 0..2 {
+            let area = world
+                .spawn((Name::new(format!("coastal {n}")), GameArea::new(n), Population::new(5), LandPassage::default(), SeaPassage::default()))
+                .id();
+            cities.areas_and_cities.insert(area, world.spawn_empty().id());
+            coastal_areas.push(area);
+        }
+        world.entity_mut(victim).insert(cities);
+
+        let mut state = FloodState::new();
+        state.phase = FloodPhase::FallbackCoastalCity;
+
+        let context = CalamityContext::new(TradeCard::Flood, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Flood(state),
+        ));
+
+        world.run_system_once(advance_flood).unwrap();
+
+        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_some(), "human picks the city");
+        assert!(world.get::<DestroyCity>(coastal_areas[0]).is_none(), "nothing destroyed while waiting");
+        assert!(world.get::<DestroyCity>(coastal_areas[1]).is_none());
+        assert_eq!(world.resource::<CalamitySelectionState>().required_count, 1);
+
+        // Human picks the second city.
+        {
+            let mut selection = world.resource_mut::<CalamitySelectionState>();
+            while selection.current_city() != Some(coastal_areas[1]) {
+                selection.next();
+            }
+            selection.toggle_current();
+            assert!(selection.selection_complete());
+        }
+        world.entity_mut(victim).remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_flood).unwrap();
+
+        assert!(world.get::<DestroyCity>(coastal_areas[1]).is_some(), "the city the human picked");
+        assert!(world.get::<DestroyCity>(coastal_areas[0]).is_none(), "the other one survives");
+    }
+
+    /// 30.515: Engineering reduces the coastal city instead of eliminating it.
+    #[test]
+    fn flood_fallback_reduces_rather_than_destroys_with_engineering() {
+        use crate::civilization::concepts::resolve_calamities::calamities::flood::{FloodPhase, FloodState};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{advance_flood, ReduceCity};
+
+        let (mut world, victim) = flood_fallback_world();
+
+        let coastal = world
+            .spawn((Name::new("coastal"), GameArea::new(1), Population::new(5), LandPassage::default(), SeaPassage::default()))
+            .id();
+        let mut cities = PlayerCities::default();
+        cities.areas_and_cities.insert(coastal, world.spawn_empty().id());
+        world.entity_mut(victim).insert(cities);
+
+        let mut state = FloodState::new().with_engineering();
+        state.phase = FloodPhase::FallbackCoastalCity;
+
+        let context = CalamityContext::new(TradeCard::Flood, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Flood(state),
+        ));
+
+        world.run_system_once(advance_flood).unwrap();
+        world.run_system_once(advance_flood).unwrap();
+
+        assert!(world.get::<ReduceCity>(coastal).is_some());
+        assert!(world.get::<DestroyCity>(coastal).is_none());
     }
 
     // ========================================================================
@@ -1036,6 +1213,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<FloodSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
 
         let victim = world.spawn((PlayerCities::default(), IsHuman)).id();
         let sec_a = world.spawn_empty().id();
@@ -1100,6 +1278,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<FloodSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
 
         let victim = world.spawn((PlayerCities::default(), IsHuman)).id();
         let sec_a = world.spawn_empty().id();

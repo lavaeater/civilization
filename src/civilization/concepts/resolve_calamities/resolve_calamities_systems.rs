@@ -729,6 +729,7 @@ pub fn advance_flood(
     sea_passage_query: Query<Has<SeaPassage>>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut flood_selection: ResMut<FloodSelectionState>,
+    mut calamity_selection: ResMut<CalamitySelectionState>,
 ) {
     for (player_entity, mut resolving, mut resolution, player_cities, is_human, is_awaiting) in &mut player_query {
         if resolution.phase == CalamityPhase::Resolved {
@@ -870,21 +871,57 @@ pub fn advance_flood(
                 state.phase = FloodPhase::Complete;
             }
             FloodPhase::FallbackCoastalCity => {
-                // Rule 30.51: if no flood plain had victim units, eliminate one coastal city.
-                // With Engineering: reduce instead of destroy.
-                let coastal_city_area = player_cities
+                // Rule 30.514: with no units on any flood plain, one *coastal*
+                // city is eliminated (reduced with Engineering, 30.515) and
+                // "the primary victim chooses". A victim with no coastal city
+                // is simply unaffected -- an inland city is never a valid
+                // substitute.
+                let coastal: Vec<Entity> = player_cities
                     .areas_and_cities
                     .keys()
-                    .find(|&&area| sea_passage_query.get(area).unwrap_or(false))
-                    .or_else(|| player_cities.areas_and_cities.keys().next())
-                    .copied();
-                if let Some(area) = coastal_city_area {
-                    if state.has_engineering {
-                        commands.entity(area).insert(ReduceCity);
-                    } else {
-                        commands.entity(area).insert(DestroyCity);
+                    .copied()
+                    .filter(|&area| sea_passage_query.get(area).unwrap_or(false))
+                    .collect();
+
+                match coastal.len() {
+                    0 => {
+                        info!("[FLOOD] No coastal city -- victim is unaffected (30.514)");
+                        state.phase = FloodPhase::Complete;
                     }
-                    info!("[FLOOD] Fallback: eliminated coastal city in area {:?}", area);
+                    1 => {
+                        state.fallback_city = Some(coastal[0]);
+                        state.phase = FloodPhase::SelectFallbackCity;
+                    }
+                    _ if is_human => {
+                        calamity_selection.populate(player_entity, coastal, 1, "Flood");
+                        commands
+                            .entity(player_entity)
+                            .insert(AwaitingHumanCalamitySelection);
+                        state.phase = FloodPhase::SelectFallbackCity;
+                    }
+                    _ => {
+                        state.fallback_city = Some(coastal[0]);
+                        state.phase = FloodPhase::SelectFallbackCity;
+                    }
+                }
+            }
+            FloodPhase::SelectFallbackCity => {
+                if state.fallback_city.is_none() {
+                    if is_awaiting {
+                        continue; // still waiting on the human's pick
+                    }
+                    state.fallback_city = calamity_selection.take_selected_cities().first().copied();
+                }
+                let Some(area) = state.fallback_city else {
+                    state.phase = FloodPhase::Complete;
+                    continue;
+                };
+                if state.has_engineering {
+                    commands.entity(area).insert(ReduceCity);
+                    info!("[FLOOD] Coastal city in area {:?} reduced (30.515)", area);
+                } else {
+                    commands.entity(area).insert(DestroyCity);
+                    info!("[FLOOD] Coastal city in area {:?} eliminated (30.514)", area);
                 }
                 state.phase = FloodPhase::Complete;
             }
