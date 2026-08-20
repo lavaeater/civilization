@@ -274,16 +274,25 @@ pub fn recalculate_city_construction_moves_for_player(
             let no_site_threshold: usize = if has_architecture { 11 } else { 12 };
 
             if city_token_stock.has_tokens() {
-                for (area, population) in &player_areas.areas_and_population_count() {
-                    if let Ok((_area_pop, has_city_site)) = area_property_query.get(*area)
-                        && ((has_city_site && *population >= city_site_threshold)
-                            || *population >= no_site_threshold)
-                    {
-                        command_index += 1;
-                        moves.insert(
-                            command_index,
-                            GameMove::CityConstruction(BuildCityMove::new(*area, event.player)),
-                        );
+                // Check against the real board state (`Population`), not
+                // `PlayerAreas`'s cached mirror -- the two can drift out of
+                // sync (see `log_round_state`'s DESYNC diagnostic), and a
+                // stale/low cached count here would silently deny a player
+                // their build option even though they have enough tokens on
+                // the board, leaving the (real) surplus to be stripped away
+                // in RemoveSurplusPopulation instead of spent on a city.
+                for area in player_areas.areas() {
+                    if let Ok((population, has_city_site)) = area_property_query.get(area) {
+                        let pop_count = population.population_for_player(event.player);
+                        if (has_city_site && pop_count >= city_site_threshold)
+                            || pop_count >= no_site_threshold
+                        {
+                            command_index += 1;
+                            moves.insert(
+                                command_index,
+                                GameMove::CityConstruction(BuildCityMove::new(area, event.player)),
+                            );
+                        }
                     }
                 }
             }
