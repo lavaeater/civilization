@@ -468,6 +468,104 @@ mod tests {
     }
 
     // ========================================================================
+    // A retired city has to stop being drawn on the map
+    // ========================================================================
+
+    /// Reducing or destroying a city updated `PlayerCities` and
+    /// `CityTokenStock` but left the city token's `Sprite`/`Transform`
+    /// untouched, so the icon stayed on the board with the replacement
+    /// population tokens underneath it -- the calamity looked like it had
+    /// done nothing at all.
+    #[test]
+    fn a_reduced_citys_token_stops_being_rendered() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{reduce_city_in_area, ReduceCity};
+
+        let mut world = World::new();
+        world.init_resource::<Messages<crate::civilization::events::MoveTokensFromStockToAreaCommand>>();
+
+        let owner = world.spawn((CityTokenStock::new(9, vec![]), PlayerCities::default(), TokenStock::new(47, vec![]), PlayerAreas::default())).id();
+        let city_token = world
+            .spawn((Sprite::default(), Transform::default(), Visibility::default()))
+            .id();
+        let area = world
+            .spawn((
+                Name::new("city area"),
+                GameArea::new(1),
+                Population::new(3),
+                BuiltCity::new(city_token, owner),
+                ReduceCity,
+            ))
+            .id();
+        world.get_mut::<PlayerCities>(owner).unwrap().build_city_in_area(area, city_token);
+
+        world.run_system_once(reduce_city_in_area).unwrap();
+        world.flush();
+
+        assert!(world.get::<Sprite>(city_token).is_none(), "the city icon is gone from the map");
+        assert!(world.get::<Transform>(city_token).is_none());
+        assert!(world.get::<BuiltCity>(area).is_none());
+        assert!(!world.get::<PlayerCities>(owner).unwrap().has_city_in(area));
+    }
+
+    #[test]
+    fn a_destroyed_citys_token_stops_being_rendered() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{destroy_city_in_area, DestroyCity};
+
+        let mut world = World::new();
+
+        let owner = world.spawn((CityTokenStock::new(9, vec![]), PlayerCities::default())).id();
+        let city_token = world
+            .spawn((Sprite::default(), Transform::default(), Visibility::default()))
+            .id();
+        let area = world
+            .spawn((
+                Name::new("city area"),
+                GameArea::new(1),
+                BuiltCity::new(city_token, owner),
+                DestroyCity,
+            ))
+            .id();
+        world.get_mut::<PlayerCities>(owner).unwrap().build_city_in_area(area, city_token);
+
+        world.run_system_once(destroy_city_in_area).unwrap();
+        world.flush();
+
+        assert!(world.get::<Sprite>(city_token).is_none(), "the city icon is gone from the map");
+        assert!(world.get::<BuiltCity>(area).is_none());
+    }
+
+    /// `ReturnCityToStock` was inserted by the Volcano and taxation paths but
+    /// nothing ever consumed it -- the marker sat there and the city was
+    /// neither returned to stock nor removed from the map.
+    #[test]
+    fn the_return_city_to_stock_marker_actually_retires_the_city() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::ReturnCityToStock;
+        use crate::civilization::triggers::on_add_return_city_to_stock;
+
+        let mut world = World::new();
+        world.add_observer(on_add_return_city_to_stock);
+
+        let owner = world.spawn((CityTokenStock::new(9, vec![]), PlayerCities::default())).id();
+        let city_token = world
+            .spawn((CityToken::new(owner), Sprite::default(), Transform::default(), Visibility::default()))
+            .id();
+        let area = world.spawn((Name::new("area"), GameArea::new(1))).id();
+        world.get_mut::<PlayerCities>(owner).unwrap().build_city_in_area(area, city_token);
+
+        world.entity_mut(city_token).insert(ReturnCityToStock);
+        world.flush();
+
+        assert!(world.get::<Sprite>(city_token).is_none(), "icon removed");
+        assert!(world.get::<ReturnCityToStock>(city_token).is_none(), "marker consumed");
+        assert!(!world.get::<PlayerCities>(owner).unwrap().has_city_in(area), "city dropped");
+        assert_eq!(
+            world.get::<CityTokenStock>(owner).unwrap().city_tokens_in_stock(),
+            1,
+            "and handed back to stock"
+        );
+    }
+
+    // ========================================================================
     // Rule 30.211: choosing the eruption site
     // ========================================================================
 

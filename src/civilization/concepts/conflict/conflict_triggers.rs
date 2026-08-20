@@ -196,6 +196,7 @@ pub fn on_add_unresolved_city_conflict(
                     {
                         commands.entity(area_entity).remove::<BuiltCity>();
                         replace_city_with_tokens_for_conflict(
+                            &mut commands,
                             area_entity,
                             &mut population,
                             built_city,

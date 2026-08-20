@@ -55,6 +55,7 @@ use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_com
 };
 use crate::civilization::concepts::conflict::{ConflictCounterResource, UnresolvedCityConflict, UnresolvedConflict};
 use crate::civilization::functions::return_all_tokens_to_stock;
+use crate::civilization::triggers::retire_city_token_visuals;
 use crate::civilization::{CivCardName, PlayerTradeCards, TradeCard, TradeCardTrait};
 use crate::loading::TextureAssets;
 use crate::player::Player;
@@ -3392,6 +3393,7 @@ pub fn destroy_city_in_area(
             player_cities.remove_city_from_area(area_entity);
             city_stock.return_token_to_stock(built_city.city);
         }
+        retire_city_token_visuals(&mut commands, built_city.city);
 
         commands.entity(area_entity).remove::<BuiltCity>();
         commands.entity(area_entity).remove::<DestroyCity>();
@@ -3439,6 +3441,7 @@ pub fn reduce_city_in_area(
             );
         }
 
+        retire_city_token_visuals(&mut commands, built_city.city);
         commands.entity(area_entity).remove::<BuiltCity>();
         commands.entity(area_entity).remove::<ReduceCity>();
     }
@@ -3474,6 +3477,7 @@ pub fn transfer_city_to_new_owner(
         {
             if let Some(old_city) = v_cities.remove_city_from_area(area_entity) {
                 v_stock.return_token_to_stock(old_city);
+                retire_city_token_visuals(&mut commands, old_city);
             }
             if let Some(new_city) = b_stock.get_token_from_stock() {
                 b_cities.build_city_in_area(area_entity, new_city);

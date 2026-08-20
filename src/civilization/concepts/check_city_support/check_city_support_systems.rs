@@ -5,6 +5,7 @@ use crate::civilization::concepts::check_city_support::check_city_support_compon
 use crate::civilization::concepts::check_city_support::check_city_support_events::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::PirateNation;
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
+use crate::civilization::triggers::retire_city_token_visuals;
 use crate::GameActivity;
 use bevy::prelude::{error, info, Commands, Entity, MessageReader, MessageWriter, NextState, Query, ResMut, With, Without};
 
@@ -50,6 +51,7 @@ pub fn eliminate_city(
             commands.entity(eliminate.area_entity).remove::<BuiltCity>();
             let removed = player_cities.remove_city_from_area(eliminate.area_entity);
             city_stock.return_token_to_stock(eliminate.city);
+            retire_city_token_visuals(&mut commands, eliminate.city);
 
             if removed.is_some() {
                 // Only re-check once the city is actually gone. Doing this

@@ -5,7 +5,7 @@ use crate::civilization::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::game_moves::GameMovesPlugin;
 use crate::civilization::general_systems::{connect_areas, fix_token_positions, move_tokens_from_stock_to_area, print_names_of_phases, start_game};
 use crate::civilization::resolve_calamities::resolve_calamities_plugin::ResolveCalamitiesPlugin;
-use crate::civilization::triggers::on_add_return_token_to_stock;
+use crate::civilization::triggers::{on_add_return_city_to_stock, on_add_return_token_to_stock};
 use crate::civilization::CivilizationInputPlugin;
 use crate::player::Player;
 use crate::stupid_ai::*;
@@ -110,7 +110,8 @@ impl Plugin for CivLogicPlugins {
                 fix_token_positions.run_if(in_state(GameState::Playing)),
             ),
         )
-        .add_observer(on_add_return_token_to_stock);
+        .add_observer(on_add_return_token_to_stock)
+        .add_observer(on_add_return_city_to_stock);
     }
 }
 
