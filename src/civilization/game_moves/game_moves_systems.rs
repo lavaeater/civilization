@@ -10,7 +10,7 @@ use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Name, Query};
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: MessageReader<RecalculatePlayerMoves>,
-    player_move_query: Query<(&PlayerAreas, &TokenStock, Option<&PlayerCivilizationCards>)>,
+    player_move_query: Query<(&PlayerAreas, &TokenStock, Option<&PlayerCivilizationCards>, Option<&NeedsExpansion>)>,
     area_population_query: Query<&Population>,
     mut commands: Commands,
 ) {
@@ -18,10 +18,19 @@ pub fn recalculate_pop_exp_moves_for_player(
         commands.entity(event.player).remove::<AvailableMoves>();
         let mut moves = HashMap::default();
         let mut command_index = 0;
-        if let Ok((player_areas, stock, civ_cards)) = player_move_query.get(event.player) {
+        if let Ok((player_areas, stock, civ_cards, Some(needs_expansion))) = player_move_query.get(event.player) {
             let has_agriculture = civ_cards
                 .is_some_and(|c| c.owns(&CivCardName::Agriculture));
+            // Only offer areas still pending this round's expansion --
+            // `player_areas.areas()` alone doesn't shrink once an area is
+            // expanded, and `max_expansion_for_player_with_agriculture` is
+            // based on current token count, not "already used this round",
+            // so re-offering an already-done area would let it be expanded
+            // more than once per round.
             for area in &player_areas.areas() {
+                if !needs_expansion.areas_that_need_expansion.contains(area) {
+                    continue;
+                }
                 if let Ok(pop) = area_population_query.get(*area) {
                     command_index += 1;
                     moves.insert(

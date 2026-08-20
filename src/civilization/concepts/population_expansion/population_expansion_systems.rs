@@ -255,26 +255,39 @@ pub fn expand_population_manually(
     }
 }
 
-/// When a human player gets AvailableMoves with PopExp moves, mark those areas with highlights.
+/// When a human player's PopExp `AvailableMoves` (re)computes, sync highlights
+/// to exactly match it: add markers for newly-offered areas, refresh the
+/// `max_tokens` on ones already highlighted, and drop highlights for areas no
+/// longer offered (i.e. already expanded this round via
+/// `recalculate_pop_exp_moves_for_player`'s `NeedsExpansion` filter) so a
+/// player can't click a stale marker and expand the same area twice.
 pub fn highlight_pop_exp_areas_for_human(
-    human_players: Query<(Entity, &AvailableMoves), With<IsHuman>>,
-    area_query: Query<(Entity, &Transform), (With<GameArea>, Without<PopExpAreaHighlight>)>,
+    human_players: Query<(Entity, &AvailableMoves), (With<IsHuman>, bevy::prelude::Changed<AvailableMoves>)>,
+    area_query: Query<(Entity, &Transform), With<GameArea>>,
+    highlighted_areas: Query<(Entity, &PopExpAreaHighlight)>,
+    highlight_markers: Query<&PopExpHighlightMarker>,
     mut commands: Commands,
     textures: Res<TextureAssets>,
 ) {
     for (player_entity, available_moves) in human_players.iter() {
+        let mut offered_areas: bevy::platform::collections::HashSet<Entity> = default();
+
         for (_index, game_move) in &available_moves.moves {
             if let GameMove::PopulationExpansion(pop_exp_move) = game_move {
-                // Mark the area with highlight component if not already marked
-                if let Ok((area_entity, area_transform)) = area_query.get(pop_exp_move.area) {
+                offered_areas.insert(pop_exp_move.area);
+                let Ok((area_entity, area_transform)) = area_query.get(pop_exp_move.area) else {
+                    continue;
+                };
+
+                // Refresh (or add) the highlight; cheap even when unchanged.
+                commands.entity(area_entity).insert(
+                    PopExpAreaHighlight::new(player_entity, pop_exp_move.max_tokens),
+                );
+
+                // Only spawn a marker sprite the first time this area is highlighted.
+                let already_marked = highlight_markers.iter().any(|m| m.area == area_entity);
+                if !already_marked {
                     debug!("Highlighting area {:?} for PopExp", area_entity);
-                    
-                    // Add highlight component to the area
-                    commands.entity(area_entity).insert(
-                        PopExpAreaHighlight::new(player_entity, pop_exp_move.max_tokens),
-                    );
-                    
-                    // Spawn a visual marker sprite at the area's position
                     commands.spawn((
                         PopExpHighlightMarker { area: area_entity },
                         Sprite {
@@ -288,6 +301,14 @@ pub fn highlight_pop_exp_areas_for_human(
                         .with_scale(Vec3::splat(0.5)),
                     ));
                 }
+            }
+        }
+
+        // Drop highlights for areas this player no longer has a move for
+        // (already expanded this round) so they can't be clicked again.
+        for (area_entity, highlight) in &highlighted_areas {
+            if highlight.player == player_entity && !offered_areas.contains(&area_entity) {
+                commands.entity(area_entity).remove::<PopExpAreaHighlight>();
             }
         }
     }
@@ -323,6 +344,7 @@ pub fn handle_pop_exp_area_click(
     windows: Query<&Window, With<PrimaryWindow>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
     highlighted_areas: Query<(Entity, &Transform, &PopExpAreaHighlight), With<GameArea>>,
+    available_moves_query: Query<&AvailableMoves>,
     mut expand_writer: MessageWriter<ExpandPopulationManuallyCommand>,
 ) {
     // Click is considered a hit if it lands within this radius of an area.
@@ -345,11 +367,28 @@ pub fn handle_pop_exp_area_click(
         let distance = world_pos.distance(area_pos);
         
         if distance <= CLICK_RADIUS {
+            // Defense in depth: only honor the click if this area is still
+            // an actual pending move for this player right now (belt-and-
+            // suspenders alongside the highlight-sync fix above -- a stale
+            // highlight should never let an area be expanded twice).
+            let still_valid = available_moves_query.get(highlight.player).is_ok_and(|moves| {
+                moves.moves.values().any(|m| {
+                    matches!(m, GameMove::PopulationExpansion(pop_exp_move) if pop_exp_move.area == area_entity)
+                })
+            });
+            if !still_valid {
+                debug!(
+                    "Ignoring click on stale PopExp highlight for area {:?}",
+                    area_entity
+                );
+                return;
+            }
+
             debug!(
                 "Clicked on highlighted area {:?}, expanding with {} tokens",
                 area_entity, highlight.max_tokens
             );
-            
+
             expand_writer.write(ExpandPopulationManuallyCommand::new(
                 highlight.player,
                 area_entity,

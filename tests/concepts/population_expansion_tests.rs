@@ -28,9 +28,10 @@ fn calculate_game_moves_in_population_expansion() {
         app.world_mut().entity_mut(*area).insert(population);
     }
 
+    let needs_expansion = NeedsExpansion::new(player_areas.areas());
     app.world_mut()
         .entity_mut(player)
-        .insert((player_areas, stock));
+        .insert((player_areas, stock, needs_expansion));
 
     let mut events = app
         .world_mut()
@@ -75,9 +76,10 @@ fn given_a_player_with_too_few_tokens_for_expansion_the_correct_moves_are_create
         population.add_token_to_area(player, *token);
     });
 
+    let needs_expansion = NeedsExpansion::new(player_areas.areas());
     app.world_mut()
         .entity_mut(player)
-        .insert((player_areas, stock));
+        .insert((player_areas, stock, needs_expansion));
 
     app.world_mut().entity_mut(area).insert(population);
 
@@ -99,5 +101,59 @@ fn given_a_player_with_too_few_tokens_for_expansion_the_correct_moves_are_create
     if let GameMove::PopulationExpansion(pop_exp_move) = first_move {
         assert_eq!(pop_exp_move.max_tokens, 2);
         assert_eq!(pop_exp_move.area, area);
+    }
+}
+
+/// Regression test: an area already expanded this round (removed from
+/// `NeedsExpansion`) must not be re-offered as a move even though the player
+/// still occupies it -- `max_expansion_for_player_with_agriculture` is based
+/// on current token count, not "already used this round", so recomputing
+/// moves from `player_areas.areas()` alone would let the same area be
+/// expanded more than once per round.
+#[test]
+fn an_area_already_expanded_this_round_is_not_offered_again() {
+    let mut app = setup_bevy_app(|mut app| {
+        app.add_message::<RecalculatePlayerMoves>()
+            .add_systems(Update, recalculate_pop_exp_moves_for_player);
+        app
+    });
+
+    let (player, mut tokens, _city_tokens) = setup_player(&mut app, "Player 1", GameFaction::Egypt);
+
+    let mut player_areas = PlayerAreas::default();
+    let mut stock = TokenStock::new(47, tokens.drain(0..4).collect());
+
+    let expanded_area = create_area(&mut app, "Egypt", 1);
+    let pending_area = create_area(&mut app, "Thrace", 1);
+    for area in [expanded_area, pending_area] {
+        let mut population = Population::new(4);
+        let token = stock.remove_token_from_stock().unwrap();
+        player_areas.add_token_to_area(area, token);
+        population.add_token_to_area(player, token);
+        app.world_mut().entity_mut(area).insert(population);
+    }
+
+    // Only `pending_area` still needs expansion -- `expanded_area` was
+    // already handled earlier this round and removed from the set, but
+    // remains in `player_areas` since the player still occupies it.
+    let needs_expansion = NeedsExpansion::new([pending_area].into_iter().collect());
+    app.world_mut()
+        .entity_mut(player)
+        .insert((player_areas, stock, needs_expansion));
+
+    let mut events = app
+        .world_mut()
+        .resource_mut::<Messages<RecalculatePlayerMoves>>();
+    events.write(RecalculatePlayerMoves::new(player));
+
+    app.update();
+
+    let player_moves = app.world().entity(player).get::<AvailableMoves>().unwrap();
+    assert_eq!(player_moves.moves.len(), 1);
+    let (_index, only_move) = player_moves.moves.iter().next().unwrap();
+    if let GameMove::PopulationExpansion(pop_exp_move) = only_move {
+        assert_eq!(pop_exp_move.area, pending_area);
+    } else {
+        panic!("expected a PopulationExpansion move");
     }
 }

@@ -1,4 +1,4 @@
-use crate::civilization::components::{Faction, PlayerAreas, PlayerCities, TokenStock, Treasury};
+use crate::civilization::components::{CityTokenStock, Faction, PlayerAreas, PlayerCities, TokenStock, Treasury};
 use crate::civilization::concepts::ships::ShipStock;
 use crate::civilization::concepts::*;
 use crate::civilization::RecalculatePlayerMoves;
@@ -34,6 +34,13 @@ pub struct CensusDisplay;
 #[derive(Component, Default)]
 pub struct ActivityDisplay;
 
+/// Root of the player-mat panel (bottom-right, mirroring the A.S.T. panel's
+/// bottom-left corner): tokens in stock, tokens in treasury, ships in stock,
+/// cities in stock -- the physical-mat "reserves" numbers, distinct from the
+/// on-board population/city counts already shown in the Player Info card.
+#[derive(Component, Default)]
+pub struct PlayerMatDisplay;
+
 // ── Plugin ────────────────────────────────────────────────────────────────────
 
 pub struct TradeUiPlugin;
@@ -42,10 +49,10 @@ impl Plugin for TradeUiPlugin {
     fn build(&self, app: &mut App) {
         app
             .insert_resource(LavaTheme::default())
-            .add_systems(OnEnter(GameActivity::StartGame), setup_trade_ui)
+            .add_systems(OnEnter(GameActivity::StartGame), (setup_trade_ui, spawn_player_mat_ui))
             .add_systems(
                 Update,
-                (handle_player_draws_cards, update_hud_dynamic, update_census_status),
+                (handle_player_draws_cards, update_hud_dynamic, update_census_status, update_player_mat),
             );
     }
 }
@@ -127,6 +134,62 @@ pub fn setup_trade_ui(
     ui.build();
 }
 
+/// Player-mat panel: bottom-right corner, mirroring the A.S.T. panel's
+/// bottom-left placement. Content filled in by `update_player_mat`.
+pub fn spawn_player_mat_ui(commands: Commands, ui_theme: Res<LavaTheme>) {
+    let mut ui = UIBuilder::new(commands, Some(ui_theme.clone()));
+
+    ui.component::<PlayerMatDisplay>()
+        .absolute_position()
+        .bottom(Val::Px(8.0))
+        .right(Val::Px(8.0))
+        .z_index(Z_PANEL)
+        .display_flex()
+        .flex_column()
+        .row_gap_px(4.0)
+        .padding_all_px(6.0)
+        .bg_color(Color::srgba(0.0, 0.0, 0.0, 0.9))
+        .border_radius_all_px(5.0);
+
+    ui.build();
+}
+
+/// Fills the player-mat panel with the human player's reserve counts.
+fn update_player_mat(
+    commands: Commands,
+    mut game_state_events: MessageReader<StateTransitionEvent<GameState>>,
+    mut game_activity_events: MessageReader<StateTransitionEvent<GameActivity>>,
+    mut recalc_move_events: MessageReader<RecalculatePlayerMoves>,
+    mat_query: Query<Entity, With<PlayerMatDisplay>>,
+    ui_theme: Res<LavaTheme>,
+    human_query: Query<(&TokenStock, &Treasury, &ShipStock, &CityTokenStock), With<IsHuman>>,
+) {
+    let state_changed = game_state_events.read().count() > 0;
+    let activity_changed = game_activity_events.read().count() > 0;
+    let moves_changed = recalc_move_events.read().count() > 0;
+    if !state_changed && !activity_changed && !moves_changed {
+        return;
+    }
+
+    let Ok(mat_entity) = mat_query.single() else {
+        return;
+    };
+    let mut ui = UIBuilder::start_from_entity(commands, mat_entity, true, Some(ui_theme.clone()));
+
+    ui.add_text_child("Player Mat", Some(TextStyle::size_color(14.0, Color::WHITE)));
+
+    if let Ok((token_stock, treasury, ship_stock, city_stock)) = human_query.single() {
+        info_row(&mut ui, "Tokens in stock:", token_stock.tokens_in_stock().to_string());
+        info_row(&mut ui, "Tokens in treasury:", treasury.tokens_in_treasury().to_string());
+        info_row(&mut ui, "Ships in stock:", format!("{} / {}", ship_stock.count_in_stock(), ShipStock::MAX_SHIPS));
+        info_row(&mut ui, "Cities in stock:", format!("{} / {}", city_stock.city_tokens_in_stock(), city_stock.max_tokens));
+    } else {
+        ui.add_text_child("No human player", None);
+    }
+
+    ui.build();
+}
+
 // ── Trade card rebuild ────────────────────────────────────────────────────────
 
 fn handle_player_draws_cards(
@@ -199,6 +262,7 @@ fn update_hud_dynamic(
     commands: Commands,
     mut game_state_events: MessageReader<StateTransitionEvent<GameState>>,
     mut game_activity_events: MessageReader<StateTransitionEvent<GameActivity>>,
+    mut recalc_move_events: MessageReader<RecalculatePlayerMoves>,
     player_info_query: Query<Entity, With<PlayerInfoDisplay>>,
     activity_query: Query<Entity, With<ActivityDisplay>>,
     ui_theme: Res<LavaTheme>,
@@ -210,10 +274,12 @@ fn update_hud_dynamic(
         (&TokenStock, &Treasury, &ShipStock, &PlayerAreas, &PlayerCities),
         With<IsHuman>,
     >,
+    human_manual_expansion_query: Query<Has<ExpandManually>, With<IsHuman>>,
 ) {
     let state_changed = game_state_events.read().count() > 0;
     let activity_changed = game_activity_events.read().count() > 0;
-    if !state_changed && !activity_changed {
+    let moves_changed = recalc_move_events.read().count() > 0;
+    if !state_changed && !activity_changed && !moves_changed {
         return;
     }
 
@@ -262,6 +328,14 @@ fn update_hud_dynamic(
                 format!("Activity: {:?}", activity.get()),
                 Some(TextStyle::size_color(13.0, Color::srgb(0.5, 0.9, 0.9))),
             );
+            let human_must_expand_manually = *activity.get() == GameActivity::PopulationExpansion
+                && human_manual_expansion_query.single().unwrap_or(false);
+            if human_must_expand_manually {
+                ui.add_text_child(
+                    "You have to manually choose areas for expansion",
+                    Some(TextStyle::size_color(13.0, Color::srgb(1.0, 0.8, 0.2))),
+                );
+            }
         }
 
         ui.build();
