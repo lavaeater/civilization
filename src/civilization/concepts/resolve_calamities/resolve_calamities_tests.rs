@@ -401,6 +401,369 @@ mod tests {
         assert!(world.get::<BuiltCity>(fp_area).is_some());
     }
 
+    // ========================================================================
+    // Rule 29.5: the calamities over the two-per-turn limit are discarded
+    // ========================================================================
+
+    /// 29.5 caps a player at two calamities per turn and says the rest "are
+    /// returned to the appropriate trade card stacks"; 29.4 adds that calamity
+    /// cards cannot be held for future turns. The excess used to stay in the
+    /// player's hand, so a third calamity kept coming back every turn until it
+    /// happened to be one of the two drawn.
+    #[test]
+    fn calamities_beyond_the_two_per_turn_limit_are_discarded_from_hand() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::start_calamity_resolution;
+        use crate::GameActivity;
+
+        let mut world = World::new();
+        world.init_resource::<NextState<GameActivity>>();
+
+        let mut cards = PlayerTradeCards::default();
+        cards.add_trade_card(TradeCard::Famine);
+        cards.add_trade_card(TradeCard::VolcanoEarthquake);
+        cards.add_trade_card(TradeCard::Flood);
+        cards.add_trade_card(TradeCard::Gold); // commodity, must survive
+
+        let player = world.spawn((Player, Name::new("victim"), cards)).id();
+
+        world.run_system_once(start_calamity_resolution).unwrap();
+
+        let pending = world.get::<PendingCalamities>(player).expect("pending calamities attached");
+        assert_eq!(pending.calamities.len(), 2, "29.5 caps resolution at two");
+
+        let hand = world.get::<PlayerTradeCards>(player).unwrap();
+        assert_eq!(
+            hand.calamity_cards().len(),
+            2,
+            "only the two being resolved may remain in hand -- the third is returned to the stacks"
+        );
+        for (calamity, _) in &pending.calamities {
+            assert!(hand.has_trade_card(*calamity), "the two selected are still held for resolution");
+        }
+        assert_eq!(hand.number_of_cards_for_trade_card(TradeCard::Gold), 1, "commodities untouched");
+    }
+
+    /// Two or fewer calamities are all resolved -- nothing is discarded.
+    #[test]
+    fn two_calamities_are_both_kept_for_resolution() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::start_calamity_resolution;
+        use crate::GameActivity;
+
+        let mut world = World::new();
+        world.init_resource::<NextState<GameActivity>>();
+
+        let mut cards = PlayerTradeCards::default();
+        cards.add_trade_card(TradeCard::Famine);
+        cards.add_trade_card(TradeCard::Flood);
+
+        let player = world.spawn((Player, Name::new("victim"), cards)).id();
+
+        world.run_system_once(start_calamity_resolution).unwrap();
+
+        let pending = world.get::<PendingCalamities>(player).unwrap();
+        assert_eq!(pending.calamities.len(), 2);
+        assert_eq!(world.get::<PlayerTradeCards>(player).unwrap().calamity_cards().len(), 2);
+    }
+
+    // ========================================================================
+    // Rules 29.62/29.63: the victim chooses which of their own units to lose
+    // ========================================================================
+    //
+    // The calamity dictates how many unit points are lost; picking the units
+    // belongs to their owner. Before this, every unit-point loss was taken in
+    // arbitrary `PlayerAreas` iteration order even for a human victim, so the
+    // human got no prompt at all and tokens vanished from areas they would
+    // never have picked.
+
+    #[test]
+    fn famine_primary_loss_pauses_for_a_human_victim_and_removes_exactly_what_they_chose() {
+        use crate::civilization::concepts::resolve_calamities::calamities::famine::{FaminePhase, FamineState};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_famine;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, FamineSelectionState, UnitLossSelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<FamineSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        let victim = world.spawn((Player, IsHuman)).id();
+
+        // Two areas, 6 tokens each: 12 available against a 4-point loss, so
+        // there is a genuine choice to make.
+        let mut victim_areas = PlayerAreas::default();
+        let mut areas = Vec::new();
+        for n in 0..2 {
+            let mut pop = Population::new(20);
+            let mut tokens = Vec::new();
+            for _ in 0..6 {
+                let token = world.spawn_empty().id();
+                pop.add_token_to_area(victim, token);
+                tokens.push(token);
+            }
+            let area = world
+                .spawn((Name::new(format!("area {n}")), GameArea::new(n), pop, LandPassage::default()))
+                .id();
+            for token in tokens {
+                victim_areas.add_token_to_area(area, token);
+            }
+            areas.push(area);
+        }
+        world.entity_mut(victim).insert(victim_areas);
+
+        let mut state = FamineState::new();
+        state.phase = FaminePhase::ComputeLosses;
+        state.primary_loss = 4;
+
+        let context = CalamityContext::new(TradeCard::Famine, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Famine(state),
+        ));
+
+        // First pass: pause for input, touch nothing.
+        world.run_system_once(advance_famine).unwrap();
+
+        assert!(
+            world.get::<AwaitingHumanCalamitySelection>(victim).is_some(),
+            "human victim should be prompted to choose their losses"
+        );
+        assert_eq!(world.get::<Population>(areas[0]).unwrap().population_for_player(victim), 6);
+        assert_eq!(world.get::<Population>(areas[1]).unwrap().population_for_player(victim), 6);
+        let ResolvingCalamity::Famine(ref waiting) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        assert_eq!(waiting.phase, FaminePhase::ComputeLosses, "must not advance while waiting");
+
+        {
+            let selection = world.resource::<UnitLossSelectionState>();
+            assert_eq!(selection.acting_player, Some(victim));
+            assert_eq!(selection.total_budget, 4);
+            assert_eq!(selection.total_available(), 12);
+        }
+
+        // The human puts the whole loss on the second area, as the UI buttons would.
+        {
+            let mut selection = world.resource_mut::<UnitLossSelectionState>();
+            let second = areas[1];
+            while selection.current_area().map(|(a, _, _)| a) != Some(second) {
+                selection.next_area();
+            }
+            for _ in 0..4 {
+                assert!(selection.increment_current());
+            }
+            assert!(selection.selection_valid());
+        }
+        world.entity_mut(victim).remove::<AwaitingHumanCalamitySelection>();
+
+        // Second pass: apply exactly that.
+        world.run_system_once(advance_famine).unwrap();
+
+        assert_eq!(
+            world.get::<Population>(areas[0]).unwrap().population_for_player(victim),
+            6,
+            "the area the human protected is untouched"
+        );
+        assert_eq!(
+            world.get::<Population>(areas[1]).unwrap().population_for_player(victim),
+            2,
+            "all 4 points came off the area the human picked"
+        );
+        assert_eq!(world.resource::<UnitLossSelectionState>().acting_player, None, "state cleared after use");
+        let ResolvingCalamity::Famine(ref done) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        assert_ne!(done.phase, FaminePhase::ComputeLosses, "phase advanced once applied");
+    }
+
+    #[test]
+    fn famine_primary_loss_is_automatic_for_an_ai_victim() {
+        use crate::civilization::concepts::resolve_calamities::calamities::famine::{FaminePhase, FamineState};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_famine;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, FamineSelectionState, UnitLossSelectionState,
+        };
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<FamineSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        let victim = world.spawn(Player).id(); // no IsHuman
+        let mut pop = Population::new(20);
+        let mut tokens = Vec::new();
+        for _ in 0..6 {
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(victim, token);
+            tokens.push(token);
+        }
+        let area = world.spawn((Name::new("area"), GameArea::new(1), pop, LandPassage::default())).id();
+        let mut victim_areas = PlayerAreas::default();
+        for token in tokens {
+            victim_areas.add_token_to_area(area, token);
+        }
+        world.entity_mut(victim).insert(victim_areas);
+
+        let mut state = FamineState::new();
+        state.phase = FaminePhase::ComputeLosses;
+        state.primary_loss = 4;
+
+        let context = CalamityContext::new(TradeCard::Famine, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Famine(state),
+        ));
+
+        world.run_system_once(advance_famine).unwrap();
+
+        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_none(), "AI is never prompted");
+        assert_eq!(world.get::<Population>(area).unwrap().population_for_player(victim), 2);
+        assert_eq!(world.resource::<UnitLossSelectionState>().acting_player, None);
+    }
+
+    #[test]
+    fn famine_primary_loss_skips_the_prompt_when_the_victim_loses_everything_anyway() {
+        use crate::civilization::concepts::resolve_calamities::calamities::famine::{FaminePhase, FamineState};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_famine;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, FamineSelectionState, UnitLossSelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<FamineSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        let victim = world.spawn((Player, IsHuman)).id();
+        let mut pop = Population::new(20);
+        let mut tokens = Vec::new();
+        for _ in 0..3 {
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(victim, token);
+            tokens.push(token);
+        }
+        let area = world.spawn((Name::new("area"), GameArea::new(1), pop, LandPassage::default())).id();
+        let mut victim_areas = PlayerAreas::default();
+        for token in tokens {
+            victim_areas.add_token_to_area(area, token);
+        }
+        world.entity_mut(victim).insert(victim_areas);
+
+        let mut state = FamineState::new();
+        state.phase = FaminePhase::ComputeLosses;
+        state.primary_loss = 10; // more than the 3 tokens they own
+
+        let context = CalamityContext::new(TradeCard::Famine, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Famine(state),
+        ));
+
+        world.run_system_once(advance_famine).unwrap();
+
+        assert!(
+            world.get::<AwaitingHumanCalamitySelection>(victim).is_none(),
+            "nothing to choose when everything is lost regardless"
+        );
+        assert_eq!(world.get::<Population>(area).unwrap().population_for_player(victim), 0);
+    }
+
+    /// Rule 30.612 keeps one token per area, so a human Epidemic victim is
+    /// offered `count - 1` per area -- and the city half of the budget must be
+    /// spent exactly once even though the token half pauses for input.
+    #[test]
+    fn epidemic_primary_loss_pauses_for_a_human_without_double_spending_the_city_budget() {
+        use crate::civilization::concepts::resolve_calamities::calamities::epidemic::{EpidemicPhase, EpidemicState};
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_epidemic;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, EpidemicSelectionState, UnitLossSelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<EpidemicSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        let victim = world.spawn((Player, IsHuman)).id();
+
+        let mut victim_areas = PlayerAreas::default();
+        let mut areas = Vec::new();
+        for n in 0..2 {
+            let mut pop = Population::new(20);
+            let mut tokens = Vec::new();
+            for _ in 0..5 {
+                let token = world.spawn_empty().id();
+                pop.add_token_to_area(victim, token);
+                tokens.push(token);
+            }
+            let area = world
+                .spawn((Name::new(format!("area {n}")), GameArea::new(n), pop, LandPassage::default()))
+                .id();
+            for token in tokens {
+                victim_areas.add_token_to_area(area, token);
+            }
+            areas.push(area);
+        }
+
+        let mut player_cities = PlayerCities::default();
+        let city_token = world.spawn_empty().id();
+        player_cities.areas_and_cities.insert(areas[0], city_token);
+        world.entity_mut(victim).insert((victim_areas, player_cities));
+
+        let mut state = EpidemicState::new();
+        state.phase = EpidemicPhase::ComputeEffects;
+        state.primary_loss = 6; // 4 to the city, 2 left for tokens
+
+        let context = CalamityContext::new(TradeCard::Epidemic, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Epidemic(state),
+        ));
+
+        // Pass 1: spend the city budget. Pass 2: pause for the token choice.
+        world.run_system_once(advance_epidemic).unwrap();
+        world.run_system_once(advance_epidemic).unwrap();
+
+        assert!(world.get::<DestroyCity>(areas[0]).is_some(), "city spent against the budget");
+        assert!(
+            world.get::<AwaitingHumanCalamitySelection>(victim).is_some(),
+            "human should choose which tokens cover the remaining 2 points"
+        );
+        {
+            let selection = world.resource::<UnitLossSelectionState>();
+            assert_eq!(selection.total_budget, 2, "4 of the 6 points went to the city");
+            assert_eq!(
+                selection.total_available(),
+                8,
+                "30.612 leaves one token per area, so 4 of 5 are offered in each"
+            );
+        }
+
+        // Extra frames while waiting must not re-destroy the city or move on.
+        world.run_system_once(advance_epidemic).unwrap();
+        let ResolvingCalamity::Epidemic(ref waiting) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        assert_eq!(waiting.phase, EpidemicPhase::ApplyPrimaryLoss, "still waiting");
+        assert_eq!(waiting.primary_tokens_remaining, 2, "city budget not spent twice");
+
+        // Human puts both points on the second area.
+        {
+            let mut selection = world.resource_mut::<UnitLossSelectionState>();
+            let second = areas[1];
+            while selection.current_area().map(|(a, _, _)| a) != Some(second) {
+                selection.next_area();
+            }
+            assert!(selection.increment_current());
+            assert!(selection.increment_current());
+            assert!(selection.selection_valid());
+        }
+        world.entity_mut(victim).remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_epidemic).unwrap();
+
+        assert_eq!(world.get::<Population>(areas[0]).unwrap().population_for_player(victim), 5);
+        assert_eq!(world.get::<Population>(areas[1]).unwrap().population_for_player(victim), 3);
+    }
+
     // ── Rule 30.512: human primary victim allocation UI wiring ─────────────
 
     use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
@@ -535,6 +898,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::EpidemicSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::UnitLossSelectionState>();
 
         let victim = world.spawn_empty().id();
         let mut pop = Population::new(20);
@@ -564,6 +928,10 @@ mod tests {
             ResolvingCalamity::Epidemic(state),
         ));
 
+        // Two passes: ComputeEffects spends the budget on cities, ApplyPrimaryLoss
+        // takes the remainder off tokens (split so the token half can pause for
+        // a human's choice without re-destroying the city).
+        world.run_system_once(advance_epidemic).unwrap();
         world.run_system_once(advance_epidemic).unwrap();
 
         // The city was marked for destruction (spending 4 of the 6-point budget).
@@ -578,6 +946,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::EpidemicSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::UnitLossSelectionState>();
 
         let victim = world.spawn_empty().id();
         let mut pop = Population::new(20);
@@ -620,6 +989,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::EpidemicSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::UnitLossSelectionState>();
 
         // Victim has no cities at all -- only an area with tokens.
         let victim = world.spawn_empty().id();
@@ -648,6 +1018,7 @@ mod tests {
         ));
 
         world.run_system_once(advance_epidemic).unwrap();
+        world.run_system_once(advance_epidemic).unwrap();
 
         // No city to destroy; the whole budget came off tokens instead: 10 -> 4.
         assert!(world.get::<DestroyCity>(area).is_none());
@@ -674,6 +1045,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<EpidemicSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::UnitLossSelectionState>();
 
         // Four secondary victims: one holds Medicine (cap 5, rule 30.613),
         // the other three don't (cap 10 each). Combined caps 5+10+10+10=35
@@ -782,6 +1154,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<EpidemicSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::UnitLossSelectionState>();
 
         // Two secondary victims, neither holds Medicine (cap 10 each):
         // 10+10=20 <= the 25-point budget -- no choice to make, everyone
@@ -851,6 +1224,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<FamineSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::UnitLossSelectionState>();
 
         // Three secondary victims, each capped at 8 (rule 30.311) even though
         // they each physically have 10 tokens: 8+8+8=24 > 20-point budget, so
@@ -933,6 +1307,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<FamineSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::UnitLossSelectionState>();
 
         // Two secondary victims, each capped at 8: 8+8=16 <= the 20-point
         // budget -- no choice to make, everyone automatically loses everything.

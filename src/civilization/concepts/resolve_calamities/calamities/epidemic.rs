@@ -17,6 +17,11 @@ pub struct EpidemicState {
     pub has_medicine: bool,
     pub has_road_building: bool,
     pub immune_player: Option<Entity>,
+    /// Points still owed after cities have been spent against the primary
+    /// loss (rule 30.612). Carried across frames because the token half of
+    /// the loss can pause for a human's selection, and the city half must not
+    /// be applied twice when it resumes.
+    pub primary_tokens_remaining: i32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Reflect)]

@@ -8,7 +8,7 @@ use crate::civilization::concepts::resolve_calamities::resolve_calamities_system
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
     AwaitingHumanCalamitySelection, AwaitingMonotheismSelection, CalamitySelectionState,
     CivilWarSelectionState, EpidemicSelectionState, FamineSelectionState, FloodSelectionState,
-    MonotheismSelectionState,
+    MonotheismSelectionState, UnitLossSelectionState,
 };
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_systems::*;
 use crate::civilization::resolve_calamities::resolve_calamities_events::{
@@ -45,6 +45,7 @@ impl Plugin for ResolveCalamitiesPlugin {
             .init_resource::<FamineSelectionState>()
             .init_resource::<EpidemicSelectionState>()
             .init_resource::<MonotheismSelectionState>()
+            .init_resource::<UnitLossSelectionState>()
             .add_systems(
                 OnEnter(GameActivity::ResolveCalamities),
                 start_calamity_resolution,
@@ -107,6 +108,11 @@ impl Plugin for ResolveCalamitiesPlugin {
             .add_systems(
                 Update,
                 (
+                    // Primary unit-point loss selection UI (29.62/29.63)
+                    spawn_unit_loss_selection_ui,
+                    update_unit_loss_selection_ui,
+                    handle_unit_loss_selection_buttons,
+                    cleanup_unit_loss_selection_ui,
                     // Monotheism human target-selection UI
                     spawn_monotheism_selection_ui,
                     update_monotheism_selection_ui,

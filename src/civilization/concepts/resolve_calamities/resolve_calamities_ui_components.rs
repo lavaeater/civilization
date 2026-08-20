@@ -1170,3 +1170,261 @@ mod flood_selection_state_tests {
         assert!(state.victims.is_empty());
     }
 }
+
+// ── Primary unit-point loss selection (rules 29.62/29.63) ────────────────────
+
+/// Resource driving the interactive "which of my units do I lose?" panel.
+///
+/// Every unit-point-loss calamity (Famine 30.311, Epidemic 30.611, ...) tells
+/// the victim how *many* points to lose, never *which* units -- that choice
+/// belongs to the owner of the units, and rule 29.63 requires the total to be
+/// met exactly. Before this existed the loss was taken off the board in
+/// arbitrary `PlayerAreas` iteration order, so a human victim watched tokens
+/// vanish from areas they would never have chosen, with no prompt at all.
+///
+/// Availability per area is supplied by the caller, so Epidemic's
+/// "leave at least one token per area" cap (30.612) is expressed simply by
+/// passing `count - 1`.
+///
+/// Lifecycle mirrors [`FamineSelectionState`]: the advance system populates
+/// this and inserts `AwaitingHumanCalamitySelection`; the UI writes the
+/// allocation and removes the marker; the advance system then applies it.
+#[derive(Resource, Default, Debug)]
+pub struct UnitLossSelectionState {
+    pub acting_player: Option<Entity>,
+    /// Display name of the calamity, e.g. "Famine".
+    pub calamity_name: String,
+    /// Unit points that must be given up in total.
+    pub total_budget: usize,
+    /// (area, available, allocated).
+    pub areas: Vec<(Entity, usize, usize)>,
+    /// Navigation cursor into `areas`.
+    pub current_area_index: usize,
+}
+
+impl UnitLossSelectionState {
+    pub fn populate(
+        &mut self,
+        player: Entity,
+        calamity_name: impl Into<String>,
+        areas: Vec<(Entity, usize)>,
+        total_budget: usize,
+    ) {
+        self.acting_player = Some(player);
+        self.calamity_name = calamity_name.into();
+        self.total_budget = total_budget;
+        self.areas = areas
+            .into_iter()
+            .map(|(area, available)| (area, available, 0))
+            .collect();
+        self.current_area_index = 0;
+    }
+
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+
+    pub fn allocated_total(&self) -> usize {
+        self.areas.iter().map(|&(_, _, allocated)| allocated).sum()
+    }
+
+    pub fn total_available(&self) -> usize {
+        self.areas.iter().map(|&(_, available, _)| available).sum()
+    }
+
+    /// The amount that actually has to be given up: the budget, or everything
+    /// the player has if that is less (rule 29.63 -- you cannot lose what you
+    /// do not have).
+    pub fn required_total(&self) -> usize {
+        self.total_budget.min(self.total_available())
+    }
+
+    pub fn remaining(&self) -> usize {
+        self.required_total().saturating_sub(self.allocated_total())
+    }
+
+    pub fn current_area(&self) -> Option<(Entity, usize, usize)> {
+        self.areas.get(self.current_area_index).copied()
+    }
+
+    pub fn next_area(&mut self) {
+        if !self.areas.is_empty() {
+            self.current_area_index = (self.current_area_index + 1) % self.areas.len();
+        }
+    }
+
+    pub fn prev_area(&mut self) {
+        if self.areas.is_empty() {
+            return;
+        }
+        if self.current_area_index == 0 {
+            self.current_area_index = self.areas.len() - 1;
+        } else {
+            self.current_area_index -= 1;
+        }
+    }
+
+    /// Adds 1 to the current area's allocation, capped by what is in that area
+    /// and by the points still owed. Returns whether it changed.
+    pub fn increment_current(&mut self) -> bool {
+        if self.remaining() == 0 {
+            return false;
+        }
+        let idx = self.current_area_index;
+        if let Some(&mut (_, available, ref mut allocated)) = self.areas.get_mut(idx)
+            && *allocated < available
+        {
+            *allocated += 1;
+            return true;
+        }
+        false
+    }
+
+    /// Subtracts 1 from the current area's allocation. Returns whether it changed.
+    pub fn decrement_current(&mut self) -> bool {
+        let idx = self.current_area_index;
+        if let Some(&mut (_, _, ref mut allocated)) = self.areas.get_mut(idx)
+            && *allocated > 0
+        {
+            *allocated -= 1;
+            return true;
+        }
+        false
+    }
+
+    /// Rule 29.63: the loss must be met exactly, so the panel only confirms
+    /// once every owed point has been assigned to an area.
+    pub fn selection_valid(&self) -> bool {
+        self.allocated_total() == self.required_total()
+    }
+
+    /// Remove and return the confirmed per-area allocation, then clear.
+    pub fn take_allocation(&mut self) -> Vec<(Entity, usize)> {
+        let allocation = self
+            .areas
+            .iter()
+            .filter(|&&(_, _, allocated)| allocated > 0)
+            .map(|&(area, _, allocated)| (area, allocated))
+            .collect();
+        self.clear();
+        allocation
+    }
+}
+
+#[derive(Component)]
+pub struct UnitLossSelectionUiRoot;
+
+#[derive(Component)]
+pub struct UnitLossTitleText;
+
+#[derive(Component)]
+pub struct UnitLossPointsText;
+
+#[derive(Component)]
+pub struct UnitLossAreaNameText;
+
+#[derive(Component)]
+pub struct UnitLossConfirmButton;
+
+#[derive(Component, Debug, Clone)]
+pub enum UnitLossButtonAction {
+    PrevArea,
+    NextArea,
+    Increment,
+    Decrement,
+    Confirm,
+}
+
+#[cfg(test)]
+mod unit_loss_selection_state_tests {
+    use super::*;
+
+    fn e(n: u32) -> Entity {
+        Entity::from_raw_u32(n).unwrap()
+    }
+
+    #[test]
+    fn allocation_is_capped_by_area_availability() {
+        let mut state = UnitLossSelectionState::default();
+        state.populate(e(1), "Famine", vec![(e(2), 2), (e(3), 9)], 10);
+
+        // Area e(2) only holds 2 tokens, so the third increment must not take.
+        assert!(state.increment_current());
+        assert!(state.increment_current());
+        assert!(!state.increment_current());
+        assert_eq!(state.areas[0].2, 2);
+    }
+
+    #[test]
+    fn allocation_is_capped_by_the_budget() {
+        let mut state = UnitLossSelectionState::default();
+        state.populate(e(1), "Famine", vec![(e(2), 50)], 3);
+
+        assert!(state.increment_current());
+        assert!(state.increment_current());
+        assert!(state.increment_current());
+        assert!(!state.increment_current(), "budget of 3 is spent");
+        assert_eq!(state.allocated_total(), 3);
+        assert!(state.selection_valid());
+    }
+
+    /// Rule 29.63: the required total is capped by what the player actually
+    /// has, so a victim with fewer units than the loss can still confirm.
+    #[test]
+    fn required_total_is_capped_by_what_the_player_owns() {
+        let mut state = UnitLossSelectionState::default();
+        state.populate(e(1), "Epidemic", vec![(e(2), 1), (e(3), 2)], 16);
+
+        assert_eq!(state.required_total(), 3);
+        assert!(state.increment_current(), "1 token in the first area");
+        assert!(!state.increment_current(), "first area is exhausted");
+        state.next_area();
+        assert!(state.increment_current());
+        assert!(state.increment_current());
+        assert_eq!(state.allocated_total(), 3);
+        assert!(state.selection_valid(), "losing everything satisfies 29.63");
+    }
+
+    #[test]
+    fn confirming_requires_the_full_amount() {
+        let mut state = UnitLossSelectionState::default();
+        state.populate(e(1), "Famine", vec![(e(2), 5), (e(3), 5)], 4);
+
+        assert!(!state.selection_valid());
+        state.increment_current();
+        assert!(!state.selection_valid(), "1 of 4 assigned");
+        state.increment_current();
+        state.increment_current();
+        state.increment_current();
+        assert!(state.selection_valid());
+    }
+
+    #[test]
+    fn take_allocation_returns_only_areas_with_losses_and_clears() {
+        let mut state = UnitLossSelectionState::default();
+        state.populate(e(1), "Famine", vec![(e(2), 5), (e(3), 5)], 2);
+
+        state.next_area();
+        state.increment_current();
+        state.increment_current();
+
+        assert_eq!(state.take_allocation(), vec![(e(3), 2)]);
+        assert_eq!(state.acting_player, None);
+        assert!(state.areas.is_empty());
+    }
+
+    #[test]
+    fn decrement_frees_budget_for_another_area() {
+        let mut state = UnitLossSelectionState::default();
+        state.populate(e(1), "Famine", vec![(e(2), 5), (e(3), 5)], 1);
+
+        assert!(state.increment_current());
+        state.next_area();
+        assert!(!state.increment_current(), "budget exhausted");
+        state.prev_area();
+        assert!(state.decrement_current());
+        state.next_area();
+        assert!(state.increment_current());
+        assert_eq!(state.take_allocation(), vec![(e(3), 1)]);
+    }
+}

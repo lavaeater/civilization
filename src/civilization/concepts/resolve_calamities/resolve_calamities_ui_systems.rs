@@ -1584,3 +1584,232 @@ pub fn cleanup_epidemic_selection_ui(
         }
     }
 }
+
+// ── Primary unit-point loss selection UI (rules 29.62/29.63) ─────────────────
+
+/// Spawn the "choose which units to lose" panel when a human victim has
+/// `AwaitingHumanCalamitySelection` and `UnitLossSelectionState` has an acting
+/// player set.
+pub fn spawn_unit_loss_selection_ui(
+    human_waiting: Query<Entity, (With<IsHuman>, Added<AwaitingHumanCalamitySelection>)>,
+    existing_ui: Query<Entity, With<UnitLossSelectionUiRoot>>,
+    unit_loss: Res<UnitLossSelectionState>,
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+) {
+    if !existing_ui.is_empty() || unit_loss.acting_player.is_none() {
+        return;
+    }
+    if human_waiting.iter().next().is_none() {
+        return;
+    }
+
+    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+
+    commands
+        .spawn((
+            UnitLossSelectionUiRoot,
+            Node {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(20.0),
+                left: Val::Percent(50.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                padding: UiRect::all(Val::Px(12.0)),
+                row_gap: Val::Px(8.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.15, 0.1, 0.05, 0.93)),
+            ZIndex(Z_DIALOG),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                UnitLossTitleText,
+                Text::new(format!("{} — Choose your losses", unit_loss.calamity_name)),
+                TextFont { font: font.clone(), font_size: 20.0, ..default() },
+                TextColor(Color::srgb(1.0, 0.6, 0.3)),
+            ));
+
+            parent.spawn((
+                Text::new("Pick which areas your units are removed from"),
+                TextFont { font: font.clone(), font_size: 14.0, ..default() },
+                TextColor(Color::srgb(0.7, 0.7, 0.7)),
+            ));
+
+            parent.spawn((
+                UnitLossPointsText,
+                Text::new("Assigned: 0 / ?"),
+                TextFont { font: font.clone(), font_size: 18.0, ..default() },
+                TextColor(Color::srgb(1.0, 1.0, 0.5)),
+            ));
+
+            // Area navigation + allocation row: [<] Area: N (of M) [>]  [-] [+]
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(6.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn((
+                        Button, UnitLossButtonAction::PrevArea,
+                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
+                    )).with_child((Text::new("<"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+
+                    row.spawn((
+                        UnitLossAreaNameText,
+                        Text::new("Area: ?"),
+                        TextFont { font: font.clone(), font_size: 16.0, ..default() },
+                        TextColor(Color::srgb(1.0, 1.0, 0.7)),
+                        Node { min_width: Val::Px(240.0), ..default() },
+                    ));
+
+                    row.spawn((
+                        Button, UnitLossButtonAction::NextArea,
+                        Node { width: Val::Px(28.0), height: Val::Px(28.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.3, 0.3, 0.5)),
+                    )).with_child((Text::new(">"), TextFont { font: font.clone(), font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+
+                    row.spawn((
+                        Button, UnitLossButtonAction::Decrement,
+                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.3, 0.1, 0.1)),
+                    )).with_child((Text::new("−"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+
+                    row.spawn((
+                        Button, UnitLossButtonAction::Increment,
+                        Node { width: Val::Px(32.0), height: Val::Px(32.0),
+                            justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+                        BackgroundColor(Color::srgb(0.1, 0.3, 0.1)),
+                    )).with_child((Text::new("+"), TextFont { font: font.clone(), font_size: 22.0, ..default() }, TextColor(Color::WHITE)));
+                });
+
+            parent.spawn((
+                Button,
+                UnitLossButtonAction::Confirm,
+                UnitLossConfirmButton,
+                Node {
+                    width: Val::Px(160.0), height: Val::Px(40.0),
+                    justify_content: JustifyContent::Center, align_items: AlignItems::Center,
+                    margin: UiRect::top(Val::Px(4.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.2, 0.5, 0.2)),
+            ))
+            .with_child((Text::new("Confirm"), TextFont { font: font.clone(), font_size: 20.0, ..default() }, TextColor(Color::WHITE)));
+        });
+}
+
+/// Update the unit-loss panel's text whenever the selection changes.
+pub fn update_unit_loss_selection_ui(
+    unit_loss: Res<UnitLossSelectionState>,
+    area_names: Query<&Name, With<GameArea>>,
+    mut points_text: Query<
+        &mut Text,
+        (With<UnitLossPointsText>, Without<UnitLossAreaNameText>, Without<UnitLossTitleText>),
+    >,
+    mut area_text: Query<
+        &mut Text,
+        (With<UnitLossAreaNameText>, Without<UnitLossPointsText>, Without<UnitLossTitleText>),
+    >,
+    mut title_text: Query<
+        &mut Text,
+        (With<UnitLossTitleText>, Without<UnitLossPointsText>, Without<UnitLossAreaNameText>),
+    >,
+    mut confirm_button: Query<&mut BackgroundColor, With<UnitLossConfirmButton>>,
+) {
+    if !unit_loss.is_changed() {
+        return;
+    }
+
+    if let Ok(mut text) = title_text.single_mut() {
+        **text = format!("{} — Choose your losses", unit_loss.calamity_name);
+    }
+
+    if let Ok(mut text) = points_text.single_mut() {
+        **text = format!(
+            "Assigned: {} / {}",
+            unit_loss.allocated_total(),
+            unit_loss.required_total()
+        );
+    }
+
+    if let Ok(mut text) = area_text.single_mut()
+        && let Some((area, available, allocated)) = unit_loss.current_area()
+    {
+        let name = area_names.get(area).map_or("?", Name::as_str);
+        **text = format!(
+            "{}: lose {} (of {})  [{}/{}]",
+            name,
+            allocated,
+            available,
+            unit_loss.current_area_index + 1,
+            unit_loss.areas.len()
+        );
+    }
+
+    if let Ok(mut bg) = confirm_button.single_mut() {
+        *bg = if unit_loss.selection_valid() {
+            BackgroundColor(Color::srgb(0.2, 0.5, 0.2))
+        } else {
+            BackgroundColor(Color::srgb(0.25, 0.25, 0.25))
+        };
+    }
+}
+
+/// Handle unit-loss panel button presses.
+pub fn handle_unit_loss_selection_buttons(
+    interaction_query: Query<
+        (&Interaction, &UnitLossButtonAction),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut unit_loss: ResMut<UnitLossSelectionState>,
+    mut commands: Commands,
+    human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
+) {
+    for (interaction, action) in interaction_query.iter() {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        match action {
+            UnitLossButtonAction::PrevArea => { unit_loss.prev_area(); }
+            UnitLossButtonAction::NextArea => { unit_loss.next_area(); }
+            UnitLossButtonAction::Increment => { unit_loss.increment_current(); }
+            UnitLossButtonAction::Decrement => { unit_loss.decrement_current(); }
+            UnitLossButtonAction::Confirm => {
+                // The acting player is the one that must be released -- other
+                // humans may hold the marker for a different calamity.
+                if unit_loss.selection_valid()
+                    && let Some(acting) = unit_loss.acting_player
+                    && human_waiting.iter().any(|e| e == acting)
+                {
+                    info!(
+                        "[UNIT LOSS UI] Human victim confirmed {} point(s) across {} area(s)",
+                        unit_loss.allocated_total(),
+                        unit_loss.areas.len()
+                    );
+                    commands.entity(acting).remove::<AwaitingHumanCalamitySelection>();
+                }
+            }
+        }
+    }
+}
+
+/// Despawn the unit-loss panel once the choice has been consumed.
+pub fn cleanup_unit_loss_selection_ui(
+    mut commands: Commands,
+    ui_root: Query<Entity, With<UnitLossSelectionUiRoot>>,
+    human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
+    unit_loss: Res<UnitLossSelectionState>,
+) {
+    if !ui_root.is_empty() && human_waiting.is_empty() && unit_loss.acting_player.is_none() {
+        for entity in ui_root.iter() {
+            commands.entity(entity).despawn();
+        }
+    }
+}

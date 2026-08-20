@@ -51,7 +51,7 @@ use crate::civilization::concepts::resolve_calamities::resolve_calamities_events
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
     AwaitingHumanCalamitySelection, AwaitingMonotheismSelection, CalamitySelectionState,
     CivilWarSelectionState, EpidemicSelectionState, FamineSelectionState, FloodSelectionState,
-    MonotheismSelectionState,
+    MonotheismSelectionState, UnitLossSelectionState,
 };
 use crate::civilization::concepts::conflict::{ConflictCounterResource, UnresolvedCityConflict, UnresolvedConflict};
 use crate::civilization::functions::return_all_tokens_to_stock;
@@ -74,14 +74,14 @@ pub fn clear_grain_lock_for_new_turn(
 
 pub fn start_calamity_resolution(
     mut commands: Commands,
-    players_with_calamities: Query<(Entity, &PlayerTradeCards, Option<&Name>), With<Player>>,
+    mut players_with_calamities: Query<(Entity, &mut PlayerTradeCards, Option<&Name>), With<Player>>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     info!("[CALAMITIES] Starting calamity resolution phase");
 
     let mut any_calamities = false;
 
-    for (player_entity, trade_cards, name) in players_with_calamities.iter() {
+    for (player_entity, mut trade_cards, name) in &mut players_with_calamities {
         let calamity_cards: Vec<TradeCard> = trade_cards.calamity_cards().iter().copied().collect();
 
         if calamity_cards.is_empty() {
@@ -102,6 +102,24 @@ pub fn start_calamity_resolution(
         } else {
             calamity_cards.iter().map(|c| (*c, None)).collect()
         };
+
+        // Rule 29.5: a player is the primary victim of at most two calamities
+        // per turn; the rest "are returned to the appropriate trade card
+        // stacks". Discarding them here matters -- calamity cards cannot be
+        // held for future turns (29.4), and leaving the unselected ones in
+        // hand made them resolve again on the following turn, so a player who
+        // drew three calamities kept suffering the extra one indefinitely.
+        let selected: Vec<TradeCard> =
+            calamities_to_resolve.iter().map(|(c, _)| *c).collect();
+        for discarded in calamity_cards.iter().filter(|c| !selected.contains(c)) {
+            let removed = trade_cards.remove_n_trade_cards(1, *discarded);
+            info!(
+                "[CALAMITIES] {} exceeds the two-calamity limit (29.5): {:?} discarded{}",
+                player_label,
+                discarded,
+                if removed.is_some() { "" } else { " (not in hand?)" }
+            );
+        }
 
         commands
             .entity(player_entity)
@@ -992,6 +1010,146 @@ fn remove_epidemic_loss(
     remove_unit_points_leaving_one_per_area(player, remaining, player_areas, populations, commands);
 }
 
+/// Outcome of asking a victim to give up unit points.
+#[derive(Debug, PartialEq, Eq)]
+enum UnitLossStep {
+    /// The loss has been taken off the board; the caller may advance its state.
+    Applied,
+    /// A human is choosing which units to lose (or another human is mid-choice);
+    /// the caller must stay in its current phase and retry next frame.
+    AwaitingHuman,
+}
+
+/// Applies a confirmed per-area allocation, returning the tokens to stock.
+fn apply_unit_loss_allocation(
+    player: Entity,
+    allocation: &[(Entity, usize)],
+    populations: &mut Query<&mut Population>,
+    commands: &mut Commands,
+) {
+    for &(area, count) in allocation {
+        if count == 0 {
+            continue;
+        }
+        if let Ok(mut population) = populations.get_mut(area)
+            && let Some(removed) = population.remove_tokens_from_area(&player, count)
+        {
+            for token in removed {
+                commands.entity(token).insert(ReturnTokenToStock);
+            }
+        }
+    }
+}
+
+/// Takes `points` unit points off a victim, letting a human victim choose
+/// which units to give up (rules 29.62/29.63 -- the amount is dictated by the
+/// calamity, the choice of units is the owner's).
+///
+/// AI victims keep the previous automatic behaviour. A human victim pauses on
+/// `AwaitingHumanCalamitySelection` while `UnitLossSelectionState` drives the
+/// panel, unless there is nothing to decide -- if the loss meets or exceeds
+/// everything they own, every token goes regardless of choice, so showing a
+/// panel would just be a mandatory "confirm" click.
+///
+/// `leave_one_per_area` implements Epidemic's rule 30.612 by capping each
+/// area's availability at `count - 1`.
+#[allow(clippy::too_many_arguments)]
+fn take_unit_point_loss(
+    player: Entity,
+    points: i32,
+    calamity_name: &str,
+    leave_one_per_area: bool,
+    is_human: bool,
+    awaiting_human: bool,
+    player_areas: &PlayerAreas,
+    populations: &mut Query<&mut Population>,
+    unit_loss: &mut UnitLossSelectionState,
+    commands: &mut Commands,
+) -> UnitLossStep {
+    if points <= 0 {
+        return UnitLossStep::Applied;
+    }
+
+    if !is_human {
+        if leave_one_per_area {
+            remove_unit_points_leaving_one_per_area(
+                player,
+                points,
+                player_areas,
+                populations,
+                commands,
+            );
+        } else {
+            remove_unit_points(player, points, player_areas, populations, commands);
+        }
+        return UnitLossStep::Applied;
+    }
+
+    // Mid-selection: wait for the panel's Confirm.
+    if awaiting_human {
+        return UnitLossStep::AwaitingHuman;
+    }
+
+    // Selection just confirmed for this player -- apply exactly what they chose.
+    if unit_loss.acting_player == Some(player) {
+        let allocation = unit_loss.take_allocation();
+        info!(
+            "[{}] Human victim chose to lose {} point(s) across {} area(s)",
+            calamity_name.to_uppercase(),
+            allocation.iter().map(|&(_, n)| n).sum::<usize>(),
+            allocation.len()
+        );
+        apply_unit_loss_allocation(player, &allocation, populations, commands);
+        return UnitLossStep::Applied;
+    }
+
+    // Another human is already using the panel -- queue behind them.
+    if unit_loss.acting_player.is_some() {
+        return UnitLossStep::AwaitingHuman;
+    }
+
+    let available: Vec<(Entity, usize)> = player_areas
+        .areas_and_population_count()
+        .into_iter()
+        .map(|(area, count)| {
+            let capped = if leave_one_per_area {
+                count.saturating_sub(1)
+            } else {
+                count
+            };
+            (area, capped)
+        })
+        .filter(|&(_, count)| count > 0)
+        .collect();
+
+    let total_available: usize = available.iter().map(|&(_, c)| c).sum();
+    if total_available <= points as usize {
+        // Nothing to choose: the loss takes everything that is eligible.
+        if leave_one_per_area {
+            remove_unit_points_leaving_one_per_area(
+                player,
+                points,
+                player_areas,
+                populations,
+                commands,
+            );
+        } else {
+            remove_unit_points(player, points, player_areas, populations, commands);
+        }
+        return UnitLossStep::Applied;
+    }
+
+    info!(
+        "[{}] Human victim must choose {} unit point(s) to lose across {} area(s)",
+        calamity_name.to_uppercase(),
+        points,
+        available.len()
+    );
+    unit_loss.populate(player, calamity_name, available, points as usize);
+    commands.entity(player).insert(AwaitingHumanCalamitySelection);
+    UnitLossStep::AwaitingHuman
+}
+
 pub fn advance_famine(
     mut commands: Commands,
     mut player_query: Query<(
@@ -1006,6 +1164,7 @@ pub fn advance_famine(
     all_players: Query<(Entity, &PlayerAreas), With<Player>>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut famine_selection: ResMut<FamineSelectionState>,
+    mut unit_loss: ResMut<UnitLossSelectionState>,
 ) {
     for (player_entity, mut resolving, mut resolution, player_areas, is_human, is_awaiting) in &mut player_query {
         if resolution.phase == CalamityPhase::Resolved {
@@ -1018,13 +1177,23 @@ pub fn advance_famine(
         match state.phase {
             FaminePhase::ComputeLosses => {
                 let loss = state.primary_loss;
-                remove_unit_points(
+                // Rule 30.311 says how much the victim loses, never which
+                // units -- a human picks them via the unit-loss panel.
+                if take_unit_point_loss(
                     player_entity,
                     loss,
+                    "Famine",
+                    false,
+                    is_human,
+                    is_awaiting,
                     player_areas,
                     &mut populations,
+                    &mut unit_loss,
                     &mut commands,
-                );
+                ) == UnitLossStep::AwaitingHuman
+                {
+                    continue;
+                }
                 if state.grain_cards_used > 0 {
                     // Rule 30.312: these Grain cards are placed face up and locked
                     // until the following turn; cleared OnEnter(PopulationExpansion).
@@ -1430,6 +1599,7 @@ pub fn advance_epidemic(
     all_players: Query<(Entity, &PlayerAreas, &PlayerCities, Option<&PlayerCivilizationCards>), With<Player>>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut epidemic_selection: ResMut<EpidemicSelectionState>,
+    mut unit_loss: ResMut<UnitLossSelectionState>,
 ) {
     for (player_entity, mut resolving, mut resolution, player_areas, player_cities, is_human, is_awaiting) in
         &mut player_query
@@ -1443,15 +1613,35 @@ pub fn advance_epidemic(
 
         match state.phase {
             EpidemicPhase::ComputeEffects => {
-                let loss = state.primary_loss;
-                remove_epidemic_loss(
-                    player_entity,
-                    loss,
-                    player_areas,
+                // Cities are spent against the budget first (30.612) and are
+                // picked deterministically; only the token remainder is a
+                // choice, so it is handled in ApplyPrimaryLoss where it can
+                // pause for a human without re-destroying cities.
+                state.primary_tokens_remaining = spend_epidemic_budget_on_cities(
                     player_cities,
-                    &mut populations,
+                    state.primary_loss,
                     &mut commands,
                 );
+                state.phase = EpidemicPhase::ApplyPrimaryLoss;
+            }
+            EpidemicPhase::ApplyPrimaryLoss => {
+                // Rule 30.612: at least one token stays in each affected area.
+                if take_unit_point_loss(
+                    player_entity,
+                    state.primary_tokens_remaining,
+                    "Epidemic",
+                    true,
+                    is_human,
+                    is_awaiting,
+                    player_areas,
+                    &mut populations,
+                    &mut unit_loss,
+                    &mut commands,
+                ) == UnitLossStep::AwaitingHuman
+                {
+                    continue;
+                }
+                state.primary_tokens_remaining = 0;
                 state.phase = EpidemicPhase::ApplySecondaryLosses;
             }
             EpidemicPhase::ApplySecondaryLosses => {
@@ -1540,7 +1730,6 @@ pub fn advance_epidemic(
                     TradeCard::Epidemic,
                 );
             }
-            EpidemicPhase::ApplyPrimaryLoss => {}
         }
     }
 }
