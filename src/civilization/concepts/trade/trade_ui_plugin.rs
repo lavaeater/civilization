@@ -1,6 +1,7 @@
 use crate::civilization::components::{Faction, PlayerAreas, PlayerCities, TokenStock, Treasury};
 use crate::civilization::concepts::ships::ShipStock;
 use crate::civilization::concepts::*;
+use crate::civilization::RecalculatePlayerMoves;
 use crate::civilization::Z_PANEL;
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
@@ -44,7 +45,7 @@ impl Plugin for TradeUiPlugin {
             .add_systems(OnEnter(GameActivity::StartGame), setup_trade_ui)
             .add_systems(
                 Update,
-                (handle_player_draws_cards, update_hud_dynamic),
+                (handle_player_draws_cards, update_hud_dynamic, update_census_status),
             );
     }
 }
@@ -199,7 +200,6 @@ fn update_hud_dynamic(
     mut game_state_events: MessageReader<StateTransitionEvent<GameState>>,
     mut game_activity_events: MessageReader<StateTransitionEvent<GameActivity>>,
     player_info_query: Query<Entity, With<PlayerInfoDisplay>>,
-    census_query: Query<Entity, With<CensusDisplay>>,
     activity_query: Query<Entity, With<ActivityDisplay>>,
     ui_theme: Res<LavaTheme>,
     current_state: Res<State<GameState>>,
@@ -209,11 +209,6 @@ fn update_hud_dynamic(
     human_query: Query<
         (&TokenStock, &Treasury, &ShipStock, &PlayerAreas, &PlayerCities),
         With<IsHuman>,
-    >,
-    // All players for census
-    player_query: Query<
-        (&Name, &PlayerAreas, &PlayerCities, &PlayerTradeCards, &Faction, Has<IsHuman>),
-        With<Player>,
     >,
 ) {
     let state_changed = game_state_events.read().count() > 0;
@@ -249,48 +244,6 @@ fn update_hud_dynamic(
         cmds = ui.build().1;
     }
 
-    // ── Census Display ───────────────────────────────────────────────────────
-    if let Ok(census_entity) = census_query.single() {
-        let mut ui = UIBuilder::start_from_entity(cmds, census_entity, true, Some(ui_theme.clone()));
-
-        // Header row
-        ui.add_row(|row| {
-            row.gap_px(0.0);
-            table_cell(row, "#",       22.0,  Color::srgb(0.6, 0.6, 0.6), 11.0);
-            table_cell(row, "Player",  160.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
-            table_cell(row, "Pop",      44.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
-            table_cell(row, "Cit",      44.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
-            table_cell(row, "Crd",      44.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
-        });
-
-        for (i, player_entity) in game_info.census_order.iter().enumerate() {
-            if let Ok((name, player_areas, player_cities, player_trade_cards, faction, is_human)) =
-                player_query.get(*player_entity)
-            {
-                let pop = player_areas.total_population();
-                let cities = player_cities.number_of_cities();
-                let cards = player_trade_cards.number_of_trade_cards();
-                let color = faction_to_color(faction);
-                let display_name = if is_human {
-                    format!("{name} (YOU)")
-                } else {
-                    name.to_string()
-                };
-
-                ui.add_row(|row| {
-                    row.gap_px(0.0);
-                    table_cell(row, (i + 1).to_string(), 22.0,  color, 12.0);
-                    table_cell(row, display_name,         160.0, color, 12.0);
-                    table_cell(row, pop.to_string(),       44.0, Color::WHITE, 12.0);
-                    table_cell(row, cities.to_string(),    44.0, Color::WHITE, 12.0);
-                    table_cell(row, cards.to_string(),     44.0, Color::WHITE, 12.0);
-                });
-            }
-        }
-
-        cmds = ui.build().1;
-    }
-
     // ── Activity Display ─────────────────────────────────────────────────────
     if let Ok(activity_entity) = activity_query.single() {
         let mut ui =
@@ -315,7 +268,128 @@ fn update_hud_dynamic(
     }
 }
 
+/// Rebuilds the census table, including the per-player "Status" column.
+/// Split out from `update_hud_dynamic` purely to stay under Bevy's system-param
+/// tuple limit -- also reacts to `RecalculatePlayerMoves` (in addition to
+/// state/activity transitions) so Status stays live as players act mid-phase.
+fn update_census_status(
+    commands: Commands,
+    mut game_state_events: MessageReader<StateTransitionEvent<GameState>>,
+    mut game_activity_events: MessageReader<StateTransitionEvent<GameActivity>>,
+    mut recalc_move_events: MessageReader<RecalculatePlayerMoves>,
+    census_query: Query<Entity, With<CensusDisplay>>,
+    ui_theme: Res<LavaTheme>,
+    current_activity: Option<Res<State<GameActivity>>>,
+    game_info: Res<GameInfoAndStuff>,
+    player_query: Query<
+        (&Name, &PlayerAreas, &PlayerCities, &PlayerTradeCards, &Faction, Has<IsHuman>),
+        With<Player>,
+    >,
+    needs_expansion_query: Query<Entity, With<NeedsExpansion>>,
+    performing_movement_query: Query<Entity, With<PerformingMovement>>,
+    is_building_query: Query<Entity, With<IsBuilding>>,
+    can_trade_query: Query<Entity, With<CanTrade>>,
+    acquiring_civ_cards_query: Query<Entity, With<PlayerAcquiringCivilizationCards>>,
+) {
+    let state_changed = game_state_events.read().count() > 0;
+    let activity_changed = game_activity_events.read().count() > 0;
+    let moves_changed = recalc_move_events.read().count() > 0;
+    if !state_changed && !activity_changed && !moves_changed {
+        return;
+    }
+
+    let Ok(census_entity) = census_query.single() else {
+        return;
+    };
+    let mut ui = UIBuilder::start_from_entity(commands, census_entity, true, Some(ui_theme.clone()));
+
+    // Header row
+    ui.add_row(|row| {
+        row.gap_px(0.0);
+        table_cell(row, "#",       22.0,  Color::srgb(0.6, 0.6, 0.6), 11.0);
+        table_cell(row, "Player",  160.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
+        table_cell(row, "Pop",      44.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
+        table_cell(row, "Cit",      44.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
+        table_cell(row, "Crd",      44.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
+        table_cell(row, "Status",   70.0, Color::srgb(0.6, 0.6, 0.6), 11.0);
+    });
+
+    for (i, player_entity) in game_info.census_order.iter().enumerate() {
+        if let Ok((name, player_areas, player_cities, player_trade_cards, faction, is_human)) =
+            player_query.get(*player_entity)
+        {
+            let pop = player_areas.total_population();
+            let cities = player_cities.number_of_cities();
+            let cards = player_trade_cards.number_of_trade_cards();
+            let color = faction_to_color(faction);
+            let display_name = if is_human {
+                format!("{name} (YOU)")
+            } else {
+                name.to_string()
+            };
+            let (status_text, status_color) = player_activity_status(
+                *player_entity,
+                current_activity.as_ref().map(|a| a.get()),
+                &game_info,
+                &needs_expansion_query,
+                &performing_movement_query,
+                &is_building_query,
+                &can_trade_query,
+                &acquiring_civ_cards_query,
+            );
+
+            ui.add_row(|row| {
+                row.gap_px(0.0);
+                table_cell(row, (i + 1).to_string(), 22.0,  color, 12.0);
+                table_cell(row, display_name,         160.0, color, 12.0);
+                table_cell(row, pop.to_string(),       44.0, Color::WHITE, 12.0);
+                table_cell(row, cities.to_string(),    44.0, Color::WHITE, 12.0);
+                table_cell(row, cards.to_string(),     44.0, Color::WHITE, 12.0);
+                table_cell(row, status_text,            70.0, status_color, 12.0);
+            });
+        }
+    }
+
+    ui.build();
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/// Derive a per-player "Status" cell for the census table: "done" once the
+/// player has shed the marker component that tracks in-progress work for the
+/// current phase, "..." while they still have it (human waiting on input, or
+/// AI still queued/deciding). Mirrors `is_player_done_with_activity` in
+/// `save_game_plugin` -- kept in sync there since both read the same markers.
+fn player_activity_status(
+    player: Entity,
+    activity: Option<&GameActivity>,
+    game_info: &GameInfoAndStuff,
+    needs_expansion_query: &Query<Entity, With<NeedsExpansion>>,
+    performing_movement_query: &Query<Entity, With<PerformingMovement>>,
+    is_building_query: &Query<Entity, With<IsBuilding>>,
+    can_trade_query: &Query<Entity, With<CanTrade>>,
+    acquiring_civ_cards_query: &Query<Entity, With<PlayerAcquiringCivilizationCards>>,
+) -> (&'static str, Color) {
+    let done = match activity {
+        Some(GameActivity::PopulationExpansion) => needs_expansion_query.get(player).is_err(),
+        Some(GameActivity::Movement) => {
+            performing_movement_query.get(player).is_err()
+                && !game_info.left_to_move.contains(&player)
+        }
+        Some(GameActivity::CityConstruction) => is_building_query.get(player).is_err(),
+        Some(GameActivity::Trade) => can_trade_query.get(player).is_err(),
+        Some(GameActivity::AcquireCivilizationCards) => {
+            acquiring_civ_cards_query.get(player).is_err()
+        }
+        // Atomic phases or no tracked state -- nothing meaningful to show.
+        _ => return ("-", Color::srgb(0.5, 0.5, 0.5)),
+    };
+    if done {
+        ("done!", Color::srgb(0.4, 0.9, 0.4))
+    } else {
+        ("...", Color::srgb(0.9, 0.8, 0.3))
+    }
+}
 
 /// Spawn a fixed-width text cell inside a table row.
 fn table_cell(row: &mut UIBuilder, text: impl Into<String>, width: f32, color: Color, size: f32) {

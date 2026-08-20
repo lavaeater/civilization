@@ -807,6 +807,16 @@ pub fn begin_acquire_civ_cards(
         commands.entity(entity).insert(CardsHeldBeforePurchasing(
             civ_cards.map_or_else(Default::default, |c| c.cards.clone()),
         ));
+        // Force a fresh Add<PlayerAcquiringCivilizationCards> trigger even if
+        // this component somehow survived from a previous turn (e.g. a stuck
+        // phase) -- Bevy's Add observer only fires on the absent->present
+        // transition, so re-inserting onto an entity that already has the
+        // component would silently skip on_add_player_acquiring_civilization_cards
+        // and leave the human without a purchase UI while still being tracked
+        // as "not done".
+        commands
+            .entity(entity)
+            .remove::<PlayerAcquiringCivilizationCards>();
         commands
             .entity(entity)
             .insert(PlayerAcquiringCivilizationCards);

@@ -74,14 +74,14 @@ pub fn clear_grain_lock_for_new_turn(
 
 pub fn start_calamity_resolution(
     mut commands: Commands,
-    players_with_calamities: Query<(Entity, &PlayerTradeCards), With<Player>>,
+    players_with_calamities: Query<(Entity, &PlayerTradeCards, Option<&Name>), With<Player>>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     info!("[CALAMITIES] Starting calamity resolution phase");
 
     let mut any_calamities = false;
 
-    for (player_entity, trade_cards) in players_with_calamities.iter() {
+    for (player_entity, trade_cards, name) in players_with_calamities.iter() {
         let calamity_cards: Vec<TradeCard> = trade_cards.calamity_cards().iter().copied().collect();
 
         if calamity_cards.is_empty() {
@@ -89,10 +89,12 @@ pub fn start_calamity_resolution(
         }
 
         any_calamities = true;
+        let player_label = name.map_or_else(|| format!("{player_entity:?}"), std::string::ToString::to_string);
         info!(
-            "[CALAMITIES] Player {:?} has {} calamities",
-            player_entity,
-            calamity_cards.len()
+            "[CALAMITIES] Player {} has {} calamities: {:?}",
+            player_label,
+            calamity_cards.len(),
+            calamity_cards
         );
 
         let calamities_to_resolve = if calamity_cards.len() > 2 {
@@ -138,6 +140,7 @@ pub fn process_pending_calamities(
         (Entity, &mut PendingCalamities, &mut PlayerTradeCards),
         With<NeedsCalamityResolution>,
     >,
+    names: Query<&Name>,
     player_civ_cards: Query<&PlayerCivilizationCards>,
     all_players_civ: Query<(Entity, &PlayerCivilizationCards), With<Player>>,
     existing_resolutions: Query<Entity, With<ResolvingCalamity>>,
@@ -197,9 +200,12 @@ pub fn process_pending_calamities(
     });
 
     if let Some((player_entity, calamity, traded_by)) = all_calamities.first() {
+        let player_label = names
+            .get(*player_entity)
+            .map_or_else(|_| format!("{player_entity:?}"), std::string::ToString::to_string);
         info!(
-            "[CALAMITIES] Resolving {:?} for player {:?}",
-            calamity, player_entity
+            "[CALAMITIES] Resolving {:?} for player {}",
+            calamity, player_label
         );
 
         let civ_cards = player_civ_cards.get(*player_entity).ok();

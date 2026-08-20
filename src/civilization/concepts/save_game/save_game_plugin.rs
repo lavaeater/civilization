@@ -13,7 +13,7 @@ use crate::civilization::concepts::ships::create_ship_stock;
 use crate::civilization::concepts::AvailableFactions;
 use crate::civilization::enums::GameFaction;
 use crate::civilization::game_moves::RecalculatePlayerMoves;
-use crate::civilization::{AstPosition, CivCardName, PlayerCivilizationCards, PlayerTradeCards, Census, TradeCard};
+use crate::civilization::{AstPosition, CanTrade, CivCardName, PlayerAcquiringCivilizationCards, PlayerCivilizationCards, PlayerTradeCards, Census, TradeCard};
 use crate::player::Player;
 use crate::stupid_ai::{IsHuman, Personality, Playstyle, StupidAi};
 use crate::{GameActivity, GameState};
@@ -170,6 +170,8 @@ fn is_player_done_with_activity(
     performing_movement_query: &Query<Entity, With<PerformingMovement>>,
     is_building_query: &Query<Entity, With<IsBuilding>>,
     left_to_move: &[Entity],
+    can_trade_query: &Query<Entity, With<CanTrade>>,
+    acquiring_civ_cards_query: &Query<Entity, With<PlayerAcquiringCivilizationCards>>,
 ) -> bool {
     match activity {
         GameActivity::PopulationExpansion => {
@@ -185,6 +187,14 @@ fn is_player_done_with_activity(
         GameActivity::CityConstruction => {
             // Player is done if they no longer have IsBuilding
             is_building_query.get(player).is_err()
+        }
+        GameActivity::Trade => {
+            // Player is done trading once CanTrade is removed from them.
+            can_trade_query.get(player).is_err()
+        }
+        GameActivity::AcquireCivilizationCards => {
+            // Player is done once PlayerAcquiringCivilizationCards is removed.
+            acquiring_civ_cards_query.get(player).is_err()
         }
         // Atomic activities (Census, Conflict, RemoveSurplus, etc.) run in one shot,
         // so if we're saved during them, no player has partial state.
@@ -251,6 +261,8 @@ fn handle_save_request(
     needs_expansion_query: Query<Entity, With<NeedsExpansion>>,
     performing_movement_query: Query<Entity, With<PerformingMovement>>,
     is_building_query: Query<Entity, With<IsBuilding>>,
+    can_trade_query: Query<Entity, With<CanTrade>>,
+    acquiring_civ_cards_query: Query<Entity, With<PlayerAcquiringCivilizationCards>>,
 ) {
     if events.read().next().is_none() {
         return;
@@ -273,6 +285,8 @@ fn handle_save_request(
             &performing_movement_query,
             &is_building_query,
             &game_info.left_to_move,
+            &can_trade_query,
+            &acquiring_civ_cards_query,
         );
         let saved_player = SavedPlayer {
             name: name.to_string(),
