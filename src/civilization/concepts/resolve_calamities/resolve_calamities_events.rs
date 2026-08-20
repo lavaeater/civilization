@@ -5,12 +5,6 @@ use crate::civilization::TradeCard;
 pub struct ResolveNextCalamity;
 
 #[derive(Message, Debug)]
-pub struct ResolveVolcanoEarthquake {
-    pub primary_victim: Entity,
-    pub traded_by: Option<Entity>,
-}
-
-#[derive(Message, Debug)]
 pub struct VolcanoEruption {
     pub volcano_area: Entity,
 }

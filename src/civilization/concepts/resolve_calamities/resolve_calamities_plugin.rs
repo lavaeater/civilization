@@ -12,7 +12,7 @@ use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_com
 };
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_systems::*;
 use crate::civilization::resolve_calamities::resolve_calamities_events::{
-    CalamityResolved, Earthquake, ResolveNextCalamity, ResolveVolcanoEarthquake, VolcanoEruption,
+    CalamityResolved, Earthquake, ResolveNextCalamity, VolcanoEruption,
 };
 
 pub struct ResolveCalamitiesPlugin;
@@ -21,7 +21,6 @@ impl Plugin for ResolveCalamitiesPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_message::<ResolveNextCalamity>()
-            .add_message::<ResolveVolcanoEarthquake>()
             .add_message::<VolcanoEruption>()
             .add_message::<Earthquake>()
             .add_message::<CalamityResolved>()

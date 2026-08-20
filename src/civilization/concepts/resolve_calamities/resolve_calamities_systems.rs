@@ -144,7 +144,6 @@ pub fn process_pending_calamities(
     player_civ_cards: Query<&PlayerCivilizationCards>,
     all_players_civ: Query<(Entity, &PlayerCivilizationCards), With<Player>>,
     existing_resolutions: Query<Entity, With<ResolvingCalamity>>,
-    mut resolve_volcano_earthquake: MessageWriter<ResolveVolcanoEarthquake>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     // One calamity at a time – wait until the current one finishes
@@ -219,11 +218,16 @@ pub fn process_pending_calamities(
 
             match calamity {
                 TradeCard::VolcanoEarthquake => {
-                    // VolcanoEarthquake needs complex map queries, handled via message
-                    resolve_volcano_earthquake.write(ResolveVolcanoEarthquake {
-                        primary_victim: *player_entity,
-                        traded_by: *traded_by,
-                    });
+                    // Dispatched exactly like every other calamity: the marker
+                    // components go on the victim here and now, so the phase's
+                    // exit gate can always see that a calamity is in flight.
+                    // `resolve_volcano_earthquake` fills the state in from its
+                    // DetermineType phase on a later frame, where the map
+                    // queries it needs are available.
+                    commands.entity(*player_entity).insert((
+                        ActiveCalamityResolution::new(context),
+                        ResolvingCalamity::VolcanoEarthquake(VolcanoEarthquakeState::new()),
+                    ));
                 }
                 TradeCard::Famine => {
                     let grain_count = trade_cards.number_of_cards_for_trade_card(TradeCard::Grain);
@@ -417,11 +421,15 @@ pub fn process_pending_calamities(
     }
 }
 
-// ── VolcanoEarthquake (existing implementation, unchanged) ────────────────────
+// ── VolcanoEarthquake ─────────────────────────────────────────────────────────
 
+/// Determines whether the calamity resolves as a volcano or an earthquake and
+/// picks its targets, advancing the state from `DetermineType` to `ApplyEffects`.
+/// Structured like the other `advance_*` calamity systems: it steps a state
+/// machine the dispatcher already attached, rather than creating one from a
+/// message.
 pub fn resolve_volcano_earthquake(
-    mut events: MessageReader<ResolveVolcanoEarthquake>,
-    mut commands: Commands,
+    mut players_resolving: Query<(Entity, &ActiveCalamityResolution, &mut ResolvingCalamity)>,
     player_cities: Query<&PlayerCities>,
     player_civ_cards: Query<&PlayerCivilizationCards>,
     area_query: Query<(
@@ -434,8 +442,17 @@ pub fn resolve_volcano_earthquake(
     volcano_areas: Query<Entity, With<Volcano>>,
     names: Query<&Name>,
 ) {
-    for event in events.read() {
-        let primary_victim = event.primary_victim;
+    for (primary_victim, resolution, mut resolving) in &mut players_resolving {
+        if resolution.phase != CalamityPhase::ComputeEffects {
+            continue;
+        }
+        let ResolvingCalamity::VolcanoEarthquake(current_state) = &mut *resolving else {
+            continue;
+        };
+        if current_state.phase != VolcanoEarthquakePhase::DetermineType {
+            continue;
+        }
+
         let player_name = names
             .get(primary_victim)
             .map_or_else(|_| "Unknown".to_string(), std::string::ToString::to_string);
@@ -483,16 +500,7 @@ pub fn resolve_volcano_earthquake(
             }
         };
 
-        let context = CalamityContext::new(
-            TradeCard::VolcanoEarthquake,
-            primary_victim,
-            event.traded_by,
-        );
-
-        commands.entity(primary_victim).insert((
-            ActiveCalamityResolution::new(context),
-            ResolvingCalamity::VolcanoEarthquake(state),
-        ));
+        *current_state = state;
     }
 }
 
