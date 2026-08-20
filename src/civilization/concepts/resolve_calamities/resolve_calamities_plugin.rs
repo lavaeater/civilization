@@ -51,6 +51,17 @@ impl Plugin for ResolveCalamitiesPlugin {
                 start_calamity_resolution,
             )
             .add_systems(
+                Update,
+                (
+                    // Walk the camera to whatever a selection panel is showing,
+                    // so scrolling the options scrolls the board.
+                    focus_camera_on_calamity_selection,
+                    focus_camera_on_unit_loss_selection,
+                    focus_camera_on_monotheism_selection,
+                )
+                    .run_if(in_state(GameActivity::ResolveCalamities)),
+            )
+            .add_systems(
                 OnExit(GameActivity::ResolveCalamities),
                 cleanup_calamity_selection_ui_on_exit,
             )

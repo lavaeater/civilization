@@ -5,6 +5,7 @@ use lava_ui_builder::{InteractionPalette, LavaTheme, TextStyle, UIBuilder};
 use crate::civilization::components::GameArea;
 use crate::civilization::concepts::resolve_calamities::calamities::civil_war::FactionChoice;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::*;
+use crate::civilization::concepts::map::camera_focus::{focus_camera_on_selection, CameraFocusQueue};
 use crate::civilization::Z_DIALOG;
 use crate::stupid_ai::IsHuman;
 
@@ -1876,5 +1877,96 @@ pub fn cleanup_unit_loss_selection_ui(
         for entity in ui_root.iter() {
             commands.entity(entity).despawn();
         }
+    }
+}
+
+// ── Camera follow for selection panels ───────────────────────────────────────
+//
+// A panel that names an area is only half an answer -- the player still has to
+// find it on the map. These systems walk the camera to whatever the panel is
+// currently showing, so scrolling the options scrolls the board.
+
+/// Follows the city/area cursor of the shared calamity selection panel
+/// (Superstition, Civil Disorder, Slave Revolt, Treachery, Iconoclasm, Piracy,
+/// Flood's coastal fallback, the Volcano tie-break, the Barbarian tie-break).
+pub fn focus_camera_on_calamity_selection(
+    calamity_selection: Res<CalamitySelectionState>,
+    area_query: Query<(&Transform, &Name), With<GameArea>>,
+    mut focus_queue: ResMut<CameraFocusQueue>,
+    mut last_focused: Local<Option<Entity>>,
+) {
+    let current = calamity_selection.current_city();
+    if current == *last_focused {
+        return;
+    }
+    *last_focused = current;
+
+    let Some(area) = current else { return };
+    if let Ok((transform, name)) = area_query.get(area) {
+        focus_camera_on_selection(
+            &mut focus_queue,
+            transform.translation,
+            format!("{} — {}", calamity_selection.calamity_name, name),
+        );
+    }
+}
+
+/// Follows both cursors of the unit-loss panel: the area whose tokens are
+/// being assigned, and the city being considered for surrender.
+pub fn focus_camera_on_unit_loss_selection(
+    unit_loss: Res<UnitLossSelectionState>,
+    area_query: Query<(&Transform, &Name), With<GameArea>>,
+    mut focus_queue: ResMut<CameraFocusQueue>,
+    mut last_area: Local<Option<Entity>>,
+    mut last_city: Local<Option<Entity>>,
+) {
+    let current_area = unit_loss.current_area().map(|(area, _, _)| area);
+    let current_city = unit_loss.current_city().map(|(city, _)| city);
+
+    // Whichever cursor the player just moved is the one they are looking at.
+    let moved = if current_city != *last_city {
+        current_city
+    } else if current_area != *last_area {
+        current_area
+    } else {
+        None
+    };
+    *last_area = current_area;
+    *last_city = current_city;
+
+    let Some(area) = moved else { return };
+    if let Ok((transform, name)) = area_query.get(area) {
+        focus_camera_on_selection(
+            &mut focus_queue,
+            transform.translation,
+            format!("{} — {}", unit_loss.calamity_name, name),
+        );
+    }
+}
+
+/// Follows the Monotheism conversion cursor to the area holding the token
+/// currently under consideration (rule 32.94).
+pub fn focus_camera_on_monotheism_selection(
+    mono_state: Res<MonotheismSelectionState>,
+    area_query: Query<(&Transform, &Name), With<GameArea>>,
+    mut focus_queue: ResMut<CameraFocusQueue>,
+    mut last_focused: Local<Option<Entity>>,
+) {
+    let current = mono_state
+        .candidates
+        .get(mono_state.current_index)
+        .map(|&(_, area)| area);
+    if current == *last_focused {
+        return;
+    }
+    *last_focused = current;
+
+    let Some(area) = current else { return };
+    if let Ok((transform, name)) = area_query.get(area) {
+        focus_camera_on_selection(
+            &mut focus_queue,
+            transform.translation,
+            format!("Monotheism — {name}"),
+        );
     }
 }

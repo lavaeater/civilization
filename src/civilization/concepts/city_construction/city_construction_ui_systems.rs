@@ -5,6 +5,7 @@ use crate::civilization::concepts::city_construction::city_construction_events::
 };
 use crate::civilization::concepts::city_construction::city_construction_ui_components::*;
 use crate::civilization::game_moves::{AvailableMoves, GameMove};
+use crate::civilization::concepts::map::camera_focus::{focus_camera_on_selection, CameraFocusQueue};
 use crate::civilization::Z_ACTION_UI;
 use crate::stupid_ai::IsHuman;
 use bevy::prelude::*;
@@ -335,4 +336,28 @@ pub fn cleanup_city_construction_ui_on_exit(
         commands.entity(entity).despawn();
     }
     selection_state.clear();
+}
+
+/// Walks the camera to the build site the player is currently looking at, so
+/// paging through candidate sites pans the board with them.
+pub fn focus_camera_on_build_site(
+    selection_state: Res<CityConstructionSelectionState>,
+    area_query: Query<(&Transform, &Name), With<GameArea>>,
+    mut focus_queue: ResMut<CameraFocusQueue>,
+    mut last_focused: Local<Option<Entity>>,
+) {
+    let current = selection_state.current_site();
+    if current == *last_focused {
+        return;
+    }
+    *last_focused = current;
+
+    let Some(area) = current else { return };
+    if let Ok((transform, name)) = area_query.get(area) {
+        focus_camera_on_selection(
+            &mut focus_queue,
+            transform.translation,
+            format!("Build site — {name}"),
+        );
+    }
 }

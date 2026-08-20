@@ -108,3 +108,19 @@ pub fn process_camera_focus(
 fn ease_out_cubic(t: f32) -> f32 {
     1.0 - (1.0 - t).powi(3)
 }
+
+/// Snaps the focus queue onto a single position, replacing whatever was
+/// queued.
+///
+/// Selection panels call this as the player scrolls through their options: a
+/// queue would make the camera chase every option the player skimmed past,
+/// long after they stopped, so each move supersedes the last. The zero hold
+/// leaves the camera free the moment it arrives.
+pub fn focus_camera_on_selection(
+    focus_queue: &mut CameraFocusQueue,
+    position: Vec3,
+    description: impl Into<String>,
+) {
+    focus_queue.clear();
+    focus_queue.add_focus(position, 0.0, description);
+}
