@@ -4,7 +4,7 @@ mod succession_plugin;
 pub mod succession_systems;
 
 pub use ast_ui_systems::{
-    ast_faction_color, spawn_ast_ui, update_ast_markers, AstCell, AstMarker, AstUiRoot,
+    AstCell, AstMarker, AstUiRoot, ast_faction_color, spawn_ast_ui, update_ast_markers,
 };
 pub use succession_components::*;
 pub use succession_plugin::SuccessionPlugin;

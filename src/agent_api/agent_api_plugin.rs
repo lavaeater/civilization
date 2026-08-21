@@ -1,4 +1,4 @@
-use crate::agent_api::agent_api_systems::{poll_agent_api, AgentServer};
+use crate::agent_api::agent_api_systems::{AgentServer, poll_agent_api};
 use bevy::prelude::*;
 use tiny_http::Server;
 

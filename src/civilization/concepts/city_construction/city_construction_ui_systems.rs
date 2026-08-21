@@ -1,11 +1,14 @@
+use crate::civilization::Z_ACTION_UI;
 use crate::civilization::components::GameArea;
 use crate::civilization::concepts::city_construction::city_construction_components::IsBuilding;
 use crate::civilization::concepts::city_construction::city_construction_events::{
     BuildCityCommand, EndPlayerCityConstruction,
 };
 use crate::civilization::concepts::city_construction::city_construction_ui_components::*;
+use crate::civilization::concepts::map::camera_focus::{
+    CameraFocusQueue, focus_camera_on_selection,
+};
 use crate::civilization::game_moves::{AvailableMoves, GameMove};
-use crate::civilization::Z_ACTION_UI;
 use crate::stupid_ai::IsHuman;
 use bevy::prelude::*;
 
@@ -13,11 +16,7 @@ use bevy::prelude::*;
 pub fn setup_human_city_construction_options(
     human_players: Query<
         (Entity, &AvailableMoves),
-        (
-            With<IsHuman>,
-            With<IsBuilding>,
-            Added<AvailableMoves>,
-        ),
+        (With<IsHuman>, With<IsBuilding>, Added<AvailableMoves>),
     >,
     mut selection_state: ResMut<CityConstructionSelectionState>,
 ) {
@@ -105,14 +104,7 @@ pub fn handle_city_construction_button_clicks(
 /// System to spawn the city construction controls UI when human player has build options
 pub fn spawn_city_construction_controls_ui(
     mut commands: Commands,
-    human_players: Query<
-        Entity,
-        (
-            With<IsHuman>,
-            With<IsBuilding>,
-            Added<AvailableMoves>,
-        ),
-    >,
+    human_players: Query<Entity, (With<IsHuman>, With<IsBuilding>, Added<AvailableMoves>)>,
     existing_ui: Query<Entity, With<CityConstructionUiRoot>>,
     asset_server: Res<AssetServer>,
 ) {
@@ -297,7 +289,9 @@ pub fn update_build_site_display(
 
     for mut text in &mut text_query {
         if let Some(site) = selection_state.current_site() {
-            let area_name = area_names.get(site).map_or("?", bevy::prelude::Name::as_str);
+            let area_name = area_names
+                .get(site)
+                .map_or("?", bevy::prelude::Name::as_str);
             **text = format!(
                 "{} ({}/{})",
                 area_name,
@@ -335,4 +329,28 @@ pub fn cleanup_city_construction_ui_on_exit(
         commands.entity(entity).despawn();
     }
     selection_state.clear();
+}
+
+/// Walks the camera to the build site the player is currently looking at, so
+/// paging through candidate sites pans the board with them.
+pub fn focus_camera_on_build_site(
+    selection_state: Res<CityConstructionSelectionState>,
+    area_query: Query<(&Transform, &Name), With<GameArea>>,
+    mut focus_queue: ResMut<CameraFocusQueue>,
+    mut last_focused: Local<Option<Entity>>,
+) {
+    let current = selection_state.current_site();
+    if current == *last_focused {
+        return;
+    }
+    *last_focused = current;
+
+    let Some(area) = current else { return };
+    if let Ok((transform, name)) = area_query.get(area) {
+        focus_camera_on_selection(
+            &mut focus_queue,
+            transform.translation,
+            format!("Build site — {name}"),
+        );
+    }
 }

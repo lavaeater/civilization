@@ -23,28 +23,28 @@ impl SuperstitionState {
             ..Default::default()
         }
     }
-    
+
     pub fn with_mysticism(mut self) -> Self {
         self.cities_to_reduce = 2;
         self
     }
-    
+
     pub fn with_deism(mut self) -> Self {
         self.cities_to_reduce = 1;
         self
     }
-    
+
     pub fn with_enlightenment(mut self) -> Self {
         self.cities_to_reduce = 0;
         self
     }
-    
+
     pub fn select_city(&mut self, city_area: Entity) {
         if self.selected_cities.len() < self.cities_to_reduce {
             self.selected_cities.push(city_area);
         }
     }
-    
+
     pub fn selection_complete(&self) -> bool {
         self.selected_cities.len() >= self.cities_to_reduce
     }
@@ -63,7 +63,10 @@ mod tests {
     /// Rule 30.322: Religion cards are NOT cumulative — the highest-level card governs.
     #[test]
     fn mysticism_reduces_to_2_cities() {
-        assert_eq!(SuperstitionState::new().with_mysticism().cities_to_reduce, 2);
+        assert_eq!(
+            SuperstitionState::new().with_mysticism().cities_to_reduce,
+            2
+        );
     }
 
     #[test]
@@ -73,6 +76,11 @@ mod tests {
 
     #[test]
     fn enlightenment_has_no_effect_zero_cities() {
-        assert_eq!(SuperstitionState::new().with_enlightenment().cities_to_reduce, 0);
+        assert_eq!(
+            SuperstitionState::new()
+                .with_enlightenment()
+                .cities_to_reduce,
+            0
+        );
     }
 }

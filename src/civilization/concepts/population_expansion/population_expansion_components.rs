@@ -1,5 +1,5 @@
-use bevy::prelude::{Component, Entity, Reflect};
 use bevy::platform::collections::HashSet;
+use bevy::prelude::{Component, Entity, Reflect};
 
 #[derive(Component, Debug, Reflect)]
 pub struct ExpandManually;

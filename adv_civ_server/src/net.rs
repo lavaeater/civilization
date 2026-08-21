@@ -14,7 +14,10 @@ use lightyear::prelude::server::*;
 use lightyear::prelude::*;
 
 fn server_addr() -> SocketAddr {
-    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), crate::server_port())
+    SocketAddr::new(
+        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+        crate::server_port(),
+    )
 }
 
 pub struct NetBridgePlugin;
@@ -261,9 +264,9 @@ fn to_net_move(
             },
         }),
         GameMove::AcquireCivilizationCards(civ) => match civ {
-            AcquireCivilizationCardsMove::AcquireCard(card) => NetGameMove::AcquireCivCards {
-                cards: vec![*card],
-            },
+            AcquireCivilizationCardsMove::AcquireCard(card) => {
+                NetGameMove::AcquireCivCards { cards: vec![*card] }
+            }
             AcquireCivilizationCardsMove::AcquireCards(cards) => NetGameMove::AcquireCivCards {
                 cards: cards.clone(),
             },
@@ -355,9 +358,11 @@ fn receive_moves(
                 }
                 GameMove::Movement(m) | GameMove::AttackArea(m) | GameMove::AttackCity(m) => {
                     let tokens = pick_tokens(m.max_tokens, true);
-                    writers.move_tokens.write(MoveTokenFromAreaToAreaCommand::new(
-                        m.source, m.target, tokens, player,
-                    ));
+                    writers
+                        .move_tokens
+                        .write(MoveTokenFromAreaToAreaCommand::new(
+                            m.source, m.target, tokens, player,
+                        ));
                 }
                 GameMove::ShipFerry(m) => {
                     let tokens = pick_tokens(m.max_tokens, true);
@@ -379,9 +384,9 @@ fn receive_moves(
                         .write(EndPlayerCityConstruction::new(player));
                 }
                 GameMove::EliminateCity(elim) => {
-                    writers.eliminate_city.write(EliminateCity::new(
-                        player, elim.city, elim.area, false,
-                    ));
+                    writers
+                        .eliminate_city
+                        .write(EliminateCity::new(player, elim.city, elim.area, false));
                 }
                 GameMove::Trade(TradeMove::StopTrading) => {
                     // Leaving the table: the trade gate ends the phase once
@@ -497,17 +502,19 @@ fn compose_board_view(
         areas: area_views,
         players: players
             .iter()
-            .map(|(name, faction, stock, civ_cards, trade_cards)| PlayerView {
-                name: name.to_string(),
-                faction: faction.faction,
-                tokens_in_stock: stock.tokens_in_stock(),
-                civ_cards: civ_cards
-                    .map(|c| c.cards.iter().copied().collect())
-                    .unwrap_or_default(),
-                trade_card_count: trade_cards
-                    .map(|t| t.number_of_trade_cards())
-                    .unwrap_or_default(),
-            })
+            .map(
+                |(name, faction, stock, civ_cards, trade_cards)| PlayerView {
+                    name: name.to_string(),
+                    faction: faction.faction,
+                    tokens_in_stock: stock.tokens_in_stock(),
+                    civ_cards: civ_cards
+                        .map(|c| c.cards.iter().copied().collect())
+                        .unwrap_or_default(),
+                    trade_card_count: trade_cards
+                        .map(|t| t.number_of_trade_cards())
+                        .unwrap_or_default(),
+                },
+            )
             .collect(),
     }
 }
@@ -592,11 +599,7 @@ fn sync_joined_clients(
                 })
                 .collect();
             net_moves.sort_by_key(|(index, _)| *index);
-            sender.send::<_, ControlChannel>(
-                &YourMoves { moves: net_moves },
-                server,
-                &target,
-            )?;
+            sender.send::<_, ControlChannel>(&YourMoves { moves: net_moves }, server, &target)?;
         }
         info!("Synced full state to rejoined seat {}", seat.faction);
     }

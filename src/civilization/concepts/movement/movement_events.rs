@@ -11,8 +11,18 @@ pub struct ShipFerryCommand {
 }
 
 impl ShipFerryCommand {
-    pub fn new(source_area: Entity, target_area: Entity, number_of_tokens: usize, player: Entity) -> Self {
-        Self { source_area, target_area, number_of_tokens, player }
+    pub fn new(
+        source_area: Entity,
+        target_area: Entity,
+        number_of_tokens: usize,
+        player: Entity,
+    ) -> Self {
+        Self {
+            source_area,
+            target_area,
+            number_of_tokens,
+            player,
+        }
     }
 }
 

@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use bevy::prelude::*;
     use crate::civilization::components::*;
     use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::*;
     use crate::civilization::{PlayerTradeCards, TradeCard, TradeCardTrait};
+    use bevy::prelude::*;
 
     fn spawn_area_with_volcano(
         world: &mut World,
@@ -17,18 +17,18 @@ mod tests {
         for conn in land_connections {
             land_passage.add_passage(conn);
         }
-        
+
         let mut entity = world.spawn((
             Name::new(name.to_string()),
             GameArea::new(world.entities().len() as i32),
             pop,
             land_passage,
         ));
-        
+
         if has_volcano {
             entity.insert(Volcano);
         }
-        
+
         entity.id()
     }
 
@@ -41,7 +41,7 @@ mod tests {
         let mut trade_cards = PlayerTradeCards::default();
         trade_cards.add_trade_card(TradeCard::Famine);
         trade_cards.add_trade_card(TradeCard::Gold);
-        
+
         let calamities = trade_cards.calamity_cards();
         assert_eq!(calamities.len(), 1);
         assert!(calamities.contains(&TradeCard::Famine));
@@ -52,7 +52,7 @@ mod tests {
         let mut trade_cards = PlayerTradeCards::default();
         trade_cards.add_trade_card(TradeCard::Gold);
         trade_cards.add_trade_card(TradeCard::Silver);
-        
+
         let calamities = trade_cards.calamity_cards();
         assert!(calamities.is_empty());
     }
@@ -63,37 +63,51 @@ mod tests {
         trade_cards.add_trade_card(TradeCard::Famine);
         trade_cards.add_trade_card(TradeCard::Superstition);
         trade_cards.add_trade_card(TradeCard::CivilWar);
-        
+
         let calamities = trade_cards.calamity_cards();
         assert_eq!(calamities.len(), 3);
     }
 
     #[test]
     fn test_rule_29_5_selection_logic() {
-        let calamities = [TradeCard::Famine,
+        let calamities = [
+            TradeCard::Famine,
             TradeCard::Superstition,
             TradeCard::CivilWar,
             TradeCard::Flood,
-            TradeCard::Epidemic];
-        
+            TradeCard::Epidemic,
+        ];
+
         // Rule 29.5: If more than 2 calamities, only 2 are kept
-        let selected_count = if calamities.len() > 2 { 2 } else { calamities.len() };
+        let selected_count = if calamities.len() > 2 {
+            2
+        } else {
+            calamities.len()
+        };
         assert_eq!(selected_count, 2);
     }
 
     #[test]
     fn test_rule_29_5_with_exactly_two() {
         let calamities = [TradeCard::Famine, TradeCard::Superstition];
-        
-        let selected_count = if calamities.len() > 2 { 2 } else { calamities.len() };
+
+        let selected_count = if calamities.len() > 2 {
+            2
+        } else {
+            calamities.len()
+        };
         assert_eq!(selected_count, 2);
     }
 
     #[test]
     fn test_rule_29_5_with_one() {
         let calamities = [TradeCard::Famine];
-        
-        let selected_count = if calamities.len() > 2 { 2 } else { calamities.len() };
+
+        let selected_count = if calamities.len() > 2 {
+            2
+        } else {
+            calamities.len()
+        };
         assert_eq!(selected_count, 1);
     }
 
@@ -103,10 +117,12 @@ mod tests {
 
     #[test]
     fn test_calamity_ordering_by_value() {
-        let calamities = [(TradeCard::Piracy, 9),           // value 9
+        let calamities = [
+            (TradeCard::Piracy, 9),            // value 9
             (TradeCard::VolcanoEarthquake, 2), // value 2
-            (TradeCard::Famine, 3),           // value 3
-            (TradeCard::CivilWar, 4)];
+            (TradeCard::Famine, 3),            // value 3
+            (TradeCard::CivilWar, 4),
+        ];
 
         let mut sorted: Vec<_> = calamities.iter().collect();
         sorted.sort_by_key(|a| a.1);
@@ -122,7 +138,10 @@ mod tests {
         // Level 2: VolcanoEarthquake (non-tradeable) vs Treachery (tradeable)
         assert!(!TradeCard::VolcanoEarthquake.is_tradeable());
         assert!(TradeCard::Treachery.is_tradeable());
-        assert_eq!(TradeCard::VolcanoEarthquake.value(), TradeCard::Treachery.value());
+        assert_eq!(
+            TradeCard::VolcanoEarthquake.value(),
+            TradeCard::Treachery.value()
+        );
 
         // Level 3: Famine (non-tradeable) vs Superstition (tradeable)
         assert!(!TradeCard::Famine.is_tradeable());
@@ -143,9 +162,9 @@ mod tests {
     fn test_volcano_area_marker_exists() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        
+
         let area = spawn_area_with_volcano(app.world_mut(), "Volcano Area", 4, true, vec![]);
-        
+
         let has_volcano = app.world().get::<Volcano>(area);
         assert!(has_volcano.is_some(), "Area should have Volcano component");
     }
@@ -154,11 +173,14 @@ mod tests {
     fn test_non_volcano_area_has_no_marker() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        
+
         let area = spawn_area_with_volcano(app.world_mut(), "Normal Area", 4, false, vec![]);
-        
+
         let has_volcano = app.world().get::<Volcano>(area);
-        assert!(has_volcano.is_none(), "Area should not have Volcano component");
+        assert!(
+            has_volcano.is_none(),
+            "Area should not have Volcano component"
+        );
     }
 
     // ========================================================================
@@ -171,7 +193,7 @@ mod tests {
             (TradeCard::Famine, None),
             (TradeCard::Superstition, None),
         ]);
-        
+
         assert_eq!(pending.count(), 2);
         assert!(!pending.is_empty());
     }
@@ -179,7 +201,7 @@ mod tests {
     #[test]
     fn test_pending_calamities_empty() {
         let pending = PendingCalamities::new(vec![]);
-        
+
         assert_eq!(pending.count(), 0);
         assert!(pending.is_empty());
     }
@@ -187,10 +209,10 @@ mod tests {
     #[test]
     fn test_calamity_victim_with_trader() {
         use crate::test_utils::create_test_entity;
-        
+
         let trader = create_test_entity();
         let victim = CalamityVictim::new(TradeCard::Treachery, Some(trader));
-        
+
         assert_eq!(victim.calamity, TradeCard::Treachery);
         assert_eq!(victim.traded_by, Some(trader));
     }
@@ -198,7 +220,7 @@ mod tests {
     #[test]
     fn test_calamity_victim_without_trader() {
         let victim = CalamityVictim::new(TradeCard::VolcanoEarthquake, None);
-        
+
         assert_eq!(victim.calamity, TradeCard::VolcanoEarthquake);
         assert_eq!(victim.traded_by, None);
     }
@@ -225,8 +247,14 @@ mod tests {
         ];
 
         for calamity in calamities {
-            assert!(calamity.is_calamity(), "{calamity:?} should be marked as calamity");
-            assert!(!calamity.is_commodity(), "{calamity:?} should not be a commodity");
+            assert!(
+                calamity.is_calamity(),
+                "{calamity:?} should be marked as calamity"
+            );
+            assert!(
+                !calamity.is_commodity(),
+                "{calamity:?} should not be a commodity"
+            );
         }
     }
 
@@ -242,7 +270,11 @@ mod tests {
         assert_eq!(TradeCard::BarbarianHordes.value(), 5, "Level 5 calamity");
         assert_eq!(TradeCard::Epidemic.value(), 6, "Level 6 calamity");
         assert_eq!(TradeCard::CivilDisorder.value(), 7, "Level 7 calamity");
-        assert_eq!(TradeCard::IconoclasmAndHeresy.value(), 8, "Level 8 calamity");
+        assert_eq!(
+            TradeCard::IconoclasmAndHeresy.value(),
+            8,
+            "Level 8 calamity"
+        );
         assert_eq!(TradeCard::Piracy.value(), 9, "Level 9 calamity");
     }
 
@@ -256,7 +288,10 @@ mod tests {
         ];
 
         for calamity in non_tradeable {
-            assert!(!calamity.is_tradeable(), "{calamity:?} should be non-tradeable");
+            assert!(
+                !calamity.is_tradeable(),
+                "{calamity:?} should be non-tradeable"
+            );
         }
     }
 
@@ -278,6 +313,53 @@ mod tests {
         }
     }
 
+    /// Every calamity exists exactly once in the game -- the stacks must not
+    /// be seeded with several copies, or two players could hold the same
+    /// calamity in one turn (which `calamity_traded_by`, keyed by card type,
+    /// cannot even represent).
+    #[test]
+    fn every_calamity_is_a_single_physical_card() {
+        for card in TradeCard::iter().filter(TradeCardTrait::is_calamity) {
+            assert_eq!(
+                card.number_of_cards(),
+                1,
+                "{card:?} should exist exactly once in the deck"
+            );
+        }
+    }
+
+    /// Rule 27.3 names the four non-tradable calamities explicitly.
+    #[test]
+    fn exactly_four_calamities_are_non_tradable() {
+        let non_tradable: Vec<TradeCard> = TradeCard::iter()
+            .filter(TradeCardTrait::is_calamity)
+            .filter(|card| !card.is_tradeable())
+            .collect();
+        assert_eq!(non_tradable.len(), 4, "got {non_tradable:?}");
+        for card in [
+            TradeCard::VolcanoEarthquake,
+            TradeCard::Famine,
+            TradeCard::CivilWar,
+            TradeCard::Flood,
+        ] {
+            assert!(non_tradable.contains(&card), "{card:?} must be non-tradable");
+        }
+    }
+
+    /// A commodity is never a calamity and vice versa -- the two predicates
+    /// partition the deck, since trade code routes cards on `is_commodity`
+    /// and calamity code on `is_calamity`.
+    #[test]
+    fn commodity_and_calamity_partition_the_deck() {
+        for card in TradeCard::iter() {
+            assert_ne!(
+                card.is_commodity(),
+                card.is_calamity(),
+                "{card:?} is miscategorised"
+            );
+        }
+    }
+
     // ========================================================================
     // Rule 30.511: Flood primary-victim loss cap (ECS-level, via advance_flood)
     // ========================================================================
@@ -291,7 +373,6 @@ mod tests {
     // `primary_max_loss` unit points from the primary victim, in the flood
     // plain area only.
 
-    use bevy::ecs::system::RunSystemOnce;
     use crate::civilization::concepts::resolve_calamities::calamities::{
         ResolvingCalamity,
         flood::{FloodPhase, FloodState},
@@ -300,12 +381,14 @@ mod tests {
         ActiveCalamityResolution, CalamityContext,
     };
     use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_flood;
+    use bevy::ecs::system::RunSystemOnce;
 
     #[test]
     fn flood_primary_loss_is_capped_and_does_not_touch_adjacent_areas() {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::FloodSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
 
         let victim = world.spawn(PlayerCities::default()).id();
         let other_player = world.spawn_empty().id();
@@ -317,7 +400,12 @@ mod tests {
             adjacent_pop.add_token_to_area(other_player, t);
         }
         let adjacent_area = world
-            .spawn((Name::new("adjacent"), GameArea::new(1), adjacent_pop, LandPassage::default()))
+            .spawn((
+                Name::new("adjacent"),
+                GameArea::new(1),
+                adjacent_pop,
+                LandPassage::default(),
+            ))
             .id();
 
         // Flood plain: victim has 15 tokens on board here; cap is 10 (test value).
@@ -365,6 +453,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::FloodSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
 
         let victim = world.spawn(PlayerCities::default()).id();
         let other_player = world.spawn_empty().id();
@@ -401,6 +490,1994 @@ mod tests {
         assert!(world.get::<BuiltCity>(fp_area).is_some());
     }
 
+    // ========================================================================
+    // Rule 29.5: the calamities over the two-per-turn limit are discarded
+    // ========================================================================
+
+    /// 29.5 caps a player at two calamities per turn and says the rest "are
+    /// returned to the appropriate trade card stacks"; 29.4 adds that calamity
+    /// cards cannot be held for future turns. The excess used to stay in the
+    /// player's hand, so a third calamity kept coming back every turn until it
+    /// happened to be one of the two drawn.
+    #[test]
+    fn calamities_beyond_the_two_per_turn_limit_are_discarded_from_hand() {
+        use crate::GameActivity;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::start_calamity_resolution;
+
+        let mut world = World::new();
+        world.init_resource::<NextState<GameActivity>>();
+
+        let mut cards = PlayerTradeCards::default();
+        cards.add_trade_card(TradeCard::Famine);
+        cards.add_trade_card(TradeCard::VolcanoEarthquake);
+        cards.add_trade_card(TradeCard::Flood);
+        cards.add_trade_card(TradeCard::Gold); // commodity, must survive
+
+        let player = world.spawn((Player, Name::new("victim"), cards)).id();
+
+        world.run_system_once(start_calamity_resolution).unwrap();
+
+        let pending = world
+            .get::<PendingCalamities>(player)
+            .expect("pending calamities attached");
+        assert_eq!(pending.calamities.len(), 2, "29.5 caps resolution at two");
+
+        let hand = world.get::<PlayerTradeCards>(player).unwrap();
+        assert_eq!(
+            hand.calamity_cards().len(),
+            2,
+            "only the two being resolved may remain in hand -- the third is returned to the stacks"
+        );
+        for (calamity, _) in &pending.calamities {
+            assert!(
+                hand.has_trade_card(*calamity),
+                "the two selected are still held for resolution"
+            );
+        }
+        assert_eq!(
+            hand.number_of_cards_for_trade_card(TradeCard::Gold),
+            1,
+            "commodities untouched"
+        );
+    }
+
+    /// Two or fewer calamities are all resolved -- nothing is discarded.
+    #[test]
+    fn two_calamities_are_both_kept_for_resolution() {
+        use crate::GameActivity;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::start_calamity_resolution;
+
+        let mut world = World::new();
+        world.init_resource::<NextState<GameActivity>>();
+
+        let mut cards = PlayerTradeCards::default();
+        cards.add_trade_card(TradeCard::Famine);
+        cards.add_trade_card(TradeCard::Flood);
+
+        let player = world.spawn((Player, Name::new("victim"), cards)).id();
+
+        world.run_system_once(start_calamity_resolution).unwrap();
+
+        let pending = world.get::<PendingCalamities>(player).unwrap();
+        assert_eq!(pending.calamities.len(), 2);
+        assert_eq!(
+            world
+                .get::<PlayerTradeCards>(player)
+                .unwrap()
+                .calamity_cards()
+                .len(),
+            2
+        );
+    }
+
+    // ========================================================================
+    // A retired city has to stop being drawn on the map
+    // ========================================================================
+
+    /// Reducing or destroying a city updated `PlayerCities` and
+    /// `CityTokenStock` but left the city token's `Sprite`/`Transform`
+    /// untouched, so the icon stayed on the board with the replacement
+    /// population tokens underneath it -- the calamity looked like it had
+    /// done nothing at all.
+    #[test]
+    fn a_reduced_citys_token_stops_being_rendered() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            ReduceCity, reduce_city_in_area,
+        };
+
+        let mut world = World::new();
+        world.init_resource::<Messages<crate::civilization::events::MoveTokensFromStockToAreaCommand>>();
+
+        let owner = world
+            .spawn((
+                CityTokenStock::new(9, vec![]),
+                PlayerCities::default(),
+                TokenStock::new(47, vec![]),
+                PlayerAreas::default(),
+            ))
+            .id();
+        let city_token = world
+            .spawn((
+                Sprite::default(),
+                Transform::default(),
+                Visibility::default(),
+            ))
+            .id();
+        let area = world
+            .spawn((
+                Name::new("city area"),
+                GameArea::new(1),
+                Population::new(3),
+                BuiltCity::new(city_token, owner),
+                ReduceCity,
+            ))
+            .id();
+        world
+            .get_mut::<PlayerCities>(owner)
+            .unwrap()
+            .build_city_in_area(area, city_token);
+
+        world.run_system_once(reduce_city_in_area).unwrap();
+        world.flush();
+
+        assert!(
+            world.get::<Sprite>(city_token).is_none(),
+            "the city icon is gone from the map"
+        );
+        assert!(world.get::<Transform>(city_token).is_none());
+        assert!(world.get::<BuiltCity>(area).is_none());
+        assert!(!world.get::<PlayerCities>(owner).unwrap().has_city_in(area));
+    }
+
+    #[test]
+    fn a_destroyed_citys_token_stops_being_rendered() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            DestroyCity, destroy_city_in_area,
+        };
+
+        let mut world = World::new();
+
+        let owner = world
+            .spawn((CityTokenStock::new(9, vec![]), PlayerCities::default()))
+            .id();
+        let city_token = world
+            .spawn((
+                Sprite::default(),
+                Transform::default(),
+                Visibility::default(),
+            ))
+            .id();
+        let area = world
+            .spawn((
+                Name::new("city area"),
+                GameArea::new(1),
+                BuiltCity::new(city_token, owner),
+                DestroyCity,
+            ))
+            .id();
+        world
+            .get_mut::<PlayerCities>(owner)
+            .unwrap()
+            .build_city_in_area(area, city_token);
+
+        world.run_system_once(destroy_city_in_area).unwrap();
+        world.flush();
+
+        assert!(
+            world.get::<Sprite>(city_token).is_none(),
+            "the city icon is gone from the map"
+        );
+        assert!(world.get::<BuiltCity>(area).is_none());
+    }
+
+    /// `ReturnCityToStock` was inserted by the Volcano and taxation paths but
+    /// nothing ever consumed it -- the marker sat there and the city was
+    /// neither returned to stock nor removed from the map.
+    #[test]
+    fn the_return_city_to_stock_marker_actually_retires_the_city() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::ReturnCityToStock;
+        use crate::civilization::triggers::on_add_return_city_to_stock;
+
+        let mut world = World::new();
+        world.add_observer(on_add_return_city_to_stock);
+
+        let owner = world
+            .spawn((CityTokenStock::new(9, vec![]), PlayerCities::default()))
+            .id();
+        let city_token = world
+            .spawn((
+                CityToken::new(owner),
+                Sprite::default(),
+                Transform::default(),
+                Visibility::default(),
+            ))
+            .id();
+        let area = world.spawn((Name::new("area"), GameArea::new(1))).id();
+        world
+            .get_mut::<PlayerCities>(owner)
+            .unwrap()
+            .build_city_in_area(area, city_token);
+
+        world.entity_mut(city_token).insert(ReturnCityToStock);
+        world.flush();
+
+        assert!(world.get::<Sprite>(city_token).is_none(), "icon removed");
+        assert!(
+            world.get::<ReturnCityToStock>(city_token).is_none(),
+            "marker consumed"
+        );
+        assert!(
+            !world.get::<PlayerCities>(owner).unwrap().has_city_in(area),
+            "city dropped"
+        );
+        assert_eq!(
+            world
+                .get::<CityTokenStock>(owner)
+                .unwrap()
+                .city_tokens_in_stock(),
+            1,
+            "and handed back to stock"
+        );
+    }
+
+    // ========================================================================
+    // Rule 30.211: choosing the eruption site
+    // ========================================================================
+
+    fn volcano_world() -> World {
+        let mut world = World::new();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
+        world
+    }
+
+    /// Spawns a volcano area holding a city for `owner` plus `tokens` tokens
+    /// belonging to `token_owner`.
+    fn spawn_volcano_area(
+        world: &mut World,
+        name: &str,
+        city_owner: Entity,
+        token_owner: Entity,
+        tokens: usize,
+    ) -> Entity {
+        let mut pop = Population::new(20);
+        for _ in 0..tokens {
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(token_owner, token);
+        }
+        let city_token = world.spawn_empty().id();
+        world
+            .spawn((
+                Name::new(name.to_string()),
+                GameArea::new(world.entities().len() as i32),
+                Volcano,
+                pop,
+                LandPassage::default(),
+                BuiltCity::new(city_token, city_owner),
+            ))
+            .id()
+    }
+
+    fn start_volcano(world: &mut World, victim: Entity) {
+        use crate::civilization::concepts::resolve_calamities::calamities::volcano_earthquake::VolcanoEarthquakeState;
+
+        let context = CalamityContext::new(TradeCard::VolcanoEarthquake, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::VolcanoEarthquake(VolcanoEarthquakeState::new()),
+        ));
+    }
+
+    /// 30.211: "On a tie, the primary victim chooses."
+    #[test]
+    fn a_human_victim_breaks_a_volcano_damage_tie() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::resolve_volcano_earthquake;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, CalamitySelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = volcano_world();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+
+        // Two volcano sites, identical damage -- a genuine tie.
+        let site_a = spawn_volcano_area(&mut world, "site-a", victim, victim, 3);
+        let site_b = spawn_volcano_area(&mut world, "site-b", victim, victim, 3);
+
+        start_volcano(&mut world, victim);
+
+        world.run_system_once(resolve_volcano_earthquake).unwrap();
+        world.flush();
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_some(),
+            "victim breaks the tie"
+        );
+        assert_eq!(
+            world
+                .resource::<CalamitySelectionState>()
+                .available_cities
+                .len(),
+            2
+        );
+
+        {
+            let mut selection = world.resource_mut::<CalamitySelectionState>();
+            while selection.current_city() != Some(site_b) {
+                selection.next();
+            }
+            selection.toggle_current();
+        }
+        world
+            .entity_mut(victim)
+            .remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(resolve_volcano_earthquake).unwrap();
+        world.flush();
+
+        let ResolvingCalamity::VolcanoEarthquake(ref state) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
+        assert!(state.is_volcano);
+        assert_eq!(
+            state.volcano_area,
+            Some(site_b),
+            "the site the victim picked"
+        );
+        assert_ne!(state.volcano_area, Some(site_a));
+    }
+
+    /// With one clearly worst site there is no tie and no prompt.
+    #[test]
+    fn a_clear_worst_volcano_site_needs_no_choice() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::resolve_volcano_earthquake;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::AwaitingHumanCalamitySelection;
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = volcano_world();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+
+        let small = spawn_volcano_area(&mut world, "small", victim, victim, 1);
+        let big = spawn_volcano_area(&mut world, "big", victim, victim, 8);
+
+        start_volcano(&mut world, victim);
+
+        world.run_system_once(resolve_volcano_earthquake).unwrap();
+        world.flush();
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_none()
+        );
+        let ResolvingCalamity::VolcanoEarthquake(ref state) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(state.volcano_area, Some(big));
+        assert_ne!(state.volcano_area, Some(small));
+    }
+
+    /// 30.211 scores damage "to the primary victim and any secondary
+    /// victims" -- the eruption wipes every unit in the touched areas, so
+    /// another player's tokens count towards choosing the site. Only the
+    /// victim's losses used to be counted.
+    #[test]
+    fn volcano_damage_counts_every_players_units_not_just_the_victims() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::resolve_volcano_earthquake;
+
+        let mut world = volcano_world();
+        let victim = world.spawn((Player, PlayerCities::default())).id();
+        let bystander = world.spawn(Player).id();
+
+        // Equal victim losses (2 tokens + own city each), but site_b also
+        // sits on a big pile of someone else's tokens.
+        let site_a = spawn_volcano_area(&mut world, "site-a", victim, victim, 2);
+        let site_b = spawn_volcano_area(&mut world, "site-b", victim, victim, 2);
+        let bystander_tokens: Vec<Entity> = (0..9).map(|_| world.spawn_empty().id()).collect();
+        {
+            let mut pop = world.get_mut::<Population>(site_b).unwrap();
+            for token in bystander_tokens {
+                pop.add_token_to_area(bystander, token);
+            }
+        }
+
+        start_volcano(&mut world, victim);
+
+        world.run_system_once(resolve_volcano_earthquake).unwrap();
+        world.flush();
+
+        let ResolvingCalamity::VolcanoEarthquake(ref state) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(
+            state.volcano_area,
+            Some(site_b),
+            "greatest total damage, all owners counted"
+        );
+        assert_ne!(state.volcano_area, Some(site_a));
+    }
+
+    // ========================================================================
+    // Rule 30.221: the *trader* picks which city Treachery takes
+    // ========================================================================
+
+    fn start_treachery(world: &mut World, victim: Entity, traded_by: Option<Entity>) {
+        use crate::civilization::concepts::resolve_calamities::calamities::treachery::TreacheryState;
+
+        let context = CalamityContext::new(TradeCard::Treachery, victim, traded_by);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Treachery(TreacheryState::new()),
+        ));
+    }
+
+    /// 30.221 gives the choice to the trader -- they are taking the city, so
+    /// they pick which one. The victim used to be prompted instead.
+    #[test]
+    fn treachery_lets_the_trader_choose_which_city_they_take() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            TransferCityTo, advance_treachery,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, CalamitySelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = iconoclasm_world();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+        let trader = world.spawn((Player, IsHuman)).id();
+
+        let cities: Vec<Entity> = (0..2)
+            .map(|n| give_city(&mut world, victim, &format!("victim-{n}")))
+            .collect();
+
+        start_treachery(&mut world, victim, Some(trader));
+
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(trader)
+                .is_some(),
+            "the trader selects the city (30.221)"
+        );
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_none(),
+            "the victim does not get to offer one up"
+        );
+
+        {
+            let mut selection = world.resource_mut::<CalamitySelectionState>();
+            while selection.current_city() != Some(cities[1]) {
+                selection.next();
+            }
+            selection.toggle_current();
+        }
+        world
+            .entity_mut(trader)
+            .remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+
+        let transfer = world
+            .get::<TransferCityTo>(cities[1])
+            .expect("city changes hands");
+        assert_eq!(transfer.0, trader, "the trader annexes it");
+        assert!(world.get::<TransferCityTo>(cities[0]).is_none());
+    }
+
+    /// 30.222: an untraded Treachery reduces one of the victim's own cities
+    /// and nobody benefits -- there the victim is the one who chooses.
+    #[test]
+    fn an_untraded_treachery_lets_the_victim_choose_and_benefits_nobody() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            ReduceCity, TransferCityTo, advance_treachery,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, CalamitySelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = iconoclasm_world();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+        let cities: Vec<Entity> = (0..2)
+            .map(|n| give_city(&mut world, victim, &format!("victim-{n}")))
+            .collect();
+
+        start_treachery(&mut world, victim, None);
+
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_some()
+        );
+
+        {
+            let mut selection = world.resource_mut::<CalamitySelectionState>();
+            while selection.current_city() != Some(cities[0]) {
+                selection.next();
+            }
+            selection.toggle_current();
+        }
+        world
+            .entity_mut(victim)
+            .remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+
+        assert!(
+            world.get::<ReduceCity>(cities[0]).is_some(),
+            "reduced, not annexed"
+        );
+        assert!(world.get::<TransferCityTo>(cities[0]).is_none());
+    }
+
+    // ========================================================================
+    // Rules 30.818/30.819/29.64: ordering enemy cities reduced
+    // ========================================================================
+
+    fn iconoclasm_world() -> World {
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
+        world
+    }
+
+    /// Gives `owner` a city in a fresh area and returns the area.
+    fn give_city(world: &mut World, owner: Entity, name: &str) -> Entity {
+        let city_token = world.spawn_empty().id();
+        let area = world
+            .spawn((
+                Name::new(name.to_string()),
+                GameArea::new(world.entities().len() as i32),
+                Population::new(6),
+                LandPassage::default(),
+            ))
+            .id();
+        if let Some(mut cities) = world.get_mut::<PlayerCities>(owner) {
+            cities.build_city_in_area(area, city_token);
+        } else {
+            let mut cities = PlayerCities::default();
+            cities.build_city_in_area(area, city_token);
+            world.entity_mut(owner).insert(cities);
+        }
+        area
+    }
+
+    fn start_iconoclasm(world: &mut World, victim: Entity, own_cities_to_reduce: usize) {
+        use crate::civilization::concepts::resolve_calamities::calamities::iconoclasm_heresy::IconoclasmHeresyState;
+
+        let mut state = IconoclasmHeresyState::new();
+        state.cities_to_reduce = own_cities_to_reduce;
+        let context = CalamityContext::new(TradeCard::IconoclasmAndHeresy, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::IconoclasmAndHeresy(state),
+        ));
+    }
+
+    /// 30.818 + 29.64: the primary victim must order two enemy cities
+    /// reduced, and a human victim chooses which. They used to be picked in
+    /// iteration order with no prompt.
+    #[test]
+    fn a_human_victim_chooses_which_enemy_cities_iconoclasm_reduces() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            ReduceCity, advance_iconoclasm_heresy,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, CalamitySelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = iconoclasm_world();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+        let rival = world.spawn(Player).id();
+        let bystander = world.spawn(Player).id();
+
+        let rival_cities: Vec<Entity> = (0..2)
+            .map(|n| give_city(&mut world, rival, &format!("rival-{n}")))
+            .collect();
+        let bystander_city = give_city(&mut world, bystander, "bystander");
+
+        start_iconoclasm(&mut world, victim, 0); // no own cities to reduce
+
+        world.run_system_once(advance_iconoclasm_heresy).unwrap();
+        world.flush();
+        world.run_system_once(advance_iconoclasm_heresy).unwrap();
+        world.flush();
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_some(),
+            "the victim orders the reductions themselves"
+        );
+        assert_eq!(world.resource::<CalamitySelectionState>().required_count, 2);
+
+        // Victim orders both of the rival's cities reduced -- legal, the rival
+        // holds no Philosophy.
+        {
+            let mut selection = world.resource_mut::<CalamitySelectionState>();
+            for want in rival_cities.clone() {
+                while selection.current_city() != Some(want) {
+                    selection.next();
+                }
+                selection.toggle_current();
+            }
+        }
+        world
+            .entity_mut(victim)
+            .remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_iconoclasm_heresy).unwrap();
+        world.flush();
+        world.run_system_once(advance_iconoclasm_heresy).unwrap();
+        world.flush();
+
+        for area in &rival_cities {
+            assert!(world.get::<ReduceCity>(*area).is_some(), "ordered reduced");
+        }
+        assert!(
+            world.get::<ReduceCity>(bystander_city).is_none(),
+            "not ordered"
+        );
+    }
+
+    /// 30.819: a Theology holder cannot be named a secondary victim, and a
+    /// Philosophy holder may lose at most one city -- enforced by what the
+    /// victim is offered, so no selection can break the cap.
+    #[test]
+    fn iconoclasm_secondary_candidates_respect_theology_and_philosophy() {
+        use crate::civilization::CivCardName;
+        use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_iconoclasm_heresy;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, CalamitySelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = iconoclasm_world();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+
+        let theologian = world.spawn(Player).id();
+        let philosopher = world.spawn(Player).id();
+        let ordinary = world.spawn(Player).id();
+
+        let theologian_cities: Vec<Entity> = (0..2)
+            .map(|n| give_city(&mut world, theologian, &format!("theology-{n}")))
+            .collect();
+        let philosopher_cities: Vec<Entity> = (0..3)
+            .map(|n| give_city(&mut world, philosopher, &format!("philosophy-{n}")))
+            .collect();
+        let ordinary_cities: Vec<Entity> = (0..2)
+            .map(|n| give_city(&mut world, ordinary, &format!("ordinary-{n}")))
+            .collect();
+
+        world
+            .entity_mut(theologian)
+            .insert(PlayerCivilizationCards {
+                cards: [CivCardName::Theology].into_iter().collect(),
+            });
+        world
+            .entity_mut(philosopher)
+            .insert(PlayerCivilizationCards {
+                cards: [CivCardName::Philosophy].into_iter().collect(),
+            });
+
+        start_iconoclasm(&mut world, victim, 0);
+
+        world.run_system_once(advance_iconoclasm_heresy).unwrap();
+        world.flush();
+        world.run_system_once(advance_iconoclasm_heresy).unwrap();
+        world.flush();
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_some()
+        );
+        let offered = world
+            .resource::<CalamitySelectionState>()
+            .available_cities
+            .clone();
+
+        for area in &theologian_cities {
+            assert!(
+                !offered.contains(area),
+                "Theology holders cannot be named (30.819)"
+            );
+        }
+        let philosophy_offered = philosopher_cities
+            .iter()
+            .filter(|a| offered.contains(a))
+            .count();
+        assert_eq!(
+            philosophy_offered, 1,
+            "at most one city from a Philosophy holder (30.819)"
+        );
+        for area in &ordinary_cities {
+            assert!(
+                offered.contains(area),
+                "an unprotected player's cities are all fair game"
+            );
+        }
+    }
+
+    /// An AI victim still discharges 30.818 without any prompt.
+    #[test]
+    fn an_ai_victim_still_orders_the_enemy_reductions() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            ReduceCity, advance_iconoclasm_heresy,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::AwaitingHumanCalamitySelection;
+
+        let mut world = iconoclasm_world();
+        let victim = world.spawn((Player, PlayerCities::default())).id();
+        let rival = world.spawn(Player).id();
+        let rival_cities: Vec<Entity> = (0..2)
+            .map(|n| give_city(&mut world, rival, &format!("rival-{n}")))
+            .collect();
+
+        start_iconoclasm(&mut world, victim, 0);
+
+        for _ in 0..4 {
+            world.run_system_once(advance_iconoclasm_heresy).unwrap();
+            world.flush();
+        }
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_none()
+        );
+        let reduced = rival_cities
+            .iter()
+            .filter(|a| world.get::<ReduceCity>(**a).is_some())
+            .count();
+        assert_eq!(reduced, 2, "both enemy cities reduced (30.818)");
+    }
+
+    // ========================================================================
+    // Rule 30.514: the coastal-city fallback
+    // ========================================================================
+
+    fn flood_fallback_world() -> (World, Entity) {
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::FloodSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
+        let victim = world.spawn_empty().id();
+        (world, victim)
+    }
+
+    /// 30.514: "If the victim has no coastal cities, he is unaffected." An
+    /// inland city used to be destroyed as a substitute.
+    #[test]
+    fn flood_fallback_leaves_an_inland_only_victim_untouched() {
+        use crate::civilization::concepts::resolve_calamities::calamities::flood::{
+            FloodPhase, FloodState,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            ReduceCity, advance_flood,
+        };
+
+        let (mut world, victim) = flood_fallback_world();
+
+        // One city, landlocked (no SeaPassage component).
+        let inland = world
+            .spawn((
+                Name::new("inland"),
+                GameArea::new(1),
+                Population::new(5),
+                LandPassage::default(),
+            ))
+            .id();
+        let mut cities = PlayerCities::default();
+        cities
+            .areas_and_cities
+            .insert(inland, world.spawn_empty().id());
+        world.entity_mut(victim).insert(cities);
+
+        let mut state = FloodState::new();
+        state.phase = FloodPhase::FallbackCoastalCity;
+
+        let context = CalamityContext::new(TradeCard::Flood, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Flood(state),
+        ));
+
+        world.run_system_once(advance_flood).unwrap();
+
+        assert!(
+            world.get::<DestroyCity>(inland).is_none(),
+            "an inland city is never a substitute"
+        );
+        assert!(world.get::<ReduceCity>(inland).is_none());
+        let ResolvingCalamity::Flood(ref done) = *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(done.phase, FloodPhase::Complete);
+    }
+
+    /// With exactly one coastal city there is nothing to choose, so it goes
+    /// without prompting -- even for a human.
+    #[test]
+    fn flood_fallback_takes_the_only_coastal_city_without_prompting() {
+        use crate::civilization::concepts::resolve_calamities::calamities::flood::{
+            FloodPhase, FloodState,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_flood;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::AwaitingHumanCalamitySelection;
+        use crate::stupid_ai::IsHuman;
+
+        let (mut world, victim) = flood_fallback_world();
+        world.entity_mut(victim).insert(IsHuman);
+
+        let inland = world
+            .spawn((
+                Name::new("inland"),
+                GameArea::new(1),
+                Population::new(5),
+                LandPassage::default(),
+            ))
+            .id();
+        let coastal = world
+            .spawn((
+                Name::new("coastal"),
+                GameArea::new(2),
+                Population::new(5),
+                LandPassage::default(),
+                SeaPassage::default(),
+            ))
+            .id();
+        let mut cities = PlayerCities::default();
+        cities
+            .areas_and_cities
+            .insert(inland, world.spawn_empty().id());
+        cities
+            .areas_and_cities
+            .insert(coastal, world.spawn_empty().id());
+        world.entity_mut(victim).insert(cities);
+
+        let mut state = FloodState::new();
+        state.phase = FloodPhase::FallbackCoastalCity;
+
+        let context = CalamityContext::new(TradeCard::Flood, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Flood(state),
+        ));
+
+        world.run_system_once(advance_flood).unwrap();
+        world.run_system_once(advance_flood).unwrap();
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_none(),
+            "no choice to offer"
+        );
+        assert!(
+            world.get::<DestroyCity>(coastal).is_some(),
+            "the coastal city is eliminated"
+        );
+        assert!(world.get::<DestroyCity>(inland).is_none());
+    }
+
+    /// 30.514: "The primary victim chooses" which coastal city goes.
+    #[test]
+    fn flood_fallback_lets_a_human_choose_between_coastal_cities() {
+        use crate::civilization::concepts::resolve_calamities::calamities::flood::{
+            FloodPhase, FloodState,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_flood;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, CalamitySelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let (mut world, victim) = flood_fallback_world();
+        world.entity_mut(victim).insert(IsHuman);
+
+        let mut coastal_areas = Vec::new();
+        let mut cities = PlayerCities::default();
+        for n in 0..2 {
+            let area = world
+                .spawn((
+                    Name::new(format!("coastal {n}")),
+                    GameArea::new(n),
+                    Population::new(5),
+                    LandPassage::default(),
+                    SeaPassage::default(),
+                ))
+                .id();
+            cities
+                .areas_and_cities
+                .insert(area, world.spawn_empty().id());
+            coastal_areas.push(area);
+        }
+        world.entity_mut(victim).insert(cities);
+
+        let mut state = FloodState::new();
+        state.phase = FloodPhase::FallbackCoastalCity;
+
+        let context = CalamityContext::new(TradeCard::Flood, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Flood(state),
+        ));
+
+        world.run_system_once(advance_flood).unwrap();
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_some(),
+            "human picks the city"
+        );
+        assert!(
+            world.get::<DestroyCity>(coastal_areas[0]).is_none(),
+            "nothing destroyed while waiting"
+        );
+        assert!(world.get::<DestroyCity>(coastal_areas[1]).is_none());
+        assert_eq!(world.resource::<CalamitySelectionState>().required_count, 1);
+
+        // Human picks the second city.
+        {
+            let mut selection = world.resource_mut::<CalamitySelectionState>();
+            while selection.current_city() != Some(coastal_areas[1]) {
+                selection.next();
+            }
+            selection.toggle_current();
+            assert!(selection.selection_complete());
+        }
+        world
+            .entity_mut(victim)
+            .remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_flood).unwrap();
+
+        assert!(
+            world.get::<DestroyCity>(coastal_areas[1]).is_some(),
+            "the city the human picked"
+        );
+        assert!(
+            world.get::<DestroyCity>(coastal_areas[0]).is_none(),
+            "the other one survives"
+        );
+    }
+
+    /// 30.515: Engineering reduces the coastal city instead of eliminating it.
+    #[test]
+    fn flood_fallback_reduces_rather_than_destroys_with_engineering() {
+        use crate::civilization::concepts::resolve_calamities::calamities::flood::{
+            FloodPhase, FloodState,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            ReduceCity, advance_flood,
+        };
+
+        let (mut world, victim) = flood_fallback_world();
+
+        let coastal = world
+            .spawn((
+                Name::new("coastal"),
+                GameArea::new(1),
+                Population::new(5),
+                LandPassage::default(),
+                SeaPassage::default(),
+            ))
+            .id();
+        let mut cities = PlayerCities::default();
+        cities
+            .areas_and_cities
+            .insert(coastal, world.spawn_empty().id());
+        world.entity_mut(victim).insert(cities);
+
+        let mut state = FloodState::new().with_engineering();
+        state.phase = FloodPhase::FallbackCoastalCity;
+
+        let context = CalamityContext::new(TradeCard::Flood, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Flood(state),
+        ));
+
+        world.run_system_once(advance_flood).unwrap();
+        world.run_system_once(advance_flood).unwrap();
+
+        assert!(world.get::<ReduceCity>(coastal).is_some());
+        assert!(world.get::<DestroyCity>(coastal).is_none());
+    }
+
+    // ========================================================================
+    // Rules 29.61/30.221: who traded the calamity here
+    // ========================================================================
+    //
+    // The trader is barred from being named a secondary victim (29.61) and is
+    // the beneficiary of Treachery (30.221). `PendingCalamities` carried a
+    // `traded_by` slot for this all along, but nothing ever filled it in --
+    // it was hard-coded to `None`, so Treachery never had a beneficiary and
+    // the trader could be picked as a secondary victim of their own gift.
+
+    #[test]
+    fn a_traded_calamity_records_who_handed_it_over() {
+        let mut giver_hand = PlayerTradeCards::default();
+        giver_hand.add_trade_card(TradeCard::Treachery);
+
+        let giver = Entity::from_raw_u32(7).unwrap();
+        let mut receiver_hand = PlayerTradeCards::default();
+        receiver_hand.add_traded_cards(TradeCard::Treachery, 1, giver);
+
+        assert_eq!(
+            receiver_hand.calamity_traded_by(TradeCard::Treachery),
+            Some(giver)
+        );
+    }
+
+    #[test]
+    fn a_drawn_calamity_has_no_trader() {
+        let mut hand = PlayerTradeCards::default();
+        hand.add_trade_card(TradeCard::Treachery);
+        assert_eq!(hand.calamity_traded_by(TradeCard::Treachery), None);
+    }
+
+    /// Passing the card onwards must not leave the previous trader attached --
+    /// rule 29.3 lets a tradable calamity change hands any number of times,
+    /// and only the last hand-off counts.
+    #[test]
+    fn trading_a_calamity_onwards_clears_the_stale_provenance() {
+        let first = Entity::from_raw_u32(7).unwrap();
+        let mut hand = PlayerTradeCards::default();
+        hand.add_traded_cards(TradeCard::Treachery, 1, first);
+        assert_eq!(hand.calamity_traded_by(TradeCard::Treachery), Some(first));
+
+        hand.remove_n_trade_cards(1, TradeCard::Treachery);
+        assert_eq!(hand.calamity_traded_by(TradeCard::Treachery), None);
+
+        // Re-acquired from someone else later in the same round.
+        let second = Entity::from_raw_u32(9).unwrap();
+        hand.add_traded_cards(TradeCard::Treachery, 1, second);
+        assert_eq!(hand.calamity_traded_by(TradeCard::Treachery), Some(second));
+    }
+
+    #[test]
+    fn start_calamity_resolution_carries_the_trader_into_pending_calamities() {
+        use crate::GameActivity;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::start_calamity_resolution;
+
+        let mut world = World::new();
+        world.init_resource::<NextState<GameActivity>>();
+
+        let trader = world
+            .spawn((Player, Name::new("trader"), PlayerTradeCards::default()))
+            .id();
+
+        let mut cards = PlayerTradeCards::default();
+        cards.add_traded_cards(TradeCard::Treachery, 1, trader);
+        cards.add_trade_card(TradeCard::Famine); // drawn, not traded
+        let victim = world.spawn((Player, Name::new("victim"), cards)).id();
+
+        world.run_system_once(start_calamity_resolution).unwrap();
+
+        let pending = world.get::<PendingCalamities>(victim).unwrap();
+        let treachery = pending
+            .calamities
+            .iter()
+            .find(|(card, _)| *card == TradeCard::Treachery)
+            .expect("treachery pending");
+        assert_eq!(
+            treachery.1,
+            Some(trader),
+            "the trader is recorded as beneficiary/immune"
+        );
+
+        let famine = pending
+            .calamities
+            .iter()
+            .find(|(card, _)| *card == TradeCard::Famine)
+            .expect("famine pending");
+        assert_eq!(famine.1, None, "a drawn calamity implicates nobody");
+    }
+
+    // ========================================================================
+    // Rules 29.62/29.63: the victim chooses which of their own units to lose
+    // ========================================================================
+    //
+    // The calamity dictates how many unit points are lost; picking the units
+    // belongs to their owner. Before this, every unit-point loss was taken in
+    // arbitrary `PlayerAreas` iteration order even for a human victim, so the
+    // human got no prompt at all and tokens vanished from areas they would
+    // never have picked.
+
+    #[test]
+    fn famine_primary_loss_pauses_for_a_human_victim_and_removes_exactly_what_they_chose() {
+        use crate::civilization::concepts::resolve_calamities::calamities::famine::{
+            FaminePhase, FamineState,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_famine;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, FamineSelectionState, UnitLossSelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<FamineSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+
+        // Two areas, 6 tokens each: 12 available against a 4-point loss, so
+        // there is a genuine choice to make.
+        let mut victim_areas = PlayerAreas::default();
+        let mut areas = Vec::new();
+        for n in 0..2 {
+            let mut pop = Population::new(20);
+            let mut tokens = Vec::new();
+            for _ in 0..6 {
+                let token = world.spawn_empty().id();
+                pop.add_token_to_area(victim, token);
+                tokens.push(token);
+            }
+            let area = world
+                .spawn((
+                    Name::new(format!("area {n}")),
+                    GameArea::new(n),
+                    pop,
+                    LandPassage::default(),
+                ))
+                .id();
+            for token in tokens {
+                victim_areas.add_token_to_area(area, token);
+            }
+            areas.push(area);
+        }
+        world.entity_mut(victim).insert(victim_areas);
+
+        let mut state = FamineState::new();
+        state.phase = FaminePhase::ComputeLosses;
+        state.primary_loss = 4;
+
+        let context = CalamityContext::new(TradeCard::Famine, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Famine(state),
+        ));
+
+        // First pass: pause for input, touch nothing.
+        world.run_system_once(advance_famine).unwrap();
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_some(),
+            "human victim should be prompted to choose their losses"
+        );
+        assert_eq!(
+            world
+                .get::<Population>(areas[0])
+                .unwrap()
+                .population_for_player(victim),
+            6
+        );
+        assert_eq!(
+            world
+                .get::<Population>(areas[1])
+                .unwrap()
+                .population_for_player(victim),
+            6
+        );
+        let ResolvingCalamity::Famine(ref waiting) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(
+            waiting.phase,
+            FaminePhase::ComputeLosses,
+            "must not advance while waiting"
+        );
+
+        {
+            let selection = world.resource::<UnitLossSelectionState>();
+            assert_eq!(selection.acting_player, Some(victim));
+            assert_eq!(selection.total_budget, 4);
+            assert_eq!(selection.total_available(), 12);
+        }
+
+        // The human puts the whole loss on the second area, as the UI buttons would.
+        {
+            let mut selection = world.resource_mut::<UnitLossSelectionState>();
+            let second = areas[1];
+            while selection.current_area().map(|(a, _, _)| a) != Some(second) {
+                selection.next_area();
+            }
+            for _ in 0..4 {
+                assert!(selection.increment_current());
+            }
+            assert!(selection.selection_valid());
+        }
+        world
+            .entity_mut(victim)
+            .remove::<AwaitingHumanCalamitySelection>();
+
+        // Second pass: apply exactly that.
+        world.run_system_once(advance_famine).unwrap();
+
+        assert_eq!(
+            world
+                .get::<Population>(areas[0])
+                .unwrap()
+                .population_for_player(victim),
+            6,
+            "the area the human protected is untouched"
+        );
+        assert_eq!(
+            world
+                .get::<Population>(areas[1])
+                .unwrap()
+                .population_for_player(victim),
+            2,
+            "all 4 points came off the area the human picked"
+        );
+        assert_eq!(
+            world.resource::<UnitLossSelectionState>().acting_player,
+            None,
+            "state cleared after use"
+        );
+        let ResolvingCalamity::Famine(ref done) = *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
+        assert_ne!(
+            done.phase,
+            FaminePhase::ComputeLosses,
+            "phase advanced once applied"
+        );
+    }
+
+    #[test]
+    fn famine_primary_loss_is_automatic_for_an_ai_victim() {
+        use crate::civilization::concepts::resolve_calamities::calamities::famine::{
+            FaminePhase, FamineState,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_famine;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, FamineSelectionState, UnitLossSelectionState,
+        };
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<FamineSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        let victim = world.spawn((Player, PlayerCities::default())).id(); // no IsHuman
+        let mut pop = Population::new(20);
+        let mut tokens = Vec::new();
+        for _ in 0..6 {
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(victim, token);
+            tokens.push(token);
+        }
+        let area = world
+            .spawn((
+                Name::new("area"),
+                GameArea::new(1),
+                pop,
+                LandPassage::default(),
+            ))
+            .id();
+        let mut victim_areas = PlayerAreas::default();
+        for token in tokens {
+            victim_areas.add_token_to_area(area, token);
+        }
+        world.entity_mut(victim).insert(victim_areas);
+
+        let mut state = FamineState::new();
+        state.phase = FaminePhase::ComputeLosses;
+        state.primary_loss = 4;
+
+        let context = CalamityContext::new(TradeCard::Famine, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Famine(state),
+        ));
+
+        world.run_system_once(advance_famine).unwrap();
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_none(),
+            "AI is never prompted"
+        );
+        assert_eq!(
+            world
+                .get::<Population>(area)
+                .unwrap()
+                .population_for_player(victim),
+            2
+        );
+        assert_eq!(
+            world.resource::<UnitLossSelectionState>().acting_player,
+            None
+        );
+    }
+
+    #[test]
+    fn famine_primary_loss_skips_the_prompt_when_the_victim_loses_everything_anyway() {
+        use crate::civilization::concepts::resolve_calamities::calamities::famine::{
+            FaminePhase, FamineState,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_famine;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, FamineSelectionState, UnitLossSelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<FamineSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+        let mut pop = Population::new(20);
+        let mut tokens = Vec::new();
+        for _ in 0..3 {
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(victim, token);
+            tokens.push(token);
+        }
+        let area = world
+            .spawn((
+                Name::new("area"),
+                GameArea::new(1),
+                pop,
+                LandPassage::default(),
+            ))
+            .id();
+        let mut victim_areas = PlayerAreas::default();
+        for token in tokens {
+            victim_areas.add_token_to_area(area, token);
+        }
+        world.entity_mut(victim).insert(victim_areas);
+
+        let mut state = FamineState::new();
+        state.phase = FaminePhase::ComputeLosses;
+        state.primary_loss = 10; // more than the 3 tokens they own
+
+        let context = CalamityContext::new(TradeCard::Famine, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Famine(state),
+        ));
+
+        world.run_system_once(advance_famine).unwrap();
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_none(),
+            "nothing to choose when everything is lost regardless"
+        );
+        assert_eq!(
+            world
+                .get::<Population>(area)
+                .unwrap()
+                .population_for_player(victim),
+            0
+        );
+    }
+
+    /// Rule 30.612 keeps one token per area, so a human Epidemic victim is
+    /// offered `count - 1` per area -- and the city half of the budget must be
+    /// spent exactly once even though the token half pauses for input.
+    #[test]
+    fn epidemic_primary_loss_pauses_for_a_human_without_double_spending_the_city_budget() {
+        use crate::civilization::concepts::resolve_calamities::calamities::epidemic::{
+            EpidemicPhase, EpidemicState,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_epidemic;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, EpidemicSelectionState, UnitLossSelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<EpidemicSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        let victim = world.spawn((Player, IsHuman)).id();
+
+        let mut victim_areas = PlayerAreas::default();
+        let mut areas = Vec::new();
+        for n in 0..2 {
+            let mut pop = Population::new(20);
+            let mut tokens = Vec::new();
+            for _ in 0..5 {
+                let token = world.spawn_empty().id();
+                pop.add_token_to_area(victim, token);
+                tokens.push(token);
+            }
+            let area = world
+                .spawn((
+                    Name::new(format!("area {n}")),
+                    GameArea::new(n),
+                    pop,
+                    LandPassage::default(),
+                ))
+                .id();
+            for token in tokens {
+                victim_areas.add_token_to_area(area, token);
+            }
+            areas.push(area);
+        }
+
+        let mut player_cities = PlayerCities::default();
+        let city_token = world.spawn_empty().id();
+        player_cities.areas_and_cities.insert(areas[0], city_token);
+        world
+            .entity_mut(victim)
+            .insert((victim_areas, player_cities));
+
+        let mut state = EpidemicState::new();
+        state.phase = EpidemicPhase::ComputeEffects;
+        state.primary_loss = 6; // 4 to the city, 2 left for tokens
+
+        let context = CalamityContext::new(TradeCard::Epidemic, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Epidemic(state),
+        ));
+
+        // Pass 1: spend the city budget. Pass 2: pause for the token choice.
+        world.run_system_once(advance_epidemic).unwrap();
+        world.run_system_once(advance_epidemic).unwrap();
+
+        assert!(
+            world.get::<DestroyCity>(areas[0]).is_some(),
+            "city spent against the budget"
+        );
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_some(),
+            "human should choose which tokens cover the remaining 2 points"
+        );
+        {
+            let selection = world.resource::<UnitLossSelectionState>();
+            assert_eq!(
+                selection.total_budget, 2,
+                "4 of the 6 points went to the city"
+            );
+            assert_eq!(
+                selection.total_available(),
+                8,
+                "30.612 leaves one token per area, so 4 of 5 are offered in each"
+            );
+        }
+
+        // Extra frames while waiting must not re-destroy the city or move on.
+        world.run_system_once(advance_epidemic).unwrap();
+        let ResolvingCalamity::Epidemic(ref waiting) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(
+            waiting.phase,
+            EpidemicPhase::ApplyPrimaryLoss,
+            "still waiting"
+        );
+        assert_eq!(
+            waiting.primary_tokens_remaining, 2,
+            "city budget not spent twice"
+        );
+
+        // Human puts both points on the second area.
+        {
+            let mut selection = world.resource_mut::<UnitLossSelectionState>();
+            let second = areas[1];
+            while selection.current_area().map(|(a, _, _)| a) != Some(second) {
+                selection.next_area();
+            }
+            assert!(selection.increment_current());
+            assert!(selection.increment_current());
+            assert!(selection.selection_valid());
+        }
+        world
+            .entity_mut(victim)
+            .remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_epidemic).unwrap();
+
+        assert_eq!(
+            world
+                .get::<Population>(areas[0])
+                .unwrap()
+                .population_for_player(victim),
+            5
+        );
+        assert_eq!(
+            world
+                .get::<Population>(areas[1])
+                .unwrap()
+                .population_for_player(victim),
+            3
+        );
+    }
+
+    /// Rule 29.62: cities are worth up to five unit points, so a victim
+    /// whose tokens cannot cover the loss must give up a city. The loss used
+    /// to stop at the last token, silently under-applying the calamity.
+    #[test]
+    fn an_ai_victim_gives_up_a_city_when_tokens_cannot_cover_the_loss() {
+        use crate::civilization::concepts::resolve_calamities::calamities::famine::{
+            FaminePhase, FamineState,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            DestroyCity, advance_famine,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            FamineSelectionState, UnitLossSelectionState,
+        };
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<FamineSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        let victim = world.spawn(Player).id();
+
+        // 2 tokens on the board against a 5-point loss: 3 points short, so a
+        // single city (5 pts) has to cover it, and then no token is owed --
+        // 5 exactly, not 5 + the 2 tokens as well.
+        let mut pop = Population::new(20);
+        let mut tokens = Vec::new();
+        for _ in 0..2 {
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(victim, token);
+            tokens.push(token);
+        }
+        let area = world
+            .spawn((
+                Name::new("area"),
+                GameArea::new(1),
+                pop,
+                LandPassage::default(),
+            ))
+            .id();
+        let mut areas = PlayerAreas::default();
+        for token in tokens {
+            areas.add_token_to_area(area, token);
+        }
+        let city_area = world
+            .spawn((
+                Name::new("city area"),
+                GameArea::new(2),
+                Population::new(6),
+                LandPassage::default(),
+            ))
+            .id();
+        let mut cities = PlayerCities::default();
+        cities.build_city_in_area(city_area, world.spawn_empty().id());
+        world.entity_mut(victim).insert((areas, cities));
+
+        let mut state = FamineState::new();
+        state.phase = FaminePhase::ComputeLosses;
+        state.primary_loss = 5;
+
+        let context = CalamityContext::new(TradeCard::Famine, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Famine(state),
+        ));
+
+        world.run_system_once(advance_famine).unwrap();
+
+        assert!(
+            world.get::<DestroyCity>(city_area).is_some(),
+            "a city covers the shortfall (29.62)"
+        );
+        assert_eq!(
+            world
+                .get::<Population>(area)
+                .unwrap()
+                .population_for_player(victim),
+            2,
+            "the city alone already meets the 5 points -- 29.63 forbids paying more"
+        );
+    }
+
+    /// The mirror case: tokens that can cover the loss exactly must be used,
+    /// leaving cities alone.
+    #[test]
+    fn an_ai_victim_keeps_its_city_when_tokens_cover_the_loss() {
+        use crate::civilization::concepts::resolve_calamities::calamities::famine::{
+            FaminePhase, FamineState,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            DestroyCity, advance_famine,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            FamineSelectionState, UnitLossSelectionState,
+        };
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<FamineSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        let victim = world.spawn(Player).id();
+        let mut pop = Population::new(20);
+        let mut tokens = Vec::new();
+        for _ in 0..8 {
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(victim, token);
+            tokens.push(token);
+        }
+        let area = world
+            .spawn((
+                Name::new("area"),
+                GameArea::new(1),
+                pop,
+                LandPassage::default(),
+            ))
+            .id();
+        let mut areas = PlayerAreas::default();
+        for token in tokens {
+            areas.add_token_to_area(area, token);
+        }
+        let city_area = world
+            .spawn((
+                Name::new("city area"),
+                GameArea::new(2),
+                Population::new(6),
+                LandPassage::default(),
+            ))
+            .id();
+        let mut cities = PlayerCities::default();
+        cities.build_city_in_area(city_area, world.spawn_empty().id());
+        world.entity_mut(victim).insert((areas, cities));
+
+        let mut state = FamineState::new();
+        state.phase = FaminePhase::ComputeLosses;
+        state.primary_loss = 5;
+
+        let context = CalamityContext::new(TradeCard::Famine, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Famine(state),
+        ));
+
+        world.run_system_once(advance_famine).unwrap();
+
+        assert!(
+            world.get::<DestroyCity>(city_area).is_none(),
+            "tokens cover it exactly"
+        );
+        assert_eq!(
+            world
+                .get::<Population>(area)
+                .unwrap()
+                .population_for_player(victim),
+            3
+        );
+    }
+
+    /// Rule 30.311: "the secondary victims choose which units to remove" --
+    /// the primary victim divides the total, but each victim picks their own
+    /// tokens. A human secondary victim gets the same panel the primary does.
+    #[test]
+    fn famine_secondary_loss_lets_a_human_secondary_victim_pick_their_own_units() {
+        use crate::civilization::concepts::resolve_calamities::calamities::famine::{
+            FaminePhase, FamineState,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_famine;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, FamineSelectionState, UnitLossSelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<FamineSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        // The primary victim is AI here so the *division* is automatic and the
+        // only interaction under test is the human secondary victim's choice.
+        let victim = world.spawn((Player, PlayerCities::default())).id();
+        let human_secondary = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+
+        // Two areas, 5 tokens each for the human secondary: a real choice
+        // against the 3 points they are told to lose.
+        let mut sec_areas = PlayerAreas::default();
+        let mut areas = Vec::new();
+        for n in 0..2 {
+            let mut pop = Population::new(30);
+            let mut tokens = Vec::new();
+            for _ in 0..5 {
+                let token = world.spawn_empty().id();
+                pop.add_token_to_area(human_secondary, token);
+                tokens.push(token);
+            }
+            let area = world
+                .spawn((
+                    Name::new(format!("sec area {n}")),
+                    GameArea::new(n),
+                    pop,
+                    LandPassage::default(),
+                ))
+                .id();
+            for token in tokens {
+                sec_areas.add_token_to_area(area, token);
+            }
+            areas.push(area);
+        }
+        world.entity_mut(human_secondary).insert(sec_areas);
+        world.entity_mut(victim).insert(PlayerAreas::default());
+
+        let mut state = FamineState::new();
+        state.phase = FaminePhase::ApplySecondaryLosses;
+        state.secondary_allocations = vec![(human_secondary, 3)];
+
+        let context = CalamityContext::new(TradeCard::Famine, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Famine(state),
+        ));
+
+        // First pass: the secondary victim is prompted, nothing is removed.
+        world.run_system_once(advance_famine).unwrap();
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(human_secondary)
+                .is_some(),
+            "the secondary victim, not the primary, chooses their own units"
+        );
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_none()
+        );
+        assert_eq!(
+            world
+                .get::<Population>(areas[0])
+                .unwrap()
+                .population_for_player(human_secondary),
+            5
+        );
+        assert_eq!(
+            world
+                .get::<Population>(areas[1])
+                .unwrap()
+                .population_for_player(human_secondary),
+            5
+        );
+        assert_eq!(
+            world.resource::<UnitLossSelectionState>().acting_player,
+            Some(human_secondary)
+        );
+
+        {
+            let mut selection = world.resource_mut::<UnitLossSelectionState>();
+            let second = areas[1];
+            while selection.current_area().map(|(a, _, _)| a) != Some(second) {
+                selection.next_area();
+            }
+            for _ in 0..3 {
+                assert!(selection.increment_current());
+            }
+        }
+        world
+            .entity_mut(human_secondary)
+            .remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_famine).unwrap();
+
+        assert_eq!(
+            world
+                .get::<Population>(areas[0])
+                .unwrap()
+                .population_for_player(human_secondary),
+            5
+        );
+        assert_eq!(
+            world
+                .get::<Population>(areas[1])
+                .unwrap()
+                .population_for_player(human_secondary),
+            2
+        );
+        let ResolvingCalamity::Famine(ref done) = *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(done.phase, FaminePhase::Complete);
+        assert!(done.secondary_allocations.is_empty(), "work list drained");
+    }
+
+    /// A pause for one victim must not re-charge the victims already settled.
+    #[test]
+    fn famine_secondary_losses_are_applied_once_each_across_a_pause() {
+        use crate::civilization::concepts::resolve_calamities::calamities::famine::{
+            FaminePhase, FamineState,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_famine;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, FamineSelectionState, UnitLossSelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
+        world.init_resource::<FamineSelectionState>();
+        world.init_resource::<UnitLossSelectionState>();
+
+        let victim = world
+            .spawn((Player, PlayerAreas::default(), PlayerCities::default()))
+            .id();
+        let ai_secondary = world.spawn((Player, PlayerCities::default())).id();
+        let human_secondary = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+
+        let mut pop = Population::new(60);
+        let mut ai_areas = PlayerAreas::default();
+        let mut human_areas = PlayerAreas::default();
+        for _ in 0..6 {
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(ai_secondary, token);
+        }
+        for _ in 0..6 {
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(human_secondary, token);
+        }
+        let area = world
+            .spawn((
+                Name::new("shared"),
+                GameArea::new(1),
+                pop,
+                LandPassage::default(),
+            ))
+            .id();
+        for token in world
+            .get::<Population>(area)
+            .unwrap()
+            .tokens_for_player(&ai_secondary)
+            .unwrap()
+        {
+            ai_areas.add_token_to_area(area, *token);
+        }
+        for token in world
+            .get::<Population>(area)
+            .unwrap()
+            .tokens_for_player(&human_secondary)
+            .unwrap()
+        {
+            human_areas.add_token_to_area(area, *token);
+        }
+        // Give the human a second area so they actually have a choice to make.
+        let mut second_pop = Population::new(30);
+        for _ in 0..4 {
+            let token = world.spawn_empty().id();
+            second_pop.add_token_to_area(human_secondary, token);
+        }
+        let second_area = world
+            .spawn((
+                Name::new("second"),
+                GameArea::new(2),
+                second_pop,
+                LandPassage::default(),
+            ))
+            .id();
+        for token in world
+            .get::<Population>(second_area)
+            .unwrap()
+            .tokens_for_player(&human_secondary)
+            .unwrap()
+        {
+            human_areas.add_token_to_area(second_area, *token);
+        }
+        world.entity_mut(ai_secondary).insert(ai_areas);
+        world.entity_mut(human_secondary).insert(human_areas);
+
+        let mut state = FamineState::new();
+        state.phase = FaminePhase::ApplySecondaryLosses;
+        state.secondary_allocations = vec![(ai_secondary, 2), (human_secondary, 2)];
+
+        let context = CalamityContext::new(TradeCard::Famine, victim, None);
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::Famine(state),
+        ));
+
+        world.run_system_once(advance_famine).unwrap();
+        // The AI victim is settled immediately; the human is paused.
+        assert_eq!(
+            world
+                .get::<Population>(area)
+                .unwrap()
+                .population_for_player(ai_secondary),
+            4
+        );
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(human_secondary)
+                .is_some()
+        );
+
+        // Idle frames while waiting must not charge the AI victim again.
+        world.run_system_once(advance_famine).unwrap();
+        world.run_system_once(advance_famine).unwrap();
+        assert_eq!(
+            world
+                .get::<Population>(area)
+                .unwrap()
+                .population_for_player(ai_secondary),
+            4,
+            "settled victims are dropped from the work list"
+        );
+
+        {
+            let mut selection = world.resource_mut::<UnitLossSelectionState>();
+            while selection.current_area().map(|(a, _, _)| a) != Some(second_area) {
+                selection.next_area();
+            }
+            for _ in 0..2 {
+                assert!(selection.increment_current());
+            }
+        }
+        world
+            .entity_mut(human_secondary)
+            .remove::<AwaitingHumanCalamitySelection>();
+        world.run_system_once(advance_famine).unwrap();
+
+        assert_eq!(
+            world
+                .get::<Population>(area)
+                .unwrap()
+                .population_for_player(ai_secondary),
+            4
+        );
+        assert_eq!(
+            world
+                .get::<Population>(area)
+                .unwrap()
+                .population_for_player(human_secondary),
+            6
+        );
+        assert_eq!(
+            world
+                .get::<Population>(second_area)
+                .unwrap()
+                .population_for_player(human_secondary),
+            2
+        );
+    }
+
     // ── Rule 30.512: human primary victim allocation UI wiring ─────────────
 
     use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
@@ -413,6 +2490,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<FloodSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
 
         let victim = world.spawn((PlayerCities::default(), IsHuman)).id();
         let sec_a = world.spawn_empty().id();
@@ -429,7 +2507,13 @@ mod tests {
             fp_pop.add_token_to_area(sec_b, world.spawn_empty().id());
         }
         let fp_area = world
-            .spawn((Name::new("flood plain"), GameArea::new(1), FloodPlain, fp_pop, LandPassage::default()))
+            .spawn((
+                Name::new("flood plain"),
+                GameArea::new(1),
+                FloodPlain,
+                fp_pop,
+                LandPassage::default(),
+            ))
             .id();
 
         let mut state = FloodState::new();
@@ -444,12 +2528,25 @@ mod tests {
 
         // First pass: should pause, not resolve.
         world.run_system_once(advance_flood).unwrap();
-        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_some(), "human victim should be paused for input");
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_some(),
+            "human victim should be paused for input"
+        );
         let selection = world.resource::<FloodSelectionState>();
         assert_eq!(selection.acting_player, Some(victim));
         assert_eq!(selection.total_budget, 10);
-        let ResolvingCalamity::Flood(ref state_after) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
-        assert_eq!(state_after.phase, FloodPhase::ApplySecondaryLoss, "must not advance while waiting for the human");
+        let ResolvingCalamity::Flood(ref state_after) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(
+            state_after.phase,
+            FloodPhase::ApplySecondaryLoss,
+            "must not advance while waiting for the human"
+        );
 
         // Simulate the human choosing to take all 10 from sec_a, nothing from sec_b
         // (as the actual UI buttons would produce), then confirming.
@@ -459,17 +2556,35 @@ mod tests {
                 assert!(selection.increment_current());
             }
         }
-        world.entity_mut(victim).remove::<AwaitingHumanCalamitySelection>();
+        world
+            .entity_mut(victim)
+            .remove::<AwaitingHumanCalamitySelection>();
 
         // Second pass: should read back the choice and resolve.
         world.run_system_once(advance_flood).unwrap();
 
         let fp_pop_after = world.get::<Population>(fp_area).unwrap();
-        assert_eq!(fp_pop_after.population_for_player(sec_a), 10, "all 10 points came from sec_a, per the human's choice");
-        assert_eq!(fp_pop_after.population_for_player(sec_b), 20, "sec_b untouched");
-        let ResolvingCalamity::Flood(ref state_final) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        assert_eq!(
+            fp_pop_after.population_for_player(sec_a),
+            10,
+            "all 10 points came from sec_a, per the human's choice"
+        );
+        assert_eq!(
+            fp_pop_after.population_for_player(sec_b),
+            20,
+            "sec_b untouched"
+        );
+        let ResolvingCalamity::Flood(ref state_final) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
         assert_eq!(state_final.phase, FloodPhase::Complete);
-        assert_eq!(world.resource::<FloodSelectionState>().acting_player, None, "selection state cleared after use");
+        assert_eq!(
+            world.resource::<FloodSelectionState>().acting_player,
+            None,
+            "selection state cleared after use"
+        );
     }
 
     #[test]
@@ -477,6 +2592,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<FloodSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
 
         let victim = world.spawn((PlayerCities::default(), IsHuman)).id();
         let sec_a = world.spawn_empty().id();
@@ -492,7 +2608,13 @@ mod tests {
             fp_pop.add_token_to_area(sec_b, world.spawn_empty().id());
         }
         let fp_area = world
-            .spawn((Name::new("flood plain"), GameArea::new(1), FloodPlain, fp_pop, LandPassage::default()))
+            .spawn((
+                Name::new("flood plain"),
+                GameArea::new(1),
+                FloodPlain,
+                fp_pop,
+                LandPassage::default(),
+            ))
             .id();
 
         let mut state = FloodState::new();
@@ -507,11 +2629,20 @@ mod tests {
 
         world.run_system_once(advance_flood).unwrap();
 
-        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_none(), "no UI should be shown -- there's nothing to choose");
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_none(),
+            "no UI should be shown -- there's nothing to choose"
+        );
         let fp_pop_after = world.get::<Population>(fp_area).unwrap();
         assert_eq!(fp_pop_after.population_for_player(sec_a), 0);
         assert_eq!(fp_pop_after.population_for_player(sec_b), 0);
-        let ResolvingCalamity::Flood(ref state_final) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        let ResolvingCalamity::Flood(ref state_final) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
         assert_eq!(state_final.phase, FloodPhase::Complete);
     }
 
@@ -527,14 +2658,19 @@ mod tests {
     // is removed from tokens, still respecting the existing leave-one-per-area
     // rule.
 
-    use crate::civilization::concepts::resolve_calamities::calamities::epidemic::{EpidemicPhase, EpidemicState};
-    use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{advance_epidemic, DestroyCity};
+    use crate::civilization::concepts::resolve_calamities::calamities::epidemic::{
+        EpidemicPhase, EpidemicState,
+    };
+    use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+        DestroyCity, advance_epidemic,
+    };
 
     #[test]
     fn epidemic_primary_loss_spends_up_to_4_points_on_an_owned_city_then_the_rest_on_tokens() {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::EpidemicSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::UnitLossSelectionState>();
 
         let victim = world.spawn_empty().id();
         let mut pop = Population::new(20);
@@ -544,15 +2680,26 @@ mod tests {
             pop.add_token_to_area(victim, token);
             token_ids.push(token);
         }
-        let city_area = world.spawn((Name::new("city area"), GameArea::new(1), pop, LandPassage::default())).id();
+        let city_area = world
+            .spawn((
+                Name::new("city area"),
+                GameArea::new(1),
+                pop,
+                LandPassage::default(),
+            ))
+            .id();
         let mut player_areas = PlayerAreas::default();
         for token in token_ids {
             player_areas.add_token_to_area(city_area, token);
         }
         let mut player_cities = PlayerCities::default();
         let victim_city_token = world.spawn_empty().id();
-        player_cities.areas_and_cities.insert(city_area, victim_city_token);
-        world.entity_mut(victim).insert((player_areas, player_cities));
+        player_cities
+            .areas_and_cities
+            .insert(city_area, victim_city_token);
+        world
+            .entity_mut(victim)
+            .insert((player_areas, player_cities));
 
         let mut state = EpidemicState::new();
         state.phase = EpidemicPhase::ComputeEffects;
@@ -564,6 +2711,10 @@ mod tests {
             ResolvingCalamity::Epidemic(state),
         ));
 
+        // Two passes: ComputeEffects spends the budget on cities, ApplyPrimaryLoss
+        // takes the remainder off tokens (split so the token half can pause for
+        // a human's choice without re-destroying the city).
+        world.run_system_once(advance_epidemic).unwrap();
         world.run_system_once(advance_epidemic).unwrap();
 
         // The city was marked for destruction (spending 4 of the 6-point budget).
@@ -578,6 +2729,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::EpidemicSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::UnitLossSelectionState>();
 
         let victim = world.spawn_empty().id();
         let mut pop = Population::new(20);
@@ -587,15 +2739,26 @@ mod tests {
             pop.add_token_to_area(victim, token);
             token_ids.push(token);
         }
-        let city_area = world.spawn((Name::new("city area"), GameArea::new(1), pop, LandPassage::default())).id();
+        let city_area = world
+            .spawn((
+                Name::new("city area"),
+                GameArea::new(1),
+                pop,
+                LandPassage::default(),
+            ))
+            .id();
         let mut player_areas = PlayerAreas::default();
         for token in token_ids {
             player_areas.add_token_to_area(city_area, token);
         }
         let mut player_cities = PlayerCities::default();
         let victim_city_token = world.spawn_empty().id();
-        player_cities.areas_and_cities.insert(city_area, victim_city_token);
-        world.entity_mut(victim).insert((player_areas, player_cities));
+        player_cities
+            .areas_and_cities
+            .insert(city_area, victim_city_token);
+        world
+            .entity_mut(victim)
+            .insert((player_areas, player_cities));
 
         let mut state = EpidemicState::new();
         state.phase = EpidemicPhase::ComputeEffects;
@@ -620,6 +2783,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::EpidemicSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::UnitLossSelectionState>();
 
         // Victim has no cities at all -- only an area with tokens.
         let victim = world.spawn_empty().id();
@@ -630,12 +2794,21 @@ mod tests {
             pop.add_token_to_area(victim, token);
             token_ids.push(token);
         }
-        let area = world.spawn((Name::new("area"), GameArea::new(1), pop, LandPassage::default())).id();
+        let area = world
+            .spawn((
+                Name::new("area"),
+                GameArea::new(1),
+                pop,
+                LandPassage::default(),
+            ))
+            .id();
         let mut player_areas = PlayerAreas::default();
         for token in token_ids {
             player_areas.add_token_to_area(area, token);
         }
-        world.entity_mut(victim).insert((player_areas, PlayerCities::default()));
+        world
+            .entity_mut(victim)
+            .insert((player_areas, PlayerCities::default()));
 
         let mut state = EpidemicState::new();
         state.phase = EpidemicPhase::ComputeEffects;
@@ -647,6 +2820,7 @@ mod tests {
             ResolvingCalamity::Epidemic(state),
         ));
 
+        world.run_system_once(advance_epidemic).unwrap();
         world.run_system_once(advance_epidemic).unwrap();
 
         // No city to destroy; the whole budget came off tokens instead: 10 -> 4.
@@ -665,22 +2839,28 @@ mod tests {
     // Medicine, rule 30.613); the UI is skipped entirely when there's
     // nothing to choose (combined secondary caps <=25).
 
+    use crate::civilization::CivCardName;
     use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
     use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::EpidemicSelectionState;
-    use crate::civilization::CivCardName;
 
     #[test]
     fn epidemic_secondary_loss_pauses_for_a_human_primary_victim_and_applies_their_choice() {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<EpidemicSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::UnitLossSelectionState>();
 
         // Four secondary victims: one holds Medicine (cap 5, rule 30.613),
         // the other three don't (cap 10 each). Combined caps 5+10+10+10=35
         // exceed the 25-point budget, so this must trigger the interactive
         // choice, not the automatic "everyone loses everything" path.
         let shared_area = world
-            .spawn((Name::new("shared area"), GameArea::new(1), Population::new(200), LandPassage::default()))
+            .spawn((
+                Name::new("shared area"),
+                GameArea::new(1),
+                Population::new(200),
+                LandPassage::default(),
+            ))
             .id();
 
         let mut secondaries = Vec::new();
@@ -695,7 +2875,10 @@ mod tests {
             let mut areas = PlayerAreas::default();
             for _ in 0..12 {
                 let token = world.spawn_empty().id();
-                world.get_mut::<Population>(shared_area).unwrap().add_token_to_area(sec, token);
+                world
+                    .get_mut::<Population>(shared_area)
+                    .unwrap()
+                    .add_token_to_area(sec, token);
                 areas.add_token_to_area(shared_area, token);
             }
             world.entity_mut(sec).insert(areas);
@@ -718,7 +2901,12 @@ mod tests {
 
         // First pass: should pause, not resolve.
         world.run_system_once(advance_epidemic).unwrap();
-        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_some(), "human victim should be paused for input");
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_some(),
+            "human victim should be paused for input"
+        );
         let selection = world.resource::<EpidemicSelectionState>();
         assert_eq!(selection.acting_player, Some(victim));
         assert_eq!(selection.total_budget, 25);
@@ -730,8 +2918,16 @@ mod tests {
             .find(|&&(e, _, _)| e == secondaries[1])
             .map(|&(_, cap, _)| cap);
         assert_eq!(medicine_victim_cap, Some(5));
-        let ResolvingCalamity::Epidemic(ref state_after) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
-        assert_eq!(state_after.phase, EpidemicPhase::ApplySecondaryLosses, "must not advance while waiting for the human");
+        let ResolvingCalamity::Epidemic(ref state_after) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(
+            state_after.phase,
+            EpidemicPhase::ApplySecondaryLosses,
+            "must not advance while waiting for the human"
+        );
 
         // Simulate the human choosing 10 from the first, 5 (its cap) from
         // the Medicine holder, 10 from the third, 0 from the fourth. Query
@@ -741,9 +2937,21 @@ mod tests {
         // than assuming an order.
         {
             let mut selection = world.resource_mut::<EpidemicSelectionState>();
-            let idx0 = selection.victims.iter().position(|&(e, _, _)| e == secondaries[0]).unwrap();
-            let idx1 = selection.victims.iter().position(|&(e, _, _)| e == secondaries[1]).unwrap();
-            let idx2 = selection.victims.iter().position(|&(e, _, _)| e == secondaries[2]).unwrap();
+            let idx0 = selection
+                .victims
+                .iter()
+                .position(|&(e, _, _)| e == secondaries[0])
+                .unwrap();
+            let idx1 = selection
+                .victims
+                .iter()
+                .position(|&(e, _, _)| e == secondaries[1])
+                .unwrap();
+            let idx2 = selection
+                .victims
+                .iter()
+                .position(|&(e, _, _)| e == secondaries[2])
+                .unwrap();
 
             selection.current_victim_index = idx0;
             for _ in 0..10 {
@@ -758,7 +2966,9 @@ mod tests {
                 assert!(selection.increment_current());
             }
         }
-        world.entity_mut(victim).remove::<AwaitingHumanCalamitySelection>();
+        world
+            .entity_mut(victim)
+            .remove::<AwaitingHumanCalamitySelection>();
 
         // Second pass: reads back the choice, applies it, and (unlike Famine,
         // which has a separate ApplySecondaryLosses phase after its
@@ -768,13 +2978,37 @@ mod tests {
         world.run_system_once(advance_epidemic).unwrap();
 
         let pop_after = world.get::<Population>(shared_area).unwrap();
-        assert_eq!(pop_after.population_for_player(secondaries[0]), 2, "12 - 10");
-        assert_eq!(pop_after.population_for_player(secondaries[1]), 7, "12 - 5 (Medicine cap)");
-        assert_eq!(pop_after.population_for_player(secondaries[2]), 2, "12 - 10");
-        assert_eq!(pop_after.population_for_player(secondaries[3]), 12, "0 chosen");
-        let ResolvingCalamity::Epidemic(ref state_final) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        assert_eq!(
+            pop_after.population_for_player(secondaries[0]),
+            2,
+            "12 - 10"
+        );
+        assert_eq!(
+            pop_after.population_for_player(secondaries[1]),
+            7,
+            "12 - 5 (Medicine cap)"
+        );
+        assert_eq!(
+            pop_after.population_for_player(secondaries[2]),
+            2,
+            "12 - 10"
+        );
+        assert_eq!(
+            pop_after.population_for_player(secondaries[3]),
+            12,
+            "0 chosen"
+        );
+        let ResolvingCalamity::Epidemic(ref state_final) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
         assert_eq!(state_final.phase, EpidemicPhase::Complete);
-        assert_eq!(world.resource::<EpidemicSelectionState>().acting_player, None, "selection state cleared after use");
+        assert_eq!(
+            world.resource::<EpidemicSelectionState>().acting_player,
+            None,
+            "selection state cleared after use"
+        );
     }
 
     #[test]
@@ -782,12 +3016,18 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<EpidemicSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::UnitLossSelectionState>();
 
         // Two secondary victims, neither holds Medicine (cap 10 each):
         // 10+10=20 <= the 25-point budget -- no choice to make, everyone
         // automatically loses everything.
         let shared_area = world
-            .spawn((Name::new("shared area"), GameArea::new(1), Population::new(60), LandPassage::default()))
+            .spawn((
+                Name::new("shared area"),
+                GameArea::new(1),
+                Population::new(60),
+                LandPassage::default(),
+            ))
             .id();
 
         let sec_a = world.spawn((Player, PlayerCities::default())).id();
@@ -796,12 +3036,18 @@ mod tests {
         let mut b_areas = PlayerAreas::default();
         for _ in 0..8 {
             let token = world.spawn_empty().id();
-            world.get_mut::<Population>(shared_area).unwrap().add_token_to_area(sec_a, token);
+            world
+                .get_mut::<Population>(shared_area)
+                .unwrap()
+                .add_token_to_area(sec_a, token);
             a_areas.add_token_to_area(shared_area, token);
         }
         for _ in 0..8 {
             let token = world.spawn_empty().id();
-            world.get_mut::<Population>(shared_area).unwrap().add_token_to_area(sec_b, token);
+            world
+                .get_mut::<Population>(shared_area)
+                .unwrap()
+                .add_token_to_area(sec_b, token);
             b_areas.add_token_to_area(shared_area, token);
         }
         world.entity_mut(sec_a).insert(a_areas);
@@ -823,13 +3069,22 @@ mod tests {
 
         world.run_system_once(advance_epidemic).unwrap();
 
-        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_none(), "no UI should be shown -- there's nothing to choose");
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_none(),
+            "no UI should be shown -- there's nothing to choose"
+        );
         let pop_after = world.get::<Population>(shared_area).unwrap();
         // Rule 30.612: at least one token must be left in each affected area,
         // so even "losing everything" leaves 1 of the original 8 behind.
         assert_eq!(pop_after.population_for_player(sec_a), 1);
         assert_eq!(pop_after.population_for_player(sec_b), 1);
-        let ResolvingCalamity::Epidemic(ref state_final) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        let ResolvingCalamity::Epidemic(ref state_final) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
         assert_eq!(state_final.phase, EpidemicPhase::Complete);
     }
 
@@ -842,7 +3097,9 @@ mod tests {
     // divided (max 8 per secondary victim); the UI is skipped entirely when
     // there's nothing to choose (combined secondary availability <=20).
 
-    use crate::civilization::concepts::resolve_calamities::calamities::famine::{FaminePhase, FamineState};
+    use crate::civilization::concepts::resolve_calamities::calamities::famine::{
+        FaminePhase, FamineState,
+    };
     use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_famine;
     use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::FamineSelectionState;
 
@@ -851,29 +3108,38 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<FamineSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::UnitLossSelectionState>();
 
         // Three secondary victims, each capped at 8 (rule 30.311) even though
         // they each physically have 10 tokens: 8+8+8=24 > 20-point budget, so
         // this must trigger the interactive choice, not the automatic
         // "everyone loses everything" path.
         let shared_area = world
-            .spawn((Name::new("shared area"), GameArea::new(1), Population::new(100), LandPassage::default()))
+            .spawn((
+                Name::new("shared area"),
+                GameArea::new(1),
+                Population::new(100),
+                LandPassage::default(),
+            ))
             .id();
 
         let mut secondaries = Vec::new();
         for _ in 0..3 {
-            let sec = world.spawn(Player).id();
+            let sec = world.spawn((Player, PlayerCities::default())).id();
             let mut areas = PlayerAreas::default();
             for _ in 0..10 {
                 let token = world.spawn_empty().id();
-                world.get_mut::<Population>(shared_area).unwrap().add_token_to_area(sec, token);
+                world
+                    .get_mut::<Population>(shared_area)
+                    .unwrap()
+                    .add_token_to_area(sec, token);
                 areas.add_token_to_area(shared_area, token);
             }
             world.entity_mut(sec).insert(areas);
             secondaries.push(sec);
         }
 
-        let victim = world.spawn(IsHuman).id();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
         let mut victim_areas = PlayerAreas::default();
         victim_areas.add_token_to_area(shared_area, world.spawn_empty().id());
         world.entity_mut(victim).insert(victim_areas);
@@ -889,13 +3155,26 @@ mod tests {
 
         // First pass: should pause, not resolve.
         world.run_system_once(advance_famine).unwrap();
-        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_some(), "human victim should be paused for input");
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_some(),
+            "human victim should be paused for input"
+        );
         let selection = world.resource::<FamineSelectionState>();
         assert_eq!(selection.acting_player, Some(victim));
         assert_eq!(selection.total_budget, 20);
         assert_eq!(selection.victims.len(), 3);
-        let ResolvingCalamity::Famine(ref state_after) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
-        assert_eq!(state_after.phase, FaminePhase::SelectSecondaryVictims, "must not advance while waiting for the human");
+        let ResolvingCalamity::Famine(ref state_after) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(
+            state_after.phase,
+            FaminePhase::SelectSecondaryVictims,
+            "must not advance while waiting for the human"
+        );
 
         // Simulate the human choosing 8 from the first secondary, 8 from the
         // second, 4 from the third (as the actual UI buttons would produce).
@@ -913,7 +3192,9 @@ mod tests {
                 assert!(selection.increment_current());
             }
         }
-        world.entity_mut(victim).remove::<AwaitingHumanCalamitySelection>();
+        world
+            .entity_mut(victim)
+            .remove::<AwaitingHumanCalamitySelection>();
 
         // Second pass: reads back the choice, still needs one more pass to apply it.
         world.run_system_once(advance_famine).unwrap();
@@ -923,9 +3204,17 @@ mod tests {
         assert_eq!(pop_after.population_for_player(secondaries[0]), 2, "10 - 8");
         assert_eq!(pop_after.population_for_player(secondaries[1]), 2, "10 - 8");
         assert_eq!(pop_after.population_for_player(secondaries[2]), 6, "10 - 4");
-        let ResolvingCalamity::Famine(ref state_final) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        let ResolvingCalamity::Famine(ref state_final) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
         assert_eq!(state_final.phase, FaminePhase::Complete);
-        assert_eq!(world.resource::<FamineSelectionState>().acting_player, None, "selection state cleared after use");
+        assert_eq!(
+            world.resource::<FamineSelectionState>().acting_player,
+            None,
+            "selection state cleared after use"
+        );
     }
 
     #[test]
@@ -933,31 +3222,43 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<FamineSelectionState>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::UnitLossSelectionState>();
 
         // Two secondary victims, each capped at 8: 8+8=16 <= the 20-point
         // budget -- no choice to make, everyone automatically loses everything.
         let shared_area = world
-            .spawn((Name::new("shared area"), GameArea::new(1), Population::new(60), LandPassage::default()))
+            .spawn((
+                Name::new("shared area"),
+                GameArea::new(1),
+                Population::new(60),
+                LandPassage::default(),
+            ))
             .id();
 
-        let sec_a = world.spawn(Player).id();
-        let sec_b = world.spawn(Player).id();
+        let sec_a = world.spawn((Player, PlayerCities::default())).id();
+        let sec_b = world.spawn((Player, PlayerCities::default())).id();
         let mut a_areas = PlayerAreas::default();
         let mut b_areas = PlayerAreas::default();
         for _ in 0..8 {
             let token = world.spawn_empty().id();
-            world.get_mut::<Population>(shared_area).unwrap().add_token_to_area(sec_a, token);
+            world
+                .get_mut::<Population>(shared_area)
+                .unwrap()
+                .add_token_to_area(sec_a, token);
             a_areas.add_token_to_area(shared_area, token);
         }
         for _ in 0..8 {
             let token = world.spawn_empty().id();
-            world.get_mut::<Population>(shared_area).unwrap().add_token_to_area(sec_b, token);
+            world
+                .get_mut::<Population>(shared_area)
+                .unwrap()
+                .add_token_to_area(sec_b, token);
             b_areas.add_token_to_area(shared_area, token);
         }
         world.entity_mut(sec_a).insert(a_areas);
         world.entity_mut(sec_b).insert(b_areas);
 
-        let victim = world.spawn(IsHuman).id();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
         let mut victim_areas = PlayerAreas::default();
         victim_areas.add_token_to_area(shared_area, world.spawn_empty().id());
         world.entity_mut(victim).insert(victim_areas);
@@ -974,11 +3275,20 @@ mod tests {
         world.run_system_once(advance_famine).unwrap();
         world.run_system_once(advance_famine).unwrap();
 
-        assert!(world.get::<AwaitingHumanCalamitySelection>(victim).is_none(), "no UI should be shown -- there's nothing to choose");
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_none(),
+            "no UI should be shown -- there's nothing to choose"
+        );
         let pop_after = world.get::<Population>(shared_area).unwrap();
         assert_eq!(pop_after.population_for_player(sec_a), 0);
         assert_eq!(pop_after.population_for_player(sec_b), 0);
-        let ResolvingCalamity::Famine(ref state_final) = *world.get::<ResolvingCalamity>(victim).unwrap() else { panic!() };
+        let ResolvingCalamity::Famine(ref state_final) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
         assert_eq!(state_final.phase, FaminePhase::Complete);
     }
 
@@ -990,14 +3300,14 @@ mod tests {
     // module's own state math -- that's the whole point of the rewrite (see
     // BarbarianHordesState's doc comment).
 
+    use crate::GameActivity;
     use crate::civilization::concepts::conflict::{
-        on_add_unresolved_city_conflict, on_add_unresolved_conflict, ConflictCounterResource,
-        UnresolvedCityConflict, UnresolvedConflict,
+        ConflictCounterResource, UnresolvedCityConflict, UnresolvedConflict,
+        on_add_unresolved_city_conflict, on_add_unresolved_conflict,
     };
     use crate::civilization::concepts::resolve_calamities::calamities::barbarian_hordes::BarbarianHordesState;
     use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::advance_barbarian_hordes;
     use crate::civilization::{CameraFocusQueue, GameFaction};
-    use crate::GameActivity;
 
     /// Common resource wiring the conflict observers need to run at all,
     /// independent of the actual Conflict-phase state machinery (this test
@@ -1009,6 +3319,7 @@ mod tests {
         world.init_resource::<ConflictCounterResource>();
         world.init_resource::<NextState<GameActivity>>();
         world.init_resource::<CameraFocusQueue>();
+        world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
         world.add_observer(on_add_unresolved_conflict);
         world.add_observer(on_add_unresolved_city_conflict);
         world
@@ -1027,8 +3338,12 @@ mod tests {
             world.run_system_once(advance_barbarian_hordes).unwrap();
             world.flush();
         }
-        let stuck_phase = world.get::<ResolvingCalamity>(victim).map(|rc| format!("{rc:?}"));
-        panic!("Barbarian Hordes resolution did not converge within 40 ticks; stuck at: {stuck_phase:?}");
+        let stuck_phase = world
+            .get::<ResolvingCalamity>(victim)
+            .map(|rc| format!("{rc:?}"));
+        panic!(
+            "Barbarian Hordes resolution did not converge within 40 ticks; stuck at: {stuck_phase:?}"
+        );
     }
 
     fn start_barbarian_hordes(world: &mut World, victim: Entity) {
@@ -1039,10 +3354,170 @@ mod tests {
         ));
     }
 
+    /// Rule 30.525: "The player who traded the calamity to the primary victim
+    /// selects which area Barbarians enter when there is a tie." Ties used to
+    /// go to whichever candidate was seen first.
+    #[test]
+    fn a_human_trader_breaks_the_barbarian_landing_tie() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
+            AwaitingHumanCalamitySelection, CalamitySelectionState,
+        };
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = barbarian_test_world();
+        let victim = world
+            .spawn((
+                Player,
+                Faction {
+                    faction: GameFaction::Egypt,
+                },
+            ))
+            .id();
+        let trader = world
+            .spawn((Player, IsHuman, TokenStock::new(47, vec![])))
+            .id();
+
+        // Two start areas with identical victim presence: a real tie.
+        let mut start_areas = Vec::new();
+        for n in 0..2 {
+            let mut pop = Population::new(6);
+            let token = world.spawn_empty().id();
+            pop.add_token_to_area(victim, token);
+            start_areas.push(
+                world
+                    .spawn((
+                        Name::new(format!("start-{n}")),
+                        GameArea::new(n),
+                        StartArea::new(GameFaction::Egypt),
+                        pop,
+                        LandPassage::default(),
+                        Transform::default(),
+                    ))
+                    .id(),
+            );
+        }
+
+        let context = CalamityContext::new(TradeCard::BarbarianHordes, victim, Some(trader));
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::BarbarianHordes(BarbarianHordesState::new()),
+        ));
+
+        world.run_system_once(advance_barbarian_hordes).unwrap();
+        world.flush();
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(trader)
+                .is_some(),
+            "the trader directs the horde on a tie"
+        );
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_none()
+        );
+
+        {
+            let mut selection = world.resource_mut::<CalamitySelectionState>();
+            while selection.current_city() != Some(start_areas[1]) {
+                selection.next();
+            }
+            selection.toggle_current();
+        }
+        world
+            .entity_mut(trader)
+            .remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_barbarian_hordes).unwrap();
+        world.flush();
+
+        let ResolvingCalamity::BarbarianHordes(ref state) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(
+            state.landing_area,
+            Some(start_areas[1]),
+            "the area the trader picked"
+        );
+    }
+
+    /// No tie, no prompt: the single worst start area is taken outright.
+    #[test]
+    fn a_clear_worst_start_area_needs_no_tie_break() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::AwaitingHumanCalamitySelection;
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = barbarian_test_world();
+        let victim = world
+            .spawn((
+                Player,
+                Faction {
+                    faction: GameFaction::Egypt,
+                },
+            ))
+            .id();
+        let trader = world
+            .spawn((Player, IsHuman, TokenStock::new(47, vec![])))
+            .id();
+
+        let mut areas = Vec::new();
+        for (n, tokens) in [(0, 1usize), (1, 4usize)] {
+            let mut pop = Population::new(8);
+            for _ in 0..tokens {
+                let token = world.spawn_empty().id();
+                pop.add_token_to_area(victim, token);
+            }
+            areas.push(
+                world
+                    .spawn((
+                        Name::new(format!("start-{n}")),
+                        GameArea::new(n),
+                        StartArea::new(GameFaction::Egypt),
+                        pop,
+                        LandPassage::default(),
+                        Transform::default(),
+                    ))
+                    .id(),
+            );
+        }
+
+        let context = CalamityContext::new(TradeCard::BarbarianHordes, victim, Some(trader));
+        world.entity_mut(victim).insert((
+            ActiveCalamityResolution::new(context),
+            ResolvingCalamity::BarbarianHordes(BarbarianHordesState::new()),
+        ));
+
+        world.run_system_once(advance_barbarian_hordes).unwrap();
+        world.flush();
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(trader)
+                .is_none()
+        );
+        let ResolvingCalamity::BarbarianHordes(ref state) =
+            *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(
+            state.landing_area,
+            Some(areas[1]),
+            "the area causing the most damage"
+        );
+    }
+
     #[test]
     fn crete_is_immune_and_never_places_any_tokens() {
         let mut world = barbarian_test_world();
-        let victim = world.spawn(Faction { faction: GameFaction::Crete }).id();
+        let victim = world
+            .spawn(Faction {
+                faction: GameFaction::Crete,
+            })
+            .id();
         start_barbarian_hordes(&mut world, victim);
 
         run_barbarian_hordes_to_completion(&mut world, victim);
@@ -1050,7 +3525,7 @@ mod tests {
         // Resolved with no landing area / owner entity ever set -- proves it
         // short-circuited at FindLandingArea (rule 30.527) rather than
         // placing and then somehow reversing.
-        assert!(world.resource::<Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>().len() == 1);
+        assert_eq!(world.resource::<Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>().len(), 1);
     }
 
     #[test]
@@ -1062,7 +3537,11 @@ mod tests {
         // uses (handle_unequal_lengths: repeatedly pops the weakest
         // remaining player), not by a point-budget subtraction.
         let mut world = barbarian_test_world();
-        let victim = world.spawn(Faction { faction: GameFaction::Egypt }).id();
+        let victim = world
+            .spawn(Faction {
+                faction: GameFaction::Egypt,
+            })
+            .id();
 
         let mut pop = Population::new(4);
         let victim_tokens: Vec<Entity> = (0..2).map(|_| world.spawn_empty().id()).collect();
@@ -1085,7 +3564,8 @@ mod tests {
 
         let pop_after = world.get::<Population>(landing).unwrap();
         assert_eq!(
-            pop_after.population_for_player(victim), 0,
+            pop_after.population_for_player(victim),
+            0,
             "2 victim tokens cannot survive real conflict resolution against 15 barbarian tokens"
         );
     }
@@ -1097,7 +3577,11 @@ mod tests {
         // the (here: only, so trivially "greatest damage") adjacent area and
         // fight again there too.
         let mut world = barbarian_test_world();
-        let victim = world.spawn(Faction { faction: GameFaction::Egypt }).id();
+        let victim = world
+            .spawn(Faction {
+                faction: GameFaction::Egypt,
+            })
+            .id();
 
         // Landing area: 1 victim token, low max_population so almost all 15
         // barbarians become surplus after this one-sided fight.
@@ -1112,7 +3596,13 @@ mod tests {
             second_pop.add_token_to_area(victim, t);
         }
         let second_area = world
-            .spawn((Name::new("second"), GameArea::new(2), second_pop, LandPassage::default(), Transform::default()))
+            .spawn((
+                Name::new("second"),
+                GameArea::new(2),
+                second_pop,
+                LandPassage::default(),
+                Transform::default(),
+            ))
             .id();
         landing_passage.add_passage(second_area);
         world.spawn((
@@ -1133,7 +3623,8 @@ mod tests {
         // exercised in the single-area test above.
         let second_pop_after = world.get::<Population>(second_area).unwrap();
         assert_eq!(
-            second_pop_after.population_for_player(victim), 0,
+            second_pop_after.population_for_player(victim),
+            0,
             "the movement cascade must reach the second area and trigger real conflict there"
         );
     }
@@ -1147,13 +3638,17 @@ mod tests {
         let mut world = barbarian_test_world();
 
         let spare_city_token = world.spawn_empty().id();
-        let victim = world.spawn((
-            Faction { faction: GameFaction::Egypt },
-            TokenStock::new(0, vec![]),
-            CityTokenStock::new(1, vec![spare_city_token]),
-            PlayerCities::default(),
-            PlayerAreas::default(),
-        )).id();
+        let victim = world
+            .spawn((
+                Faction {
+                    faction: GameFaction::Egypt,
+                },
+                TokenStock::new(0, vec![]),
+                CityTokenStock::new(1, vec![spare_city_token]),
+                PlayerCities::default(),
+                PlayerAreas::default(),
+            ))
+            .id();
         // Give the victim one trade card -- if 30.526 is violated, this gets
         // removed even though no Barbarian PlayerTradeCards exists to receive it.
         let mut victim_cards = PlayerTradeCards::default();
@@ -1185,7 +3680,11 @@ mod tests {
         assert!(world.get::<BuiltCity>(landing).is_none());
         // ... and the victim's trade card must still be there.
         let cards_after = world.get::<PlayerTradeCards>(victim).unwrap();
-        assert_eq!(cards_after.number_of_trade_cards(), 1, "rule 30.526: no card draw on a Barbarian city kill");
+        assert_eq!(
+            cards_after.number_of_trade_cards(),
+            1,
+            "rule 30.526: no card draw on a Barbarian city kill"
+        );
     }
 
     // ── Rule 30.91: Piracy -- real Pirate cities, not a beneficiary transfer ──
@@ -1195,7 +3694,7 @@ mod tests {
     // the actual advance_piracy system, not just PiracyState's own math.
 
     use crate::civilization::concepts::check_city_support::{
-        start_check_city_support, HasTooManyCities, NeedsToCheckCitySupport,
+        HasTooManyCities, NeedsToCheckCitySupport, start_check_city_support,
     };
     use crate::civilization::concepts::resolve_calamities::calamities::piracy::PiracyState;
     use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
@@ -1229,7 +3728,9 @@ mod tests {
             world.run_system_once(transfer_city_to_new_owner).unwrap();
             world.flush();
         }
-        let stuck_phase = world.get::<ResolvingCalamity>(victim).map(|rc| format!("{rc:?}"));
+        let stuck_phase = world
+            .get::<ResolvingCalamity>(victim)
+            .map(|rc| format!("{rc:?}"));
         panic!("Piracy resolution did not converge within 20 ticks; stuck at: {stuck_phase:?}");
     }
 
@@ -1271,7 +3772,9 @@ mod tests {
             world.entity_mut(owner).insert(cities);
         }
         if world.get::<CityTokenStock>(owner).is_none() {
-            world.entity_mut(owner).insert(CityTokenStock::new(9, vec![]));
+            world
+                .entity_mut(owner)
+                .insert(CityTokenStock::new(9, vec![]));
         }
         area
     }
@@ -1281,6 +3784,99 @@ mod tests {
             .query_filtered::<Entity, With<PirateNation>>()
             .single(world)
             .expect("a PirateNation entity must exist after Piracy resolves")
+    }
+
+    /// Rule 30.911: "The trading player selects the cities." A human trader
+    /// picks which 2 of the victim's coastal cities become Pirate cities;
+    /// previously the first 2 in iteration order were taken silently.
+    #[test]
+    fn a_human_trader_picks_which_coastal_cities_piracy_takes() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::AwaitingHumanCalamitySelection;
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = piracy_test_world();
+        let victim = world.spawn(Player).id();
+        let trader = world
+            .spawn((Player, IsHuman, TokenStock::new(47, vec![])))
+            .id();
+
+        let coastal: Vec<Entity> = (0..3)
+            .map(|n| spawn_city_for(&mut world, victim, &format!("coastal-{n}"), true))
+            .collect();
+
+        start_piracy(&mut world, victim, Some(trader));
+
+        // EnsurePirateNation, then the selection pause.
+        world.run_system_once(advance_piracy).unwrap();
+        world.flush();
+        world.run_system_once(advance_piracy).unwrap();
+        world.flush();
+
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(trader)
+                .is_some(),
+            "the trader chooses, not the victim"
+        );
+        assert!(
+            world
+                .get::<AwaitingHumanCalamitySelection>(victim)
+                .is_none()
+        );
+        assert_eq!(
+            world.resource::<CalamitySelectionState>().player,
+            Some(trader)
+        );
+        assert_eq!(world.resource::<CalamitySelectionState>().required_count, 2);
+
+        // Trader picks the last two.
+        {
+            let mut selection = world.resource_mut::<CalamitySelectionState>();
+            for want in [coastal[1], coastal[2]] {
+                while selection.current_city() != Some(want) {
+                    selection.next();
+                }
+                selection.toggle_current();
+            }
+            assert!(selection.selection_complete());
+        }
+        world
+            .entity_mut(trader)
+            .remove::<AwaitingHumanCalamitySelection>();
+
+        world.run_system_once(advance_piracy).unwrap();
+        world.flush();
+
+        let ResolvingCalamity::Piracy(ref state) = *world.get::<ResolvingCalamity>(victim).unwrap()
+        else {
+            panic!()
+        };
+        let chosen = state.cities_to_replace.clone();
+        assert_eq!(chosen.len(), 2);
+        assert!(chosen.contains(&coastal[1]) && chosen.contains(&coastal[2]));
+        assert!(!chosen.contains(&coastal[0]), "the city the trader spared");
+    }
+
+    /// 30.911 targets coastal cities only. A victim whose cities are all
+    /// inland keeps every one of them -- 30.912 still hits the secondary
+    /// victims, which is precisely why the rule spells that case out.
+    #[test]
+    fn piracy_never_substitutes_an_inland_city_for_the_primary_victim() {
+        let mut world = piracy_test_world();
+        let victim = world.spawn(Player).id();
+        let inland_1 = spawn_city_for(&mut world, victim, "inland-1", false);
+        let inland_2 = spawn_city_for(&mut world, victim, "inland-2", false);
+
+        start_piracy(&mut world, victim, None);
+        run_piracy_to_completion(&mut world, victim);
+
+        for area in [inland_1, inland_2] {
+            let city = world.get::<BuiltCity>(area).expect("city still standing");
+            assert_eq!(
+                city.player, victim,
+                "an inland city is never a Piracy target"
+            );
+        }
     }
 
     #[test]
@@ -1298,14 +3894,26 @@ mod tests {
 
         let pirate_nation = find_pirate_nation(&mut world);
         for area in [coastal_1, coastal_2] {
-            let built_city = world.get::<BuiltCity>(area).expect("area must still have a city");
-            assert_eq!(built_city.player, pirate_nation, "coastal city must now be Pirate-owned");
+            let built_city = world
+                .get::<BuiltCity>(area)
+                .expect("area must still have a city");
+            assert_eq!(
+                built_city.player, pirate_nation,
+                "coastal city must now be Pirate-owned"
+            );
         }
         let inland_city = world.get::<BuiltCity>(inland).unwrap();
-        assert_eq!(inland_city.player, victim, "the inland city must be untouched");
+        assert_eq!(
+            inland_city.player, victim,
+            "the inland city must be untouched"
+        );
 
         let victim_cities = world.get::<PlayerCities>(victim).unwrap();
-        assert_eq!(victim_cities.number_of_cities(), 1, "victim keeps only the inland city");
+        assert_eq!(
+            victim_cities.number_of_cities(),
+            1,
+            "victim keeps only the inland city"
+        );
     }
 
     #[test]
@@ -1323,22 +3931,26 @@ mod tests {
         let trader_city = spawn_city_for(&mut world, trader, "trader-coastal", true);
 
         let first_secondary = world.spawn((Player, TokenStock::new(0, vec![]))).id();
-        let first_secondary_city = spawn_city_for(&mut world, first_secondary, "first-secondary-coastal", true);
+        let first_secondary_city =
+            spawn_city_for(&mut world, first_secondary, "first-secondary-coastal", true);
 
         let other_secondary = world.spawn((Player, TokenStock::new(0, vec![]))).id();
-        let other_secondary_city = spawn_city_for(&mut world, other_secondary, "other-secondary-coastal", true);
+        let other_secondary_city =
+            spawn_city_for(&mut world, other_secondary, "other-secondary-coastal", true);
 
         start_piracy(&mut world, victim, Some(trader));
         run_piracy_to_completion(&mut world, victim);
 
         let pirate_nation = find_pirate_nation(&mut world);
         assert_eq!(
-            world.get::<BuiltCity>(trader_city).unwrap().player, trader,
+            world.get::<BuiltCity>(trader_city).unwrap().player,
+            trader,
             "rule 30.912: the trading player may not be a secondary victim"
         );
         for area in [first_secondary_city, other_secondary_city] {
             assert_eq!(
-                world.get::<BuiltCity>(area).unwrap().player, pirate_nation,
+                world.get::<BuiltCity>(area).unwrap().player,
+                pirate_nation,
                 "the other 2 players must each lose their coastal city to the Pirate nation"
             );
         }
@@ -1361,7 +3973,9 @@ mod tests {
         world.flush();
 
         assert!(
-            world.get::<NeedsToCheckCitySupport>(pirate_nation).is_none(),
+            world
+                .get::<NeedsToCheckCitySupport>(pirate_nation)
+                .is_none(),
             "the Pirate nation must never be flagged for a city support check"
         );
         assert!(
@@ -1388,7 +4002,10 @@ mod tests {
         start_piracy(&mut world, victim, None);
         run_piracy_to_completion(&mut world, victim);
         let pirate_nation = find_pirate_nation(&mut world);
-        assert_eq!(world.get::<BuiltCity>(city_area).unwrap().player, pirate_nation);
+        assert_eq!(
+            world.get::<BuiltCity>(city_area).unwrap().player,
+            pirate_nation
+        );
 
         // A real attacker: 8 tokens (>= the base 7-token attack threshold,
         // neither side has Engineering) placed directly in the Pirate
@@ -1490,7 +4107,12 @@ mod tests {
             pop.add_token_to_area(owner, t);
         }
         let area = world
-            .spawn((Name::new("victim-heartland"), GameArea::new(1), pop, Transform::default()))
+            .spawn((
+                Name::new("victim-heartland"),
+                GameArea::new(1),
+                pop,
+                Transform::default(),
+            ))
             .id();
         {
             let mut areas = world.get_mut::<PlayerAreas>(owner).unwrap();
@@ -1519,7 +4141,9 @@ mod tests {
                 return;
             }
             if let Some(acting) = world.resource::<CivilWarSelectionState>().acting_player
-                && world.get::<AwaitingHumanCalamitySelection>(acting).is_some()
+                && world
+                    .get::<AwaitingHumanCalamitySelection>(acting)
+                    .is_some()
             {
                 let role = world.resource::<CivilWarSelectionState>().role.clone();
                 match role {
@@ -1535,15 +4159,23 @@ mod tests {
                     }
                     CivilWarUiRole::ChooseFaction => {
                         let mut cw = world.resource_mut::<CivilWarSelectionState>();
-                        cw.choose_faction(if keep_second { FactionChoice::Second } else { FactionChoice::First });
+                        cw.choose_faction(if keep_second {
+                            FactionChoice::Second
+                        } else {
+                            FactionChoice::First
+                        });
                     }
                 }
-                world.entity_mut(acting).remove::<AwaitingHumanCalamitySelection>();
+                world
+                    .entity_mut(acting)
+                    .remove::<AwaitingHumanCalamitySelection>();
             }
             world.run_system_once(advance_civil_war).unwrap();
             world.flush();
         }
-        let stuck_phase = world.get::<ResolvingCalamity>(victim).map(|rc| format!("{rc:?}"));
+        let stuck_phase = world
+            .get::<ResolvingCalamity>(victim)
+            .map(|rc| format!("{rc:?}"));
         panic!("Civil War resolution did not converge within 30 ticks; stuck at: {stuck_phase:?}");
     }
 
@@ -1568,21 +4200,42 @@ mod tests {
         // remaining 5. 30.415: victim keeps the second faction, so the first
         // faction (35 tokens) transfers to the beneficiary.
         let pop_after = world.get::<Population>(area).unwrap();
-        let victim_remaining = pop_after.tokens_for_player(&victim).cloned().unwrap_or_default();
-        let beneficiary_now_present = pop_after.tokens_for_player(&beneficiary).cloned().unwrap_or_default();
+        let victim_remaining = pop_after
+            .tokens_for_player(&victim)
+            .cloned()
+            .unwrap_or_default();
+        let beneficiary_now_present = pop_after
+            .tokens_for_player(&beneficiary)
+            .cloned()
+            .unwrap_or_default();
 
-        assert_eq!(victim_remaining.len(), 5, "victim keeps exactly the untransferred second faction");
+        assert_eq!(
+            victim_remaining.len(),
+            5,
+            "victim keeps exactly the untransferred second faction"
+        );
         assert!(
             victim_remaining.is_subset(&board_tokens.iter().copied().collect::<HashSet<_>>()),
             "the tokens the victim kept must be original board tokens, untouched"
         );
-        assert_eq!(beneficiary_now_present.len(), 35, "the beneficiary's own tokens replace the transferred 35");
+        assert_eq!(
+            beneficiary_now_present.len(),
+            35,
+            "the beneficiary's own tokens replace the transferred 35"
+        );
 
         let victim_stock = world.get::<TokenStock>(victim).unwrap();
-        assert_eq!(victim_stock.tokens_in_stock(), 5 /* starting stock */ + 35 /* returned */);
+        assert_eq!(
+            victim_stock.tokens_in_stock(),
+            5 /* starting stock */ + 35 /* returned */
+        );
 
         let beneficiary_stock = world.get::<TokenStock>(beneficiary).unwrap();
-        assert_eq!(beneficiary_stock.tokens_in_stock(), 200 - 35, "beneficiary drew 35 replacement tokens from its own stock");
+        assert_eq!(
+            beneficiary_stock.tokens_in_stock(),
+            200 - 35,
+            "beneficiary drew 35 replacement tokens from its own stock"
+        );
     }
 
     /// Rule 30.415, AI default: with no explicit choice, the AI keeps
@@ -1601,11 +4254,25 @@ mod tests {
         run_civil_war_to_completion(&mut world, victim, false);
 
         let pop_after = world.get::<Population>(area).unwrap();
-        let victim_remaining = pop_after.tokens_for_player(&victim).cloned().unwrap_or_default();
-        let beneficiary_now_present = pop_after.tokens_for_player(&beneficiary).cloned().unwrap_or_default();
+        let victim_remaining = pop_after
+            .tokens_for_player(&victim)
+            .cloned()
+            .unwrap_or_default();
+        let beneficiary_now_present = pop_after
+            .tokens_for_player(&beneficiary)
+            .cloned()
+            .unwrap_or_default();
 
-        assert_eq!(victim_remaining.len(), 35, "AI kept the bigger (first) faction");
-        assert_eq!(beneficiary_now_present.len(), 5, "only the smaller (second) faction transferred");
+        assert_eq!(
+            victim_remaining.len(),
+            35,
+            "AI kept the bigger (first) faction"
+        );
+        assert_eq!(
+            beneficiary_now_present.len(),
+            5,
+            "only the smaller (second) faction transferred"
+        );
     }
 
     /// Rule 30.413: if the first faction (15 + 20 = 35 pts) consumes the
@@ -1623,15 +4290,26 @@ mod tests {
         run_civil_war_to_completion(&mut world, victim, false);
 
         let pop_after = world.get::<Population>(area).unwrap();
-        let victim_remaining = pop_after.tokens_for_player(&victim).cloned().unwrap_or_default();
+        let victim_remaining = pop_after
+            .tokens_for_player(&victim)
+            .cloned()
+            .unwrap_or_default();
         assert_eq!(
-            victim_remaining, board_tokens.iter().copied().collect::<HashSet<_>>(),
+            victim_remaining,
+            board_tokens.iter().copied().collect::<HashSet<_>>(),
             "the whole board must be untouched -- 30.413 fizzles the calamity"
         );
-        assert!(pop_after.tokens_for_player(&beneficiary).is_none(), "nothing transfers when there's no second faction");
+        assert!(
+            pop_after.tokens_for_player(&beneficiary).is_none(),
+            "nothing transfers when there's no second faction"
+        );
 
         let victim_stock = world.get::<TokenStock>(victim).unwrap();
-        assert_eq!(victim_stock.tokens_in_stock(), 5, "no tokens returned to stock -- nothing was ever selected for transfer");
+        assert_eq!(
+            victim_stock.tokens_in_stock(),
+            5,
+            "no tokens returned to stock -- nothing was ever selected for transfer"
+        );
     }
 
     /// Rule 30.414: Military removes 5 points from EACH faction before the
@@ -1647,14 +4325,22 @@ mod tests {
         let beneficiary = spawn_civil_war_player(&mut world, 200);
 
         let (area, _board_tokens) = place_tokens(&mut world, victim, 60);
-        start_civil_war(&mut world, victim, CivilWarState::new().with_military_penalty());
+        start_civil_war(
+            &mut world,
+            victim,
+            CivilWarState::new().with_military_penalty(),
+        );
 
         run_civil_war_to_completion(&mut world, victim, false);
 
         let pop_after = world.get::<Population>(area).unwrap();
-        let beneficiary_now_present = pop_after.tokens_for_player(&beneficiary).cloned().unwrap_or_default();
+        let beneficiary_now_present = pop_after
+            .tokens_for_player(&beneficiary)
+            .cloned()
+            .unwrap_or_default();
         assert_eq!(
-            beneficiary_now_present.len(), 20,
+            beneficiary_now_present.len(),
+            20,
             "30.414: the second faction (25 pts) must be reduced to 20 before transferring"
         );
     }

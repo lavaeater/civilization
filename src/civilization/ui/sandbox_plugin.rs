@@ -1,7 +1,7 @@
-use lava_ui_builder::{UIBuilder, LavaTheme};
+use lava_ui_builder::{LavaTheme, UIBuilder};
 
-use crate::civilization::{setup_players, AvailableFactions, GameFaction};
 use crate::GameState;
+use crate::civilization::{AvailableFactions, GameFaction, setup_players};
 use bevy::prelude::*;
 pub struct SandboxPlugin;
 
@@ -76,9 +76,7 @@ const CONTROL_PANEL_COLOR: Color = Color::srgba(0.2, 0.2, 0.2, 0.95);
 const CONTROL_BTN_COLOR: Color = Color::srgba(0.4, 0.4, 0.4, 1.0);
 const CONTROL_BTN_HOVER: Color = Color::srgba(0.5, 0.5, 0.5, 1.0);
 
-fn setup_factions(
-    mut available_factions: ResMut<AvailableFactions>
-) {
+fn setup_factions(mut available_factions: ResMut<AvailableFactions>) {
     for faction in [
         GameFaction::Egypt,
         GameFaction::Crete,

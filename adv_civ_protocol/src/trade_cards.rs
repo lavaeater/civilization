@@ -13,36 +13,36 @@ pub trait TradeCardTrait: Copy + Clone + Reflect + Display + Eq + Hash + Partial
 
 #[derive(Clone, Deserialize, Serialize, Debug, Eq, Hash, PartialEq, Reflect, Copy)]
 pub enum TradeCard {
-    Ochre, //1
-    Hides, //1
-    Iron,  //2
-    Papyrus, //2
-    Salt, //3
-    Timber, //3
-    Grain, //4
-    Oil, //4
-    Cloth, //5
-    Wine, //5
-    Bronze, //6
-    Silver, //6
-    Spices, //7
-    Resin, //7
-    Gems, //8
-    Dye, //8
-    Gold, //9
-    Ivory, //9
-    VolcanoEarthquake, //2
-    Treachery, //2, true
-    Famine, //3, false
-    Superstition, //3, true
-    CivilWar, //4, false
-    SlaveRevolt, //4, true
-    Flood, //5, false
-    BarbarianHordes, //5, true
-    Epidemic, //6, true
-    CivilDisorder, //7, true
+    Ochre,               //1
+    Hides,               //1
+    Iron,                //2
+    Papyrus,             //2
+    Salt,                //3
+    Timber,              //3
+    Grain,               //4
+    Oil,                 //4
+    Cloth,               //5
+    Wine,                //5
+    Bronze,              //6
+    Silver,              //6
+    Spices,              //7
+    Resin,               //7
+    Gems,                //8
+    Dye,                 //8
+    Gold,                //9
+    Ivory,               //9
+    VolcanoEarthquake,   //2
+    Treachery,           //2, true
+    Famine,              //3, false
+    Superstition,        //3, true
+    CivilWar,            //4, false
+    SlaveRevolt,         //4, true
+    Flood,               //5, false
+    BarbarianHordes,     //5, true
+    Epidemic,            //6, true
+    CivilDisorder,       //7, true
     IconoclasmAndHeresy, //8, true
-    Piracy, //9, true
+    Piracy,              //9, true
 }
 
 impl TradeCardTrait for TradeCard {
@@ -100,36 +100,43 @@ impl TradeCardTrait for TradeCard {
     }
 
     fn is_commodity(&self) -> bool {
-        !matches!(*self, 
-            TradeCard::VolcanoEarthquake |
-            TradeCard::Treachery |
-            TradeCard::Famine |
-            TradeCard::Superstition |
-            TradeCard::CivilWar |
-            TradeCard::SlaveRevolt |
-            TradeCard::Flood |
-            TradeCard::BarbarianHordes |
-            TradeCard::Epidemic |
-            TradeCard::CivilDisorder |
-            TradeCard::IconoclasmAndHeresy |
-            TradeCard::Piracy)
+        !matches!(
+            *self,
+            TradeCard::VolcanoEarthquake
+                | TradeCard::Treachery
+                | TradeCard::Famine
+                | TradeCard::Superstition
+                | TradeCard::CivilWar
+                | TradeCard::SlaveRevolt
+                | TradeCard::Flood
+                | TradeCard::BarbarianHordes
+                | TradeCard::Epidemic
+                | TradeCard::CivilDisorder
+                | TradeCard::IconoclasmAndHeresy
+                | TradeCard::Piracy
+        )
     }
 
     fn is_calamity(&self) -> bool {
-        matches!(*self, TradeCard::VolcanoEarthquake |
-            TradeCard::Treachery |
-            TradeCard::Famine |
-            TradeCard::Superstition |
-            TradeCard::CivilWar |
-            TradeCard::SlaveRevolt |
-            TradeCard::Flood |
-            TradeCard::BarbarianHordes |
-            TradeCard::Epidemic |
-            TradeCard::CivilDisorder |
-            TradeCard::IconoclasmAndHeresy |
-            TradeCard::Piracy)
+        matches!(
+            *self,
+            TradeCard::VolcanoEarthquake
+                | TradeCard::Treachery
+                | TradeCard::Famine
+                | TradeCard::Superstition
+                | TradeCard::CivilWar
+                | TradeCard::SlaveRevolt
+                | TradeCard::Flood
+                | TradeCard::BarbarianHordes
+                | TradeCard::Epidemic
+                | TradeCard::CivilDisorder
+                | TradeCard::IconoclasmAndHeresy
+                | TradeCard::Piracy
+        )
     }
 
+    // Every calamity is a single physical card (one of each in the game);
+    // commodities come in stacks.
     fn number_of_cards(&self) -> usize {
         match *self {
             TradeCard::Ochre => 7,
@@ -150,18 +157,18 @@ impl TradeCardTrait for TradeCard {
             TradeCard::Dye => 4,
             TradeCard::Gold => 5,
             TradeCard::Ivory => 4,
-            TradeCard::VolcanoEarthquake => 2,
-            TradeCard::Treachery => 2,
-            TradeCard::Famine => 3,
-            TradeCard::Superstition => 3,
-            TradeCard::CivilWar => 4,
-            TradeCard::SlaveRevolt => 4,
-            TradeCard::Flood => 5,
-            TradeCard::BarbarianHordes => 5,
-            TradeCard::Epidemic => 6,
-            TradeCard::CivilDisorder => 7,
-            TradeCard::IconoclasmAndHeresy => 8,
-            TradeCard::Piracy => 9,
+            TradeCard::VolcanoEarthquake => 1,
+            TradeCard::Treachery => 1,
+            TradeCard::Famine => 1,
+            TradeCard::Superstition => 1,
+            TradeCard::CivilWar => 1,
+            TradeCard::SlaveRevolt => 1,
+            TradeCard::Flood => 1,
+            TradeCard::BarbarianHordes => 1,
+            TradeCard::Epidemic => 1,
+            TradeCard::CivilDisorder => 1,
+            TradeCard::IconoclasmAndHeresy => 1,
+            TradeCard::Piracy => 1,
         }
     }
 }
@@ -265,7 +272,7 @@ impl Display for TradeCard {
 
 // Extend Commodity to iterate through all variants
 impl TradeCard {
-    pub fn iter() -> impl Iterator<Item =TradeCard> {
+    pub fn iter() -> impl Iterator<Item = TradeCard> {
         [
             TradeCard::Ochre,
             TradeCard::Hides,

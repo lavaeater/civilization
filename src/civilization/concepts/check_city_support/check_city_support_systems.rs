@@ -1,12 +1,16 @@
-use crate::civilization::components::*;
-use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
+use crate::GameActivity;
 use crate::civilization::CivCardName;
+use crate::civilization::components::*;
 use crate::civilization::concepts::check_city_support::check_city_support_components::*;
 use crate::civilization::concepts::check_city_support::check_city_support_events::*;
+use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::PirateNation;
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
-use crate::GameActivity;
-use bevy::prelude::{error, info, Commands, Entity, MessageReader, MessageWriter, NextState, Query, ResMut, With, Without};
+use crate::civilization::triggers::retire_city_token_visuals;
+use bevy::prelude::{
+    Commands, Entity, MessageReader, MessageWriter, NextState, Query, ResMut, With, Without, error,
+    info,
+};
 
 pub fn eliminate_city(
     mut eliminate_city: MessageReader<EliminateCity>,
@@ -50,6 +54,7 @@ pub fn eliminate_city(
             commands.entity(eliminate.area_entity).remove::<BuiltCity>();
             let removed = player_cities.remove_city_from_area(eliminate.area_entity);
             city_stock.return_token_to_stock(eliminate.city);
+            retire_city_token_visuals(&mut commands, eliminate.city);
 
             if removed.is_some() {
                 // Only re-check once the city is actually gone. Doing this
@@ -88,7 +93,7 @@ pub fn check_status_after_remove_surplus_population(
 ) {
     let too_many_cities_count = needs_city_support.iter().count();
     let needs_check_count = needs_to_check_city_support.iter().count();
-    
+
     if too_many_cities_count == 0 && needs_check_count == 0 {
         info!("[CITY_SUPPORT] All checks complete, transitioning to AcquireTradeCards");
         next_state.set(GameActivity::AcquireTradeCards);
@@ -151,7 +156,7 @@ pub fn start_check_city_support(
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     info!("[CITY_SUPPORT] Starting city support check phase");
-    
+
     if player_cities_query.is_empty()
         || player_cities_query
             .iter()
@@ -167,6 +172,9 @@ pub fn start_check_city_support(
                 commands.entity(entity).insert(NeedsToCheckCitySupport {});
             }
         }
-        info!("[CITY_SUPPORT] {} players need city support check", players_with_cities);
+        info!(
+            "[CITY_SUPPORT] {} players need city support check",
+            players_with_cities
+        );
     }
 }

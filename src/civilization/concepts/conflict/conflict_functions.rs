@@ -158,10 +158,7 @@ pub fn handle_with_metalworking(
 
 /// Returns true when the players list contains a mix of Metalworking and
 /// non-Metalworking players (the case where the Metalworking rule applies).
-pub fn has_metalworking_mix(
-    players: &[Entity],
-    metalworking_set: &HashSet<Entity>,
-) -> bool {
+pub fn has_metalworking_mix(players: &[Entity], metalworking_set: &HashSet<Entity>) -> bool {
     let any_mw = players.iter().any(|p| metalworking_set.contains(p));
     let any_non_mw = players.iter().any(|p| !metalworking_set.contains(p));
     any_mw && any_non_mw
@@ -472,7 +469,13 @@ mod tests {
         // Stress test: 5 players with various token counts in a small area
         let mut world = setup_world();
         let players_data: Vec<Entity> = (0..5).map(|_| world.spawn_empty().id()).collect();
-        let token_counts = [(players_data[0], 5), (players_data[1], 4), (players_data[2], 3), (players_data[3], 2), (players_data[4], 1)];
+        let token_counts = [
+            (players_data[0], 5),
+            (players_data[1], 4),
+            (players_data[2], 3),
+            (players_data[3], 2),
+            (players_data[4], 1),
+        ];
         let mut pop = create_populated_area(&mut world, 3, &token_counts);
         let mut players = players_data.clone();
 

@@ -18,13 +18,13 @@ use crate::civilization::{
     AvailableCivCards, CivCardName, PlayerCivilizationCards, TradeCardTrait, TradePhaseUiRoot,
 };
 use crate::stupid_ai::{
-    accepts_calamity_offload, offer_creation_chance, stop_trading_threshold, trade_accept_margin,
-    IsHuman, Personality,
+    IsHuman, Personality, accepts_calamity_offload, offer_creation_chance, stop_trading_threshold,
+    trade_accept_margin,
 };
-use rand::RngExt;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
+use rand::RngExt;
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -260,7 +260,10 @@ pub fn handle_send_trading_cards_command(
                 .get_mut(event.receiving_player)
                 .unwrap();
             for (card, count) in cards_to_send {
-                target_trade_cards.add_trade_cards(card, count);
+                // Records the sender for any calamity in the bundle: rule
+                // 29.61 bars them from being a secondary victim of it, and
+                // 30.221 makes them the beneficiary of Treachery.
+                target_trade_cards.add_traded_cards(card, count, event.sending_player);
             }
         }
     }
@@ -1358,8 +1361,9 @@ pub fn spawn_create_offer_modal(
     owned_commodities.sort_by_key(|(card, _)| card.value());
 
     // All commodity types (for wanting section)
-    let mut all_commodity_types: Vec<TradeCard> =
-        TradeCard::iter().filter(adv_civ_protocol::TradeCardTrait::is_commodity).collect();
+    let mut all_commodity_types: Vec<TradeCard> = TradeCard::iter()
+        .filter(adv_civ_protocol::TradeCardTrait::is_commodity)
+        .collect();
     all_commodity_types.sort_by_key(adv_civ_protocol::TradeCardTrait::value);
 
     // Calamity cards the player owns (tradeable ones)
@@ -1737,9 +1741,10 @@ pub fn handle_accept_offer_button(
                         }
 
                         if can_fulfill {
-                            let human_name = player_names
-                                .get(human)
-                                .map_or_else(|_| "Human".to_string(), std::string::ToString::to_string);
+                            let human_name = player_names.get(human).map_or_else(
+                                |_| "Human".to_string(),
+                                std::string::ToString::to_string,
+                            );
                             offer.accept(human, human_name);
                             debug!("Human accepted offer from {}", offer.creator_name);
                         } else {
@@ -1909,9 +1914,13 @@ pub fn handle_publish_offer(
 
         // Create the offer entity
         let mut offer = OpenTradeOffer::new(human_entity, human_name, None, None);
-        offer.offering_guaranteed.clone_from(&create_offer_state.offering_guaranteed);
+        offer
+            .offering_guaranteed
+            .clone_from(&create_offer_state.offering_guaranteed);
         offer.offering_hidden_count = create_offer_state.offering_hidden_count;
-        offer.wanting_guaranteed.clone_from(&create_offer_state.wanting_guaranteed);
+        offer
+            .wanting_guaranteed
+            .clone_from(&create_offer_state.wanting_guaranteed);
         offer.wanting_hidden_count = create_offer_state.wanting_hidden_count;
 
         commands.spawn(offer);
@@ -2220,32 +2229,40 @@ pub fn spawn_settlement_modal(
                                         ));
                                 }
                             }
-                            // Calamity cards
-                            for card in player_cards.calamity_cards() {
-                                cards_row
-                                    .spawn((
-                                        Button,
-                                        SettlementCardButton {
-                                            card,
-                                            selected: false,
-                                        },
-                                        Node {
-                                            padding: UiRect::axes(Val::Px(10.0), Val::Px(6.0)),
-                                            margin: UiRect::all(Val::Px(3.0)),
-                                            border: UiRect::all(Val::Px(2.0)),
-                                            ..Default::default()
-                                        },
-                                        BackgroundColor(Color::srgb(0.7, 0.15, 0.15)),
-                                        BorderColor::all(Color::NONE),
-                                    ))
-                                    .with_child((
-                                        Text::new(format!("{card}")),
-                                        TextFont {
-                                            font_size: 12.0,
-                                            ..Default::default()
-                                        },
-                                        TextColor(Color::WHITE),
-                                    ));
+                            // Calamity cards. Only tradable ones (29.2: a
+                            // non-tradable calamity is retained by whoever drew
+                            // it), one button per physical copy.
+                            for card in player_cards
+                                .calamity_cards()
+                                .into_iter()
+                                .filter(adv_civ_protocol::TradeCardTrait::is_tradeable)
+                            {
+                                for _ in 0..player_cards.number_of_cards_for_trade_card(card) {
+                                    cards_row
+                                        .spawn((
+                                            Button,
+                                            SettlementCardButton {
+                                                card,
+                                                selected: false,
+                                            },
+                                            Node {
+                                                padding: UiRect::axes(Val::Px(10.0), Val::Px(6.0)),
+                                                margin: UiRect::all(Val::Px(3.0)),
+                                                border: UiRect::all(Val::Px(2.0)),
+                                                ..Default::default()
+                                            },
+                                            BackgroundColor(Color::srgb(0.7, 0.15, 0.15)),
+                                            BorderColor::all(Color::NONE),
+                                        ))
+                                        .with_child((
+                                            Text::new(format!("{card}")),
+                                            TextFont {
+                                                font_size: 12.0,
+                                                ..Default::default()
+                                            },
+                                            TextColor(Color::WHITE),
+                                        ));
+                                }
                             }
                         });
                 });
@@ -2513,6 +2530,16 @@ pub fn handle_confirm_settlement(
             continue;
         }
 
+        // 29.2: non-tradable calamities can never change hands.
+        if selection
+            .selected_cards
+            .iter()
+            .any(|(card, count)| *count > 0 && card.is_calamity() && !card.is_tradeable())
+        {
+            debug!("Settlement invalid: contains a non-tradable calamity");
+            continue;
+        }
+
         // Apply settlement
         if is_creator {
             offer.settle_creator(selection.selected_cards.clone());
@@ -2540,11 +2567,13 @@ pub fn handle_close_settlement_modal(
     for interaction in &mut interaction_query {
         if *interaction == Interaction::Pressed {
             // Cancel the trade by withdrawing the offer
-            if let Some(offer_entity) = trade_phase_state.settling_offer_entity && let Ok(mut offer) = offers_query.get_mut(offer_entity) {
-                    offer.withdrawn = true;
-                    debug!("Trade cancelled during settlement");
-                }
- 
+            if let Some(offer_entity) = trade_phase_state.settling_offer_entity
+                && let Ok(mut offer) = offers_query.get_mut(offer_entity)
+            {
+                offer.withdrawn = true;
+                debug!("Trade cancelled during settlement");
+            }
+
             trade_phase_state.settlement_modal_open = false;
             trade_phase_state.settling_offer_entity = None;
             debug!("Closing Settlement modal");
@@ -2577,7 +2606,10 @@ pub fn despawn_settlement_modal(
 /// AI creates trade offers based on their cards and needs
 pub fn ai_create_trade_offers(
     mut commands: Commands,
-    ai_players: Query<(Entity, &Name, &PlayerTradeCards, &CanTrade, &Personality), Without<IsHuman>>,
+    ai_players: Query<
+        (Entity, &Name, &PlayerTradeCards, &CanTrade, &Personality),
+        Without<IsHuman>,
+    >,
     existing_offers: Query<&OpenTradeOffer>,
     time: Res<Time>,
     mut ai_offer_timer: Local<f32>,
@@ -2703,7 +2735,17 @@ pub fn ai_create_trade_offers(
 /// AI accepts trade offers that benefit them.
 /// Criteria: The trade must either increase the AI's total stack value OR enable trading away a calamity.
 pub fn ai_accept_trade_offers(
-    ai_players: Query<(Entity, &Name, &PlayerTradeCards, &CanTrade, &Personality, Option<&PlayerCivilizationCards>), Without<IsHuman>>,
+    ai_players: Query<
+        (
+            Entity,
+            &Name,
+            &PlayerTradeCards,
+            &CanTrade,
+            &Personality,
+            Option<&PlayerCivilizationCards>,
+        ),
+        Without<IsHuman>,
+    >,
     mut offers: Query<(Entity, &mut OpenTradeOffer)>,
 ) {
     for (ai_entity, ai_name, ai_cards, _, personality, ai_civ_cards) in ai_players.iter() {
@@ -2846,8 +2888,7 @@ pub fn ai_stop_trading_when_ready(
         // Unaccepted offers don't prevent the player from stopping — they'll be cleaned
         // up on phase exit.
         let has_pending = offers.iter().any(|o| {
-            o.is_settling()
-                && (o.creator == ai_entity || o.accepted_by == Some(ai_entity))
+            o.is_settling() && (o.creator == ai_entity || o.accepted_by == Some(ai_entity))
         });
 
         if !has_pending {
@@ -2923,15 +2964,19 @@ fn ai_select_settlement_cards(
     // Add hidden cards - prefer calamities first, then lowest value commodities
     let mut hidden_left = hidden_count;
 
-    // Try to add tradeable calamities
+    // Try to add tradeable calamities -- every copy held, not just one per type
     for calamity in player_cards.calamity_cards() {
         if hidden_left == 0 {
             break;
         }
-        if calamity.is_tradeable() {
-            *selected.entry(calamity).or_insert(0) += 1;
-            hidden_left -= 1;
+        if !calamity.is_tradeable() {
+            continue;
         }
+        let to_add = player_cards
+            .number_of_cards_for_trade_card(calamity)
+            .min(hidden_left);
+        *selected.entry(calamity).or_insert(0) += to_add;
+        hidden_left -= to_add;
     }
 
     // Add the lowest value commodities for remaining hidden

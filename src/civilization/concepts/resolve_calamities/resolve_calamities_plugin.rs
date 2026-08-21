@@ -1,5 +1,5 @@
 use crate::GameActivity;
-use bevy::prelude::{in_state, App, IntoScheduleConfigs, OnEnter, OnExit, Plugin, Update};
+use bevy::prelude::{App, IntoScheduleConfigs, OnEnter, OnExit, Plugin, Update, in_state};
 
 use crate::civilization::concepts::resolve_calamities::calamities::ResolvingCalamity;
 use crate::civilization::concepts::resolve_calamities::context::ActiveCalamityResolution;
@@ -8,20 +8,18 @@ use crate::civilization::concepts::resolve_calamities::resolve_calamities_system
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
     AwaitingHumanCalamitySelection, AwaitingMonotheismSelection, CalamitySelectionState,
     CivilWarSelectionState, EpidemicSelectionState, FamineSelectionState, FloodSelectionState,
-    MonotheismSelectionState,
+    MonotheismSelectionState, UnitLossSelectionState,
 };
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_systems::*;
 use crate::civilization::resolve_calamities::resolve_calamities_events::{
-    CalamityResolved, Earthquake, ResolveNextCalamity, ResolveVolcanoEarthquake, VolcanoEruption,
+    CalamityResolved, Earthquake, ResolveNextCalamity, VolcanoEruption,
 };
 
 pub struct ResolveCalamitiesPlugin;
 
 impl Plugin for ResolveCalamitiesPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_message::<ResolveNextCalamity>()
-            .add_message::<ResolveVolcanoEarthquake>()
+        app.add_message::<ResolveNextCalamity>()
             .add_message::<VolcanoEruption>()
             .add_message::<Earthquake>()
             .add_message::<CalamityResolved>()
@@ -46,9 +44,22 @@ impl Plugin for ResolveCalamitiesPlugin {
             .init_resource::<FamineSelectionState>()
             .init_resource::<EpidemicSelectionState>()
             .init_resource::<MonotheismSelectionState>()
+            .init_resource::<UnitLossSelectionState>()
             .add_systems(
                 OnEnter(GameActivity::ResolveCalamities),
                 start_calamity_resolution,
+            )
+            .add_systems(
+                Update,
+                (
+                    // Walk the camera to whatever a selection panel is showing,
+                    // so scrolling the options scrolls the board.
+                    focus_camera_on_calamity_selection,
+                    focus_camera_on_unit_loss_selection,
+                    focus_camera_on_monotheism_selection,
+                    focus_camera_on_civil_war_selection,
+                )
+                    .run_if(in_state(GameActivity::ResolveCalamities)),
             )
             .add_systems(
                 OnExit(GameActivity::ResolveCalamities),
@@ -77,7 +88,8 @@ impl Plugin for ResolveCalamitiesPlugin {
                     advance_superstition,
                     advance_slave_revolt,
                     advance_civil_disorder,
-                ).run_if(in_state(GameActivity::ResolveCalamities)),
+                )
+                    .run_if(in_state(GameActivity::ResolveCalamities)),
             )
             .add_systems(
                 Update,
@@ -103,11 +115,17 @@ impl Plugin for ResolveCalamitiesPlugin {
                     update_civil_war_selection_ui,
                     handle_civil_war_selection_buttons,
                     cleanup_civil_war_selection_ui,
-                ).run_if(in_state(GameActivity::ResolveCalamities)),
+                )
+                    .run_if(in_state(GameActivity::ResolveCalamities)),
             )
             .add_systems(
                 Update,
                 (
+                    // Primary unit-point loss selection UI (29.62/29.63)
+                    spawn_unit_loss_selection_ui,
+                    update_unit_loss_selection_ui,
+                    handle_unit_loss_selection_buttons,
+                    cleanup_unit_loss_selection_ui,
                     // Monotheism human target-selection UI
                     spawn_monotheism_selection_ui,
                     update_monotheism_selection_ui,
@@ -127,7 +145,8 @@ impl Plugin for ResolveCalamitiesPlugin {
                     update_epidemic_selection_ui,
                     handle_epidemic_selection_buttons,
                     cleanup_epidemic_selection_ui,
-                ).run_if(in_state(GameActivity::ResolveCalamities)),
+                )
+                    .run_if(in_state(GameActivity::ResolveCalamities)),
             );
     }
 }

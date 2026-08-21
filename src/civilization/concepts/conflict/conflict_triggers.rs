@@ -1,16 +1,18 @@
+use crate::GameActivity;
 use crate::civilization::components::*;
 use crate::civilization::concepts::acquire_trade_cards::PlayerTradeCards;
 use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
 use crate::civilization::concepts::conflict::conflict_components::*;
 use crate::civilization::concepts::conflict::conflict_functions::*;
 use crate::civilization::concepts::map::CameraFocusQueue;
-use crate::civilization::functions::{replace_city_with_tokens_for_conflict, return_all_tokens_from_area_to_player};
+use crate::civilization::functions::{
+    replace_city_with_tokens_for_conflict, return_all_tokens_from_area_to_player,
+};
 use crate::civilization::{CivCardName, ConflictCounterResource};
 use crate::stupid_ai::IsHuman;
-use crate::GameActivity;
+use bevy::log::info;
 use bevy::platform::collections::HashSet;
 use bevy::prelude::{Add, Commands, Entity, Name, NextState, On, Query, ResMut, Transform, With};
-use bevy::log::info;
 use std::cmp::Ordering;
 
 pub fn on_add_unresolved_conflict(
@@ -23,20 +25,20 @@ pub fn on_add_unresolved_conflict(
     mut camera_focus: ResMut<CameraFocusQueue>,
     civ_cards_query: Query<&PlayerCivilizationCards>,
 ) {
-    if let Ok((area_entity, name, mut population, transform)) = areas.get_mut(trigger.event().entity) {
+    if let Ok((area_entity, name, mut population, transform)) =
+        areas.get_mut(trigger.event().entity)
+    {
         let player_count = population.number_of_players();
         let total_pop = population.total_population();
         let max_pop = population.max_population;
 
         // Check if human player is involved in this conflict
-        let human_involved = human_players.iter().any(|human| population.has_player(&human));
+        let human_involved = human_players
+            .iter()
+            .any(|human| population.has_player(&human));
 
         if human_involved {
-            camera_focus.add_focus(
-                transform.translation,
-                1.5,
-                format!("Conflict in {name}"),
-            );
+            camera_focus.add_focus(transform.translation, 1.5, format!("Conflict in {name}"));
         }
 
         info!(
@@ -79,7 +81,11 @@ pub fn on_add_unresolved_conflict(
                 .filter(|p| metalworking_set.contains(*p))
                 .copied()
                 .collect();
-            info!("[CONFLICT] Metalworking rule applies: {} non-MW, {} MW players", non_mw.len(), mw.len());
+            info!(
+                "[CONFLICT] Metalworking rule applies: {} non-MW, {} MW players",
+                non_mw.len(),
+                mw.len()
+            );
             handle_with_metalworking(&mut non_mw, &mut mw, &mut population, &mut commands);
             "metalworking"
         } else if population.all_lengths_equal() {
@@ -98,13 +104,19 @@ pub fn on_add_unresolved_conflict(
 
         commands.entity(area_entity).remove::<UnresolvedConflict>();
         conflict_counter_resource.0 = conflict_counter_resource.0.saturating_sub(1);
-        info!("[CONFLICT] Conflicts remaining: {}", conflict_counter_resource.0);
+        info!(
+            "[CONFLICT] Conflicts remaining: {}",
+            conflict_counter_resource.0
+        );
         if conflict_counter_resource.0 == 0 {
             info!("[CONFLICT] All conflicts resolved, transitioning to CityConstruction");
             next_state.set(GameActivity::CityConstruction);
         }
     } else {
-        info!("[CONFLICT] Failed to get area for entity {:?}", trigger.event().entity);
+        info!(
+            "[CONFLICT] Failed to get area for entity {:?}",
+            trigger.event().entity
+        );
     }
 }
 
@@ -126,17 +138,21 @@ pub fn on_add_unresolved_city_conflict(
     mut trade_cards_query: Query<&mut PlayerTradeCards>,
     mut treasury_query: Query<&mut Treasury>,
 ) {
-    if let Ok((area_entity, name, mut population, built_city, transform)) = areas.get_mut(trigger.event().entity) {
+    if let Ok((area_entity, name, mut population, built_city, transform)) =
+        areas.get_mut(trigger.event().entity)
+    {
         let total_pop = population.total_population();
         let max_pop = population.max_population;
         let city_owner = built_city.player;
         let owner_tokens = population.population_for_player(city_owner);
-        
+
         // Check if human player is involved (either as city owner or invader)
         let human_is_owner = human_players.iter().any(|h| h == city_owner);
-        let human_is_invader = human_players.iter().any(|human| population.has_player(&human) && human != city_owner);
+        let human_is_invader = human_players
+            .iter()
+            .any(|human| population.has_player(&human) && human != city_owner);
         let human_involved = human_is_owner || human_is_invader;
-        
+
         if human_involved {
             camera_focus.add_focus(
                 transform.translation,
@@ -144,15 +160,21 @@ pub fn on_add_unresolved_city_conflict(
                 format!("City conflict in {name}"),
             );
         }
-        
+
         let mut other_players = population.players();
         other_players.remove(&built_city.player);
-        
+
         info!(
             "[CITY CONFLICT] City conflict in '{}': owner={:?} ({} tokens), {} invaders, total={}, max_pop={}, conflicts_pending={}",
-            name, city_owner, owner_tokens, other_players.len(), total_pop, max_pop, conflict_counter_resource.0
+            name,
+            city_owner,
+            owner_tokens,
+            other_players.len(),
+            total_pop,
+            max_pop,
+            conflict_counter_resource.0
         );
-        
+
         for player in &other_players {
             let token_count = population.population_for_player(*player);
             info!("  Invader {:?}: {} tokens", player, token_count);
@@ -186,7 +208,10 @@ pub fn on_add_unresolved_city_conflict(
                         .is_ok_and(|c| c.owns(&CivCardName::Engineering));
                     let (_, replacement_count) =
                         attack_thresholds(attacker_has_engineering, defender_has_engineering);
-                    info!("[CITY CONFLICT] Single large invader - replacing city with {} tokens", replacement_count);
+                    info!(
+                        "[CITY CONFLICT] Single large invader - replacing city with {} tokens",
+                        replacement_count
+                    );
                     if let Ok((
                         mut city_stock,
                         mut token_stock,
@@ -196,6 +221,7 @@ pub fn on_add_unresolved_city_conflict(
                     {
                         commands.entity(area_entity).remove::<BuiltCity>();
                         replace_city_with_tokens_for_conflict(
+                            &mut commands,
                             area_entity,
                             &mut population,
                             built_city,
@@ -205,7 +231,9 @@ pub fn on_add_unresolved_city_conflict(
                             &mut player_areas,
                             replacement_count,
                         );
-                        info!("[CITY CONFLICT] City replaced, inserting UnresolvedConflict for regular resolution");
+                        info!(
+                            "[CITY CONFLICT] City replaced, inserting UnresolvedConflict for regular resolution"
+                        );
                         commands.entity(area_entity).insert(UnresolvedConflict);
 
                         // Rules 24.51-24.52: a city eliminated by direct attack
@@ -226,7 +254,8 @@ pub fn on_add_unresolved_city_conflict(
                         // than removing a card from the victim and discarding
                         // it, which the old attacker-only check would have done.
                         if trade_cards_query.get(attacker).is_ok()
-                            && let Ok(mut victim_cards) = trade_cards_query.get_mut(built_city.player)
+                            && let Ok(mut victim_cards) =
+                                trade_cards_query.get_mut(built_city.player)
                             && let Some(drawn) = victim_cards.remove_random_card()
                         {
                             if let Ok(mut attacker_cards) = trade_cards_query.get_mut(attacker) {
@@ -236,12 +265,17 @@ pub fn on_add_unresolved_city_conflict(
                                     attacker, drawn, built_city.player
                                 );
                             } else {
-                                info!("[CITY CONFLICT] Rule 24.51: attacker {:?} has no PlayerTradeCards, card lost", attacker);
+                                info!(
+                                    "[CITY CONFLICT] Rule 24.51: attacker {:?} has no PlayerTradeCards, card lost",
+                                    attacker
+                                );
                             }
                         }
-                        if let Ok((_, mut attacker_stock, _, _)) = player_with_city.get_mut(attacker)
+                        if let Ok((_, mut attacker_stock, _, _)) =
+                            player_with_city.get_mut(attacker)
                             && let Ok(mut attacker_treasury) = treasury_query.get_mut(attacker)
-                            && let Some(pillaged) = attacker_stock.remove_at_most_n_tokens_from_stock(3)
+                            && let Some(pillaged) =
+                                attacker_stock.remove_at_most_n_tokens_from_stock(3)
                         {
                             let pillaged_count = pillaged.len();
                             for token in pillaged {
@@ -257,8 +291,12 @@ pub fn on_add_unresolved_city_conflict(
                     }
                 }
                 Ordering::Greater => {
-                    info!("[CITY CONFLICT] Multiple invaders - resolving battles between others first");
-                    commands.entity(trigger.event().entity).insert(UnresolvedConflict);
+                    info!(
+                        "[CITY CONFLICT] Multiple invaders - resolving battles between others first"
+                    );
+                    commands
+                        .entity(trigger.event().entity)
+                        .insert(UnresolvedConflict);
                 }
             }
         } else {
@@ -275,34 +313,51 @@ pub fn on_add_unresolved_city_conflict(
                         &mut token_stock,
                         &mut player_areas,
                     );
-                    info!("[CITY CONFLICT] Returned {} tokens to player {:?}", removed, player);
+                    info!(
+                        "[CITY CONFLICT] Returned {} tokens to player {:?}",
+                        removed, player
+                    );
                 } else {
-                    info!("[CITY CONFLICT] Failed to get components for player {:?}", player);
+                    info!(
+                        "[CITY CONFLICT] Failed to get components for player {:?}",
+                        player
+                    );
                 }
             }
         }
-        
+
         let remaining_pop = population.total_population();
-        info!("[CITY CONFLICT] After resolution: {} tokens remaining (was {})", remaining_pop, total_pop);
-        
+        info!(
+            "[CITY CONFLICT] After resolution: {} tokens remaining (was {})",
+            remaining_pop, total_pop
+        );
+
         commands
             .entity(area_entity)
             .remove::<UnresolvedCityConflict>();
-        
+
         // Only decrement the counter if we did NOT chain into UnresolvedConflict.
         // When we insert UnresolvedConflict (large invader paths), that observer
         // will handle the decrement — so we must not double-decrement here.
         if has_large_invader {
-            info!("[CITY CONFLICT] Chained into UnresolvedConflict — counter will be decremented by that observer");
+            info!(
+                "[CITY CONFLICT] Chained into UnresolvedConflict — counter will be decremented by that observer"
+            );
         } else {
             conflict_counter_resource.0 = conflict_counter_resource.0.saturating_sub(1);
-            info!("[CITY CONFLICT] Conflicts remaining: {}", conflict_counter_resource.0);
+            info!(
+                "[CITY CONFLICT] Conflicts remaining: {}",
+                conflict_counter_resource.0
+            );
             if conflict_counter_resource.0 == 0 {
                 info!("[CITY CONFLICT] All conflicts resolved, transitioning to CityConstruction");
                 next_state.set(GameActivity::CityConstruction);
             }
         }
     } else {
-        info!("[CITY CONFLICT] Failed to get area for entity {:?}", trigger.event().entity);
+        info!(
+            "[CITY CONFLICT] Failed to get area for entity {:?}",
+            trigger.event().entity
+        );
     }
 }

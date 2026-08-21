@@ -1,8 +1,8 @@
+use crate::civilization::CivCardName;
 use crate::civilization::concepts::TradeCard;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{Component, Entity, Reflect};
 use std::fmt::Display;
-use crate::civilization::CivCardName;
 
 #[derive(Component, Debug, Default, Reflect)]
 pub struct AvailableMoves {

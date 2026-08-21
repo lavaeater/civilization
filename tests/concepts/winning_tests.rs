@@ -8,8 +8,8 @@
 
 use crate::{setup_bevy_app, setup_player};
 use adv_civ::civilization::{
-    determine_winner, AstPosition, AvailableCivCards, CivCardDefinition, CivCardName, CivCardType,
-    GameFaction, GameResult, PlayerCivilizationCards, PlayerTradeCards, TradeCard,
+    AstPosition, AvailableCivCards, CivCardDefinition, CivCardName, CivCardType, GameFaction,
+    GameResult, PlayerCivilizationCards, PlayerTradeCards, TradeCard, determine_winner,
 };
 use bevy::app::Update;
 use bevy::platform::collections::HashSet;
@@ -23,10 +23,14 @@ fn setup_app() -> bevy::prelude::App {
 }
 
 fn add_treasury_tokens(app: &mut bevy::prelude::App, player: Entity, count: usize) {
-    let tokens: Vec<Entity> = (0..count).map(|_| app.world_mut().spawn_empty().id()).collect();
+    let tokens: Vec<Entity> = (0..count)
+        .map(|_| app.world_mut().spawn_empty().id())
+        .collect();
     let world = app.world_mut();
     let mut entity_mut = world.entity_mut(player);
-    let mut treasury = entity_mut.get_mut::<adv_civ::civilization::Treasury>().unwrap();
+    let mut treasury = entity_mut
+        .get_mut::<adv_civ::civilization::Treasury>()
+        .unwrap();
     for token in tokens {
         treasury.add_token_to_treasury(token);
     }
@@ -36,7 +40,9 @@ fn add_treasury_tokens(app: &mut bevy::prelude::App, player: Entity, count: usiz
 fn scores_ast_position_and_cities_with_no_cards_or_treasury() {
     let mut app = setup_app();
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(3));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(3));
     // setup_player already gives 9 spare city-token entities in stock, but
     // PlayerCities (cities actually *built* on the board) starts empty.
 
@@ -54,7 +60,9 @@ fn scores_ast_position_and_cities_with_no_cards_or_treasury() {
 fn scores_treasury_tokens_at_one_point_each() {
     let mut app = setup_app();
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(0));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(0));
     add_treasury_tokens(&mut app, player, 12);
 
     app.update();
@@ -87,7 +95,9 @@ fn scores_civilization_cards_at_face_value() {
         ],
     });
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(0));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(0));
     let mut cards = HashSet::new();
     cards.insert(CivCardName::Pottery);
     cards.insert(CivCardName::Mining);
@@ -106,7 +116,9 @@ fn scores_civilization_cards_at_face_value() {
 fn scores_commodity_card_sets_by_count_squared_times_face_value() {
     let mut app = setup_app();
     let (player, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
-    app.world_mut().entity_mut(player).insert(AstPosition::new(0));
+    app.world_mut()
+        .entity_mut(player)
+        .insert(AstPosition::new(0));
     let mut trade_cards = PlayerTradeCards::default();
     // 3 Grain (value 4 each): set value = 3^2 * 4 = 36 (rule 28.51).
     trade_cards.add_trade_cards(TradeCard::Grain, 3);
@@ -122,16 +134,23 @@ fn scores_commodity_card_sets_by_count_squared_times_face_value() {
 fn winner_is_highest_total_not_highest_ast_position() {
     let mut app = setup_app();
     let (leader, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
-    app.world_mut().entity_mut(leader).insert(AstPosition::new(1));
+    app.world_mut()
+        .entity_mut(leader)
+        .insert(AstPosition::new(1));
     add_treasury_tokens(&mut app, leader, 500); // 100 (AST) + 500 (treasury) = 600
 
     let (runner_up, _, _) = setup_player(&mut app, "Crete", GameFaction::Crete);
-    app.world_mut().entity_mut(runner_up).insert(AstPosition::new(4)); // 400, further along but fewer points
+    app.world_mut()
+        .entity_mut(runner_up)
+        .insert(AstPosition::new(4)); // 400, further along but fewer points
 
     app.update();
 
     let result = app.world().resource::<GameResult>();
-    assert_eq!(result.standings[0].0, "Egypt", "highest total wins even if not furthest on the A.S.T.");
+    assert_eq!(
+        result.standings[0].0, "Egypt",
+        "highest total wins even if not furthest on the A.S.T."
+    );
     assert_eq!(result.standings[0].1, 600);
     assert_eq!(result.standings[1].0, "Crete");
 }
@@ -140,17 +159,24 @@ fn winner_is_highest_total_not_highest_ast_position() {
 fn tied_totals_are_broken_by_furthest_ast_position() {
     let mut app = setup_app();
     let (behind, _, _) = setup_player(&mut app, "Egypt", GameFaction::Egypt);
-    app.world_mut().entity_mut(behind).insert(AstPosition::new(1));
+    app.world_mut()
+        .entity_mut(behind)
+        .insert(AstPosition::new(1));
     add_treasury_tokens(&mut app, behind, 300); // 100 + 300 = 400
 
     let (ahead, _, _) = setup_player(&mut app, "Crete", GameFaction::Crete);
-    app.world_mut().entity_mut(ahead).insert(AstPosition::new(2));
+    app.world_mut()
+        .entity_mut(ahead)
+        .insert(AstPosition::new(2));
     add_treasury_tokens(&mut app, ahead, 200); // 200 + 200 = 400, same total
 
     app.update();
 
     let result = app.world().resource::<GameResult>();
-    assert_eq!(result.standings[0].1, result.standings[1].1, "totals should be tied at 400");
+    assert_eq!(
+        result.standings[0].1, result.standings[1].1,
+        "totals should be tied at 400"
+    );
     assert_eq!(
         result.standings[0].0, "Crete",
         "tiebreaker (35.2): furthest along the A.S.T. wins"

@@ -6,11 +6,16 @@ use crate::civilization::{
     RecalculatePlayerMoves, SeaPassage, TokenHasMoved, TokenStock,
 };
 use bevy::platform::collections::HashMap;
-use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Name, Query};
+use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Name, Query, info};
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: MessageReader<RecalculatePlayerMoves>,
-    player_move_query: Query<(&PlayerAreas, &TokenStock, Option<&PlayerCivilizationCards>)>,
+    player_move_query: Query<(
+        &PlayerAreas,
+        &TokenStock,
+        Option<&PlayerCivilizationCards>,
+        Option<&NeedsExpansion>,
+    )>,
     area_population_query: Query<&Population>,
     mut commands: Commands,
 ) {
@@ -18,10 +23,20 @@ pub fn recalculate_pop_exp_moves_for_player(
         commands.entity(event.player).remove::<AvailableMoves>();
         let mut moves = HashMap::default();
         let mut command_index = 0;
-        if let Ok((player_areas, stock, civ_cards)) = player_move_query.get(event.player) {
-            let has_agriculture = civ_cards
-                .is_some_and(|c| c.owns(&CivCardName::Agriculture));
+        if let Ok((player_areas, stock, civ_cards, Some(needs_expansion))) =
+            player_move_query.get(event.player)
+        {
+            let has_agriculture = civ_cards.is_some_and(|c| c.owns(&CivCardName::Agriculture));
+            // Only offer areas still pending this round's expansion --
+            // `player_areas.areas()` alone doesn't shrink once an area is
+            // expanded, and `max_expansion_for_player_with_agriculture` is
+            // based on current token count, not "already used this round",
+            // so re-offering an already-done area would let it be expanded
+            // more than once per round.
             for area in &player_areas.areas() {
+                if !needs_expansion.areas_that_need_expansion.contains(area) {
+                    continue;
+                }
                 if let Ok(pop) = area_population_query.get(*area) {
                     command_index += 1;
                     moves.insert(
@@ -69,12 +84,9 @@ pub fn recalculate_movement_moves_for_player(
         let mut moves = HashMap::default();
         let mut command_index = 0;
         if let Ok((player_areas, player_ships, civ_cards)) = player_move_query.get(event.player) {
-            let has_road_building = civ_cards
-                .is_some_and(|c| c.owns(&CivCardName::RoadBuilding));
-            let has_astronomy = civ_cards
-                .is_some_and(|c| c.owns(&CivCardName::Astronomy));
-            let has_cloth_making = civ_cards
-                .is_some_and(|c| c.owns(&CivCardName::ClothMaking));
+            let has_road_building = civ_cards.is_some_and(|c| c.owns(&CivCardName::RoadBuilding));
+            let has_astronomy = civ_cards.is_some_and(|c| c.owns(&CivCardName::Astronomy));
+            let has_cloth_making = civ_cards.is_some_and(|c| c.owns(&CivCardName::ClothMaking));
 
             let areas_and_population = player_areas.areas_and_population();
 
@@ -176,9 +188,7 @@ pub fn recalculate_movement_moves_for_player(
 
                     // Cloth Making: generate one additional hop through this target
                     // (rule 28.18: +1 sea movement range, cannot use open sea without Astronomy)
-                    if has_cloth_making
-                        && let Ok(sea2) = sea_connections_query.get(target_area)
-                    {
+                    if has_cloth_making && let Ok(sea2) = sea_connections_query.get(target_area) {
                         for &final_area in &sea2.to_areas {
                             if final_area == area {
                                 continue;
@@ -202,7 +212,9 @@ pub fn recalculate_movement_moves_for_player(
             }
         }
 
-        let _player_name = names.get(event.player).map_or("?", bevy::prelude::Name::as_str);
+        let _player_name = names
+            .get(event.player)
+            .map_or("?", bevy::prelude::Name::as_str);
         if moves.is_empty() {
             end_player_movement.write(PlayerMovementEnded::new(event.player));
         } else {
@@ -259,26 +271,40 @@ pub fn recalculate_city_construction_moves_for_player(
         {
             // Architecture (rule 25.3): holder can build with 1 fewer population token
             // (minimum 1); the saved token goes to treasury.
-            let has_architecture = civ_cards
-                .is_some_and(|c| c.owns(&CivCardName::Architecture));
+            let has_architecture = civ_cards.is_some_and(|c| c.owns(&CivCardName::Architecture));
             let city_site_threshold: usize = if has_architecture { 5 } else { 6 };
             let no_site_threshold: usize = if has_architecture { 11 } else { 12 };
 
             if city_token_stock.has_tokens() {
-                for (area, population) in &player_areas.areas_and_population_count() {
-                    if let Ok((_area_pop, has_city_site)) = area_property_query.get(*area)
-                        && ((has_city_site && *population >= city_site_threshold)
-                            || *population >= no_site_threshold)
-                    {
-                        command_index += 1;
-                        moves.insert(
-                            command_index,
-                            GameMove::CityConstruction(BuildCityMove::new(*area, event.player)),
-                        );
+                // Check against the real board state (`Population`), not
+                // `PlayerAreas`'s cached mirror -- the two can drift out of
+                // sync (see `log_round_state`'s DESYNC diagnostic), and a
+                // stale/low cached count here would silently deny a player
+                // their build option even though they have enough tokens on
+                // the board, leaving the (real) surplus to be stripped away
+                // in RemoveSurplusPopulation instead of spent on a city.
+                for area in player_areas.areas() {
+                    if let Ok((population, has_city_site)) = area_property_query.get(area) {
+                        let pop_count = population.population_for_player(event.player);
+                        if (has_city_site && pop_count >= city_site_threshold)
+                            || pop_count >= no_site_threshold
+                        {
+                            command_index += 1;
+                            moves.insert(
+                                command_index,
+                                GameMove::CityConstruction(BuildCityMove::new(area, event.player)),
+                            );
+                        }
                     }
                 }
             }
             if moves.is_empty() {
+                info!(
+                    "[CITY_CONSTRUCTION] No build moves for {:?} (city tokens in stock: {}, areas: {}) - removing IsBuilding",
+                    event.player,
+                    city_token_stock.city_tokens_in_stock(),
+                    player_areas.areas().len()
+                );
                 commands.entity(event.player).remove::<IsBuilding>();
             } else {
                 command_index += 1;

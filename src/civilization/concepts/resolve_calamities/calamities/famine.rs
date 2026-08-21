@@ -34,7 +34,7 @@ impl FamineState {
             ..Default::default()
         }
     }
-    
+
     pub fn with_grain_reduction(mut self, grain_count: usize, has_pottery: bool) -> Self {
         if has_pottery && grain_count > 0 {
             // Rule 30.312: cards are "used for this purpose", not simply held --
@@ -48,12 +48,12 @@ impl FamineState {
         }
         self
     }
-    
+
     pub fn add_secondary_allocation(&mut self, victim: Entity, points: i32) {
         let clamped = points.min(self.max_per_secondary);
         self.secondary_allocations.push((victim, clamped));
     }
-    
+
     pub fn remaining_secondary_points(&self) -> i32 {
         let allocated: i32 = self.secondary_allocations.iter().map(|(_, p)| *p).sum();
         self.secondary_total - allocated
@@ -163,7 +163,10 @@ mod tests {
     fn only_as_many_cards_as_needed_are_marked_used() {
         // primary_loss = 10 -> ceil(10/4) = 3 cards fully zero it.
         let state = FamineState::new().with_grain_reduction(10, true);
-        assert_eq!(state.grain_cards_used, 3, "10 held, only 3 needed to zero a loss of 10");
+        assert_eq!(
+            state.grain_cards_used, 3,
+            "10 held, only 3 needed to zero a loss of 10"
+        );
         assert_eq!(state.primary_loss, 0);
     }
 

@@ -17,6 +17,23 @@ pub struct EpidemicState {
     pub has_medicine: bool,
     pub has_road_building: bool,
     pub immune_player: Option<Entity>,
+    /// Points still owed after cities have been spent against the primary
+    /// loss (rule 30.612). Carried across frames because the token half of
+    /// the loss can pause for a human's selection, and the city half must not
+    /// be applied twice when it resumes.
+    pub primary_tokens_remaining: i32,
+    /// Whether the secondary loss has already been divided among the victims.
+    /// The division is a one-time decision (and may itself pause for a human
+    /// primary victim), while applying it can pause again per victim.
+    pub secondary_divided: bool,
+    /// Remaining secondary work list: (victim, unit points still owed).
+    /// Entries are dropped as they are settled so a pause never re-charges
+    /// anyone.
+    pub secondary_allocations: Vec<(Entity, i32)>,
+    /// Victims whose cities have already been spent against their share
+    /// (30.612); their entry in `secondary_allocations` now holds only the
+    /// token remainder.
+    pub secondary_cities_spent: Vec<Entity>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Reflect)]
@@ -73,7 +90,10 @@ impl EpidemicState {
 /// tokens and never enumerates or eliminates `BuiltCity` entities, so there
 /// is no city-point-cap to apply yet. Giving Epidemic real city-awareness is
 /// a larger, separate feature; flagged in docs/outline.md.
-pub fn allocate_removal_leaving_one_per_area(areas_and_counts: &[usize], points: usize) -> Vec<usize> {
+pub fn allocate_removal_leaving_one_per_area(
+    areas_and_counts: &[usize],
+    points: usize,
+) -> Vec<usize> {
     let mut remaining = points;
     let mut result = Vec::with_capacity(areas_and_counts.len());
     for &count in areas_and_counts {

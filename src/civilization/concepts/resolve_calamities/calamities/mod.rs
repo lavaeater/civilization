@@ -1,15 +1,15 @@
-pub mod volcano_earthquake;
-pub mod treachery;
-pub mod famine;
-pub mod superstition;
-pub mod civil_war;
-pub mod slave_revolt;
-pub mod flood;
 pub mod barbarian_hordes;
-pub mod epidemic;
 pub mod civil_disorder;
+pub mod civil_war;
+pub mod epidemic;
+pub mod famine;
+pub mod flood;
 pub mod iconoclasm_heresy;
 pub mod piracy;
+pub mod slave_revolt;
+pub mod superstition;
+pub mod treachery;
+pub mod volcano_earthquake;
 
 use bevy::prelude::{Component, Reflect, ReflectComponent};
 

@@ -1,6 +1,6 @@
 use adv_civ::civilization::{
-    buy_from_ninth_stack, CivilizationTradeCards, PlayerTradeCards, TokenStock, TradeCard,
-    Treasury, MIN_CARDS_REQUIRED_TO_TRADE, NINTH_STACK_COST,
+    CivilizationTradeCards, MIN_CARDS_REQUIRED_TO_TRADE, NINTH_STACK_COST, PlayerTradeCards,
+    TokenStock, TradeCard, Treasury, buy_from_ninth_stack,
 };
 use bevy::platform::collections::HashMap;
 use bevy::prelude::World;
@@ -305,6 +305,13 @@ fn purchase_count_is_capped_by_whichever_runs_out_first_stack_or_treasury() {
 
     let bought = buy_from_ninth_stack(&mut treasury, &mut token_stock, &mut resource, &mut hand, 5);
 
-    assert_eq!(bought, 2, "capped by the stack, not the requested max_cards");
-    assert_eq!(treasury.tokens_in_treasury(), NINTH_STACK_COST, "only 2 cards' worth spent");
+    assert_eq!(
+        bought, 2,
+        "capped by the stack, not the requested max_cards"
+    );
+    assert_eq!(
+        treasury.tokens_in_treasury(),
+        NINTH_STACK_COST,
+        "only 2 cards' worth spent"
+    );
 }

@@ -1,6 +1,6 @@
 use crate::GameActivity;
-use bevy::prelude::{App, OnEnter, Plugin};
 use crate::civilization::remove_surplus_population;
+use bevy::prelude::{App, OnEnter, Plugin};
 
 pub struct RemoveSurplusPlugin;
 

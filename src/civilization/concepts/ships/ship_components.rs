@@ -57,7 +57,10 @@ pub struct PlayerShips {
 
 impl PlayerShips {
     pub fn ships_in_area(&self, area: Entity) -> &[Entity] {
-        self.ships_by_area.get(&area).map(std::vec::Vec::as_slice).unwrap_or_default()
+        self.ships_by_area
+            .get(&area)
+            .map(std::vec::Vec::as_slice)
+            .unwrap_or_default()
     }
 
     pub fn place_ship(&mut self, area: Entity, ship: Entity) {

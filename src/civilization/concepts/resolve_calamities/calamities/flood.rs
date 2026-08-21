@@ -14,6 +14,8 @@ pub struct FloodState {
     /// How many unit points the primary victim loses (capped at 17, or 7 with Engineering).
     pub primary_max_loss: i32,
     pub has_engineering: bool,
+    /// The coastal city picked for 30.514, once chosen.
+    pub fallback_city: Option<Entity>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Reflect)]
@@ -23,6 +25,8 @@ pub enum FloodPhase {
     ApplyPrimaryLoss,
     ApplySecondaryLoss,
     FallbackCoastalCity,
+    /// Waiting for a human victim to pick which coastal city goes (30.514).
+    SelectFallbackCity,
     Complete,
 }
 

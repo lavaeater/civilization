@@ -91,20 +91,30 @@ mod tests {
     /// Rule 30.423: Mining adds 5 tokens that cannot support.
     #[test]
     fn mining_adds_5_tokens() {
-        assert_eq!(SlaveRevoltState::new().with_mining().tokens_cannot_support, 20);
+        assert_eq!(
+            SlaveRevoltState::new().with_mining().tokens_cannot_support,
+            20
+        );
     }
 
     /// Rule 30.423: Enlightenment removes 5 tokens from the unsupported count.
     #[test]
     fn enlightenment_removes_5_tokens() {
-        assert_eq!(SlaveRevoltState::new().with_enlightenment().tokens_cannot_support, 10);
+        assert_eq!(
+            SlaveRevoltState::new()
+                .with_enlightenment()
+                .tokens_cannot_support,
+            10
+        );
     }
 
     /// Rule 30.423: holding both Mining and Enlightenment cancels the modifiers — net base 15.
     #[test]
     fn mining_and_enlightenment_cancel_out() {
         assert_eq!(
-            SlaveRevoltState::new().with_mining_and_enlightenment().tokens_cannot_support,
+            SlaveRevoltState::new()
+                .with_mining_and_enlightenment()
+                .tokens_cannot_support,
             15
         );
     }

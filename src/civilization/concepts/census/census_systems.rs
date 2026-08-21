@@ -1,7 +1,7 @@
+use crate::GameActivity;
 use crate::civilization::components::*;
 use crate::civilization::concepts::census::census_components::*;
 use crate::civilization::concepts::census::census_resources::GameInfoAndStuff;
-use crate::GameActivity;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{Commands, Entity, Name, NextState, Query, ResMut};
 /***

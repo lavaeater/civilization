@@ -67,11 +67,7 @@ pub fn clamp01(v: f32) -> f32 {
 /// Diminishing-returns curve: rises fast then flattens. Good for "more is better
 /// but the first units matter most" (e.g. attacker advantage, area capacity).
 pub fn saturating(v: f32, half: f32) -> f32 {
-    if v <= 0.0 {
-        0.0
-    } else {
-        v / (v + half)
-    }
+    if v <= 0.0 { 0.0 } else { v / (v + half) }
 }
 
 // --- picking ----------------------------------------------------------------

@@ -1,10 +1,12 @@
+use crate::GameActivity;
+use crate::civilization::concepts::{
+    recalculate_civ_card_moves_for_player, recalculate_trade_moves_for_player,
+};
 use crate::civilization::game_moves::game_moves_components::AvailableMoves;
 use crate::civilization::game_moves::game_moves_events::RecalculatePlayerMoves;
 use crate::civilization::game_moves::game_moves_systems::*;
 use crate::civilization::game_moves::game_moves_triggers::*;
-use crate::GameActivity;
-use bevy::prelude::{in_state, App, IntoScheduleConfigs, Plugin, SystemCondition, Update};
-use crate::civilization::concepts::{recalculate_civ_card_moves_for_player, recalculate_trade_moves_for_player};
+use bevy::prelude::{App, IntoScheduleConfigs, Plugin, SystemCondition, Update, in_state};
 
 pub struct GameMovesPlugin;
 
@@ -20,11 +22,11 @@ impl Plugin for GameMovesPlugin {
                     recalculate_movement_moves_for_player.run_if(in_state(GameActivity::Movement)),
                     recalculate_city_construction_moves_for_player
                         .run_if(in_state(GameActivity::CityConstruction)),
-                    recalculate_city_support_moves_for_player
-                        .run_if(
-                            in_state(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation)
-                                .or(in_state(GameActivity::CheckCitySupportAfterResolveCalamities)),
+                    recalculate_city_support_moves_for_player.run_if(
+                        in_state(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation).or(
+                            in_state(GameActivity::CheckCitySupportAfterResolveCalamities),
                         ),
+                    ),
                     recalculate_trade_moves_for_player.run_if(in_state(GameActivity::Trade)),
                     recalculate_civ_card_moves_for_player
                         .run_if(in_state(GameActivity::AcquireCivilizationCards)),

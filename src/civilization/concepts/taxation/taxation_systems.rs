@@ -1,16 +1,14 @@
+use crate::GameActivity;
+use crate::civilization::CivCardName;
 use crate::civilization::components::{BuiltCity, CityToken, PlayerCities, TokenStock};
 use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::ReturnCityToStock;
 use crate::civilization::concepts::taxation::taxation_components::{
     CityInRevolt, CoinageTaxRate, NeedsToPayTaxes,
 };
-use crate::stupid_ai::StupidAi;
-use crate::civilization::CivCardName;
 use crate::player::Player;
-use crate::GameActivity;
-use bevy::prelude::{
-    info, Commands, Entity, Has, Name, NextState, Query, ResMut, With,
-};
+use crate::stupid_ai::StupidAi;
+use bevy::prelude::{Commands, Entity, Has, Name, NextState, Query, ResMut, With, info};
 
 /// Called on entering `CollectTaxes`. Skips the phase entirely if no player has any
 /// cities (this will be the case on the very first turn of the game).
@@ -19,7 +17,9 @@ pub fn enter_collect_taxes(
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    let any_cities = player_query.iter().any(|(_, cities, _)| cities.has_cities());
+    let any_cities = player_query
+        .iter()
+        .any(|(_, cities, _)| cities.has_cities());
 
     if !any_cities {
         info!("[TAXATION] No cities on the board — skipping taxation phase");
@@ -61,9 +61,13 @@ pub fn ai_set_coinage_rate(
             continue;
         }
 
-        let rate = if stock.tokens_in_stock() >= 20 { 3 }
-                   else if stock.tokens_in_stock() <= 8 { 1 }
-                   else { 2 };
+        let rate = if stock.tokens_in_stock() >= 20 {
+            3
+        } else if stock.tokens_in_stock() <= 8 {
+            1
+        } else {
+            2
+        };
         commands.entity(player_entity).insert(CoinageTaxRate(rate));
     }
 }
@@ -204,7 +208,7 @@ pub fn resolve_revolts(
             (entity, unit_points)
         })
         .collect();
-    candidates.sort_by_key(|(_,b)|*b);
+    candidates.sort_by_key(|(_, b)| *b);
 
     // Collect (city_entity, area_entity, original_owner) triples so we can
     // update PlayerCities without conflicting borrows.
@@ -306,8 +310,8 @@ pub fn taxation_gate(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::prelude::*;
     use crate::civilization::components::{PlayerCities, TokenStock, Treasury};
+    use bevy::prelude::*;
 
     /// Helper: create a player entity with `n` city-slot entries in `PlayerCities`
     /// and `stock_tokens` tokens available.
@@ -325,8 +329,9 @@ mod tests {
         }
 
         // Spawn enough token entities for the stock
-        let token_entities: Vec<Entity> =
-            (0..stock_tokens).map(|_| world.spawn_empty().id()).collect();
+        let token_entities: Vec<Entity> = (0..stock_tokens)
+            .map(|_| world.spawn_empty().id())
+            .collect();
 
         let stock = TokenStock::new(55, token_entities);
         let mut cities = PlayerCities::default();
@@ -347,9 +352,12 @@ mod tests {
         let player = setup_player_with_cities(&mut world, 10, 2); // 2 cities → owes 4 tokens
 
         let mut stock_before = 0;
-        world.query::<(&TokenStock, &PlayerCities)>().iter(&world).for_each(|(s, _)| {
-            stock_before = s.tokens_in_stock();
-        });
+        world
+            .query::<(&TokenStock, &PlayerCities)>()
+            .iter(&world)
+            .for_each(|(s, _)| {
+                stock_before = s.tokens_in_stock();
+            });
         assert_eq!(stock_before, 10);
 
         // Manually invoke the core taxation calculation to test the pure logic.

@@ -19,7 +19,7 @@ impl TreacheryState {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn with_trade(city: Entity, beneficiary: Entity) -> Self {
         Self {
             phase: TreacheryPhase::ApplyEffects,
@@ -27,7 +27,7 @@ impl TreacheryState {
             beneficiary: Some(beneficiary),
         }
     }
-    
+
     pub fn without_trade(city: Entity) -> Self {
         Self {
             phase: TreacheryPhase::ApplyEffects,

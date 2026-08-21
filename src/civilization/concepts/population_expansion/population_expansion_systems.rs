@@ -1,8 +1,9 @@
+use crate::GameActivity;
 use crate::civilization::components::*;
 use crate::civilization::concepts::census::GameInfoAndStuff;
 use crate::civilization::concepts::population_expansion::population_expansion_components::{
-    AreaIsExpanding, ExpandAutomatically, ExpandManually, NeedsExpansion,
-    PopExpAreaHighlight, PopExpHighlightMarker,
+    AreaIsExpanding, ExpandAutomatically, ExpandManually, NeedsExpansion, PopExpAreaHighlight,
+    PopExpHighlightMarker,
 };
 use crate::civilization::concepts::population_expansion::population_expansion_events::{
     CheckGate, CheckPlayerExpansionEligibility, ExpandPopulationManuallyCommand,
@@ -12,11 +13,10 @@ use crate::civilization::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::game_moves::{AvailableMoves, GameMove};
 use crate::loading::TextureAssets;
 use crate::stupid_ai::IsHuman;
-use crate::GameActivity;
 use bevy::prelude::{
-    debug, default, info, ButtonInput, Camera, Commands, Entity, GlobalTransform, Has,
-    MessageReader, MessageWriter, MouseButton, Name, NextState, Query, Res, ResMut, Sprite,
-    Transform, Vec3, Window, With, Without,
+    ButtonInput, Camera, Commands, Entity, GlobalTransform, Has, MessageReader, MessageWriter,
+    MouseButton, Name, NextState, Query, Res, ResMut, Sprite, Transform, Vec3, Window, With,
+    Without, debug, default, info,
 };
 use bevy::window::PrimaryWindow;
 
@@ -77,8 +77,7 @@ pub fn log_round_state(
         let n_cities = cities.number_of_cities();
         let total_pop = areas.total_population();
         let supportable = total_pop / 2; // each city needs 2 population (rule)
-        let (space, epoch) = ast
-            .map_or((-1, "—"), |p| (i64::from(p.space), p.epoch().name()));
+        let (space, epoch) = ast.map_or((-1, "—"), |p| (i64::from(p.space), p.epoch().name()));
         let real_tokens = owned_tokens.get(&entity).copied().unwrap_or(0);
         let stock_n = stock.tokens_in_stock();
         let treasury_n = treasury.tokens_in_treasury();
@@ -95,8 +94,10 @@ pub fn log_round_state(
             let in_pa = areas.population_in_area(area_entity);
             board_pop += in_pop;
             if in_pop != in_pa {
-                let label = area_name
-                    .map_or_else(|| format!("{area_entity:?}"), std::string::ToString::to_string);
+                let label = area_name.map_or_else(
+                    || format!("{area_entity:?}"),
+                    std::string::ToString::to_string,
+                );
                 mismatches.push(format!("{label}(pop={in_pop},pa={in_pa})"));
             }
         }
@@ -106,10 +107,17 @@ pub fn log_round_state(
              | pa_pop={total_pop} board_pop={board_pop} areas={areas_n} | stock={stock_n} treasury={treasury_n} \
              | tokens={real_tokens} accounted={accounted}{flag}",
             areas_n = areas.areas().len(),
-            flag = if accounted == real_tokens { "" } else { " ⚠DESYNC" },
+            flag = if accounted == real_tokens {
+                ""
+            } else {
+                " ⚠DESYNC"
+            },
         );
         if !mismatches.is_empty() {
-            info!("[STATE]   ↳ area desync for {name}: {}", mismatches.join(", "));
+            info!(
+                "[STATE]   ↳ area desync for {name}: {}",
+                mismatches.join(", ")
+            );
         }
     }
 }
@@ -123,8 +131,11 @@ pub fn enter_population_expansion(
     loading_from_save: Option<Res<LoadingFromSave>>,
 ) {
     game_info.round += 1;
-    info!("[POP_EXP] Entering population expansion phase, round {}", game_info.round);
-    
+    info!(
+        "[POP_EXP] Entering population expansion phase, round {}",
+        game_info.round
+    );
+
     let mut areas_with_pop = 0;
     for (area_entity, pop) in area.iter() {
         if pop.has_population() {
@@ -134,17 +145,25 @@ pub fn enter_population_expansion(
                 .insert(AreaIsExpanding::new(pop.players()));
         }
     }
-    info!("[POP_EXP] {} areas have population and need expansion", areas_with_pop);
+    info!(
+        "[POP_EXP] {} areas have population and need expansion",
+        areas_with_pop
+    );
 
     let mut human_count = 0;
     let mut ai_count = 0;
     let mut skipped_count = 0;
     for (player, faction, player_areas, is_human) in player_query.iter() {
         // Skip players that already completed expansion in the saved game
-        if let Some(ref save_state) = loading_from_save && save_state.completed_factions.contains(&faction.faction) {
-                info!("[POP_EXP] Skipping {:?} - already completed expansion in save", faction.faction);
-                skipped_count += 1;
-                continue;
+        if let Some(ref save_state) = loading_from_save
+            && save_state.completed_factions.contains(&faction.faction)
+        {
+            info!(
+                "[POP_EXP] Skipping {:?} - already completed expansion in save",
+                faction.faction
+            );
+            skipped_count += 1;
+            continue;
         }
         if is_human {
             human_count += 1;
@@ -156,8 +175,11 @@ pub fn enter_population_expansion(
             .insert(NeedsExpansion::new(player_areas.areas()));
         checker.write(CheckPlayerExpansionEligibility::new(player));
     }
-    info!("[POP_EXP] {} human, {} AI need expansion, {} skipped (already done)", human_count, ai_count, skipped_count);
-    
+    info!(
+        "[POP_EXP] {} human, {} AI need expansion, {} skipped (already done)",
+        human_count, ai_count, skipped_count
+    );
+
     // Clean up LoadingFromSave now that we've used it
     if loading_from_save.is_some() {
         commands.remove_resource::<LoadingFromSave>();
@@ -195,14 +217,22 @@ pub fn auto_expand_population(
 
 pub fn population_expansion_gate(
     mut check_gate: MessageReader<CheckGate>,
-    player_gate_query: Query<(Entity, Has<IsHuman>, Has<ExpandManually>, Has<ExpandAutomatically>), With<NeedsExpansion>>,
+    player_gate_query: Query<
+        (
+            Entity,
+            Has<IsHuman>,
+            Has<ExpandManually>,
+            Has<ExpandAutomatically>,
+        ),
+        With<NeedsExpansion>,
+    >,
     area_gate_query: Query<Entity, With<AreaIsExpanding>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     for _ in check_gate.read() {
         let players_needing_expansion: Vec<_> = player_gate_query.iter().collect();
-        
+
         if players_needing_expansion.is_empty() {
             info!("[POP_EXP] All players done with expansion, transitioning to Census");
             for area in area_gate_query.iter() {
@@ -255,26 +285,45 @@ pub fn expand_population_manually(
     }
 }
 
-/// When a human player gets AvailableMoves with PopExp moves, mark those areas with highlights.
+/// When a human player's PopExp `AvailableMoves` (re)computes, sync highlights
+/// to exactly match it: add markers for newly-offered areas, refresh the
+/// `max_tokens` on ones already highlighted, and drop highlights for areas no
+/// longer offered (i.e. already expanded this round via
+/// `recalculate_pop_exp_moves_for_player`'s `NeedsExpansion` filter) so a
+/// player can't click a stale marker and expand the same area twice.
 pub fn highlight_pop_exp_areas_for_human(
-    human_players: Query<(Entity, &AvailableMoves), With<IsHuman>>,
-    area_query: Query<(Entity, &Transform), (With<GameArea>, Without<PopExpAreaHighlight>)>,
+    human_players: Query<
+        (Entity, &AvailableMoves),
+        (With<IsHuman>, bevy::prelude::Changed<AvailableMoves>),
+    >,
+    area_query: Query<(Entity, &Transform), With<GameArea>>,
+    highlighted_areas: Query<(Entity, &PopExpAreaHighlight)>,
+    highlight_markers: Query<&PopExpHighlightMarker>,
     mut commands: Commands,
     textures: Res<TextureAssets>,
 ) {
     for (player_entity, available_moves) in human_players.iter() {
+        let mut offered_areas: bevy::platform::collections::HashSet<Entity> = default();
+
         for (_index, game_move) in &available_moves.moves {
             if let GameMove::PopulationExpansion(pop_exp_move) = game_move {
-                // Mark the area with highlight component if not already marked
-                if let Ok((area_entity, area_transform)) = area_query.get(pop_exp_move.area) {
+                offered_areas.insert(pop_exp_move.area);
+                let Ok((area_entity, area_transform)) = area_query.get(pop_exp_move.area) else {
+                    continue;
+                };
+
+                // Refresh (or add) the highlight; cheap even when unchanged.
+                commands
+                    .entity(area_entity)
+                    .insert(PopExpAreaHighlight::new(
+                        player_entity,
+                        pop_exp_move.max_tokens,
+                    ));
+
+                // Only spawn a marker sprite the first time this area is highlighted.
+                let already_marked = highlight_markers.iter().any(|m| m.area == area_entity);
+                if !already_marked {
                     debug!("Highlighting area {:?} for PopExp", area_entity);
-                    
-                    // Add highlight component to the area
-                    commands.entity(area_entity).insert(
-                        PopExpAreaHighlight::new(player_entity, pop_exp_move.max_tokens),
-                    );
-                    
-                    // Spawn a visual marker sprite at the area's position
                     commands.spawn((
                         PopExpHighlightMarker { area: area_entity },
                         Sprite {
@@ -288,6 +337,14 @@ pub fn highlight_pop_exp_areas_for_human(
                         .with_scale(Vec3::splat(0.5)),
                     ));
                 }
+            }
+        }
+
+        // Drop highlights for areas this player no longer has a move for
+        // (already expanded this round) so they can't be clicked again.
+        for (area_entity, highlight) in &highlighted_areas {
+            if highlight.player == player_entity && !offered_areas.contains(&area_entity) {
+                commands.entity(area_entity).remove::<PopExpAreaHighlight>();
             }
         }
     }
@@ -308,7 +365,7 @@ pub fn cleanup_pop_exp_highlights(
             }
         }
     }
-    
+
     // Despawn orphaned markers (areas no longer highlighted)
     for (marker_entity, marker) in highlight_markers.iter() {
         if highlighted_areas.get(marker.area).is_err() {
@@ -323,6 +380,7 @@ pub fn handle_pop_exp_area_click(
     windows: Query<&Window, With<PrimaryWindow>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
     highlighted_areas: Query<(Entity, &Transform, &PopExpAreaHighlight), With<GameArea>>,
+    available_moves_query: Query<&AvailableMoves>,
     mut expand_writer: MessageWriter<ExpandPopulationManuallyCommand>,
 ) {
     // Click is considered a hit if it lands within this radius of an area.
@@ -331,25 +389,46 @@ pub fn handle_pop_exp_area_click(
     if !mouse_button.just_pressed(MouseButton::Left) {
         return;
     }
-    
+
     let Ok(window) = windows.single() else { return };
-    let Some(cursor_pos) = window.cursor_position() else { return };
-    let Ok((camera, camera_transform)) = camera_query.single() else { return };
-    
+    let Some(cursor_pos) = window.cursor_position() else {
+        return;
+    };
+    let Ok((camera, camera_transform)) = camera_query.single() else {
+        return;
+    };
+
     let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) else {
         return;
     };
-    
+
     for (area_entity, area_transform, highlight) in highlighted_areas.iter() {
         let area_pos = area_transform.translation.truncate();
         let distance = world_pos.distance(area_pos);
-        
+
         if distance <= CLICK_RADIUS {
+            // Defense in depth: only honor the click if this area is still
+            // an actual pending move for this player right now (belt-and-
+            // suspenders alongside the highlight-sync fix above -- a stale
+            // highlight should never let an area be expanded twice).
+            let still_valid = available_moves_query.get(highlight.player).is_ok_and(|moves| {
+                moves.moves.values().any(|m| {
+                    matches!(m, GameMove::PopulationExpansion(pop_exp_move) if pop_exp_move.area == area_entity)
+                })
+            });
+            if !still_valid {
+                debug!(
+                    "Ignoring click on stale PopExp highlight for area {:?}",
+                    area_entity
+                );
+                return;
+            }
+
             debug!(
                 "Clicked on highlighted area {:?}, expanding with {} tokens",
                 area_entity, highlight.max_tokens
             );
-            
+
             expand_writer.write(ExpandPopulationManuallyCommand::new(
                 highlight.player,
                 area_entity,

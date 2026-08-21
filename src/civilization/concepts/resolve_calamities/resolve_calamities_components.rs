@@ -1,5 +1,5 @@
-use bevy::prelude::{Component, Entity, Reflect, ReflectComponent};
 use crate::civilization::TradeCard;
+use bevy::prelude::{Component, Entity, Reflect, ReflectComponent};
 
 /// Marks a player that holds Monotheism and must process their conversions
 /// at the end of the Resolve Calamities phase (rule 32.94).
@@ -20,7 +20,10 @@ pub struct CalamityVictim {
 
 impl CalamityVictim {
     pub fn new(calamity: TradeCard, traded_by: Option<Entity>) -> Self {
-        Self { calamity, traded_by }
+        Self {
+            calamity,
+            traded_by,
+        }
     }
 }
 
@@ -107,4 +110,3 @@ mod grain_lock_tests {
         assert_eq!(usable_grain_count(2, 5), 0);
     }
 }
-

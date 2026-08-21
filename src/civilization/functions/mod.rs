@@ -2,7 +2,7 @@ use crate::civilization::components::*;
 use crate::civilization::concepts::BuildCityCommand;
 use bevy::asset::Handle;
 use bevy::math::Vec3;
-use bevy::prelude::{default, Commands, Entity, Image, Mut, Sprite, Transform};
+use bevy::prelude::{Commands, Entity, Image, Mut, Sprite, Transform, default};
 
 pub fn move_from_stock_to_area(
     player: Entity,
@@ -126,7 +126,9 @@ pub fn remove_n_tokens_from_each_player(
 /// both hold it — see `conflict::attack_thresholds`). If the owner has fewer
 /// tokens in stock than `replacement_count`, `move_from_stock_to_area` moves
 /// however many are available (24.32: "replaces the city with what he has").
+#[allow(clippy::too_many_arguments)]
 pub fn replace_city_with_tokens_for_conflict(
+    commands: &mut Commands,
     area_entity: Entity,
     population: &mut Population,
     built_city: &BuiltCity,
@@ -138,6 +140,7 @@ pub fn replace_city_with_tokens_for_conflict(
 ) {
     player_cities.remove_city_from_area(area_entity);
     city_stock.return_token_to_stock(built_city.city);
+    crate::civilization::triggers::retire_city_token_visuals(commands, built_city.city);
     move_from_stock_to_area(
         built_city.player,
         area_entity,
@@ -223,7 +226,14 @@ mod tests {
         // Build city first to simulate a scenario
         player_cities.build_city_in_area(area_entity, city_token);
 
+        // The helper now also strips the retired city token's rendering
+        // components, so it needs a `Commands` to defer that onto.
+        let world = bevy::prelude::World::new();
+        let mut queue = bevy::ecs::world::CommandQueue::default();
+        let mut commands = Commands::new(&mut queue, &world);
+
         replace_city_with_tokens_for_conflict(
+            &mut commands,
             area_entity,
             &mut population,
             &built_city,

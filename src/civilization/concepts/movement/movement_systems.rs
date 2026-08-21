@@ -168,10 +168,8 @@ pub fn move_tokens_from_area_to_area(
                         pop_query.get_mut(ev.target_area)
                     {
                         // Check if AI is moving into an area with human player tokens
-                        let mover_is_ai =
-                            player_is_human.get(ev.player).map_or(true, |h| !h);
-                        let human_has_tokens =
-                            human_player.is_some_and(|h| to_pop.has_player(&h));
+                        let mover_is_ai = player_is_human.get(ev.player).map_or(true, |h| !h);
+                        let human_has_tokens = human_player.is_some_and(|h| to_pop.has_player(&h));
 
                         if mover_is_ai && human_has_tokens {
                             let area_desc = area_name

@@ -1,18 +1,21 @@
+use crate::agent_api::AgentApiPlugin;
+use crate::civilization::CivilizationInputPlugin;
 use crate::civilization::components::*;
 use crate::civilization::concepts::*;
 use crate::civilization::enums::GameFaction;
 use crate::civilization::events::MoveTokensFromStockToAreaCommand;
 use crate::civilization::game_moves::GameMovesPlugin;
-use crate::civilization::general_systems::{connect_areas, fix_token_positions, move_tokens_from_stock_to_area, print_names_of_phases, start_game};
+use crate::civilization::general_systems::{
+    connect_areas, fix_token_positions, move_tokens_from_stock_to_area, print_names_of_phases,
+    start_game,
+};
 use crate::civilization::resolve_calamities::resolve_calamities_plugin::ResolveCalamitiesPlugin;
-use crate::civilization::triggers::on_add_return_token_to_stock;
-use crate::civilization::CivilizationInputPlugin;
+use crate::civilization::triggers::{on_add_return_city_to_stock, on_add_return_token_to_stock};
 use crate::player::Player;
 use crate::stupid_ai::*;
-use crate::agent_api::AgentApiPlugin;
 use crate::{GameActivity, GameState};
 use bevy::app::{App, Plugin, Update};
-use bevy::prelude::{in_state, AppExtStates, IntoScheduleConfigs, OnEnter, Res, Resource};
+use bevy::prelude::{AppExtStates, IntoScheduleConfigs, OnEnter, Res, Resource, in_state};
 
 pub struct CivilizationPlugin;
 
@@ -45,72 +48,73 @@ impl Plugin for CivLogicPlugins {
     fn build(&self, app: &mut App) {
         // Use DebugOptions::test_manual_pop_exp() to test manual population expansion
         app.insert_resource(DebugOptions::from_env())
-        .register_type::<Player>()
-        .register_type::<BarbarianToken>()
-        .register_type::<Token>()
-        .register_type::<LandPassage>()
-        .register_type::<TokenStock>()
-        .register_type::<GameArea>()
-        .register_type::<Population>()
-        .register_type::<PlayerAreas>()
-        .register_type::<PlayerCities>()
-        .register_type::<Faction>()
-        .register_type::<Treasury>()
-        .register_type::<CityToken>()
-        .register_type::<CityTokenStock>()
-        .register_type::<BuiltCity>()
-        .register_type::<CitySite>()
-        .register_type::<FloodPlain>()
-        .register_type::<Volcano>()
-        .register_type::<CityFlood>()
-        .register_type::<NeedsConnections>()
-        .register_type::<SeaPassage>()
-        .register_type::<OpenSea>()
-        .register_type::<AstPosition>()
-        .register_type::<StartArea>()
-        .register_type::<Census>()
-        .register_type::<PlayerTradeCards>()
-        .register_type::<StupidAi>()
-        .register_type::<IsHuman>()
-        .add_message::<MoveTokensFromStockToAreaCommand>()
-        .add_sub_state::<GameActivity>()
-        .add_systems(
-            Update,
-            (print_names_of_phases.run_if(in_state(GameState::Playing)),),
-        )
-        .add_plugins((
-            TaxationPlugin,
-            ShipsPlugin,
-            SuccessionPlugin,
-            PopulationExpansionPlugin,
-            CensusPlugin,
-            MovementPlugin,
-            ConflictPlugin,
-            TradePlugin,
-            CivCardsPlugin,
-        ))
-        .add_plugins((
-            CityConstructionPlugin,
-            RemoveSurplusPlugin,
-            ResolveCalamitiesPlugin,
-            CitySupportPlugin,
-            StupidAiPlugin,
-            GameMovesPlugin,
-            TradeCardPlugin,
-            MapPlugin,
-            SaveGamePlugin,
-        ))
-        .add_systems(OnEnter(GameActivity::StartGame), start_game)
-        .insert_resource(GameInfoAndStuff::default())
-        .add_systems(
-            Update,
-            (
-                connect_areas.run_if(in_state(GameState::Playing)),
-                move_tokens_from_stock_to_area.run_if(in_state(GameState::Playing)),
-                fix_token_positions.run_if(in_state(GameState::Playing)),
-            ),
-        )
-        .add_observer(on_add_return_token_to_stock);
+            .register_type::<Player>()
+            .register_type::<BarbarianToken>()
+            .register_type::<Token>()
+            .register_type::<LandPassage>()
+            .register_type::<TokenStock>()
+            .register_type::<GameArea>()
+            .register_type::<Population>()
+            .register_type::<PlayerAreas>()
+            .register_type::<PlayerCities>()
+            .register_type::<Faction>()
+            .register_type::<Treasury>()
+            .register_type::<CityToken>()
+            .register_type::<CityTokenStock>()
+            .register_type::<BuiltCity>()
+            .register_type::<CitySite>()
+            .register_type::<FloodPlain>()
+            .register_type::<Volcano>()
+            .register_type::<CityFlood>()
+            .register_type::<NeedsConnections>()
+            .register_type::<SeaPassage>()
+            .register_type::<OpenSea>()
+            .register_type::<AstPosition>()
+            .register_type::<StartArea>()
+            .register_type::<Census>()
+            .register_type::<PlayerTradeCards>()
+            .register_type::<StupidAi>()
+            .register_type::<IsHuman>()
+            .add_message::<MoveTokensFromStockToAreaCommand>()
+            .add_sub_state::<GameActivity>()
+            .add_systems(
+                Update,
+                (print_names_of_phases.run_if(in_state(GameState::Playing)),),
+            )
+            .add_plugins((
+                TaxationPlugin,
+                ShipsPlugin,
+                SuccessionPlugin,
+                PopulationExpansionPlugin,
+                CensusPlugin,
+                MovementPlugin,
+                ConflictPlugin,
+                TradePlugin,
+                CivCardsPlugin,
+            ))
+            .add_plugins((
+                CityConstructionPlugin,
+                RemoveSurplusPlugin,
+                ResolveCalamitiesPlugin,
+                CitySupportPlugin,
+                StupidAiPlugin,
+                GameMovesPlugin,
+                TradeCardPlugin,
+                MapPlugin,
+                SaveGamePlugin,
+            ))
+            .add_systems(OnEnter(GameActivity::StartGame), start_game)
+            .insert_resource(GameInfoAndStuff::default())
+            .add_systems(
+                Update,
+                (
+                    connect_areas.run_if(in_state(GameState::Playing)),
+                    move_tokens_from_stock_to_area.run_if(in_state(GameState::Playing)),
+                    fix_token_positions.run_if(in_state(GameState::Playing)),
+                ),
+            )
+            .add_observer(on_add_return_token_to_stock)
+            .add_observer(on_add_return_city_to_stock);
     }
 }
 

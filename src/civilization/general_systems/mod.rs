@@ -1,12 +1,12 @@
+use crate::GameActivity;
 use crate::civilization::*;
 use crate::player::Player;
 use crate::stupid_ai::*;
-use crate::GameActivity;
-use bevy::math::{vec3, Vec2, Vec3};
+use bevy::math::{Vec2, Vec3, vec3};
 use bevy::prelude::{
-    debug, default, info, Bundle, Commands, Entity, KeyCode, MessageReader, MessageWriter, Name,
-    NextState, Query, Res, ResMut, SpawnRelated, Sprite, StateTransitionEvent, Transform, With,
-    Without,
+    Bundle, Commands, Entity, KeyCode, MessageReader, MessageWriter, Name, NextState, Query, Res,
+    ResMut, SpawnRelated, Sprite, StateTransitionEvent, Transform, With, Without, debug, default,
+    info,
 };
 use bevy_enhanced_input::actions;
 use bevy_enhanced_input::prelude::*;
@@ -226,7 +226,12 @@ pub fn setup_players(
             .id();
 
         if debug_options.add_human_player && faction == debug_options.human_faction {
-            setup_human_player(&debug_options, &mut trade_card_resource, &mut commands, player);
+            setup_human_player(
+                &debug_options,
+                &mut trade_card_resource,
+                &mut commands,
+                player,
+            );
         } else if faction_is_agent_controlled(faction) {
             // Agent-controlled players behave like a remote human (IsHuman → the game
             // waits for them, AI doesn't auto-play) but are tagged AgentControlled so
@@ -290,15 +295,15 @@ pub fn setup_human_player(
         }
         commands.entity(player).insert(player_trade_cards);
     }
-    
+
     if let Some(start_cards) = &debug_options.human_civ_cards {
-        let mut player_civ_cards = PlayerCivilizationCards::default();  
+        let mut player_civ_cards = PlayerCivilizationCards::default();
         for card in start_cards {
             player_civ_cards.cards.insert(*card);
         }
         commands.entity(player).insert(player_civ_cards);
     }
-    
+
     if debug_options.human_starts_with_trade_cards {
         let mut player_trade_cards = PlayerTradeCards::default();
         (1..=9).for_each(|pile| {

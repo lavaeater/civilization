@@ -1,19 +1,24 @@
-use bevy::prelude::*;
 use bevy::platform::collections::HashMap;
+use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
 use crate::civilization::components::*;
+use crate::civilization::concepts::AvailableFactions;
 use crate::civilization::concepts::census::GameInfoAndStuff;
 use crate::civilization::concepts::city_construction::{CityConstructionPhaseActive, IsBuilding};
 use crate::civilization::concepts::movement::movement_components::PerformingMovement;
 use crate::civilization::concepts::population_expansion::population_expansion_components::NeedsExpansion;
+use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::PirateNation;
+use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::ensure_pirate_nation;
 use crate::civilization::concepts::ships::create_ship_stock;
-use crate::civilization::concepts::AvailableFactions;
 use crate::civilization::enums::GameFaction;
 use crate::civilization::game_moves::RecalculatePlayerMoves;
-use crate::civilization::{AstPosition, CivCardName, PlayerCivilizationCards, PlayerTradeCards, Census, TradeCard};
+use crate::civilization::{
+    AstPosition, CanTrade, Census, CivCardName, PlayerAcquiringCivilizationCards,
+    PlayerCivilizationCards, PlayerTradeCards, TradeCard,
+};
 use crate::player::Player;
 use crate::stupid_ai::{IsHuman, Personality, Playstyle, StupidAi};
 use crate::{GameActivity, GameState};
@@ -61,8 +66,7 @@ pub struct SaveGamePlugin;
 
 impl Plugin for SaveGamePlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_message::<SaveGameRequest>()
+        app.add_message::<SaveGameRequest>()
             .add_message::<LoadGameRequest>()
             .add_systems(
                 Update,
@@ -79,19 +83,25 @@ impl Plugin for SaveGamePlugin {
                 OnEnter(GameActivity::PrepareGame),
                 load_game_from_save.before(crate::civilization::general_systems::setup_players),
             )
-            .add_systems(
-                OnEnter(GameActivity::StartGame),
-                restore_area_populations,
-            )
+            .add_systems(OnEnter(GameActivity::StartGame), restore_area_populations)
             // Safety net: clean up LoadingFromSave for atomic activities that don't
             // consume it themselves (Census, Conflict, RemoveSurplus, CheckCitySupport,
             // AcquireTradeCards, Trade). The per-player activities (PopExpansion,
             // Movement, CityConstruction) clean it up in their own OnEnter systems.
             .add_systems(OnEnter(GameActivity::Census), cleanup_loading_from_save)
             .add_systems(OnEnter(GameActivity::Conflict), cleanup_loading_from_save)
-            .add_systems(OnEnter(GameActivity::RemoveSurplusPopulation), cleanup_loading_from_save)
-            .add_systems(OnEnter(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation), cleanup_loading_from_save)
-            .add_systems(OnEnter(GameActivity::AcquireTradeCards), cleanup_loading_from_save)
+            .add_systems(
+                OnEnter(GameActivity::RemoveSurplusPopulation),
+                cleanup_loading_from_save,
+            )
+            .add_systems(
+                OnEnter(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation),
+                cleanup_loading_from_save,
+            )
+            .add_systems(
+                OnEnter(GameActivity::AcquireTradeCards),
+                cleanup_loading_from_save,
+            )
             .add_systems(OnEnter(GameActivity::Trade), cleanup_loading_from_save);
     }
 }
@@ -128,9 +138,17 @@ pub struct SavedPlayer {
     /// rather than rejecting the whole file.
     #[serde(default)]
     pub owned_civ_cards: Vec<CivCardName>,
+    /// Who traded each held calamity to this player (rules 29.61/30.221).
+    /// Stored by faction because entity ids are not stable across a load.
+    /// Older saves predate this field and load with no provenance, which is
+    /// the same as every calamity having been drawn rather than traded.
+    #[serde(default)]
+    pub calamity_traded_by: Vec<(TradeCard, GameFaction)>,
 }
 
-fn default_ast_space() -> u32 { 0 }
+fn default_ast_space() -> u32 {
+    0
+}
 
 /// Saved data for population in an area
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -140,6 +158,12 @@ pub struct SavedAreaPopulation {
     pub tokens_by_faction: Vec<(GameFaction, usize)>,
     /// Faction that has a city here, if any
     pub city_owner: Option<GameFaction>,
+    /// Whether the city here belongs to the Pirate nation (rule 30.913: a
+    /// Pirate city "remains until attacked and destroyed"). It has no
+    /// `GameFaction`, so `city_owner` cannot name it -- without this flag a
+    /// Pirate city silently vanished on save/load.
+    #[serde(default)]
+    pub city_is_pirate: bool,
 }
 
 /// Complete game save data
@@ -170,6 +194,8 @@ fn is_player_done_with_activity(
     performing_movement_query: &Query<Entity, With<PerformingMovement>>,
     is_building_query: &Query<Entity, With<IsBuilding>>,
     left_to_move: &[Entity],
+    can_trade_query: &Query<Entity, With<CanTrade>>,
+    acquiring_civ_cards_query: &Query<Entity, With<PlayerAcquiringCivilizationCards>>,
 ) -> bool {
     match activity {
         GameActivity::PopulationExpansion => {
@@ -179,12 +205,19 @@ fn is_player_done_with_activity(
         GameActivity::Movement => {
             // Player is done if they're not currently performing movement
             // AND they're not in the left_to_move list
-            performing_movement_query.get(player).is_err()
-                && !left_to_move.contains(&player)
+            performing_movement_query.get(player).is_err() && !left_to_move.contains(&player)
         }
         GameActivity::CityConstruction => {
             // Player is done if they no longer have IsBuilding
             is_building_query.get(player).is_err()
+        }
+        GameActivity::Trade => {
+            // Player is done trading once CanTrade is removed from them.
+            can_trade_query.get(player).is_err()
+        }
+        GameActivity::AcquireCivilizationCards => {
+            // Player is done once PlayerAcquiringCivilizationCards is removed.
+            acquiring_civ_cards_query.get(player).is_err()
         }
         // Atomic activities (Census, Conflict, RemoveSurplus, etc.) run in one shot,
         // so if we're saved during them, no player has partial state.
@@ -220,10 +253,7 @@ fn trigger_autoload(mut writer: MessageWriter<LoadGameRequest>) {
     }
 }
 
-fn save_on_key(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut writer: MessageWriter<SaveGameRequest>,
-) {
+fn save_on_key(keys: Res<ButtonInput<KeyCode>>, mut writer: MessageWriter<SaveGameRequest>) {
     if keys.just_pressed(KeyCode::F5) {
         writer.write(SaveGameRequest);
     }
@@ -233,39 +263,58 @@ fn handle_save_request(
     mut events: MessageReader<SaveGameRequest>,
     game_info: Res<GameInfoAndStuff>,
     current_activity: Option<Res<State<GameActivity>>>,
-    player_query: Query<(
-        Entity,
-        &Name,
-        &Faction,
-        &Census,
-        &Treasury,
-        &TokenStock,
-        &CityTokenStock,
-        &PlayerTradeCards,
-        Has<IsHuman>,
-        Option<&AstPosition>,
-        Option<&PlayerCivilizationCards>,
-    ), With<Player>>,
+    player_query: Query<
+        (
+            Entity,
+            &Name,
+            &Faction,
+            &Census,
+            &Treasury,
+            &TokenStock,
+            &CityTokenStock,
+            &PlayerTradeCards,
+            Has<IsHuman>,
+            Option<&AstPosition>,
+            Option<&PlayerCivilizationCards>,
+        ),
+        With<Player>,
+    >,
     area_query: Query<(&GameArea, &Population, Option<&BuiltCity>)>,
     faction_query: Query<&Faction>,
+    pirate_query: Query<Entity, With<PirateNation>>,
     needs_expansion_query: Query<Entity, With<NeedsExpansion>>,
     performing_movement_query: Query<Entity, With<PerformingMovement>>,
     is_building_query: Query<Entity, With<IsBuilding>>,
+    can_trade_query: Query<Entity, With<CanTrade>>,
+    acquiring_civ_cards_query: Query<Entity, With<PlayerAcquiringCivilizationCards>>,
 ) {
     if events.read().next().is_none() {
         return;
     }
-    
+
     let activity = current_activity
         .as_ref()
         .map(|a| a.get().clone())
         .unwrap_or_default();
-    
+
     info!("Saving game (activity: {:?})...", activity);
-    
+
     // Collect player data with per-player completion state
     let mut players = Vec::new();
-    for (entity, name, faction, census, treasury, token_stock, city_stock, trade_cards, is_human, ast_pos, civ_cards) in player_query.iter() {
+    for (
+        entity,
+        name,
+        faction,
+        census,
+        treasury,
+        token_stock,
+        city_stock,
+        trade_cards,
+        is_human,
+        ast_pos,
+        civ_cards,
+    ) in player_query.iter()
+    {
         let done = is_player_done_with_activity(
             entity,
             &activity,
@@ -273,6 +322,8 @@ fn handle_save_request(
             &performing_movement_query,
             &is_building_query,
             &game_info.left_to_move,
+            &can_trade_query,
+            &acquiring_civ_cards_query,
         );
         let saved_player = SavedPlayer {
             name: name.to_string(),
@@ -286,15 +337,26 @@ fn handle_save_request(
             done_with_current_activity: done,
             ast_space: ast_pos.map_or(0, |p| p.space),
             owned_civ_cards: civ_cards.map_or_else(Vec::new, |c| c.cards.iter().copied().collect()),
+            calamity_traded_by: trade_cards
+                .calamity_origins_as_vec()
+                .into_iter()
+                .filter_map(|(card, from)| faction_query.get(from).ok().map(|f| (card, f.faction)))
+                .collect(),
         };
         if done {
-            info!("  Player {} ({:?}) is DONE with {:?}", name, faction.faction, activity);
+            info!(
+                "  Player {} ({:?}) is DONE with {:?}",
+                name, faction.faction, activity
+            );
         } else {
-            info!("  Player {} ({:?}) is NOT done with {:?}", name, faction.faction, activity);
+            info!(
+                "  Player {} ({:?}) is NOT done with {:?}",
+                name, faction.faction, activity
+            );
         }
         players.push(saved_player);
     }
-    
+
     // Collect area population data
     let mut area_populations = Vec::new();
     for (game_area, population, built_city) in area_query.iter() {
@@ -304,37 +366,43 @@ fn handle_save_request(
                 tokens_by_faction.push((faction.faction, tokens.len()));
             }
         }
-        
-        let city_owner = built_city.and_then(|bc| {
-            faction_query.get(bc.player).ok().map(|f| f.faction)
-        });
-        
-        if !tokens_by_faction.is_empty() || city_owner.is_some() {
+
+        let city_owner =
+            built_city.and_then(|bc| faction_query.get(bc.player).ok().map(|f| f.faction));
+        let city_is_pirate = built_city.is_some_and(|bc| pirate_query.get(bc.player).is_ok());
+
+        if !tokens_by_faction.is_empty() || city_owner.is_some() || city_is_pirate {
             area_populations.push(SavedAreaPopulation {
                 area_id: game_area.id,
                 tokens_by_faction,
                 city_owner,
+                city_is_pirate,
             });
         }
     }
-    
+
     // Save census_order and left_to_move as faction lists
-    let census_order: Vec<GameFaction> = game_info.census_order.iter()
+    let census_order: Vec<GameFaction> = game_info
+        .census_order
+        .iter()
         .filter_map(|e| faction_query.get(*e).ok().map(|f| f.faction))
         .collect();
-    let left_to_move: Vec<GameFaction> = game_info.left_to_move.iter()
+    let left_to_move: Vec<GameFaction> = game_info
+        .left_to_move
+        .iter()
         .filter_map(|e| faction_query.get(*e).ok().map(|f| f.faction))
         .collect();
-    
+
     // Find the player currently performing movement (already popped from left_to_move)
     let current_mover = if activity == GameActivity::Movement {
-        performing_movement_query.iter().next().and_then(|e| {
-            faction_query.get(e).ok().map(|f| f.faction)
-        })
+        performing_movement_query
+            .iter()
+            .next()
+            .and_then(|e| faction_query.get(e).ok().map(|f| f.faction))
     } else {
         None
     };
-    
+
     let save_data = GameSaveData {
         version: SAVE_GAME_VERSION.to_string(),
         round: game_info.round,
@@ -345,14 +413,18 @@ fn handle_save_request(
         left_to_move,
         current_mover,
     };
-    
+
     match serde_json::to_string_pretty(&save_data) {
         Ok(json) => {
             if let Err(e) = fs::write(SAVE_FILE_PATH, &json) {
                 error!("Failed to write save file: {}", e);
             } else {
-                info!("Game saved to {} ({} players, {} areas with population)", 
-                    SAVE_FILE_PATH, save_data.players.len(), save_data.area_populations.len());
+                info!(
+                    "Game saved to {} ({} players, {} areas with population)",
+                    SAVE_FILE_PATH,
+                    save_data.players.len(),
+                    save_data.area_populations.len()
+                );
             }
         }
         Err(e) => error!("Failed to serialize save data: {}", e),
@@ -376,25 +448,32 @@ fn handle_load_request(
     if events.read().next().is_none() {
         return;
     }
-    
+
     info!("Loading game...");
-    
+
     if !Path::new(SAVE_FILE_PATH).exists() {
         warn!("No save file found at {}", SAVE_FILE_PATH);
         return;
     }
-    
+
     match fs::read_to_string(SAVE_FILE_PATH) {
         Ok(json) => {
             match serde_json::from_str::<GameSaveData>(&json) {
                 Ok(save_data) => {
                     if save_data.version != SAVE_GAME_VERSION {
-                        error!("Save file version mismatch: expected {}, got {}. Save file rejected.",
-                            SAVE_GAME_VERSION, save_data.version);
+                        error!(
+                            "Save file version mismatch: expected {}, got {}. Save file rejected.",
+                            SAVE_GAME_VERSION, save_data.version
+                        );
                         return;
                     }
-                    info!("Parsed save data (v{}): round {}, {} players, {} areas",
-                        save_data.version, save_data.round, save_data.players.len(), save_data.area_populations.len());
+                    info!(
+                        "Parsed save data (v{}): round {}, {} players, {} areas",
+                        save_data.version,
+                        save_data.round,
+                        save_data.players.len(),
+                        save_data.area_populations.len()
+                    );
                     // Insert the pending load resource - will be processed on PrepareGame
                     commands.insert_resource(PendingGameLoad(save_data));
                     // Transition to Playing state to trigger the game start
@@ -419,16 +498,22 @@ fn load_game_from_save(
     let Some(pending) = pending_load else {
         return;
     };
-    
+
     let save_data = &pending.0;
-    info!("Loading game from save: round {}, {} players", save_data.round, save_data.players.len());
-    
+    info!(
+        "Loading game from save: round {}, {} players",
+        save_data.round,
+        save_data.players.len()
+    );
+
     // Determine which factions have completed the current activity
-    let completed_factions: Vec<GameFaction> = save_data.players.iter()
+    let completed_factions: Vec<GameFaction> = save_data
+        .players
+        .iter()
         .filter(|p| p.done_with_current_activity)
         .map(|p| p.faction)
         .collect();
-    
+
     // Mark that we're loading from save - this prevents setup_players from running
     // and carries activity state for OnEnter systems
     commands.insert_resource(LoadingFromSave {
@@ -438,39 +523,56 @@ fn load_game_from_save(
         left_to_move: save_data.left_to_move.clone(),
         current_mover: save_data.current_mover,
     });
-    
+
     // Set game round
     game_info.round = save_data.round;
-    
-    // Create a map of faction -> player entity for later use
+
+    // Create a map of faction -> player entity for later use.
+    //
+    // Entities are reserved up front rather than as each player is built, so
+    // that cross-player references -- calamity provenance (29.61/30.221) --
+    // can be resolved during the build loop no matter which order the players
+    // appear in the file.
     let mut faction_to_player: HashMap<GameFaction, Entity> = HashMap::default();
-    
+    for saved_player in &save_data.players {
+        faction_to_player.insert(saved_player.faction, commands.spawn_empty().id());
+    }
+
     // Create players
     for (n, saved_player) in save_data.players.iter().enumerate() {
-        info!("Creating player: {} ({:?})", saved_player.name, saved_player.faction);
-        
+        info!(
+            "Creating player: {} ({:?})",
+            saved_player.name, saved_player.faction
+        );
+
         // Create trade cards from saved data
-        let trade_cards = PlayerTradeCards::from_cards_vec(saved_player.trade_cards.clone());
+        let mut trade_cards = PlayerTradeCards::from_cards_vec(saved_player.trade_cards.clone());
+        for (card, trader_faction) in &saved_player.calamity_traded_by {
+            if let Some(&trader) = faction_to_player.get(trader_faction) {
+                trade_cards.set_calamity_traded_by(*card, trader);
+            }
+        }
         let civ_cards = PlayerCivilizationCards {
             cards: saved_player.owned_civ_cards.iter().copied().collect(),
         };
 
-        // Create player entity
-        let player = commands
-            .spawn((
-                Player,
-                Name::new(saved_player.name.clone()),
-                Census { population: saved_player.census_population },
-                Treasury::default(), // Treasury tokens will be created separately if needed
-                Faction::new(saved_player.faction),
-                PlayerAreas::default(),
-                PlayerCities::default(),
-                trade_cards,
-                civ_cards,
-                AstPosition::new(saved_player.ast_space),
-            ))
-            .id();
-        
+        // Build onto the entity reserved for this faction above.
+        let player = faction_to_player[&saved_player.faction];
+        commands.entity(player).insert((
+            Player,
+            Name::new(saved_player.name.clone()),
+            Census {
+                population: saved_player.census_population,
+            },
+            Treasury::default(), // Treasury tokens will be created separately if needed
+            Faction::new(saved_player.faction),
+            PlayerAreas::default(),
+            PlayerCities::default(),
+            trade_cards,
+            civ_cards,
+            AstPosition::new(saved_player.ast_space),
+        ));
+
         // Add AI or Human marker
         if saved_player.is_human {
             commands.entity(player).insert(IsHuman);
@@ -489,7 +591,7 @@ fn load_game_from_save(
                 .entity(player)
                 .insert((StupidAi, Personality::from_playstyle(playstyle)));
         }
-        
+
         // Create tokens for stock
         let tokens: Vec<Entity> = (0..saved_player.tokens_in_stock)
             .map(|_| {
@@ -498,7 +600,7 @@ fn load_game_from_save(
                     .id()
             })
             .collect();
-        
+
         // Create city tokens for stock
         let city_tokens: Vec<Entity> = (0..saved_player.city_tokens_in_stock)
             .map(|_| {
@@ -507,7 +609,7 @@ fn load_game_from_save(
                     .id()
             })
             .collect();
-        
+
         // Ship stock/board state isn't part of the save format yet (rule 22.4's
         // 4-ship cap is a fresh default here, same as a new game) -- without
         // this, loaded players were missing ShipStock/PlayerShips entirely,
@@ -522,23 +624,21 @@ fn load_game_from_save(
             ship_stock,
             player_ships,
         ));
-
-        faction_to_player.insert(saved_player.faction, player);
     }
-    
+
     // Store faction_to_player mapping for area population restoration
     commands.insert_resource(LoadedFactionMap(faction_to_player.clone()));
     commands.insert_resource(PendingAreaPopulations(save_data.area_populations.clone()));
-    
+
     // Insert activity-specific resources based on saved activity
     if save_data.game_activity == GameActivity::CityConstruction {
         commands.insert_resource(CityConstructionPhaseActive);
         info!("Inserted CityConstructionPhaseActive resource for loaded save");
     }
-    
+
     // Remove the pending load resource
     commands.remove_resource::<PendingGameLoad>();
-    
+
     info!("Players created from save. Area populations will be restored after map loads.");
 }
 
@@ -558,8 +658,8 @@ fn restore_area_populations(
     faction_map: Option<Res<LoadedFactionMap>>,
     mut area_query: Query<(Entity, &GameArea, &mut Population, &Transform)>,
     mut player_areas_query: Query<&mut PlayerAreas>,
-    mut player_cities_query: Query<&mut PlayerCities>,
-    mut city_stock_query: Query<&mut CityTokenStock>,
+    mut player_cities_query: Query<(Entity, &mut PlayerCities, &mut CityTokenStock)>,
+    pirate_query: Query<Entity, With<PirateNation>>,
     game_factions: Res<AvailableFactions>,
 ) {
     let Some(pending) = pending_pops else {
@@ -568,39 +668,39 @@ fn restore_area_populations(
     let Some(factions) = faction_map else {
         return;
     };
-    
+
     info!("Restoring {} area populations from save", pending.0.len());
-    
+
     // Build a map of area_id -> (area_entity, transform)
     let area_id_to_entity: HashMap<i32, (Entity, Vec3)> = area_query
         .iter()
         .map(|(entity, game_area, _, transform)| (game_area.id, (entity, transform.translation)))
         .collect();
-    
+
     for saved_area in &pending.0 {
         let Some(&(area_entity, area_position)) = area_id_to_entity.get(&saved_area.area_id) else {
             warn!("Area {} not found in map, skipping", saved_area.area_id);
             continue;
         };
-        
+
         // Get mutable population for this area
         let Ok((_, _, mut population, _)) = area_query.get_mut(area_entity) else {
             continue;
         };
-        
+
         // Add tokens for each faction
         for (faction, token_count) in &saved_area.tokens_by_faction {
             let Some(&player_entity) = factions.0.get(faction) else {
                 warn!("Faction {:?} not found in loaded players", faction);
                 continue;
             };
-            
+
             // Get the faction icon for this faction
             let Some(faction_icon) = game_factions.faction_icons.get(faction) else {
                 warn!("No icon for faction {:?}", faction);
                 continue;
             };
-            
+
             // Create tokens and add them to the area
             for _ in 0..*token_count {
                 let token = commands
@@ -616,59 +716,118 @@ fn restore_area_populations(
                     ))
                     .id();
                 population.add_token_to_area(player_entity, token);
-                
+
                 // Update player areas
                 if let Ok(mut player_areas) = player_areas_query.get_mut(player_entity) {
                     player_areas.add_token_to_area(area_entity, token);
                 }
             }
-            
-            info!("  Area {}: {} tokens for {:?}", saved_area.area_id, token_count, faction);
+
+            info!(
+                "  Area {}: {} tokens for {:?}",
+                saved_area.area_id, token_count, faction
+            );
         }
-        
+
         // Mark area for token position fixing
         commands.entity(area_entity).insert(FixTokenPositions);
-        
+
+        // A Pirate city has no faction; rebuild it against the Pirate
+        // nation (found or spawned) so 30.913's "remains until attacked and
+        // destroyed" survives a reload.
+        if saved_area.city_is_pirate {
+            let pirate_nation = ensure_pirate_nation(&mut commands, &pirate_query);
+            let city_token = commands.spawn(CityToken::new(pirate_nation)).id();
+            commands
+                .entity(area_entity)
+                .insert(BuiltCity::new(city_token, pirate_nation));
+            if let Some(city_icon) = game_factions.faction_city_icons.values().next() {
+                commands.entity(city_token).insert((
+                    Sprite {
+                        image: city_icon.clone(),
+                        ..default()
+                    },
+                    Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
+                        .with_translation(area_position),
+                ));
+            }
+            // The Pirate nation is created through `Commands`, so its
+            // `PlayerCities` cannot be written directly here -- `entry`
+            // defers the update onto whichever component instance ends up on
+            // the entity, whether it was just spawned or already existed.
+            commands
+                .entity(pirate_nation)
+                .entry::<PlayerCities>()
+                .or_default()
+                .and_modify(move |mut cities| {
+                    cities.build_city_in_area(area_entity, city_token);
+                });
+
+            info!("  Area {}: Pirate city restored", saved_area.area_id);
+            continue;
+        }
+
         // Build city if needed
         if let Some(city_faction) = &saved_area.city_owner {
             let Some(&player_entity) = factions.0.get(city_faction) else {
                 warn!("City owner faction {:?} not found", city_faction);
                 continue;
             };
-            
-            // Get a city token from the player's stock
-            if let Ok(mut city_stock) = city_stock_query.get_mut(player_entity) {
-                if let Some(city_token) = city_stock.get_token_from_stock() {
-                    // Add BuiltCity component to the area
-                    commands.entity(area_entity).insert(BuiltCity::new(city_token, player_entity));
-                    
-                    // Add sprite and transform to the city token
-                    if let Some(city_icon) = game_factions.faction_city_icons.get(city_faction) {
-                        commands.entity(city_token).insert((
-                            Sprite {
-                                image: city_icon.clone(),
-                                ..default()
-                            },
-                            Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
-                                .with_translation(area_position),
-                        ));
-                    } else {
-                        warn!("No city icon for faction {:?}", city_faction);
-                    }
-                    
-                    // Update player cities
-                    if let Ok(mut player_cities) = player_cities_query.get_mut(player_entity) {
-                        player_cities.build_city_in_area(area_entity, city_token);
-                    }
-                    
-                    info!("  Area {}: city built by {:?}", saved_area.area_id, city_faction);
-                } else {
-                    warn!("No city tokens available for {:?}", city_faction);
-                }
+
+            // Spawn a fresh city token for the restored city rather than
+            // popping one off `CityTokenStock`. `city_tokens_in_stock` in the
+            // save already excludes tokens sitting on the board as cities, so
+            // drawing from the stock here charged the player twice -- every
+            // save/load round trip silently shrank their city stock by the
+            // number of cities they owned, until an empty stock made
+            // `recalculate_city_construction_moves_for_player` produce no
+            // moves, strip `IsBuilding`, and skip them in CityConstruction.
+            let city_token = commands.spawn(CityToken::new(player_entity)).id();
+
+            commands
+                .entity(area_entity)
+                .insert(BuiltCity::new(city_token, player_entity));
+
+            if let Some(city_icon) = game_factions.faction_city_icons.get(city_faction) {
+                commands.entity(city_token).insert((
+                    Sprite {
+                        image: city_icon.clone(),
+                        ..default()
+                    },
+                    Transform::from_scale(Vec3::new(0.25, 0.25, 0.25))
+                        .with_translation(area_position),
+                ));
+            } else {
+                warn!("No city icon for faction {:?}", city_faction);
             }
+
+            // Update player cities
+            if let Ok((_, mut player_cities, _)) = player_cities_query.get_mut(player_entity) {
+                player_cities.build_city_in_area(area_entity, city_token);
+            }
+
+            info!(
+                "  Area {}: city built by {:?}",
+                saved_area.area_id, city_faction
+            );
         }
     }
-    
+
+    // A player's city tokens are either in stock or on the board, so the stock
+    // is fully derivable once the cities are placed. Recomputing it here repairs
+    // saves written by the version that double-charged the stock on load -- an
+    // empty stock leaves a player with no city-construction moves at all, which
+    // reads as the game skipping them in that phase.
+    for (player_entity, player_cities, mut city_stock) in &mut player_cities_query {
+        let expected_in_stock = city_stock
+            .max_tokens
+            .saturating_sub(player_cities.number_of_cities());
+        while city_stock.city_tokens_in_stock() < expected_in_stock {
+            let token = commands.spawn(CityToken::new(player_entity)).id();
+            city_stock.return_token_to_stock(token);
+        }
+    }
+
     // Clean up area-related load resources (but keep LoadingFromSave for OnEnter systems)
     commands.remove_resource::<PendingAreaPopulations>();
     commands.remove_resource::<LoadedFactionMap>();
@@ -679,10 +838,10 @@ fn restore_area_populations(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::GameActivity;
     use crate::civilization::enums::GameFaction;
     use crate::civilization::{PlayerShips, ShipStock};
     use crate::stupid_ai::{IsHuman, StupidAi};
-    use crate::GameActivity;
     use bevy::ecs::system::RunSystemOnce;
 
     /// A loaded player must come out with the same components a freshly
@@ -708,6 +867,7 @@ mod tests {
             done_with_current_activity: false,
             ast_space: 0,
             owned_civ_cards: vec![],
+            calamity_traded_by: Vec::new(),
         };
         world.insert_resource(PendingGameLoad(GameSaveData {
             version: SAVE_GAME_VERSION.to_string(),
@@ -723,11 +883,76 @@ mod tests {
         world.run_system_once(load_game_from_save).unwrap();
 
         let mut query = world.query_filtered::<Entity, (With<Player>, With<IsHuman>)>();
-        let player = query.single(&world).expect("expected exactly one loaded human player");
+        let player = query
+            .single(&world)
+            .expect("expected exactly one loaded human player");
 
-        assert!(world.get::<ShipStock>(player).is_some(), "loaded player is missing ShipStock");
-        assert!(world.get::<PlayerShips>(player).is_some(), "loaded player is missing PlayerShips");
-        assert_eq!(world.get::<ShipStock>(player).unwrap().count_in_stock(), ShipStock::MAX_SHIPS);
+        assert!(
+            world.get::<ShipStock>(player).is_some(),
+            "loaded player is missing ShipStock"
+        );
+        assert!(
+            world.get::<PlayerShips>(player).is_some(),
+            "loaded player is missing PlayerShips"
+        );
+        assert_eq!(
+            world.get::<ShipStock>(player).unwrap().count_in_stock(),
+            ShipStock::MAX_SHIPS
+        );
+    }
+
+    /// Rule 30.913: a Pirate city "remains until attacked and destroyed".
+    /// It belongs to the `PirateNation`, which has no `GameFaction`, so
+    /// `city_owner` cannot name it -- before `city_is_pirate` existed the
+    /// city simply evaporated on reload.
+    #[test]
+    fn a_pirate_city_survives_a_reload() {
+        use crate::civilization::concepts::map::map_plugin::AvailableFactions;
+
+        let mut world = World::new();
+        world.init_resource::<AvailableFactions>();
+
+        let area = world
+            .spawn((
+                Name::new("pirate haven"),
+                GameArea::new(42),
+                Population::new(5),
+                Transform::default(),
+            ))
+            .id();
+
+        world.insert_resource(LoadedFactionMap(HashMap::default()));
+        world.insert_resource(PendingAreaPopulations(vec![SavedAreaPopulation {
+            area_id: 42,
+            tokens_by_faction: vec![],
+            city_owner: None,
+            city_is_pirate: true,
+        }]));
+
+        world.run_system_once(restore_area_populations).unwrap();
+        world.flush();
+
+        let built = world
+            .get::<BuiltCity>(area)
+            .expect("the Pirate city is rebuilt");
+        assert!(
+            world.get::<PirateNation>(built.player).is_some(),
+            "it belongs to the Pirate nation, not a faction"
+        );
+        let cities = world
+            .get::<PlayerCities>(built.player)
+            .expect("the Pirate nation tracks its cities");
+        assert!(cities.has_city_in(area), "and knows it holds this one");
+    }
+
+    /// Save files written before `city_is_pirate` existed must still load.
+    #[test]
+    fn an_area_entry_without_the_pirate_flag_still_deserializes() {
+        let json = r#"{"area_id": 7, "tokens_by_faction": [], "city_owner": null}"#;
+        let parsed: SavedAreaPopulation =
+            serde_json::from_str(json).expect("older saves remain loadable");
+        assert_eq!(parsed.area_id, 7);
+        assert!(!parsed.city_is_pirate);
     }
 
     /// Every AI move-selection system (`select_stupid_movement` et al.)
@@ -755,6 +980,7 @@ mod tests {
             done_with_current_activity: false,
             ast_space: 0,
             owned_civ_cards: vec![],
+            calamity_traded_by: Vec::new(),
         };
         world.insert_resource(PendingGameLoad(GameSaveData {
             version: SAVE_GAME_VERSION.to_string(),
@@ -770,9 +996,14 @@ mod tests {
         world.run_system_once(load_game_from_save).unwrap();
 
         let mut query = world.query_filtered::<Entity, (With<Player>, With<StupidAi>)>();
-        let player = query.single(&world).expect("expected exactly one loaded AI player");
+        let player = query
+            .single(&world)
+            .expect("expected exactly one loaded AI player");
 
-        assert!(world.get::<Personality>(player).is_some(), "loaded AI player is missing Personality");
+        assert!(
+            world.get::<Personality>(player).is_some(),
+            "loaded AI player is missing Personality"
+        );
     }
 
     /// Rule 31.x: civilization cards owned at save time must survive a
@@ -798,6 +1029,7 @@ mod tests {
             done_with_current_activity: false,
             ast_space: 0,
             owned_civ_cards: vec![CivCardName::Agriculture, CivCardName::Medicine],
+            calamity_traded_by: Vec::new(),
         };
         world.insert_resource(PendingGameLoad(GameSaveData {
             version: SAVE_GAME_VERSION.to_string(),
@@ -813,7 +1045,9 @@ mod tests {
         world.run_system_once(load_game_from_save).unwrap();
 
         let mut query = world.query_filtered::<Entity, (With<Player>, With<IsHuman>)>();
-        let player = query.single(&world).expect("expected exactly one loaded human player");
+        let player = query
+            .single(&world)
+            .expect("expected exactly one loaded human player");
 
         let civ_cards = world
             .get::<PlayerCivilizationCards>(player)
@@ -843,6 +1077,7 @@ mod tests {
             done_with_current_activity: false,
             ast_space: 0,
             owned_civ_cards: vec![],
+            calamity_traded_by: Vec::new(),
         };
         world.insert_resource(PendingGameLoad(GameSaveData {
             version: SAVE_GAME_VERSION.to_string(),
@@ -858,7 +1093,9 @@ mod tests {
         world.run_system_once(load_game_from_save).unwrap();
 
         let mut query = world.query_filtered::<Entity, (With<Player>, With<IsHuman>)>();
-        let player = query.single(&world).expect("expected exactly one loaded human player");
+        let player = query
+            .single(&world)
+            .expect("expected exactly one loaded human player");
 
         let civ_cards = world
             .get::<PlayerCivilizationCards>(player)

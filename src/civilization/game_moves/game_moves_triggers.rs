@@ -1,12 +1,10 @@
-use crate::civilization::{
-    HasJustMoved, PerformingMovement,
-};
 use crate::civilization::ExpandManually;
 use crate::civilization::HasTooManyCities;
 use crate::civilization::IsBuilding;
 use crate::civilization::NeedsTradeMove;
 use crate::civilization::PlayerAcquiringCivilizationCards;
 use crate::civilization::RecalculatePlayerMoves;
+use crate::civilization::{HasJustMoved, PerformingMovement};
 use bevy::prelude::{Add, Commands, MessageWriter, On};
 
 pub fn on_add_manual_expansion(

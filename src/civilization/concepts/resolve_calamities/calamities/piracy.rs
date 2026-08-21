@@ -18,15 +18,14 @@ use bevy::prelude::{Entity, Reflect};
 /// city support" needs an explicit skip, since that query isn't otherwise
 /// gated by `With<Player>`).
 ///
-/// KNOWN SIMPLIFICATIONS (documented, not silently dropped -- see
-/// docs/outline.md): the trading player's choice of which 2 coastal cities
-/// the primary victim loses (30.911), and the primary victim's choice of
-/// which player-owned city becomes a Pirate city among an ineligible
-/// player's holdings if they have none coastal (30.912's spirit), are
-/// auto-selected deterministically rather than built as new interactive UI.
-/// The primary-victim-selects-2-secondary-players step (30.912) already had
-/// real interactive selection wired in before this pass (`CalamitySelectionState`)
-/// and is untouched here. Adjacent-area / "nearest vulnerable" reasoning
+/// Both selections in 30.911/30.912 are interactive for a human: the
+/// *trader* picks which 2 of the victim's coastal cities go (30.911), and
+/// the *primary victim* picks the 2 secondary victims (30.912), each via
+/// `CalamitySelectionState`. An AI in either seat auto-selects
+/// deterministically. Only coastal cities are ever eligible on either side --
+/// a player with none simply cannot be hit, which is why 30.912 bothers to
+/// say the secondary victims are struck "even if the primary victim had fewer
+/// than two coastal cities". Adjacent-area / "nearest vulnerable" reasoning
 /// doesn't apply to Piracy at all (unlike Barbarian Hordes) -- there's no
 /// movement, just direct city replacement.
 #[derive(Debug, Clone, Default, Reflect)]

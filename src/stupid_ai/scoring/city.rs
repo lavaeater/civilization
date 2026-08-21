@@ -1,4 +1,4 @@
-use super::{enemy_pressure, saturating, AreaSummary};
+use super::{AreaSummary, enemy_pressure, saturating};
 use crate::civilization::GameMove;
 use crate::stupid_ai::Weights;
 use bevy::platform::collections::HashMap;

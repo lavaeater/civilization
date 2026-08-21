@@ -1,13 +1,20 @@
-use crate::civilization::components::{CityFlood, CitySite, FloodPlain, GameArea, GameCamera, LandPassage, NeedsConnections, Population, SeaPassage, StartArea, Volcano};
-use crate::civilization::concepts::map::camera_focus::{process_camera_focus, CameraFocusQueue};
+use crate::civilization::components::{
+    CityFlood, CitySite, FloodPlain, GameArea, GameCamera, LandPassage, NeedsConnections,
+    Population, SeaPassage, StartArea, Volcano,
+};
+use crate::civilization::concepts::map::camera_focus::{CameraFocusQueue, process_camera_focus};
 use crate::civilization::enums::GameFaction;
 use crate::civilization::general_systems::setup_players;
-use crate::civilization::{camera_auto_pan_enabled, static_map_view_enabled};
 use crate::civilization::start_game_after_player_setup;
+use crate::civilization::{camera_auto_pan_enabled, static_map_view_enabled};
 use crate::loading::TextureAssets;
 use crate::{GameActivity, GameState};
 use bevy::platform::collections::{HashMap, HashSet};
-use bevy::prelude::{in_state, App, AssetServer, Assets, ButtonInput, Camera, Commands, Handle, Image, IntoScheduleConfigs, KeyCode, MessageReader, Name, OnEnter, Plugin, Projection, Query, Res, ResMut, Resource, Sprite, Startup, Transform, Update, Vec2, Vec3, Window, With};
+use bevy::prelude::{
+    App, AssetServer, Assets, ButtonInput, Camera, Commands, Handle, Image, IntoScheduleConfigs,
+    KeyCode, MessageReader, Name, OnEnter, Plugin, Projection, Query, Res, ResMut, Resource,
+    Sprite, Startup, Transform, Update, Vec2, Vec3, Window, With, in_state,
+};
 use bevy::time::Time;
 use bevy::window::{PrimaryWindow, WindowResized};
 use bevy_common_assets::ron::RonAssetPlugin;
@@ -34,7 +41,8 @@ impl Plugin for MapPlugin {
                     process_camera_focus.run_if(camera_auto_pan_enabled),
                     // ...and the whole map is re-framed each frame instead.
                     keep_full_map_view.run_if(static_map_view_enabled),
-                ).run_if(in_state(GameState::Playing)),
+                )
+                    .run_if(in_state(GameState::Playing)),
             );
     }
 }
@@ -65,11 +73,7 @@ struct MapViewConfig {
     map_center: Vec3,
 }
 
-fn fit_camera_to_map(
-    map_size: Vec2,
-    window_size: Vec2,
-    projection: &mut Projection,
-) {
+fn fit_camera_to_map(map_size: Vec2, window_size: Vec2, projection: &mut Projection) {
     let padding = 1.02;
     let window_w = window_size.x.max(1.0);
     let window_h = window_size.y.max(1.0);
@@ -357,7 +361,10 @@ fn load_map(
             let map_size = Vec2::new(img_size.width as f32, img_size.height as f32);
             let window_size = Vec2::new(window.resolution.width(), window.resolution.height());
             fit_camera_to_map(map_size, window_size, &mut projection);
-            commands.insert_resource(MapViewConfig { map_size, map_center });
+            commands.insert_resource(MapViewConfig {
+                map_size,
+                map_center,
+            });
         }
 
         commands.spawn((
@@ -520,28 +527,28 @@ fn handle_map_camera_controls(
     let Ok((mut projection, mut transform)) = camera.single_mut() else {
         return;
     };
-    
+
     let Projection::Orthographic(ref mut ortho) = *projection else {
         return;
     };
-    
+
     let dt = time.delta_secs();
-    
+
     // Zoom controls: Z to zoom in, X to zoom out
     let zoom_speed = 1.5;
     let min_scale = 0.2;
     let max_scale = 3.0;
-    
+
     if keyboard.pressed(KeyCode::KeyZ) {
         ortho.scale = (ortho.scale / (1.0 + zoom_speed * dt)).max(min_scale);
     }
     if keyboard.pressed(KeyCode::KeyX) {
         ortho.scale = (ortho.scale * (1.0 + zoom_speed * dt)).min(max_scale);
     }
-    
+
     // Pan controls: Arrow keys
     let pan_speed = 500.0 * ortho.scale; // Scale pan speed with zoom level
-    
+
     if keyboard.pressed(KeyCode::ArrowUp) {
         transform.translation.y += pan_speed * dt;
     }

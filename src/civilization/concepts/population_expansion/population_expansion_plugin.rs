@@ -1,3 +1,4 @@
+use crate::GameActivity;
 use crate::civilization::concepts::population_expansion::population_expansion_components::{
     ExpandAutomatically, PopExpAreaHighlight, PopExpHighlightMarker,
 };
@@ -12,9 +13,8 @@ use crate::civilization::concepts::population_expansion::population_expansion_sy
 };
 use crate::civilization::concepts::population_expansion::population_expansion_triggers::on_remove_needs_expansion;
 use crate::civilization::general_systems::move_tokens_from_stock_to_area;
-use crate::GameActivity;
 use bevy::app::{App, Plugin, Update};
-use bevy::prelude::{in_state, IntoScheduleConfigs, OnEnter};
+use bevy::prelude::{IntoScheduleConfigs, OnEnter, in_state};
 
 pub struct PopulationExpansionPlugin;
 
@@ -54,10 +54,8 @@ impl Plugin for PopulationExpansionPlugin {
                         .run_if(in_state(GameActivity::PopulationExpansion)),
                     highlight_pop_exp_areas_for_human
                         .run_if(in_state(GameActivity::PopulationExpansion)),
-                    handle_pop_exp_area_click
-                        .run_if(in_state(GameActivity::PopulationExpansion)),
-                    cleanup_pop_exp_highlights
-                        .run_if(in_state(GameActivity::PopulationExpansion)),
+                    handle_pop_exp_area_click.run_if(in_state(GameActivity::PopulationExpansion)),
+                    cleanup_pop_exp_highlights.run_if(in_state(GameActivity::PopulationExpansion)),
                 ),
             )
             .add_observer(on_remove_needs_expansion);

@@ -1,10 +1,10 @@
-use crate::civilization::*;
-use crate::stupid_ai::{compute_ai_payment, AgentControlled};
 use crate::GameActivity;
+use crate::civilization::*;
+use crate::stupid_ai::{AgentControlled, compute_ai_payment};
 use bevy::ecs::system::SystemParam;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tiny_http::{Header, Method, Response, Server};
 
 /// The command writers the agent move-translator emits into, bundled so
@@ -99,7 +99,9 @@ impl Snapshot {
         let mut with_moves = self.players.iter().filter(|p| !p.moves.is_empty());
         match (with_moves.next(), with_moves.next()) {
             (Some(p), None) => Ok(p),
-            (Some(_), Some(_)) => Err(json!({ "ok": false, "error": "several players have moves; specify \"faction\"" })),
+            (Some(_), Some(_)) => Err(
+                json!({ "ok": false, "error": "several players have moves; specify \"faction\"" }),
+            ),
             _ => Err(json!({ "ok": false, "error": "no agent player currently has moves" })),
         }
     }
@@ -114,15 +116,45 @@ impl PlayerInfo {
 /// A chosen move resolved to concrete parameters, ready to emit as a command.
 #[derive(Debug, PartialEq, Eq)]
 enum ResolvedMove {
-    Expand { player: Entity, area: Entity, tokens: usize },
-    MoveTokens { source: Entity, target: Entity, tokens: usize, player: Entity },
-    ShipFerry { source: Entity, target: Entity, tokens: usize, player: Entity },
-    EndMovement { player: Entity },
-    BuildCity { player: Entity, area: Entity },
-    EndCityConstruction { player: Entity },
-    EliminateCity { player: Entity, city: Entity, area: Entity },
-    AcquireCivCard { player: Entity, card: CivCardName },
-    DoneAcquiringCivCards { player: Entity },
+    Expand {
+        player: Entity,
+        area: Entity,
+        tokens: usize,
+    },
+    MoveTokens {
+        source: Entity,
+        target: Entity,
+        tokens: usize,
+        player: Entity,
+    },
+    ShipFerry {
+        source: Entity,
+        target: Entity,
+        tokens: usize,
+        player: Entity,
+    },
+    EndMovement {
+        player: Entity,
+    },
+    BuildCity {
+        player: Entity,
+        area: Entity,
+    },
+    EndCityConstruction {
+        player: Entity,
+    },
+    EliminateCity {
+        player: Entity,
+        city: Entity,
+        area: Entity,
+    },
+    AcquireCivCard {
+        player: Entity,
+        card: CivCardName,
+    },
+    DoneAcquiringCivCards {
+        player: Entity,
+    },
 }
 
 impl ResolvedMove {
@@ -196,9 +228,11 @@ fn faction_entity(snapshot: &Snapshot, name: &str) -> Option<Entity> {
 
 /// Parses an offer id (accepts a JSON string or number) back into an `Entity`.
 fn parse_offer_id(payload: &Value) -> Option<Entity> {
-    let bits = payload
-        .get("id")
-        .and_then(|v| v.as_str().and_then(|s| s.parse::<u64>().ok()).or_else(|| v.as_u64()))?;
+    let bits = payload.get("id").and_then(|v| {
+        v.as_str()
+            .and_then(|s| s.parse::<u64>().ok())
+            .or_else(|| v.as_u64())
+    })?;
     Entity::try_from_bits(bits)
 }
 
@@ -221,7 +255,13 @@ pub fn poll_agent_api(
     )>,
     mut writers: MoveWriters,
 ) {
-    let snapshot = build_snapshot(activity.as_ref(), &controlled_query, &area_query, &offer_query, &faction_query);
+    let snapshot = build_snapshot(
+        activity.as_ref(),
+        &controlled_query,
+        &area_query,
+        &offer_query,
+        &faction_query,
+    );
 
     while let Ok(Some(request)) = server.server.try_recv() {
         let mut request = request;
@@ -237,7 +277,11 @@ pub fn poll_agent_api(
             (Method::Get, "/trade") => trade_json(&snapshot, faction_q.as_deref()),
             (Method::Post, "/trade/stop") => {
                 let payload = read_json_body(&mut request);
-                let faction = payload.get("faction").and_then(|v| v.as_str()).map(str::to_string).or(faction_q);
+                let faction = payload
+                    .get("faction")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string)
+                    .or(faction_q);
                 match snapshot.select(faction.as_deref()) {
                     Ok(p) => {
                         commands.entity(p.player).remove::<CanTrade>();
@@ -248,10 +292,19 @@ pub fn poll_agent_api(
             }
             (Method::Post, "/trade/accept") => {
                 let payload = read_json_body(&mut request);
-                let faction = payload.get("faction").and_then(|v| v.as_str()).map(str::to_string).or(faction_q);
-                match (snapshot.select(faction.as_deref()), parse_offer_id(&payload)) {
+                let faction = payload
+                    .get("faction")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string)
+                    .or(faction_q);
+                match (
+                    snapshot.select(faction.as_deref()),
+                    parse_offer_id(&payload),
+                ) {
                     (Err(e), _) => e,
-                    (Ok(_), None) => json!({ "ok": false, "error": "expected { \"id\": <offer id> }" }),
+                    (Ok(_), None) => {
+                        json!({ "ok": false, "error": "expected { \"id\": <offer id> }" })
+                    }
                     (Ok(p), Some(entity)) => {
                         let (player, name) = (p.player, p.name.clone());
                         match offer_query.get_mut(entity) {
@@ -269,17 +322,36 @@ pub fn poll_agent_api(
             }
             (Method::Post, "/trade/offer") => {
                 let payload = read_json_body(&mut request);
-                let faction = payload.get("faction").and_then(|v| v.as_str()).map(str::to_string).or(faction_q.clone());
+                let faction = payload
+                    .get("faction")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string)
+                    .or(faction_q.clone());
                 match snapshot.select(faction.as_deref()) {
                     Err(e) => e,
                     Ok(p) => {
-                        let target = payload.get("target").and_then(|v| v.as_str()).and_then(|n| faction_entity(&snapshot, n));
-                        let target_name = target.and_then(|t| snapshot.player_factions.get(&t).cloned());
-                        let mut offer = OpenTradeOffer::new(p.player, p.name.clone(), target, target_name);
-                        offer.offering_guaranteed = parse_card_map(payload.get("offering_guaranteed"));
-                        offer.offering_hidden_count = payload.get("offering_hidden").and_then(serde_json::Value::as_u64).unwrap_or(0) as usize;
-                        offer.wanting_guaranteed = parse_card_map(payload.get("wanting_guaranteed"));
-                        offer.wanting_hidden_count = payload.get("wanting_hidden").and_then(serde_json::Value::as_u64).unwrap_or(0) as usize;
+                        let target = payload
+                            .get("target")
+                            .and_then(|v| v.as_str())
+                            .and_then(|n| faction_entity(&snapshot, n));
+                        let target_name =
+                            target.and_then(|t| snapshot.player_factions.get(&t).cloned());
+                        let mut offer =
+                            OpenTradeOffer::new(p.player, p.name.clone(), target, target_name);
+                        offer.offering_guaranteed =
+                            parse_card_map(payload.get("offering_guaranteed"));
+                        offer.offering_hidden_count = payload
+                            .get("offering_hidden")
+                            .and_then(serde_json::Value::as_u64)
+                            .unwrap_or(0)
+                            as usize;
+                        offer.wanting_guaranteed =
+                            parse_card_map(payload.get("wanting_guaranteed"));
+                        offer.wanting_hidden_count = payload
+                            .get("wanting_hidden")
+                            .and_then(serde_json::Value::as_u64)
+                            .unwrap_or(0)
+                            as usize;
                         if offer.is_valid() {
                             let id = commands.spawn(offer).id();
                             json!({ "ok": true, "created_offer": id.to_bits().to_string() })
@@ -291,10 +363,19 @@ pub fn poll_agent_api(
             }
             (Method::Post, "/trade/settle") => {
                 let payload = read_json_body(&mut request);
-                let faction = payload.get("faction").and_then(|v| v.as_str()).map(str::to_string).or(faction_q);
-                match (snapshot.select(faction.as_deref()), parse_offer_id(&payload)) {
+                let faction = payload
+                    .get("faction")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string)
+                    .or(faction_q);
+                match (
+                    snapshot.select(faction.as_deref()),
+                    parse_offer_id(&payload),
+                ) {
                     (Err(e), _) => e,
-                    (Ok(_), None) => json!({ "ok": false, "error": "expected { \"id\": <offer id>, \"cards\": {..} }" }),
+                    (Ok(_), None) => {
+                        json!({ "ok": false, "error": "expected { \"id\": <offer id>, \"cards\": {..} }" })
+                    }
                     (Ok(p), Some(entity)) => {
                         let player = p.player;
                         let cards = parse_card_map(payload.get("cards"));
@@ -326,36 +407,74 @@ pub fn poll_agent_api(
                     Err(e) => e,
                     Ok((resolved, faction)) => {
                         match &resolved {
-                            ResolvedMove::Expand { player, area, tokens } => {
-                                writers.expand.write(ExpandPopulationManuallyCommand::new(*player, *area, *tokens));
+                            ResolvedMove::Expand {
+                                player,
+                                area,
+                                tokens,
+                            } => {
+                                writers.expand.write(ExpandPopulationManuallyCommand::new(
+                                    *player, *area, *tokens,
+                                ));
                             }
-                            ResolvedMove::MoveTokens { source, target, tokens, player } => {
-                                writers.move_tokens.write(MoveTokenFromAreaToAreaCommand::new(*source, *target, *tokens, *player));
+                            ResolvedMove::MoveTokens {
+                                source,
+                                target,
+                                tokens,
+                                player,
+                            } => {
+                                writers
+                                    .move_tokens
+                                    .write(MoveTokenFromAreaToAreaCommand::new(
+                                        *source, *target, *tokens, *player,
+                                    ));
                             }
-                            ResolvedMove::ShipFerry { source, target, tokens, player } => {
-                                writers.ferry.write(ShipFerryCommand::new(*source, *target, *tokens, *player));
+                            ResolvedMove::ShipFerry {
+                                source,
+                                target,
+                                tokens,
+                                player,
+                            } => {
+                                writers.ferry.write(ShipFerryCommand::new(
+                                    *source, *target, *tokens, *player,
+                                ));
                             }
                             ResolvedMove::EndMovement { player } => {
                                 writers.end_move.write(PlayerMovementEnded::new(*player));
                             }
                             ResolvedMove::BuildCity { player, area } => {
-                                writers.build_city.write(BuildCityCommand::new(*player, *area));
+                                writers
+                                    .build_city
+                                    .write(BuildCityCommand::new(*player, *area));
                             }
                             ResolvedMove::EndCityConstruction { player } => {
-                                writers.end_city.write(EndPlayerCityConstruction::new(*player));
+                                writers
+                                    .end_city
+                                    .write(EndPlayerCityConstruction::new(*player));
                             }
                             ResolvedMove::EliminateCity { player, city, area } => {
-                                writers.eliminate_city.write(EliminateCity::new(*player, *city, *area, false));
+                                writers
+                                    .eliminate_city
+                                    .write(EliminateCity::new(*player, *city, *area, false));
                             }
                             ResolvedMove::AcquireCivCard { player, card } => {
-                                if let (Some(cards_res), Ok((trade_cards, civ_cards, grain_locked, cards_held_before))) =
-                                    (civ_data.as_deref(), civ_cards_query.get(*player))
+                                if let (
+                                    Some(cards_res),
+                                    Ok((trade_cards, civ_cards, grain_locked, cards_held_before)),
+                                ) = (civ_data.as_deref(), civ_cards_query.get(*player))
                                 {
                                     // Rule 31.53: see CardsHeldBeforePurchasing's doc comment.
-                                    let credits = cards_res.total_credits(cards_held_before.map_or(&civ_cards.cards, |c| &c.0));
-                                    if let Some(def) = cards_res.cards.iter().find(|c| c.name == *card) {
+                                    let credits = cards_res.total_credits(
+                                        cards_held_before.map_or(&civ_cards.cards, |c| &c.0),
+                                    );
+                                    if let Some(def) =
+                                        cards_res.cards.iter().find(|c| c.name == *card)
+                                    {
                                         let cost = def.calculate_cost(&credits) as usize;
-                                        let payment = compute_ai_payment(trade_cards, cost, grain_locked.map_or(0, |l| l.0));
+                                        let payment = compute_ai_payment(
+                                            trade_cards,
+                                            cost,
+                                            grain_locked.map_or(0, |l| l.0),
+                                        );
                                         writers.purchase.write(ConfirmCivCardPurchase {
                                             player: *player,
                                             cards_to_buy: vec![*card],
@@ -365,7 +484,9 @@ pub fn poll_agent_api(
                                 }
                             }
                             ResolvedMove::DoneAcquiringCivCards { player } => {
-                                writers.done_civ.write(PlayerDoneAcquiringCivilizationCards(*player));
+                                writers
+                                    .done_civ
+                                    .write(PlayerDoneAcquiringCivilizationCards(*player));
                             }
                         }
                         resolved.applied_json(&faction)
@@ -430,35 +551,43 @@ fn build_snapshot(
 
     let players = controlled_query
         .iter()
-        .map(|(player, name, faction, moves, player_areas, can_trade, trade_cards)| {
-            let areas = player_areas
-                .areas()
-                .iter()
-                .filter_map(|area| area_query.get(*area).ok())
-                .map(|(_, area, pop)| AreaInfo {
-                    area_id: area.id,
-                    your_tokens: pop.population_for_player(player),
-                    total: pop.total_population(),
-                    max: pop.max_population,
-                })
-                .collect();
-            let moves = moves
-                .map(|m| m.moves.iter().map(|(i, gm)| (*i, gm.clone())).collect())
-                .unwrap_or_default();
-            let hand = card_counts(&trade_cards.commodity_cards());
-            PlayerInfo {
-                player,
-                name: name.to_string(),
-                faction: faction.faction,
-                moves,
-                areas,
-                can_trade,
-                hand,
-            }
-        })
+        .map(
+            |(player, name, faction, moves, player_areas, can_trade, trade_cards)| {
+                let areas = player_areas
+                    .areas()
+                    .iter()
+                    .filter_map(|area| area_query.get(*area).ok())
+                    .map(|(_, area, pop)| AreaInfo {
+                        area_id: area.id,
+                        your_tokens: pop.population_for_player(player),
+                        total: pop.total_population(),
+                        max: pop.max_population,
+                    })
+                    .collect();
+                let moves = moves
+                    .map(|m| m.moves.iter().map(|(i, gm)| (*i, gm.clone())).collect())
+                    .unwrap_or_default();
+                let hand = card_counts(&trade_cards.commodity_cards());
+                PlayerInfo {
+                    player,
+                    name: name.to_string(),
+                    faction: faction.faction,
+                    moves,
+                    areas,
+                    can_trade,
+                    hand,
+                }
+            },
+        )
         .collect();
 
-    Snapshot { phase, players, area_ids, offers, player_factions }
+    Snapshot {
+        phase,
+        players,
+        area_ids,
+        offers,
+        player_factions,
+    }
 }
 
 /// Stable string-keyed counts from a `TradeCard` map (sorted for deterministic output).
@@ -563,9 +692,7 @@ fn trade_json(snapshot: &Snapshot, faction: Option<&str>) -> Value {
 
 fn describe_move(index: usize, game_move: &GameMove, area_ids: &HashMap<Entity, i32>) -> Value {
     let aid = |e: Entity| area_ids.get(&e).copied();
-    let mv = |index, kind, m: &MovementMove| {
-        json!({ "index": index, "kind": kind, "from_area": aid(m.source), "to_area": aid(m.target), "max_tokens": m.max_tokens })
-    };
+    let mv = |index, kind, m: &MovementMove| json!({ "index": index, "kind": kind, "from_area": aid(m.source), "to_area": aid(m.target), "max_tokens": m.max_tokens });
     match game_move {
         GameMove::PopulationExpansion(m) => json!({
             "index": index, "kind": "PopulationExpansion", "area_id": aid(m.area), "max_tokens": m.max_tokens,
@@ -575,16 +702,20 @@ fn describe_move(index: usize, game_move: &GameMove, area_ids: &HashMap<Entity, 
         GameMove::AttackArea(m) => mv(index, "AttackArea", m),
         GameMove::AttackCity(m) => mv(index, "AttackCity", m),
         GameMove::EndMovement => json!({ "index": index, "kind": "EndMovement" }),
-        GameMove::CityConstruction(m) => json!({ "index": index, "kind": "CityConstruction", "area_id": aid(m.target) }),
+        GameMove::CityConstruction(m) => {
+            json!({ "index": index, "kind": "CityConstruction", "area_id": aid(m.target) })
+        }
         GameMove::EndCityConstruction => json!({ "index": index, "kind": "EndCityConstruction" }),
         GameMove::EliminateCity(m) => json!({
             "index": index, "kind": "EliminateCity", "area_id": aid(m.area),
             "tokens_gained": m.tokens_gained, "tokens_needed": m.tokens_needed,
         }),
-        GameMove::AcquireCivilizationCards(AcquireCivilizationCardsMove::DoneAcquiringCards) =>
-            json!({ "index": index, "kind": "DoneAcquiringCards" }),
-        GameMove::AcquireCivilizationCards(AcquireCivilizationCardsMove::AcquireCard(card)) =>
-            json!({ "index": index, "kind": "AcquireCard", "card": format!("{card:?}") }),
+        GameMove::AcquireCivilizationCards(AcquireCivilizationCardsMove::DoneAcquiringCards) => {
+            json!({ "index": index, "kind": "DoneAcquiringCards" })
+        }
+        GameMove::AcquireCivilizationCards(AcquireCivilizationCardsMove::AcquireCard(card)) => {
+            json!({ "index": index, "kind": "AcquireCard", "card": format!("{card:?}") })
+        }
         other => json!({
             "index": index, "kind": "Other", "description": format!("{:?}", other),
             "note": "not yet applyable via the agent API (e.g. Trade via /trade, AcquireCards batch)",
@@ -600,10 +731,17 @@ fn resolve_move(
     payload: Value,
 ) -> Result<(ResolvedMove, String), Value> {
     let player_info = snapshot.select(faction)?;
-    let Some(index) = payload.get("index").and_then(serde_json::Value::as_u64).map(|v| v as usize) else {
+    let Some(index) = payload
+        .get("index")
+        .and_then(serde_json::Value::as_u64)
+        .map(|v| v as usize)
+    else {
         return Err(json!({ "ok": false, "error": "expected JSON body { \"index\": <usize> }" }));
     };
-    let number = payload.get("number").and_then(serde_json::Value::as_u64).map(|v| v as usize);
+    let number = payload
+        .get("number")
+        .and_then(serde_json::Value::as_u64)
+        .map(|v| v as usize);
 
     let Some((_, game_move)) = player_info.moves.iter().find(|(i, _)| *i == index) else {
         return Err(json!({ "ok": false, "error": format!("no move with index {index}") }));
@@ -613,20 +751,44 @@ fn resolve_move(
 
     let resolved = match game_move {
         GameMove::PopulationExpansion(m) => ResolvedMove::Expand {
-            player, area: m.area, tokens: number.unwrap_or(m.max_tokens).min(m.max_tokens),
+            player,
+            area: m.area,
+            tokens: number.unwrap_or(m.max_tokens).min(m.max_tokens),
         },
-        GameMove::Movement(m) | GameMove::AttackArea(m) | GameMove::AttackCity(m) =>
-            ResolvedMove::MoveTokens { source: m.source, target: m.target, tokens: clamp(m), player },
-        GameMove::ShipFerry(m) =>
-            ResolvedMove::ShipFerry { source: m.source, target: m.target, tokens: clamp(m), player },
+        GameMove::Movement(m) | GameMove::AttackArea(m) | GameMove::AttackCity(m) => {
+            ResolvedMove::MoveTokens {
+                source: m.source,
+                target: m.target,
+                tokens: clamp(m),
+                player,
+            }
+        }
+        GameMove::ShipFerry(m) => ResolvedMove::ShipFerry {
+            source: m.source,
+            target: m.target,
+            tokens: clamp(m),
+            player,
+        },
         GameMove::EndMovement => ResolvedMove::EndMovement { player },
-        GameMove::CityConstruction(m) => ResolvedMove::BuildCity { player, area: m.target },
+        GameMove::CityConstruction(m) => ResolvedMove::BuildCity {
+            player,
+            area: m.target,
+        },
         GameMove::EndCityConstruction => ResolvedMove::EndCityConstruction { player },
-        GameMove::EliminateCity(m) => ResolvedMove::EliminateCity { player, city: m.city, area: m.area },
-        GameMove::AcquireCivilizationCards(AcquireCivilizationCardsMove::AcquireCard(card)) =>
-            ResolvedMove::AcquireCivCard { player, card: *card },
-        GameMove::AcquireCivilizationCards(AcquireCivilizationCardsMove::DoneAcquiringCards) =>
-            ResolvedMove::DoneAcquiringCivCards { player },
+        GameMove::EliminateCity(m) => ResolvedMove::EliminateCity {
+            player,
+            city: m.city,
+            area: m.area,
+        },
+        GameMove::AcquireCivilizationCards(AcquireCivilizationCardsMove::AcquireCard(card)) => {
+            ResolvedMove::AcquireCivCard {
+                player,
+                card: *card,
+            }
+        }
+        GameMove::AcquireCivilizationCards(AcquireCivilizationCardsMove::DoneAcquiringCards) => {
+            ResolvedMove::DoneAcquiringCivCards { player }
+        }
         other => {
             return Err(json!({
                 "ok": false,
@@ -648,10 +810,21 @@ mod tests {
     #[derive(Resource, Default)]
     struct ResolveResult(Option<ResolvedMove>);
 
-    fn spawn_controlled(app: &mut App, faction: GameFaction, area_max: usize, move_max: usize) -> Entity {
-        let area = app.world_mut().spawn((GameArea { id: 7 }, Population::new(area_max))).id();
+    fn spawn_controlled(
+        app: &mut App,
+        faction: GameFaction,
+        area_max: usize,
+        move_max: usize,
+    ) -> Entity {
+        let area = app
+            .world_mut()
+            .spawn((GameArea { id: 7 }, Population::new(area_max)))
+            .id();
         let mut moves = bevy::platform::collections::HashMap::default();
-        moves.insert(1usize, GameMove::PopulationExpansion(PopExpMove::new(area, move_max)));
+        moves.insert(
+            1usize,
+            GameMove::PopulationExpansion(PopExpMove::new(area, move_max)),
+        );
         let mut player_areas = PlayerAreas::default();
         player_areas.add_token_to_area(area, area);
         app.world_mut()
@@ -675,7 +848,13 @@ mod tests {
         faction_query: FactionQuery,
         mut result: ResMut<ResolveResult>,
     ) {
-        let snapshot = build_snapshot(activity.as_ref(), &controlled_query, &area_query, &offer_query, &faction_query);
+        let snapshot = build_snapshot(
+            activity.as_ref(),
+            &controlled_query,
+            &area_query,
+            &offer_query,
+            &faction_query,
+        );
         // Two players have moves → must select by faction.
         result.0 = resolve_move(&snapshot, Some("Egypt"), json!({ "index": 1, "number": 2 }))
             .ok()
@@ -735,7 +914,10 @@ mod tests {
 
         offer.target = Some(other);
         assert!(offer.can_accept(other), "directed offer: target can accept");
-        assert!(!offer.can_accept(third), "directed offer: non-target cannot");
+        assert!(
+            !offer.can_accept(third),
+            "directed offer: non-target cannot"
+        );
 
         offer.target = None;
         offer.accepted_by = Some(third);

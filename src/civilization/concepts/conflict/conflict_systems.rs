@@ -1,10 +1,10 @@
+use crate::GameActivity;
+use crate::civilization::ConflictCounterResource;
 use crate::civilization::components::{BuiltCity, Population};
 use crate::civilization::concepts::conflict::conflict_components::{
     UnresolvedCityConflict, UnresolvedConflict,
 };
-use crate::civilization::ConflictCounterResource;
-use crate::GameActivity;
-use bevy::prelude::{info, Commands, Entity, Has, Name, NextState, Query, ResMut};
+use bevy::prelude::{Commands, Entity, Has, Name, NextState, Query, ResMut, info};
 
 pub fn find_conflict_zones(
     pop_query: Query<(Entity, &Name, &Population, Has<BuiltCity>)>,
@@ -40,10 +40,10 @@ pub fn find_conflict_zones(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::GameState;
+    use crate::civilization::CameraFocusQueue;
     use crate::civilization::components::*;
     use crate::civilization::concepts::conflict::conflict_triggers::*;
-    use crate::civilization::CameraFocusQueue;
-    use crate::GameState;
     use bevy::ecs::system::{RunSystemError, RunSystemOnce};
     use bevy::prelude::*;
     use bevy::state::app::StatesPlugin;
@@ -83,7 +83,8 @@ mod tests {
                 pop.add_token_to_area(player, token);
             }
         }
-        let mut entity_commands = world.spawn((Name::new(name.to_string()), pop, Transform::default()));
+        let mut entity_commands =
+            world.spawn((Name::new(name.to_string()), pop, Transform::default()));
         if let Some(city) = built_city {
             entity_commands.insert(city);
         }

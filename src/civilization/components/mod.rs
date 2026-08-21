@@ -243,6 +243,18 @@ impl PlayerCities {
         self.areas_and_cities.remove(&area)
     }
 
+    /// Drops whichever area holds `city_token`, returning that area. Used when
+    /// a city is retired by token rather than by location.
+    pub fn remove_city_by_token(&mut self, city_token: Entity) -> Option<Entity> {
+        let area = self
+            .areas_and_cities
+            .iter()
+            .find(|(_, city)| **city == city_token)
+            .map(|(&area, _)| area)?;
+        self.areas_and_cities.remove(&area);
+        Some(area)
+    }
+
     pub fn has_city_in(&self, area: Entity) -> bool {
         self.areas_and_cities.contains_key(&area)
     }
@@ -420,7 +432,7 @@ impl CityTokenStock {
     pub fn return_token_to_stock(&mut self, token: Entity) {
         self.tokens.push(token);
     }
-    
+
     pub fn city_tokens_in_stock(&self) -> usize {
         self.tokens.len()
     }

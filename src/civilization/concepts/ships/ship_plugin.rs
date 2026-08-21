@@ -1,3 +1,5 @@
+use crate::GameActivity;
+use crate::civilization::camera_auto_pan_enabled;
 use crate::civilization::components::{OpenSea, SeaPassage};
 use crate::civilization::concepts::ships::ship_components::{PlayerShips, Ship, ShipStock};
 use crate::civilization::concepts::ships::ship_systems::{
@@ -10,10 +12,8 @@ use crate::civilization::concepts::ships::ship_ui_systems::{
     despawn_ship_construction_ui, draw_ship_construction_highlight, focus_camera_on_ship_area,
     spawn_ship_construction_ui, update_ship_construction_ui,
 };
-use crate::GameActivity;
-use crate::civilization::camera_auto_pan_enabled;
 use bevy::app::{App, Plugin};
-use bevy::prelude::{in_state, IntoScheduleConfigs, OnEnter, Update};
+use bevy::prelude::{IntoScheduleConfigs, OnEnter, Update, in_state};
 
 pub struct ShipsPlugin;
 
@@ -26,7 +26,10 @@ impl Plugin for ShipsPlugin {
             .register_type::<OpenSea>()
             .register_type::<AwaitingShipPlacement>()
             .init_resource::<ShipConstructionState>()
-            .add_systems(OnEnter(GameActivity::ShipConstruction), enter_ship_construction)
+            .add_systems(
+                OnEnter(GameActivity::ShipConstruction),
+                enter_ship_construction,
+            )
             .add_systems(
                 Update,
                 (

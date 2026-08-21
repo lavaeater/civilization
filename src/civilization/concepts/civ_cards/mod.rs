@@ -1,9 +1,9 @@
-mod plugin;
+mod assets_resources;
+mod components;
 mod enums;
 mod messages;
-mod assets_resources;
+mod plugin;
 mod systems;
-mod components;
 
 pub use assets_resources::*;
 pub use components::*;
@@ -42,7 +42,7 @@ mod tests {
             assert_eq!(maths[0].name, CivCardName::Mathematics);
         }
     }
-    
+
     #[test]
     fn load_cards() {
         let ron_str = std::fs::read_to_string("assets/definitions/civilization.cards.ron")

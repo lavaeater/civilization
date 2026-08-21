@@ -18,8 +18,8 @@ use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
 use lightyear::netcode::Key;
 use lightyear::prelude::client::*;
 use lightyear::prelude::*;
-use std::sync::mpsc;
 use std::sync::Mutex;
+use std::sync::mpsc;
 
 const TICK_HZ: f64 = 32.0;
 
@@ -141,10 +141,7 @@ impl Plugin for NetworkClientPlugin {
             .init_resource::<UsedTokenAuth>()
             .init_resource::<NetMapState>()
             .add_systems(OnEnter(GameState::Online), start_join)
-            .add_systems(
-                Update,
-                auto_online.run_if(in_state(GameState::Menu)),
-            )
+            .add_systems(Update, auto_online.run_if(in_state(GameState::Menu)))
             .add_systems(OnExit(GameState::Online), disconnect_and_cleanup)
             .add_systems(
                 Update,
@@ -300,7 +297,12 @@ fn poll_join_fetch(
             // An explicit override (?ws= / SERVER_WS) wins over the
             // server-advertised URL.
             let ws_url = settings.ws_override.clone().unwrap_or(info.ws_url);
-            spawn_connection(&mut commands, Authentication::Token(token), ws_url, &mut net);
+            spawn_connection(
+                &mut commands,
+                Authentication::Token(token),
+                ws_url,
+                &mut net,
+            );
         }
         Err(e) => {
             net.last_error = Some(e);
@@ -398,10 +400,7 @@ fn spawn_net_map(
     maps: Res<Assets<crate::civilization::Map>>,
     textures: Res<crate::loading::TextureAssets>,
     mut state: ResMut<NetMapState>,
-    mut camera: Query<
-        (&mut Transform, &mut Projection),
-        With<crate::civilization::GameCamera>,
-    >,
+    mut camera: Query<(&mut Transform, &mut Projection), With<crate::civilization::GameCamera>>,
     windows: Query<&Window>,
 ) {
     if state.spawned {
@@ -444,20 +443,18 @@ fn spawn_net_map(
         let window_size = windows
             .iter()
             .next()
-            .map_or(Vec2::new(1920.0, 1080.0), |w| Vec2::new(w.resolution.width(), w.resolution.height()));
+            .map_or(Vec2::new(1920.0, 1080.0), |w| {
+                Vec2::new(w.resolution.width(), w.resolution.height())
+            });
         if let Projection::Orthographic(ortho) = &mut *projection {
-            ortho.scale =
-                (MAP_SIZE.x / window_size.x).max(MAP_SIZE.y / window_size.y) * 1.05;
+            ortho.scale = (MAP_SIZE.x / window_size.x).max(MAP_SIZE.y / window_size.y) * 1.05;
         }
     }
     state.spawned = true;
     info!("Online map view ready ({} areas)", map.areas.len());
 }
 
-fn update_net_map_labels(
-    net: Res<NetGame>,
-    mut labels: Query<(&NetMapLabel, &mut Text2d)>,
-) {
+fn update_net_map_labels(net: Res<NetGame>, mut labels: Query<(&NetMapLabel, &mut Text2d)>) {
     if !net.is_changed() {
         return;
     }
@@ -1064,10 +1061,7 @@ mod tests {
             resolve_map_click(&moves, Some(AreaId(5)), None),
             ClickOutcome::SetSource(None)
         );
-        assert_eq!(
-            resolve_map_click(&moves, None, None),
-            ClickOutcome::Nothing
-        );
+        assert_eq!(resolve_map_click(&moves, None, None), ClickOutcome::Nothing);
     }
 
     #[test]

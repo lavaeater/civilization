@@ -1,13 +1,16 @@
+use crate::civilization::*;
 use crate::stupid_ai::*;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{
-    debug, error, warn, Commands, Entity, Has, MessageReader, MessageWriter, Name, Query, Res,
-    ResMut,
+    Commands, Entity, Has, MessageReader, MessageWriter, Name, Query, Res, ResMut, debug, error,
+    warn,
 };
 use rand::prelude::SliceRandom;
-use crate::civilization::*;
 
-pub fn setup_stupid_ai(mut stupid_ai_event: MessageReader<StupidAiMessage>, mut commands: Commands) {
+pub fn setup_stupid_ai(
+    mut stupid_ai_event: MessageReader<StupidAiMessage>,
+    mut commands: Commands,
+) {
     for e in stupid_ai_event.read() {
         commands.entity(e.player).insert(StupidAi);
     }
@@ -23,7 +26,13 @@ pub fn reset_movement_loop_guard(mut loop_guard: ResMut<MovementLoopGuard>) {
 pub fn select_stupid_pop_exp(
     mut event_reader: MessageReader<SelectStupidMove>,
     player_moves: Query<(&Name, &AvailableMoves, &Personality)>,
-    area_info_query: Query<(Entity, &Population, &LandPassage, Option<&BuiltCity>, Has<CitySite>)>,
+    area_info_query: Query<(
+        Entity,
+        &Population,
+        &LandPassage,
+        Option<&BuiltCity>,
+        Has<CitySite>,
+    )>,
     mut expand_writer: MessageWriter<ExpandPopulationManuallyCommand>,
     debug_options: Res<DebugOptions>,
 ) {
@@ -33,7 +42,12 @@ pub fn select_stupid_pop_exp(
             let scored: Vec<(usize, f32)> = available_moves
                 .moves
                 .iter()
-                .map(|(i, m)| (*i, score_population_expansion(m, &areas, &personality.weights)))
+                .map(|(i, m)| {
+                    (
+                        *i,
+                        score_population_expansion(m, &areas, &personality.weights),
+                    )
+                })
                 .collect();
             let mut rng = rand::rng();
             if let Some(chosen) = pick(&scored, personality.picker, &mut rng) {
@@ -64,7 +78,13 @@ pub fn select_stupid_movement(
     mut move_tokens_writer: MessageWriter<MoveTokenFromAreaToAreaCommand>,
     mut ship_ferry_writer: MessageWriter<ShipFerryCommand>,
     mut end_movement_writer: MessageWriter<PlayerMovementEnded>,
-    area_info_query: Query<(Entity, &Population, &LandPassage, Option<&BuiltCity>, Has<CitySite>)>,
+    area_info_query: Query<(
+        Entity,
+        &Population,
+        &LandPassage,
+        Option<&BuiltCity>,
+        Has<CitySite>,
+    )>,
     debug_options: Res<DebugOptions>,
     mut loop_guard: ResMut<MovementLoopGuard>,
 ) {
@@ -103,7 +123,10 @@ pub fn select_stupid_movement(
                      Looping move (score {:.3}): {:#?}",
                     player_name,
                     count,
-                    scored.iter().find(|(i, _)| *i == chosen).map_or(f32::NAN, |(_, s)| *s),
+                    scored
+                        .iter()
+                        .find(|(i, _)| *i == chosen)
+                        .map_or(f32::NAN, |(_, s)| *s),
                     selected_move,
                 );
             }
@@ -133,7 +156,11 @@ pub fn select_stupid_movement(
                     }
                     GameMove::ShipFerry(ferry_move) => {
                         // Ferry up to max_tokens (≤5) tokens by ship. Keep 1 back if possible.
-                        let n = if ferry_move.max_tokens > 1 { ferry_move.max_tokens - 1 } else { 1 };
+                        let n = if ferry_move.max_tokens > 1 {
+                            ferry_move.max_tokens - 1
+                        } else {
+                            1
+                        };
                         ship_ferry_writer.write(ShipFerryCommand::new(
                             ferry_move.source,
                             ferry_move.target,
@@ -161,7 +188,13 @@ pub fn select_stupid_movement(
 pub fn select_stupid_city_building(
     mut event_reader: MessageReader<SelectStupidMove>,
     player_moves: Query<(&Name, &AvailableMoves, &Personality)>,
-    area_info_query: Query<(Entity, &Population, &LandPassage, Option<&BuiltCity>, Has<CitySite>)>,
+    area_info_query: Query<(
+        Entity,
+        &Population,
+        &LandPassage,
+        Option<&BuiltCity>,
+        Has<CitySite>,
+    )>,
     mut build_city_writer: MessageWriter<BuildCityCommand>,
     mut end_player_city_construction: MessageWriter<EndPlayerCityConstruction>,
     debug_options: Res<DebugOptions>,
@@ -202,7 +235,13 @@ pub fn select_stupid_city_building(
 pub fn select_stupid_city_elimination(
     mut event_reader: MessageReader<SelectStupidMove>,
     player_moves: Query<(&Name, &AvailableMoves, &Personality)>,
-    area_info_query: Query<(Entity, &Population, &LandPassage, Option<&BuiltCity>, Has<CitySite>)>,
+    area_info_query: Query<(
+        Entity,
+        &Population,
+        &LandPassage,
+        Option<&BuiltCity>,
+        Has<CitySite>,
+    )>,
     mut eliminate_city: MessageWriter<EliminateCity>,
     debug_options: Res<DebugOptions>,
 ) {
@@ -253,7 +292,10 @@ pub fn select_stupid_trade_move(
             let trade_moves = available_moves
                 .moves
                 .values()
-                .filter_map(|m| match m { GameMove::Trade(trade_move) => Some(trade_move), _ => None })
+                .filter_map(|m| match m {
+                    GameMove::Trade(trade_move) => Some(trade_move),
+                    _ => None,
+                })
                 .cloned()
                 .collect::<Vec<_>>();
             for trade_move in &trade_moves {
@@ -265,70 +307,71 @@ pub fn select_stupid_trade_move(
                             && let Ok((_receiver_wants, receiver_name)) =
                                 player_wants_query.get(*receiver)
                         {
-                                match matching_cards.len() {
-                                    1 => {
-                                        /*
-                                        This means we have ONE card in common with the other player.
-                                         */
-                                        let (card, no_of_cards) =
-                                            matching_cards.iter().next().unwrap();
-                                        // if this card is NOT our top commodity, we can offer it as a trade.
-                                        if !player_trade_cards.is_top_commodity(*card) {
-                                            let mut offer = TradeOffer::propose_trade(
-                                                event.player,
-                                                player_name,
-                                                *receiver,
-                                                receiver_name,
-                                            );
-                                            if let Some(lowest_commodity) =
-                                                player_trade_cards.worst_commodity()
-                                            {
-                                                match no_of_cards {
-                                                    0 => {
-                                                        //Shouldn't happen, but could happen. We should not trade for a card we don't have.
-                                                    }
-                                                    1 => {
-                                                        offer.pay_even_more(*card, 1);
-                                                        offer.pay_even_more(lowest_commodity, 2);
-                                                    }
-                                                    _ => {
-                                                        offer.pay_even_more(*card, 2);
-                                                        offer.pay_even_more(lowest_commodity, 1);
-                                                    }
-                                                }
-                                                //Now add what we want
-                                                for (card, count) in player_wants.get_trade_thingie(&mut rng) {
-                                                    offer.get_even_more(card, count);
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    2 => {
-                                        /*
-                                        This means we have TWO cards in common with the other player.
-                                        We exclude any match that is our top commodity, then 
-                                        we add any remainders in order of number of cards.
-                                         */
+                            match matching_cards.len() {
+                                1 => {
+                                    /*
+                                    This means we have ONE card in common with the other player.
+                                     */
+                                    let (card, no_of_cards) = matching_cards.iter().next().unwrap();
+                                    // if this card is NOT our top commodity, we can offer it as a trade.
+                                    if !player_trade_cards.is_top_commodity(*card) {
                                         let mut offer = TradeOffer::propose_trade(
                                             event.player,
                                             player_name,
                                             *receiver,
                                             receiver_name,
                                         );
-                                        for (card, count) in player_wants.get_trade_thingie(&mut rng) {
-                                            offer.get_even_more(card, count);
+                                        if let Some(lowest_commodity) =
+                                            player_trade_cards.worst_commodity()
+                                        {
+                                            match no_of_cards {
+                                                0 => {
+                                                    //Shouldn't happen, but could happen. We should not trade for a card we don't have.
+                                                }
+                                                1 => {
+                                                    offer.pay_even_more(*card, 1);
+                                                    offer.pay_even_more(lowest_commodity, 2);
+                                                }
+                                                _ => {
+                                                    offer.pay_even_more(*card, 2);
+                                                    offer.pay_even_more(lowest_commodity, 1);
+                                                }
+                                            }
+                                            //Now add what we want
+                                            for (card, count) in
+                                                player_wants.get_trade_thingie(&mut rng)
+                                            {
+                                                offer.get_even_more(card, count);
+                                            }
                                         }
                                     }
-                                    3 => {
-                                        // Suggest two random cards from these three and then the lowest commodity
-                                        let mut cards: Vec<TradeCard> =
-                                            matching_cards.keys().copied().collect();
-                                        // Shuffle to get random selection
-                                        cards.shuffle(&mut rng);
-                                    }
-                                    _ => {}
                                 }
+
+                                2 => {
+                                    /*
+                                    This means we have TWO cards in common with the other player.
+                                    We exclude any match that is our top commodity, then
+                                    we add any remainders in order of number of cards.
+                                     */
+                                    let mut offer = TradeOffer::propose_trade(
+                                        event.player,
+                                        player_name,
+                                        *receiver,
+                                        receiver_name,
+                                    );
+                                    for (card, count) in player_wants.get_trade_thingie(&mut rng) {
+                                        offer.get_even_more(card, count);
+                                    }
+                                }
+                                3 => {
+                                    // Suggest two random cards from these three and then the lowest commodity
+                                    let mut cards: Vec<TradeCard> =
+                                        matching_cards.keys().copied().collect();
+                                    // Shuffle to get random selection
+                                    cards.shuffle(&mut rng);
+                                }
+                                _ => {}
+                            }
                         }
                     }
                     TradeMove::AcceptOrDeclineTrade(_trade_offer) => {}
@@ -389,15 +432,15 @@ pub fn select_stupid_civ_card_move(
                 .filter_map(|(i, m)| match m {
                     GameMove::AcquireCivilizationCards(civ_move) => {
                         let option = match civ_move {
-                            AcquireCivilizationCardsMove::AcquireCard(name) => cards
-                                .cards
-                                .iter()
-                                .find(|c| c.name == *name)
-                                .map(|def| CivCardOption {
-                                    effective_cost: def.calculate_cost(&credits),
-                                    credit_value: civ_card_credit_value(def),
-                                    wealth,
-                                }),
+                            AcquireCivilizationCardsMove::AcquireCard(name) => {
+                                cards.cards.iter().find(|c| c.name == *name).map(|def| {
+                                    CivCardOption {
+                                        effective_cost: def.calculate_cost(&credits),
+                                        credit_value: civ_card_credit_value(def),
+                                        wealth,
+                                    }
+                                })
+                            }
                             _ => None,
                         };
                         Some((*i, score_civ_card(civ_move, option, &personality.weights)))
@@ -425,19 +468,28 @@ pub fn select_stupid_civ_card_move(
                         done_writer.write(PlayerDoneAcquiringCivilizationCards(event.player));
                     }
                     AcquireCivilizationCardsMove::AcquireCard(card_name) => {
-                        if let Ok((trade_cards, civ_cards, grain_locked, cards_held_before)) = player_cards_query.get(event.player) {
-                            let credits = cards.total_credits(cards_held_before.map_or(&civ_cards.cards, |c| &c.0));
+                        if let Ok((trade_cards, civ_cards, grain_locked, cards_held_before)) =
+                            player_cards_query.get(event.player)
+                        {
+                            let credits = cards.total_credits(
+                                cards_held_before.map_or(&civ_cards.cards, |c| &c.0),
+                            );
                             let card_def = cards.cards.iter().find(|c| c.name == *card_name);
                             if let Some(def) = card_def {
                                 let cost = def.calculate_cost(&credits) as usize;
-                                let payment = compute_ai_payment(trade_cards, cost, grain_locked.map_or(0, |l| l.0));
+                                let payment = compute_ai_payment(
+                                    trade_cards,
+                                    cost,
+                                    grain_locked.map_or(0, |l| l.0),
+                                );
                                 purchase_writer.write(ConfirmCivCardPurchase {
                                     player: event.player,
                                     cards_to_buy: vec![*card_name],
                                     payment,
                                 });
                             } else {
-                                done_writer.write(PlayerDoneAcquiringCivilizationCards(event.player));
+                                done_writer
+                                    .write(PlayerDoneAcquiringCivilizationCards(event.player));
                             }
                         } else {
                             done_writer.write(PlayerDoneAcquiringCivilizationCards(event.player));
@@ -525,7 +577,13 @@ pub fn compute_ai_payment(
 /// scoring functions stay pure.
 fn gather_area_summaries(
     player: Entity,
-    area_info_query: &Query<(Entity, &Population, &LandPassage, Option<&BuiltCity>, Has<CitySite>)>,
+    area_info_query: &Query<(
+        Entity,
+        &Population,
+        &LandPassage,
+        Option<&BuiltCity>,
+        Has<CitySite>,
+    )>,
 ) -> HashMap<Entity, AreaSummary> {
     let mut areas = HashMap::default();
     for (entity, population, land_passage, built_city, is_city_site) in area_info_query.iter() {

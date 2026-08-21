@@ -65,23 +65,23 @@ impl CreateOfferState {
         self.wanting_guaranteed.clear();
         self.wanting_hidden_count = 0;
     }
-    
+
     pub fn total_offering(&self) -> usize {
         self.offering_guaranteed.values().sum::<usize>() + self.offering_hidden_count
     }
-    
+
     pub fn total_wanting(&self) -> usize {
         self.wanting_guaranteed.values().sum::<usize>() + self.wanting_hidden_count
     }
-    
+
     pub fn guaranteed_offering_count(&self) -> usize {
         self.offering_guaranteed.values().sum()
     }
-    
+
     pub fn guaranteed_wanting_count(&self) -> usize {
         self.wanting_guaranteed.values().sum()
     }
-    
+
     /// Check if offer is valid (min 3 cards each side, exactly 2 guaranteed each side)
     pub fn is_valid(&self) -> bool {
         self.guaranteed_offering_count() == 2

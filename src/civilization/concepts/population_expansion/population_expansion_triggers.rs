@@ -1,6 +1,6 @@
 use crate::civilization::concepts::population_expansion::population_expansion_components::NeedsExpansion;
 use crate::civilization::concepts::population_expansion::population_expansion_events::CheckGate;
-use bevy::prelude::{MessageWriter, Remove, On};
+use bevy::prelude::{MessageWriter, On, Remove};
 
 pub fn on_remove_needs_expansion(
     _trigger: On<Remove, NeedsExpansion>,
