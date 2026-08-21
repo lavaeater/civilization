@@ -403,6 +403,7 @@ pub fn select_stupid_civ_card_move(
         &PlayerCivilizationCards,
         Option<&crate::civilization::resolve_calamities::resolve_calamities_components::GrainLockedForPurchase>,
         Option<&crate::civilization::CardsHeldBeforePurchasing>,
+        Option<&Treasury>,
     )>,
     cards: Res<AvailableCivCards>,
     mut done_writer: MessageWriter<PlayerDoneAcquiringCivilizationCards>,
@@ -419,8 +420,9 @@ pub fn select_stupid_civ_card_move(
             // buys one card per move, so without the snapshot a card bought
             // earlier this turn would wrongly discount a later one.
             let (wealth, credits) = match player_cards_query.get(event.player) {
-                Ok((trade_cards, civ_cards, _, cards_held_before)) => (
-                    trade_cards.total_stack_value() as u32,
+                Ok((trade_cards, civ_cards, _, cards_held_before, treasury)) => (
+                    trade_cards.total_stack_value() as u32
+                        + treasury.map_or(0, |t| t.tokens_in_treasury() as u32),
                     cards.total_credits(cards_held_before.map_or(&civ_cards.cards, |c| &c.0)),
                 ),
                 Err(_) => (0, Vec::new()),
@@ -476,8 +478,13 @@ pub fn select_stupid_civ_card_move(
                         done_writer.write(PlayerDoneAcquiringCivilizationCards(event.player));
                     }
                     AcquireCivilizationCardsMove::AcquireCard(card_name) => {
-                        if let Ok((trade_cards, civ_cards, grain_locked, cards_held_before)) =
-                            player_cards_query.get(event.player)
+                        if let Ok((
+                            trade_cards,
+                            civ_cards,
+                            grain_locked,
+                            cards_held_before,
+                            treasury,
+                        )) = player_cards_query.get(event.player)
                         {
                             let credits = cards.total_credits(
                                 cards_held_before.map_or(&civ_cards.cards, |c| &c.0),
@@ -485,15 +492,17 @@ pub fn select_stupid_civ_card_move(
                             let card_def = cards.cards.iter().find(|c| c.name == *card_name);
                             if let Some(def) = card_def {
                                 let cost = def.calculate_cost(&credits) as usize;
-                                let payment = compute_ai_payment(
+                                let (payment, treasury_tokens) = compute_ai_payment(
                                     trade_cards,
                                     cost,
                                     grain_locked.map_or(0, |l| l.0),
+                                    treasury.map_or(0, Treasury::tokens_in_treasury),
                                 );
                                 purchase_writer.write(ConfirmCivCardPurchase {
                                     player: event.player,
                                     cards_to_buy: vec![*card_name],
                                     payment,
+                                    treasury_tokens,
                                 });
                             } else {
                                 done_writer
@@ -533,11 +542,18 @@ fn civ_card_credit_value(def: &CivCardDefinition) -> u32 {
 /// suite_value, recomputed here since the raw stack's is based on the full
 /// count) is capped before scoring, so the AI never even considers spending
 /// locked Grain.
+/// Picks the commodity cards (and, for whatever they don't cover, the treasury
+/// tokens) an AI hands over for a civ card costing `cost`.
+///
+/// Cards first, tokens only for the shortfall: rule 31.4 forbids intentionally
+/// spending more treasury tokens than required. Returns the card payment and
+/// how many tokens to spend.
 pub fn compute_ai_payment(
     trade_cards: &PlayerTradeCards,
     cost: usize,
     grain_locked: usize,
-) -> bevy::platform::collections::HashMap<TradeCard, usize> {
+    treasury_available: usize,
+) -> (bevy::platform::collections::HashMap<TradeCard, usize>, usize) {
     let mut payment = bevy::platform::collections::HashMap::default();
     let mut remaining = cost;
 
@@ -577,7 +593,8 @@ pub fn compute_ai_payment(
         }
     }
 
-    payment
+    let tokens = remaining.min(treasury_available);
+    (payment, tokens)
 }
 
 /// Flatten every area into an [`AreaSummary`] keyed by area entity, from `player`'s
@@ -664,7 +681,7 @@ mod grain_lock_tests {
             hand.add_trade_card(TradeCard::Grain);
         }
         // 3 Grain -> suite_value 3*3*4 = 36, plenty to cover a cost of 20.
-        let payment = compute_ai_payment(&hand, 20, 0);
+        let (payment, _) = compute_ai_payment(&hand, 20, 0, 0);
         assert_eq!(payment.get(&TradeCard::Grain).copied(), Some(3));
     }
 
@@ -675,7 +692,7 @@ mod grain_lock_tests {
             hand.add_trade_card(TradeCard::Grain);
         }
         // All 3 held Grain are locked -> usable count 0 -> can't cover any cost.
-        let payment = compute_ai_payment(&hand, 20, 3);
+        let (payment, _) = compute_ai_payment(&hand, 20, 3, 0);
         assert_eq!(payment.get(&TradeCard::Grain), None);
     }
 
@@ -687,7 +704,7 @@ mod grain_lock_tests {
         }
         // 5 held, 3 locked -> 2 usable -> suite_value 2*2*4 = 16, not enough
         // for a cost of 20, so the whole usable stack is spent (not the full 5).
-        let payment = compute_ai_payment(&hand, 20, 3);
+        let (payment, _) = compute_ai_payment(&hand, 20, 3, 0);
         assert_eq!(payment.get(&TradeCard::Grain).copied(), Some(2));
     }
 
@@ -701,8 +718,38 @@ mod grain_lock_tests {
             hand.add_trade_card(TradeCard::Salt);
         }
         // Grain fully locked; Salt is untouched and should still be offered.
-        let payment = compute_ai_payment(&hand, 5, 3);
+        let (payment, _) = compute_ai_payment(&hand, 5, 3, 0);
         assert_eq!(payment.get(&TradeCard::Grain), None);
         assert!(payment.get(&TradeCard::Salt).copied().unwrap_or(0) > 0);
+    }
+
+    // ── Rule 31.1/31.4: treasury tokens cover what the cards can't ─────────
+
+    #[test]
+    fn treasury_tokens_only_cover_the_shortfall() {
+        let mut hand = PlayerTradeCards::default();
+        hand.add_trade_card(TradeCard::Ochre); // 1 card, face 1 -> value 1
+        // Cost 5, cards cover 1, so 4 tokens are needed out of the 10 held.
+        let (_, tokens) = compute_ai_payment(&hand, 5, 0, 10);
+        assert_eq!(tokens, 4);
+    }
+
+    #[test]
+    fn no_treasury_tokens_are_spent_when_the_cards_already_pay() {
+        let mut hand = PlayerTradeCards::default();
+        for _ in 0..3 {
+            hand.add_trade_card(TradeCard::Grain);
+        }
+        // 3 Grain cover 36 against a cost of 20 -- rule 31.4 forbids topping
+        // that up with tokens the purchase does not need.
+        let (_, tokens) = compute_ai_payment(&hand, 20, 0, 10);
+        assert_eq!(tokens, 0);
+    }
+
+    #[test]
+    fn treasury_spending_is_capped_by_what_is_actually_held() {
+        let hand = PlayerTradeCards::default();
+        let (_, tokens) = compute_ai_payment(&hand, 40, 0, 6);
+        assert_eq!(tokens, 6);
     }
 }

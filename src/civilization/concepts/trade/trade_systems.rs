@@ -274,19 +274,27 @@ pub fn handle_send_trading_cards_command(
 
 pub fn recalculate_civ_card_moves_for_player(
     mut recalc_player_reader: MessageReader<RecalculatePlayerMoves>,
-    player_query: Query<(&PlayerTradeCards, &PlayerCivilizationCards)>,
+    player_query: Query<(
+        &PlayerTradeCards,
+        &PlayerCivilizationCards,
+        Option<&crate::civilization::Treasury>,
+    )>,
     cards: Res<AvailableCivCards>,
     mut commands: Commands,
 ) {
     for event in recalc_player_reader.read() {
-        if let Ok((player_trade_cards, player_civ_cards)) = player_query.get(event.player) {
+        if let Ok((player_trade_cards, player_civ_cards, treasury)) = player_query.get(event.player)
+        {
             commands.entity(event.player).remove::<AvailableMoves>();
             let mut moves: HashMap<usize, GameMove> = HashMap::default();
             let mut command_index = 0;
 
             let credits = cards.total_credits(&player_civ_cards.cards);
             let has_mining = player_civ_cards.owns(&CivCardName::Mining);
-            let buying_power = player_trade_cards.total_stack_value_with_mining(has_mining);
+            // Rule 31.1: a purchase is met by commodity cards *and* treasury
+            // tokens (one point each), so both count toward what is affordable.
+            let buying_power = player_trade_cards.total_stack_value_with_mining(has_mining)
+                + treasury.map_or(0, |t| t.tokens_in_treasury());
 
             let affordable_cards: Vec<CivCardName> = cards
                 .cards

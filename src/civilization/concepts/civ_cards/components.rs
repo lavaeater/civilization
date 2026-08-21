@@ -117,20 +117,35 @@ pub struct BackToSelectionButton;
 pub struct PaymentState {
     /// How many cards of each commodity the player has chosen to pay with.
     pub chosen: HashMap<TradeCard, usize>,
+    /// Treasury tokens the player has chosen to put toward the cost (rule 31.4).
+    pub treasury_tokens: usize,
 }
 
 impl PaymentState {
     pub fn reset(&mut self) {
         self.chosen.clear();
+        self.treasury_tokens = 0;
     }
 
-    /// Total value contributed by the current selection (count² × face_value per stack).
-    pub fn total_value(&self) -> usize {
+    /// Value contributed by the chosen commodity cards (count² × face_value per stack).
+    pub fn commodity_value(&self) -> usize {
         self.chosen
             .iter()
             .map(|(card, &count)| count * count * card.value())
             .sum()
     }
+
+    /// Rule 31.1/31.4: cost is met by commodity cards *and* treasury tokens,
+    /// each token worth one point.
+    pub fn total_value(&self) -> usize {
+        self.commodity_value() + self.treasury_tokens
+    }
+}
+
+/// Button to increment or decrement the treasury tokens put toward a purchase.
+#[derive(Component)]
+pub struct TreasuryAdjustButton {
+    pub delta: i32,
 }
 
 /// Button to increment or decrement the chosen count for a commodity in the payment UI.

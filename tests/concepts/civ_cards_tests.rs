@@ -6,9 +6,10 @@
 // tests exercise it directly through the real ECS system, not a stand-in.
 
 use adv_civ::civilization::{
-    CardsHeldBeforePurchasing, CivCardName, CivCardSelectionState, CivCardsAcquisition, CivTradeUi,
-    CivilizationTradeCards, ConfirmCivCardPurchase, PlayerCivilizationCards,
-    PlayerDoneAcquiringCivilizationCards, PlayerTradeCards, RecalculatePlayerMoves, TradeCard,
+    AvailableCivCards, CardsHeldBeforePurchasing, CivCardDefinition, CivCardName,
+    CivCardSelectionState, CivCardType, CivCardsAcquisition, CivTradeUi, CivilizationTradeCards,
+    ConfirmCivCardPurchase, PlayerCivilizationCards, PlayerDoneAcquiringCivilizationCards,
+    PlayerTradeCards, RecalculatePlayerMoves, TokenStock, TradeCard, Treasury,
     begin_acquire_civ_cards, process_civ_card_purchase,
     resolve_calamities::resolve_calamities_components::GrainLockedForPurchase,
 };
@@ -23,6 +24,7 @@ fn setup_app() -> App {
         .add_message::<RecalculatePlayerMoves>()
         .init_resource::<CivilizationTradeCards>()
         .init_resource::<CivCardSelectionState>()
+        .init_resource::<AvailableCivCards>()
         .add_systems(Update, process_civ_card_purchase);
     app
 }
@@ -36,9 +38,12 @@ fn spawn_player_with_grain(
     for _ in 0..grain_held {
         trade_cards.add_trade_card(TradeCard::Grain);
     }
-    let mut entity = app
-        .world_mut()
-        .spawn((PlayerCivilizationCards::default(), trade_cards));
+    let mut entity = app.world_mut().spawn((
+        PlayerCivilizationCards::default(),
+        trade_cards,
+        Treasury::default(),
+        TokenStock::new(55, Vec::new()),
+    ));
     if let Some(locked) = grain_locked {
         entity.insert(GrainLockedForPurchase(locked));
     }
@@ -56,6 +61,7 @@ fn fully_locked_grain_cannot_be_spent_even_if_the_message_requests_it() {
         player,
         cards_to_buy: vec![CivCardName::Pottery],
         payment,
+        treasury_tokens: 0,
     });
     app.update();
 
@@ -82,6 +88,7 @@ fn partially_locked_grain_only_the_unlocked_portion_is_spent() {
         player,
         cards_to_buy: vec![CivCardName::Pottery],
         payment,
+        treasury_tokens: 0,
     });
     app.update();
 
@@ -104,6 +111,7 @@ fn no_lock_component_allows_full_normal_grain_spending() {
         player,
         cards_to_buy: vec![CivCardName::Pottery],
         payment,
+        treasury_tokens: 0,
     });
     app.update();
 
@@ -129,6 +137,8 @@ fn grain_lock_does_not_affect_other_commodity_types_in_the_same_payment() {
         .spawn((
             PlayerCivilizationCards::default(),
             trade_cards,
+            Treasury::default(),
+            TokenStock::new(55, Vec::new()),
             GrainLockedForPurchase(3),
         ))
         .id();
@@ -140,6 +150,7 @@ fn grain_lock_does_not_affect_other_commodity_types_in_the_same_payment() {
         player,
         cards_to_buy: vec![CivCardName::Pottery],
         payment,
+        treasury_tokens: 0,
     });
     app.update();
 
@@ -181,6 +192,7 @@ fn an_ai_purchase_leaves_the_human_purchase_ui_alone() {
         player: ai,
         cards_to_buy: vec![CivCardName::Pottery],
         payment,
+        treasury_tokens: 0,
     });
     app.update();
 

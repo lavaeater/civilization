@@ -1,5 +1,6 @@
 use crate::GameActivity;
 use crate::civilization::Z_DIALOG;
+use crate::civilization::components::{TokenStock, Treasury};
 use crate::civilization::concepts::acquire_trade_cards::{
     CivilizationTradeCards, PlayerTradeCards, TradeCard, TradeCardTrait,
 };
@@ -13,7 +14,7 @@ use crate::civilization::{
     CivCardsAcquisition, CivTradeUi, ConfirmCivCardPurchase, Credits, PaymentAdjustButton,
     PaymentSelectionPanel, PaymentState, PaymentValueDisplay, PlayerAcquiringCivilizationCards,
     PlayerCivilizationCards, PlayerDoneAcquiringCivilizationCards, ProceedToPayment,
-    RefreshCivCardsUi, SelectedCardsSummary, ToggleCivCardSelection,
+    RefreshCivCardsUi, SelectedCardsSummary, ToggleCivCardSelection, TreasuryAdjustButton,
 };
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
@@ -54,6 +55,7 @@ pub fn on_add_player_acquiring_civilization_cards(
         &PlayerCivilizationCards,
         &PlayerTradeCards,
         Option<&CardsHeldBeforePurchasing>,
+        Option<&Treasury>,
     )>,
     ui_exists_query: Query<(), With<CivTradeUi>>,
     mut selection_state: ResMut<CivCardSelectionState>,
@@ -62,7 +64,7 @@ pub fn on_add_player_acquiring_civilization_cards(
     cards: Res<AvailableCivCards>,
 ) {
     if ui_exists_query.is_empty()
-        && let Ok((_, _, player_cards, player_trade_cards, cards_held_before)) =
+        && let Ok((_, _, player_cards, player_trade_cards, cards_held_before, treasury)) =
             human_player_query.get(trigger.entity)
     {
         selection_state.clear();
@@ -80,6 +82,7 @@ pub fn on_add_player_acquiring_civilization_cards(
             player_trade_cards,
             &selection_state,
             credits_basis,
+            treasury.map_or(0, Treasury::tokens_in_treasury),
         );
     }
 }
@@ -92,6 +95,7 @@ fn build_civ_cards_ui(
     player_trade_cards: &PlayerTradeCards,
     selection_state: &CivCardSelectionState,
     credits_basis: &HashSet<CivCardName>,
+    treasury_available: usize,
 ) {
     let mut theme_to_use = theme.clone();
     theme_to_use.text.label_size = 16.0;
@@ -186,6 +190,9 @@ fn build_civ_cards_ui(
                     info.display_flex().flex_column().row_gap_px(4.0);
                     info.default_text("Your Buying Power");
                     info.default_text(format!("Commodity Value: {total_value}"));
+                    // Rule 31.1: treasury tokens buy cards too, one point each.
+                    info.default_text(format!("Treasury Tokens: {treasury_available}"));
+                    info.default_text(format!("Total: {}", total_value + treasury_available));
                 });
 
                 // Selected cards summary
@@ -410,6 +417,7 @@ pub fn refresh_civ_cards_ui(
             &PlayerTradeCards,
             Option<&GrainLockedForPurchase>,
             Option<&CardsHeldBeforePurchasing>,
+            Option<&Treasury>,
         ),
         With<IsHuman>,
     >,
@@ -425,7 +433,7 @@ pub fn refresh_civ_cards_ui(
         }
 
         // Rebuild UI based on current phase
-        if let Ok((player_cards, player_trade_cards, grain_locked, cards_held_before)) =
+        if let Ok((player_cards, player_trade_cards, grain_locked, cards_held_before, treasury)) =
             human_player_query.single()
         {
             // Rule 31.53: see CardsHeldBeforePurchasing's doc comment.
@@ -440,6 +448,7 @@ pub fn refresh_civ_cards_ui(
                         player_trade_cards,
                         &selection_state,
                         credits_basis,
+                        treasury.map_or(0, Treasury::tokens_in_treasury),
                     );
                 }
                 CivCardPurchasePhase::SelectingPayment => {
@@ -452,6 +461,7 @@ pub fn refresh_civ_cards_ui(
                         &payment_state,
                         grain_locked,
                         credits_basis,
+                        treasury.map_or(0, Treasury::tokens_in_treasury),
                     );
                 }
             }
@@ -468,6 +478,7 @@ fn build_payment_ui(
     payment_state: &PaymentState,
     grain_locked: Option<&GrainLockedForPurchase>,
     credits_basis: &HashSet<CivCardName>,
+    treasury_available: usize,
 ) {
     let mut theme_to_use = theme.clone();
     theme_to_use.text.label_size = 14.0;
@@ -593,6 +604,50 @@ fn build_payment_ui(
             }
         });
 
+        // Treasury tokens (rule 31.1: cost is met by commodity cards *and*
+        // treasury tokens, one point each).
+        panel.with_child(|treasury_row| {
+            treasury_row
+                .display_flex()
+                .flex_row()
+                .gap_px(8.0)
+                .align_items_center()
+                .padding_all_px(12.0)
+                .bg_color(Color::srgba(0.15, 0.15, 0.2, 0.9))
+                .border_radius_all_px(4.0)
+                .width(percent(100.));
+
+            treasury_row.add_button(
+                "<",
+                30.0,
+                24.0,
+                Color::srgb(0.4, 0.3, 0.3),
+                14.0,
+                4.0,
+                TreasuryAdjustButton { delta: -1 },
+            );
+            treasury_row.add_text_child(
+                format!(
+                    "Treasury tokens: {}/{treasury_available}",
+                    payment_state.treasury_tokens
+                ),
+                Some(TextStyle::size_color(13.0, Color::WHITE)),
+            );
+            treasury_row.add_button(
+                ">",
+                30.0,
+                24.0,
+                Color::srgb(0.3, 0.4, 0.3),
+                14.0,
+                4.0,
+                TreasuryAdjustButton { delta: 1 },
+            );
+            treasury_row.add_text_child(
+                format!("  = {}", payment_state.treasury_tokens),
+                Some(TextStyle::size_color(12.0, Color::srgb(0.7, 0.9, 0.7))),
+            );
+        });
+
         // Running total display
         panel.with_child(|total_row| {
             total_row
@@ -633,6 +688,7 @@ fn build_payment_ui(
             if can_confirm {
                 let selected: Vec<_> = selection_state.selected_cards.iter().copied().collect();
                 let payment = payment_state.chosen.clone();
+                let treasury_tokens = payment_state.treasury_tokens;
                 buttons.add_button_observe(
                     "Confirm Purchase",
                     |_btn| {},
@@ -644,6 +700,7 @@ fn build_payment_ui(
                                 player: player_entity,
                                 cards_to_buy: selected.clone(),
                                 payment: payment.clone(),
+                                treasury_tokens,
                             });
                         }
                     },
@@ -651,6 +708,42 @@ fn build_payment_ui(
             }
         });
     });
+}
+
+/// Rule 31.1: treasury tokens count one point each toward a purchase. Clamped
+/// to what the player actually holds; the 31.4 "no more than required" cap is
+/// applied where the purchase commits, so over-selecting here simply doesn't
+/// cost extra.
+pub fn handle_treasury_adjust(
+    mut interaction_query: Query<(&Interaction, &TreasuryAdjustButton), Changed<Interaction>>,
+    mut payment_state: ResMut<PaymentState>,
+    human_player_query: Query<&Treasury, With<IsHuman>>,
+    mut refresh_writer: MessageWriter<RefreshCivCardsUi>,
+) {
+    let Ok(treasury) = human_player_query.single() else {
+        return;
+    };
+    let available = treasury.tokens_in_treasury();
+
+    let mut changed = false;
+    for (interaction, btn) in &mut interaction_query {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        if btn.delta > 0 {
+            if payment_state.treasury_tokens < available {
+                payment_state.treasury_tokens += 1;
+                changed = true;
+            }
+        } else if payment_state.treasury_tokens > 0 {
+            payment_state.treasury_tokens -= 1;
+            changed = true;
+        }
+    }
+
+    if changed {
+        refresh_writer.write(RefreshCivCardsUi);
+    }
 }
 
 pub fn handle_payment_adjust(
@@ -704,20 +797,42 @@ pub fn process_civ_card_purchase(
     mut player_query: Query<(
         &mut PlayerCivilizationCards,
         &mut PlayerTradeCards,
+        &mut Treasury,
+        &mut TokenStock,
         Has<IsHuman>,
         Option<&GrainLockedForPurchase>,
+        Option<&CardsHeldBeforePurchasing>,
     )>,
     mut trade_cards_resource: ResMut<CivilizationTradeCards>,
     mut selection_state: ResMut<CivCardSelectionState>,
     mut done_writer: MessageWriter<PlayerDoneAcquiringCivilizationCards>,
     mut recalc_writer: MessageWriter<RecalculatePlayerMoves>,
     mut commands: Commands,
+    cards: Res<AvailableCivCards>,
     ui_query: Query<Entity, With<CivTradeUi>>,
 ) {
     for purchase in purchase_reader.read() {
-        if let Ok((mut player_cards, mut player_trade_cards, is_human, grain_locked)) =
-            player_query.get_mut(purchase.player)
+        if let Ok((
+            mut player_cards,
+            mut player_trade_cards,
+            mut treasury,
+            mut token_stock,
+            is_human,
+            grain_locked,
+            cards_held_before,
+        )) = player_query.get_mut(purchase.player)
         {
+            // What this purchase actually costs, so treasury spending can be
+            // capped at it. Rule 31.53: credits come from the pre-purchase
+            // snapshot, never the hand we are about to add to.
+            let credits =
+                cards.total_credits(cards_held_before.map_or(&player_cards.cards, |c| &c.0));
+            let total_cost: usize = cards
+                .cards_for_names(&purchase.cards_to_buy.iter().copied().collect())
+                .iter()
+                .map(|def| def.calculate_cost(&credits) as usize)
+                .sum();
+
             // Add civilization cards to player
             for card_name in &purchase.cards_to_buy {
                 player_cards.add_card(*card_name);
@@ -731,6 +846,7 @@ pub fn process_civ_card_purchase(
             let locked_grain = grain_locked.map_or(0, |l| l.0);
 
             // Remove trade cards used for payment and return to piles
+            let mut commodity_value = 0usize;
             for (trade_card, count) in &purchase.payment {
                 let count = if *trade_card == TradeCard::Grain {
                     let held = player_trade_cards.number_of_cards_for_trade_card(*trade_card);
@@ -745,6 +861,8 @@ pub fn process_civ_card_purchase(
                     .remove_n_trade_cards(count, *trade_card)
                     .is_some()
                 {
+                    // Rule 28.51: a set of n cards is worth face_value x n².
+                    commodity_value += count * count * trade_card.value();
                     // Return cards to the appropriate pile
                     let pile = trade_card.value();
                     if let Some(pile_vec) = trade_cards_resource.card_piles.get_mut(&pile) {
@@ -752,6 +870,22 @@ pub fn process_civ_card_purchase(
                             pile_vec.push(*trade_card);
                         }
                     }
+                }
+            }
+
+            // Rule 31.1/31.4: treasury tokens make up the rest of the cost, one
+            // point each -- but a player "may not intentionally spend more
+            // treasury tokens than required", so cap at the shortfall the
+            // commodity cards left behind (31.58: no change is given, and an
+            // over-paying set is simply lost). Spent tokens go back to stock,
+            // the same route ninth-stack purchases use (27.51).
+            let tokens_to_spend = purchase
+                .treasury_tokens
+                .min(treasury.tokens_in_treasury())
+                .min(total_cost.saturating_sub(commodity_value));
+            for _ in 0..tokens_to_spend {
+                if let Some(token) = treasury.remove_token_from_treasury() {
+                    token_stock.return_token_to_stock(token);
                 }
             }
 
@@ -857,6 +991,7 @@ pub fn ensure_human_civ_cards_ui(
             &PlayerCivilizationCards,
             &PlayerTradeCards,
             Option<&CardsHeldBeforePurchasing>,
+            Option<&Treasury>,
         ),
         (With<IsHuman>, With<PlayerAcquiringCivilizationCards>),
     >,
@@ -868,7 +1003,8 @@ pub fn ensure_human_civ_cards_ui(
     /// How long the human may be left without a dialog before we rebuild it.
     const GRACE_SECS: f32 = 1.0;
 
-    let Ok((player, player_cards, player_trade_cards, cards_held_before)) = human_query.single()
+    let Ok((player, player_cards, player_trade_cards, cards_held_before, treasury)) =
+        human_query.single()
     else {
         *missing_for = 0.0;
         return;
@@ -897,6 +1033,7 @@ pub fn ensure_human_civ_cards_ui(
         player_trade_cards,
         &selection_state,
         credits_basis,
+        treasury.map_or(0, Treasury::tokens_in_treasury),
     );
 }
 
