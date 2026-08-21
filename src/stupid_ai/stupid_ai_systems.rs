@@ -450,7 +450,15 @@ pub fn select_stupid_civ_card_move(
                 .collect();
 
             if scored.is_empty() {
-                return;
+                // No civ-card move in this player's move set (e.g. a stale
+                // set left over from another phase). Bailing out with `return`
+                // used to drop every remaining SelectStupidMove in the batch,
+                // stranding the other AI players -- and this player would
+                // never be asked again either, hanging the phase. End this
+                // player's acquisition and carry on with the rest.
+                debug!("{player_name} has no civ card moves; ending acquisition");
+                done_writer.write(PlayerDoneAcquiringCivilizationCards(event.player));
+                continue;
             }
 
             let mut rng = rand::rng();

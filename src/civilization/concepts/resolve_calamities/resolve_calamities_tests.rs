@@ -342,7 +342,10 @@ mod tests {
             TradeCard::CivilWar,
             TradeCard::Flood,
         ] {
-            assert!(non_tradable.contains(&card), "{card:?} must be non-tradable");
+            assert!(
+                non_tradable.contains(&card),
+                "{card:?} must be non-tradable"
+            );
         }
     }
 

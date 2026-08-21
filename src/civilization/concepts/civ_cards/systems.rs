@@ -21,8 +21,8 @@ use bevy::asset::{AssetServer, Assets};
 use bevy::color::Color;
 use bevy::platform::collections::HashSet;
 use bevy::prelude::{
-    Add, Button, Changed, Commands, Entity, Has, Interaction, MessageReader, MessageWriter,
-    NextState, On, Query, Res, ResMut, Val, With, percent,
+    Add, Button, Changed, Commands, Entity, Has, Interaction, Local, MessageReader, MessageWriter,
+    NextState, On, Query, Res, ResMut, Time, Val, With, percent, warn,
 };
 use bevy::ui_widgets::Activate;
 use bevy::ui_widgets::Button as WidgetsButton;
@@ -755,15 +755,18 @@ pub fn process_civ_card_purchase(
                 }
             }
 
-            // Clear selection state
-            selection_state.clear();
-
-            // Despawn UI
-            for entity in ui_query.iter() {
-                commands.entity(entity).despawn();
-            }
-
             if is_human {
+                // Only the human owns the purchase UI and the selection state.
+                // AI purchases land in the same frames as the human's UI is
+                // being built (every player acquires simultaneously), so
+                // clearing these unconditionally used to wipe the human's
+                // still-open dialog -- leaving them with no way to buy and the
+                // phase waiting forever on a player who has no UI.
+                selection_state.clear();
+                for entity in ui_query.iter() {
+                    commands.entity(entity).despawn();
+                }
+
                 // Human flow batches its purchases into a single confirm, then is
                 // done. (The human can re-open and buy again if they choose.)
                 done_writer.write(PlayerDoneAcquiringCivilizationCards(purchase.player));
@@ -835,6 +838,66 @@ pub fn player_is_done(
     if civ_cards_acquisition.is_empty() {
         next_state.set(GameActivity::MoveSuccessionMarkers);
     }
+}
+
+/// Safety net for the "no purchase UI appeared" hang: the human still holds
+/// `PlayerAcquiringCivilizationCards` (so the phase is waiting on them) but no
+/// `CivTradeUi` is on screen, leaving them with no way to act. That should not
+/// happen, but when it did the game simply stopped. Rebuild the dialog once the
+/// condition has held for a moment -- the grace period keeps this from
+/// resurrecting the UI during the frames between a human confirming a purchase
+/// (which despawns it) and `player_is_done` removing the marker component.
+pub fn ensure_human_civ_cards_ui(
+    mut commands: Commands,
+    time: Res<Time>,
+    ui_query: Query<(), With<CivTradeUi>>,
+    human_query: Query<
+        (
+            Entity,
+            &PlayerCivilizationCards,
+            &PlayerTradeCards,
+            Option<&CardsHeldBeforePurchasing>,
+        ),
+        (With<IsHuman>, With<PlayerAcquiringCivilizationCards>),
+    >,
+    mut selection_state: ResMut<CivCardSelectionState>,
+    theme: Res<LavaTheme>,
+    cards: Res<AvailableCivCards>,
+    mut missing_for: Local<f32>,
+) {
+    /// How long the human may be left without a dialog before we rebuild it.
+    const GRACE_SECS: f32 = 1.0;
+
+    let Ok((player, player_cards, player_trade_cards, cards_held_before)) = human_query.single()
+    else {
+        *missing_for = 0.0;
+        return;
+    };
+    if !ui_query.is_empty() {
+        *missing_for = 0.0;
+        return;
+    }
+
+    *missing_for += time.delta_secs();
+    if *missing_for < GRACE_SECS {
+        return;
+    }
+    *missing_for = 0.0;
+
+    warn!("[CIV CARDS] Human has no purchase UI while still acquiring -- rebuilding it");
+    selection_state.clear();
+    selection_state.player_entity = Some(player);
+    // Rule 31.53: see CardsHeldBeforePurchasing's doc comment.
+    let credits_basis = cards_held_before.map_or(&player_cards.cards, |c| &c.0);
+    build_civ_cards_ui(
+        commands.reborrow(),
+        &theme,
+        &cards,
+        player_cards,
+        player_trade_cards,
+        &selection_state,
+        credits_basis,
+    );
 }
 
 pub fn begin_acquire_civ_cards(

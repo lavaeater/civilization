@@ -6,7 +6,7 @@
 // tests exercise it directly through the real ECS system, not a stand-in.
 
 use adv_civ::civilization::{
-    CardsHeldBeforePurchasing, CivCardName, CivCardSelectionState, CivCardsAcquisition,
+    CardsHeldBeforePurchasing, CivCardName, CivCardSelectionState, CivCardsAcquisition, CivTradeUi,
     CivilizationTradeCards, ConfirmCivCardPurchase, PlayerCivilizationCards,
     PlayerDoneAcquiringCivilizationCards, PlayerTradeCards, RecalculatePlayerMoves, TradeCard,
     begin_acquire_civ_cards, process_civ_card_purchase,
@@ -152,6 +152,47 @@ fn grain_lock_does_not_affect_other_commodity_types_in_the_same_payment() {
     assert_eq!(
         trade_cards.number_of_cards_for_trade_card(TradeCard::Salt),
         1
+    );
+}
+
+// ── An AI purchase must not disturb the human's open purchase dialog ──
+//
+// Every player acquires civ cards simultaneously, so AI purchases commit in the
+// same frames the human is deciding. process_civ_card_purchase used to despawn
+// every CivTradeUi and clear the shared selection state on any purchase, which
+// wiped the human's dialog out from under them -- leaving no way to buy and the
+// phase waiting forever on a player with no UI.
+
+#[test]
+fn an_ai_purchase_leaves_the_human_purchase_ui_alone() {
+    let mut app = setup_app();
+    let ai = spawn_player_with_grain(&mut app, 5, None);
+    let human_ui = app.world_mut().spawn(CivTradeUi).id();
+    let human = app.world_mut().spawn_empty().id();
+    {
+        let mut selection = app.world_mut().resource_mut::<CivCardSelectionState>();
+        selection.player_entity = Some(human);
+        selection.selected_cards.insert(CivCardName::Pottery);
+    }
+
+    let mut payment = HashMap::default();
+    payment.insert(TradeCard::Grain, 2);
+    app.world_mut().write_message(ConfirmCivCardPurchase {
+        player: ai,
+        cards_to_buy: vec![CivCardName::Pottery],
+        payment,
+    });
+    app.update();
+
+    assert!(
+        app.world().get_entity(human_ui).is_ok(),
+        "the AI's purchase despawned the human's purchase dialog"
+    );
+    let selection = app.world().resource::<CivCardSelectionState>();
+    assert_eq!(selection.player_entity, Some(human));
+    assert!(
+        selection.selected_cards.contains(&CivCardName::Pottery),
+        "the AI's purchase cleared the human's card selection"
     );
 }
 

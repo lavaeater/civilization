@@ -2815,6 +2815,10 @@ pub fn focus_camera_on_civil_war_selection(
             CivilWarUiRole::Beneficiary => "Civil War — you gain",
             CivilWarUiRole::ChooseFaction => "Civil War",
         };
-        focus_camera_on_selection(&mut focus_queue, transform.translation, format!("{role} {name}"));
+        focus_camera_on_selection(
+            &mut focus_queue,
+            transform.translation,
+            format!("{role} {name}"),
+        );
     }
 }
