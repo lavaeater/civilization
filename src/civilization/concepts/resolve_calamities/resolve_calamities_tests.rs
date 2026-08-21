@@ -2,7 +2,9 @@
 mod tests {
     use crate::civilization::components::*;
     use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::*;
-    use crate::civilization::{PlayerTradeCards, TradeCard, TradeCardTrait};
+    use crate::civilization::{
+        CivilizationTradeCards, PlayerTradeCards, TradeCard, TradeCardTrait,
+    };
     use bevy::prelude::*;
 
     fn spawn_area_with_volcano(
@@ -509,6 +511,7 @@ mod tests {
 
         let mut world = World::new();
         world.init_resource::<NextState<GameActivity>>();
+        world.init_resource::<CivilizationTradeCards>();
 
         let mut cards = PlayerTradeCards::default();
         cards.add_trade_card(TradeCard::Famine);
@@ -542,6 +545,19 @@ mod tests {
             1,
             "commodities untouched"
         );
+
+        let discarded = [TradeCard::Famine, TradeCard::VolcanoEarthquake, TradeCard::Flood]
+            .into_iter()
+            .find(|c| !hand.has_trade_card(*c))
+            .expect("exactly one of the three calamities was discarded");
+        let piles = world.resource::<CivilizationTradeCards>();
+        assert!(
+            piles
+                .card_piles
+                .get(&discarded.value())
+                .is_some_and(|p| p.contains(&discarded)),
+            "the excess calamity must go back to its trade card stack, not vanish (29.5)"
+        );
     }
 
     /// Two or fewer calamities are all resolved -- nothing is discarded.
@@ -552,6 +568,7 @@ mod tests {
 
         let mut world = World::new();
         world.init_resource::<NextState<GameActivity>>();
+        world.init_resource::<CivilizationTradeCards>();
 
         let mut cards = PlayerTradeCards::default();
         cards.add_trade_card(TradeCard::Famine);
@@ -1572,6 +1589,7 @@ mod tests {
 
         let mut world = World::new();
         world.init_resource::<NextState<GameActivity>>();
+        world.init_resource::<CivilizationTradeCards>();
 
         let trader = world
             .spawn((Player, Name::new("trader"), PlayerTradeCards::default()))
@@ -3321,6 +3339,7 @@ mod tests {
         world.init_resource::<Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<ConflictCounterResource>();
         world.init_resource::<NextState<GameActivity>>();
+        world.init_resource::<CivilizationTradeCards>();
         world.init_resource::<CameraFocusQueue>();
         world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
         world.add_observer(on_add_unresolved_conflict);
@@ -3972,6 +3991,7 @@ mod tests {
         let pirate_nation = find_pirate_nation(&mut world);
 
         world.init_resource::<NextState<GameActivity>>();
+        world.init_resource::<CivilizationTradeCards>();
         world.run_system_once(start_check_city_support).unwrap();
         world.flush();
 
@@ -3996,6 +4016,7 @@ mod tests {
         let mut world = piracy_test_world();
         world.init_resource::<ConflictCounterResource>();
         world.init_resource::<NextState<GameActivity>>();
+        world.init_resource::<CivilizationTradeCards>();
         world.init_resource::<CameraFocusQueue>();
         world.add_observer(on_add_unresolved_conflict);
         world.add_observer(on_add_unresolved_city_conflict);

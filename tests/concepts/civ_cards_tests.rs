@@ -8,12 +8,13 @@
 use adv_civ::civilization::{
     AvailableCivCards, CardsHeldBeforePurchasing, CivCardDefinition, CivCardName,
     CivCardSelectionState, CivCardType, CivCardsAcquisition, CivTradeUi, CivilizationTradeCards,
-    ConfirmCivCardPurchase, PlayerCivilizationCards, PlayerDoneAcquiringCivilizationCards,
-    PlayerTradeCards, RecalculatePlayerMoves, TokenStock, TradeCard, Treasury,
-    begin_acquire_civ_cards, process_civ_card_purchase,
+    ConfirmCivCardPurchase, PaymentState, PlayerCivilizationCards,
+    PlayerDoneAcquiringCivilizationCards, PlayerTradeCards, RecalculatePlayerMoves, TokenStock,
+    TradeCard, Treasury, begin_acquire_civ_cards, process_civ_card_purchase,
     resolve_calamities::resolve_calamities_components::GrainLockedForPurchase,
 };
 use adv_civ::player::Player;
+use adv_civ::stupid_ai::IsHuman;
 use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{App, Update};
 
@@ -391,4 +392,42 @@ fn begin_acquire_snapshot_is_frozen_even_if_the_live_hand_grows_afterward() {
         .unwrap();
     let expected: HashSet<CivCardName> = [CivCardName::Pottery].into_iter().collect();
     assert_eq!(snapshot.0, expected);
+}
+
+// ── The payment-amount widgets must reset after a purchase ──
+//
+// PaymentState::chosen used to survive a confirmed purchase, so a human who
+// paid 2 Grain for one card would see "2/1" (or worse) still selected the
+// next time they opened the dialog -- as if they still had 2 Grain to spend
+// even after having only 1 left.
+
+#[test]
+fn payment_amounts_are_reset_after_a_human_purchase() {
+    let mut app = setup_app();
+    app.init_resource::<PaymentState>();
+    let player = spawn_player_with_grain(&mut app, 1, None);
+    app.world_mut().entity_mut(player).insert(IsHuman);
+
+    app.world_mut()
+        .resource_mut::<PaymentState>()
+        .chosen
+        .insert(TradeCard::Grain, 2);
+    app.world_mut().resource_mut::<PaymentState>().treasury_tokens = 3;
+
+    let mut payment = HashMap::default();
+    payment.insert(TradeCard::Grain, 1);
+    app.world_mut().write_message(ConfirmCivCardPurchase {
+        player,
+        cards_to_buy: vec![CivCardName::Pottery],
+        payment,
+        treasury_tokens: 0,
+    });
+    app.update();
+
+    let payment_state = app.world().resource::<PaymentState>();
+    assert!(
+        payment_state.chosen.is_empty(),
+        "chosen payment amounts must not carry over to the next purchase"
+    );
+    assert_eq!(payment_state.treasury_tokens, 0);
 }

@@ -805,6 +805,7 @@ pub fn process_civ_card_purchase(
     )>,
     mut trade_cards_resource: ResMut<CivilizationTradeCards>,
     mut selection_state: ResMut<CivCardSelectionState>,
+    mut payment_state: Option<ResMut<PaymentState>>,
     mut done_writer: MessageWriter<PlayerDoneAcquiringCivilizationCards>,
     mut recalc_writer: MessageWriter<RecalculatePlayerMoves>,
     mut commands: Commands,
@@ -897,6 +898,9 @@ pub fn process_civ_card_purchase(
                 // still-open dialog -- leaving them with no way to buy and the
                 // phase waiting forever on a player who has no UI.
                 selection_state.clear();
+                if let Some(payment_state) = payment_state.as_mut() {
+                    payment_state.reset();
+                }
                 for entity in ui_query.iter() {
                     commands.entity(entity).despawn();
                 }
