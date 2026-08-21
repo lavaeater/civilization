@@ -773,3 +773,78 @@ fn stop_trading_move_is_available() {
 //         p_two_trading_cards.number_of_cards_for_trade_card(&Salt)
 //     );
 // }
+
+// ── Commodity sets are worth face_value x count^2 (rule 28.2) ──────────────
+//
+// The AI used to choose what to offer and what to ask for by face value alone:
+// it offered its cheapest-faced cards (happily breaking up a big set) and asked
+// for cards it had *fewest* of (spreading itself thin). Both work against the
+// squared-count scoring that makes trading worthwhile in the first place.
+
+use adv_civ::civilization::{
+    TradeCardTrait, cheapest_cards_to_give, most_valuable_cards_to_request, value_of_giving,
+    value_of_receiving,
+};
+
+#[test]
+fn receiving_a_card_is_worth_more_the_more_of_it_you_hold() {
+    // Ochre has face value 1: the 1st is worth 1, the 5th is worth 9.
+    assert_eq!(value_of_receiving(TradeCard::Ochre, 0), 1);
+    assert_eq!(value_of_receiving(TradeCard::Ochre, 4), 9);
+    // And the arithmetic matches the actual set formula.
+    let before = 4 * 4 * TradeCard::Ochre.value();
+    let after = 5 * 5 * TradeCard::Ochre.value();
+    assert_eq!(after - before, value_of_receiving(TradeCard::Ochre, 4));
+}
+
+#[test]
+fn giving_away_a_card_from_a_big_set_costs_more_than_a_lone_high_value_card() {
+    // 5 Ochre (face value 1) vs 1 Gem (face value 8): dropping an Ochre costs
+    // 9, the lone Gem only its face value.
+    assert_eq!(value_of_giving(TradeCard::Ochre, 5), 9);
+    assert_eq!(value_of_giving(TradeCard::Gems, 1), 8);
+    assert!(value_of_giving(TradeCard::Ochre, 5) > value_of_giving(TradeCard::Gems, 1));
+}
+
+#[test]
+fn the_ai_offers_its_singletons_not_its_collection() {
+    let mut holdings = HashMap::default();
+    holdings.insert(TradeCard::Ochre, 5); // a real set -- keep it
+    holdings.insert(TradeCard::Gems, 1); // singleton, cheap to lose
+    holdings.insert(TradeCard::Wine, 1); // singleton, cheap to lose
+
+    let giving = cheapest_cards_to_give(&holdings, 2);
+    assert_eq!(giving.values().sum::<usize>(), 2);
+    assert_eq!(
+        giving.get(&TradeCard::Ochre).copied().unwrap_or(0),
+        0,
+        "the Ochre set should be left intact: {giving:?}"
+    );
+}
+
+#[test]
+fn the_ai_asks_for_more_of_what_it_already_collects() {
+    let mut holdings = HashMap::default();
+    holdings.insert(TradeCard::Ochre, 4); // next Ochre is worth 9
+    holdings.insert(TradeCard::Salt, 0);
+
+    let candidates = vec![TradeCard::Ochre, TradeCard::Salt, TradeCard::Hides];
+    let wanted = most_valuable_cards_to_request(&holdings, &candidates, 2);
+    assert_eq!(wanted.values().sum::<usize>(), 2);
+    assert!(
+        wanted.get(&TradeCard::Ochre).copied().unwrap_or(0) >= 1,
+        "should reinforce the Ochre set: {wanted:?}"
+    );
+}
+
+#[test]
+fn requesting_the_same_card_twice_prices_the_second_copy_correctly() {
+    // Holding 3 Ochre (next worth 7, then 9) against a lone Salt (value 3,
+    // first copy worth 3): both requested cards should be Ochre.
+    let mut holdings = HashMap::default();
+    holdings.insert(TradeCard::Ochre, 3);
+
+    let candidates = vec![TradeCard::Ochre, TradeCard::Salt];
+    let wanted = most_valuable_cards_to_request(&holdings, &candidates, 2);
+    assert_eq!(wanted.get(&TradeCard::Ochre).copied(), Some(2));
+}

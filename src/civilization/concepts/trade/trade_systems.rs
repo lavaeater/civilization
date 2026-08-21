@@ -7,6 +7,9 @@ use crate::civilization::concepts::trade::trade_components::{
     PlayerTradeInterests, PublishedOffer, SettlementModal, TradeButtonAction, TradeOffer,
 };
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
+use crate::civilization::concepts::trade::trade_functions::{
+    cheapest_cards_to_give, most_valuable_cards_to_request,
+};
 use crate::civilization::concepts::trade::trade_resources::{
     CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState,
 };
@@ -1376,157 +1379,183 @@ pub fn spawn_create_offer_modal(
     let player_name = player_name.to_string();
     let mut ui = UIBuilder::new(commands, Some(theme.clone()));
 
+    // Full-screen scrim. The dialog used to be a bare 80%x90% panel, which left
+    // the always-on status panels (A.S.T. bottom-left, the HUD strip) showing
+    // around and behind its edges while the player was mid-offer.
     ui.insert(CreateOfferModal)
         .insert(GlobalZIndex(100))
         .set_node(Node {
             position_type: PositionType::Absolute,
-            left: Val::Percent(10.0),
-            top: Val::Percent(5.0),
-            width: Val::Percent(80.0),
-            height: Val::Percent(90.0),
+            left: Val::Px(0.0),
+            top: Val::Px(0.0),
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
             flex_direction: FlexDirection::Column,
-            padding: UiRect::all(Val::Px(16.0)),
-            overflow: Overflow::scroll_y(),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
             ..Default::default()
         })
-        .bg_color(Color::srgba(0.12, 0.12, 0.18, 0.98));
+        .bg_color(Color::srgba(0.0, 0.0, 0.0, 0.75));
 
-    // Header row
-    ui.add_row(|header| {
-        header
-            .width_percent(100.0)
-            .height_px(40.0)
-            .justify_space_between()
-            .align_items_center()
-            .margin_btm_px(12.0);
+    ui.with_child(|dialog| {
+        dialog
+            .set_node(Node {
+                width: Val::Percent(80.0),
+                height: Val::Percent(90.0),
+                flex_direction: FlexDirection::Column,
+                padding: UiRect::all(Val::Px(16.0)),
+                ..Default::default()
+            })
+            .bg_color(Color::srgba(0.12, 0.12, 0.18, 0.98));
 
-        header.add_text_child(
-            "Create Trade Offer",
-            Some(TextStyle::size_color(22.0, Color::srgb(0.9, 0.8, 0.3))),
-        );
+        // ── Fixed header ──────────────────────────────────────────────────
+        dialog.add_row(|header| {
+            header
+                .width_percent(100.0)
+                .height_px(40.0)
+                .justify_space_between()
+                .align_items_center()
+                .margin_btm_px(12.0);
 
-        header.add_button(
-            "X",
-            40.0,
-            30.0,
-            Color::srgb(0.5, 0.2, 0.2),
-            16.0,
-            4.0,
-            CloseCreateOfferModalButton,
-        );
-    });
+            header.add_text_child(
+                "Create Trade Offer",
+                Some(TextStyle::size_color(22.0, Color::srgb(0.9, 0.8, 0.3))),
+            );
 
-    // Instructions
-    ui.add_text_child(
-        "Rules: Exactly 2 guaranteed cards each side. Minimum 3 total cards each side.",
-        Some(TextStyle::size_color(12.0, Color::srgb(0.6, 0.6, 0.6))),
-    );
-
-    // === WHAT YOU OFFER SECTION ===
-    ui.add_column(|section| {
-        section
-            .width_percent(100.0)
-            .margin(UiRect::top(Val::Px(12.0)))
-            .padding_all_px(10.0)
-            .bg_color(Color::srgba(0.15, 0.2, 0.15, 0.6));
-
-        section.add_text_child(
-            format!("WHAT YOU OFFER (Your Cards - {player_name})"),
-            Some(TextStyle::size_color(15.0, Color::srgb(0.5, 0.9, 0.5))),
-        );
-        section.add_text_child(
-            "Use < > to adjust guaranteed card counts (max 2 total):",
-            Some(TextStyle::size_color(11.0, Color::srgb(0.6, 0.6, 0.6))),
-        );
-
-        // One row per commodity type the player owns
-        for (card, count) in &owned_commodities {
-            spawn_card_adjust_row(section, *card, true, &format!("/ {count} owned"));
-        }
-
-        // Calamity cards (can be hidden in trades)
-        for card in &owned_calamities {
-            spawn_card_adjust_row(section, *card, true, "(calamity)");
-        }
-
-        // Hidden cards count for offering
-        spawn_hidden_count_row(section, "Hidden cards to offer: ", true);
-    });
-
-    // === WHAT YOU WANT SECTION ===
-    ui.add_column(|section| {
-        section
-            .width_percent(100.0)
-            .margin(UiRect::top(Val::Px(12.0)))
-            .padding_all_px(10.0)
-            .bg_color(Color::srgba(0.2, 0.15, 0.15, 0.6));
-
-        section.add_text_child(
-            "WHAT YOU WANT (Guaranteed cards you request)",
-            Some(TextStyle::size_color(15.0, Color::srgb(0.9, 0.6, 0.5))),
-        );
-        section.add_text_child(
-            "Use < > to adjust guaranteed card counts (max 2 total):",
-            Some(TextStyle::size_color(11.0, Color::srgb(0.6, 0.6, 0.6))),
-        );
-
-        // One row per commodity type
-        for card_type in &all_commodity_types {
-            spawn_card_adjust_row(section, *card_type, false, "");
-        }
-
-        // Hidden cards count for wanting
-        spawn_hidden_count_row(section, "Hidden cards wanted: ", false);
-    });
-
-    // === OFFER SUMMARY ===
-    ui.add_column(|section| {
-        section
-            .width_percent(100.0)
-            .margin(UiRect::top(Val::Px(12.0)))
-            .padding_all_px(10.0)
-            .bg_color(Color::srgba(0.1, 0.1, 0.15, 0.8));
-
-        section.add_text_child(
-            "OFFER SUMMARY",
-            Some(TextStyle::size_color(14.0, Color::srgb(0.8, 0.8, 0.8))),
-        );
-
-        section.with_child(|summary| {
-            summary.insert(OfferSummaryDisplay);
-            summary.with_text(
-                "Offering: nothing | Wanting: nothing",
-                Some(TextStyle::size_color(12.0, Color::srgb(0.6, 0.6, 0.6))),
+            header.add_button(
+                "X",
+                40.0,
+                30.0,
+                Color::srgb(0.5, 0.2, 0.2),
+                16.0,
+                4.0,
+                CloseCreateOfferModalButton,
             );
         });
 
-        section.with_child(|validation| {
-            validation.insert(OfferValidationDisplay);
-            validation.with_text(
-                "Invalid: Need 2 guaranteed cards each side, 3+ total each side",
-                Some(TextStyle::size_color(12.0, Color::srgb(0.8, 0.4, 0.4))),
-            );
-        });
-    });
-
-    // === PUBLISH BUTTON ===
-    ui.add_row(|btn_row| {
-        btn_row
-            .width_percent(100.0)
-            .height_px(50.0)
-            .justify_center()
-            .align_items_center()
-            .margin(UiRect::top(Val::Px(12.0)));
-
-        btn_row.add_button(
-            "Publish Offer",
-            200.0,
-            40.0,
-            Color::srgb(0.3, 0.3, 0.3),
-            16.0,
-            6.0,
-            PublishOfferButton,
+        dialog.add_text_child(
+            "Rules: Exactly 2 guaranteed cards each side. Minimum 3 total cards each side.",
+            Some(TextStyle::size_color(12.0, Color::srgb(0.6, 0.6, 0.6))),
         );
+
+        // ── Scrolling middle ──────────────────────────────────────────────
+        // The card rows (one per owned commodity, one per *every* commodity
+        // type in the wanting section) run well past a screen height. They used
+        // to scroll the whole dialog, which pushed the Publish button off the
+        // bottom where nobody could find it; only this section scrolls now.
+        dialog.with_child(|body| {
+            body.display_flex()
+                .flex_column()
+                .width_percent(100.0)
+                .with_flex_grow(1.0)
+                .overflow_scroll_y();
+
+            // === WHAT YOU OFFER SECTION ===
+            body.add_column(|section| {
+                section
+                    .width_percent(100.0)
+                    .margin(UiRect::top(Val::Px(12.0)))
+                    .padding_all_px(10.0)
+                    .bg_color(Color::srgba(0.15, 0.2, 0.15, 0.6));
+
+                section.add_text_child(
+                    format!("WHAT YOU OFFER (Your Cards - {player_name})"),
+                    Some(TextStyle::size_color(15.0, Color::srgb(0.5, 0.9, 0.5))),
+                );
+                section.add_text_child(
+                    "Use < > to adjust guaranteed card counts (max 2 total):",
+                    Some(TextStyle::size_color(11.0, Color::srgb(0.6, 0.6, 0.6))),
+                );
+
+                // One row per commodity type the player owns
+                for (card, count) in &owned_commodities {
+                    spawn_card_adjust_row(section, *card, true, &format!("/ {count} owned"));
+                }
+
+                // Calamity cards (can be hidden in trades)
+                for card in &owned_calamities {
+                    spawn_card_adjust_row(section, *card, true, "(calamity)");
+                }
+
+                // Hidden cards count for offering
+                spawn_hidden_count_row(section, "Hidden cards to offer: ", true);
+            });
+
+            // === WHAT YOU WANT SECTION ===
+            body.add_column(|section| {
+                section
+                    .width_percent(100.0)
+                    .margin(UiRect::top(Val::Px(12.0)))
+                    .padding_all_px(10.0)
+                    .bg_color(Color::srgba(0.2, 0.15, 0.15, 0.6));
+
+                section.add_text_child(
+                    "WHAT YOU WANT (Guaranteed cards you request)",
+                    Some(TextStyle::size_color(15.0, Color::srgb(0.9, 0.6, 0.5))),
+                );
+                section.add_text_child(
+                    "Use < > to adjust guaranteed card counts (max 2 total):",
+                    Some(TextStyle::size_color(11.0, Color::srgb(0.6, 0.6, 0.6))),
+                );
+
+                // One row per commodity type
+                for card_type in &all_commodity_types {
+                    spawn_card_adjust_row(section, *card_type, false, "");
+                }
+
+                // Hidden cards count for wanting
+                spawn_hidden_count_row(section, "Hidden cards wanted: ", false);
+            });
+        });
+
+        // ── Fixed footer: summary, validation, and the Publish button ─────
+        dialog.add_column(|section| {
+            section
+                .width_percent(100.0)
+                .margin(UiRect::top(Val::Px(12.0)))
+                .padding_all_px(10.0)
+                .bg_color(Color::srgba(0.1, 0.1, 0.15, 0.8));
+
+            section.add_text_child(
+                "OFFER SUMMARY",
+                Some(TextStyle::size_color(14.0, Color::srgb(0.8, 0.8, 0.8))),
+            );
+
+            section.with_child(|summary| {
+                summary.insert(OfferSummaryDisplay);
+                summary.with_text(
+                    "Offering: nothing | Wanting: nothing",
+                    Some(TextStyle::size_color(12.0, Color::srgb(0.6, 0.6, 0.6))),
+                );
+            });
+
+            section.with_child(|validation| {
+                validation.insert(OfferValidationDisplay);
+                validation.with_text(
+                    "Invalid: Need 2 guaranteed cards each side, 3+ total each side",
+                    Some(TextStyle::size_color(12.0, Color::srgb(0.8, 0.4, 0.4))),
+                );
+            });
+
+            section.add_row(|btn_row| {
+                btn_row
+                    .width_percent(100.0)
+                    .height_px(50.0)
+                    .justify_center()
+                    .align_items_center()
+                    .margin(UiRect::top(Val::Px(8.0)));
+
+                btn_row.add_button(
+                    "Publish Offer",
+                    200.0,
+                    40.0,
+                    Color::srgb(0.3, 0.3, 0.3),
+                    16.0,
+                    6.0,
+                    PublishOfferButton,
+                );
+            });
+        });
     });
 
     ui.build();
@@ -2644,75 +2673,40 @@ pub fn ai_create_trade_offers(
             continue; // Not enough cards to trade
         }
 
-        // Pick 2 random commodities to offer as guaranteed
-        let mut offering_guaranteed: HashMap<TradeCard, usize> = HashMap::default();
-        let mut cards_offered = 0;
+        let ai_card_counts: HashMap<TradeCard, usize> = commodities.iter().copied().collect();
 
-        // Prefer offering lower-value cards
-        let mut sorted_commodities: Vec<_> =
-            commodities.iter().filter(|(_, count)| *count > 0).collect();
-        sorted_commodities.sort_by_key(|(card, _)| card.value());
-
-        for (card, count) in sorted_commodities.iter().take(3) {
-            if cards_offered >= 2 {
-                break;
-            }
-            let to_offer = (*count).min(2 - cards_offered);
-            if to_offer > 0 {
-                offering_guaranteed.insert(*card, to_offer);
-                cards_offered += to_offer;
-            }
-        }
+        // A commodity set of n cards is worth face_value x n^2 (rule 28.2), so
+        // what matters is not a card's face value but what it does to a set.
+        // Give away whatever costs least: singletons and small sets, even of a
+        // high face value, before touching a set we are building.
+        let offering_guaranteed = cheapest_cards_to_give(&ai_card_counts, 2);
+        let cards_offered: usize = offering_guaranteed.values().sum();
 
         if cards_offered < 2 {
             continue;
         }
 
-        // Pick what AI wants — only request cards up to their own max card value.
-        // An AI with max value 4 cards should never ask for Gold (9) or Ivory (9).
-        let mut wanting_guaranteed: HashMap<TradeCard, usize> = HashMap::default();
-        let mut cards_wanted = 0;
-
-        let ai_card_counts: HashMap<TradeCard, usize> = commodities.iter().copied().collect();
+        // Ask for whatever adds the most: the (n+1)th card of a set we already
+        // hold is worth face_value x (2n+1), so reinforcing our biggest set
+        // beats collecting one of everything. Still capped at our own top face
+        // value -- an AI holding nothing but Ochre asking for Gold just gets
+        // ignored by everyone at the table.
         let max_own_value = commodities
             .iter()
+            .filter(|(_, count)| *count > 0)
             .map(|(card, _)| card.value())
             .max()
             .unwrap_or(0);
 
-        // Want commodities that: (a) are at or below our max value, (b) we have few of,
-        // (c) prefer higher value within that range (to try completing sets)
-        let mut desired: Vec<TradeCard> = TradeCard::iter()
+        let requestable: Vec<TradeCard> = TradeCard::iter()
             .filter(adv_civ_protocol::TradeCardTrait::is_commodity)
             .filter(|c| c.value() <= max_own_value)
-            .filter(|c| ai_card_counts.get(c).copied().unwrap_or(0) < 2)
+            // Never ask for a card we are simultaneously offering away.
+            .filter(|c| !offering_guaranteed.contains_key(c))
             .collect();
-        desired.sort_by_key(|c| std::cmp::Reverse(c.value()));
 
-        for card in desired.iter().take(3) {
-            if cards_wanted >= 2 {
-                break;
-            }
-            let to_want = 1.min(2 - cards_wanted);
-            wanting_guaranteed.insert(*card, to_want);
-            cards_wanted += to_want;
-        }
-
-        if cards_wanted < 2 {
-            // Fallback: want any commodity at or below our max value
-            for card in TradeCard::iter()
-                .filter(adv_civ_protocol::TradeCardTrait::is_commodity)
-                .filter(|c| c.value() <= max_own_value)
-            {
-                if cards_wanted >= 2 {
-                    break;
-                }
-                if !wanting_guaranteed.contains_key(&card) {
-                    wanting_guaranteed.insert(card, 1);
-                    cards_wanted += 1;
-                }
-            }
-        }
+        let wanting_guaranteed = most_valuable_cards_to_request(&ai_card_counts, &requestable, 2);
+        let cards_wanted: usize = wanting_guaranteed.values().sum();
 
         // Add hidden cards to reach minimum 3 each side
         let offering_hidden = 3_usize.saturating_sub(cards_offered);
@@ -2979,17 +2973,14 @@ fn ai_select_settlement_cards(
         hidden_left -= to_add;
     }
 
-    // Add the lowest value commodities for remaining hidden
-    let mut sorted_available: Vec<_> = available.iter().collect();
-    sorted_available.sort_by_key(|(card, _)| card.value());
-
-    for (card, count) in sorted_available {
-        if hidden_left == 0 {
-            break;
-        }
-        let to_add = (*count).min(hidden_left);
-        *selected.entry(*card).or_insert(0) += to_add;
-        hidden_left -= to_add;
+    // Fill the rest with whatever costs the least to lose. Face value alone is
+    // the wrong measure: a set of n cards is worth face_value x n^2, so the
+    // fifth Ochre (value 1) costs 9 to give up while a lone Gem (value 5) costs
+    // only 5. Break up singletons, keep the sets.
+    let giving = cheapest_cards_to_give(&available, hidden_left);
+    for (card, count) in giving {
+        *selected.entry(card).or_insert(0) += count;
+        hidden_left -= count;
     }
 
     if hidden_left > 0 {
