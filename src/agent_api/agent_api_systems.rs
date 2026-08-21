@@ -481,7 +481,10 @@ pub fn poll_agent_api(
                                             trade_cards,
                                             cost,
                                             grain_locked.map_or(0, |l| l.0),
-                                            treasury.map_or(0, |t| t.tokens_in_treasury()),
+                                            treasury.map_or(
+                                                0,
+                                                crate::civilization::Treasury::tokens_in_treasury,
+                                            ),
                                         );
                                         writers.purchase.write(ConfirmCivCardPurchase {
                                             player: *player,

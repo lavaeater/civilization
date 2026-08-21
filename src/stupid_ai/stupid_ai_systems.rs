@@ -553,7 +553,10 @@ pub fn compute_ai_payment(
     cost: usize,
     grain_locked: usize,
     treasury_available: usize,
-) -> (bevy::platform::collections::HashMap<TradeCard, usize>, usize) {
+) -> (
+    bevy::platform::collections::HashMap<TradeCard, usize>,
+    usize,
+) {
     let mut payment = bevy::platform::collections::HashMap::default();
     let mut remaining = cost;
 

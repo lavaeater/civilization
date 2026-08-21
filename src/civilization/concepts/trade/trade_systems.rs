@@ -294,7 +294,7 @@ pub fn recalculate_civ_card_moves_for_player(
             // Rule 31.1: a purchase is met by commodity cards *and* treasury
             // tokens (one point each), so both count toward what is affordable.
             let buying_power = player_trade_cards.total_stack_value_with_mining(has_mining)
-                + treasury.map_or(0, |t| t.tokens_in_treasury());
+                + treasury.map_or(0, crate::civilization::Treasury::tokens_in_treasury);
 
             let affordable_cards: Vec<CivCardName> = cards
                 .cards
