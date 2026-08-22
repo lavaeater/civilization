@@ -68,6 +68,7 @@ pub enum GameActivity {
     CheckCitySupportAfterRemoveSurplusPopulation,
     AcquireTradeCards,
     Trade,
+    ShedCommodityCards,
     ResolveCalamities,
     CheckCitySupportAfterResolveCalamities,
     AcquireCivilizationCards,
@@ -96,6 +97,7 @@ impl From<&GameActivity> for adv_civ_protocol::NetPhase {
             }
             GameActivity::AcquireTradeCards => NetPhase::AcquireTradeCards,
             GameActivity::Trade => NetPhase::Trade,
+            GameActivity::ShedCommodityCards => NetPhase::ShedCommodityCards,
             GameActivity::ResolveCalamities => NetPhase::ResolveCalamities,
             GameActivity::CheckCitySupportAfterResolveCalamities => {
                 NetPhase::CheckCitySupportAfterResolveCalamities

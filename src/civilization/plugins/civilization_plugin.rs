@@ -95,6 +95,7 @@ impl Plugin for CivLogicPlugins {
             .add_plugins((
                 CityConstructionPlugin,
                 RemoveSurplusPlugin,
+                ShedCommodityCardsPlugin,
                 ResolveCalamitiesPlugin,
                 CitySupportPlugin,
                 StupidAiPlugin,
