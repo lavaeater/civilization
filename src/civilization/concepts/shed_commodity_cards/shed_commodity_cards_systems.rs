@@ -47,7 +47,7 @@ pub fn apply_commodity_shed(
         return;
     }
 
-    for (player_entity, mut hand, needs, is_human) in shedders.iter_mut() {
+    for (player_entity, mut hand, needs, is_human) in &mut shedders {
         let is_waiting = awaiting_query.get(player_entity).is_ok();
         let must_discard = needs.must_discard;
         let player_label = names.get(player_entity).map_or_else(
@@ -125,7 +125,7 @@ fn discard_commodity_cards(
                 .card_piles
                 .entry(card.value())
                 .or_default()
-                .extend(std::iter::repeat(card).take(count));
+                .extend(std::iter::repeat_n(card, count));
         }
     }
 }
