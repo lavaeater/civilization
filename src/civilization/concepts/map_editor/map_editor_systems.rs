@@ -1,5 +1,5 @@
 use crate::civilization::components::GameCamera;
-use crate::civilization::concepts::map::{Area, Map};
+use crate::civilization::concepts::map::{Area, CameraFocusQueue, Map};
 use crate::civilization::concepts::map_editor::map_editor_components::*;
 use crate::loading::TextureAssets;
 use bevy::asset::AssetServer;
@@ -207,6 +207,7 @@ pub fn handle_map_editor_click(
     camera_query: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
     mut areas: Query<(Entity, &mut EditableArea, &Transform)>,
     mut state: ResMut<MapEditorState>,
+    mut focus: ResMut<CameraFocusQueue>,
 ) {
     if !mouse_button.just_pressed(MouseButton::Left) {
         return;
@@ -318,6 +319,9 @@ pub fn handle_map_editor_click(
     }
 
     state.current_area = Some(clicked_entity);
+    if let Ok((_, _, transform)) = areas.get(clicked_entity) {
+        focus.add_focus(transform.translation, 0.0, "Map editor: selected area");
+    }
 }
 
 /// Writes the current editor state back to `Assets<Map>` (so re-entering the
@@ -388,4 +392,59 @@ pub fn cleanup_map_editor(
         commands.entity(entity).despawn();
     }
     *state = MapEditorState::default();
+}
+
+/// Z/X to zoom, arrow keys to pan -- same convention as the in-game map
+/// camera controls (`handle_map_camera_controls`).
+pub fn handle_map_editor_camera_controls(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
+    mut camera: Query<(&mut Projection, &mut Transform), With<GameCamera>>,
+) {
+    let Ok((mut projection, mut transform)) = camera.single_mut() else {
+        return;
+    };
+    let Projection::Orthographic(ref mut ortho) = *projection else {
+        return;
+    };
+
+    let dt = time.delta_secs();
+
+    let zoom_speed = 1.5;
+    let min_scale = 0.2;
+    let max_scale = 3.0;
+    if keyboard.pressed(KeyCode::KeyZ) {
+        ortho.scale = (ortho.scale / (1.0 + zoom_speed * dt)).max(min_scale);
+    }
+    if keyboard.pressed(KeyCode::KeyX) {
+        ortho.scale = (ortho.scale * (1.0 + zoom_speed * dt)).min(max_scale);
+    }
+
+    let pan_speed = 500.0 * ortho.scale;
+    if keyboard.pressed(KeyCode::ArrowUp) {
+        transform.translation.y += pan_speed * dt;
+    }
+    if keyboard.pressed(KeyCode::ArrowDown) {
+        transform.translation.y -= pan_speed * dt;
+    }
+    if keyboard.pressed(KeyCode::ArrowLeft) {
+        transform.translation.x -= pan_speed * dt;
+    }
+    if keyboard.pressed(KeyCode::ArrowRight) {
+        transform.translation.x += pan_speed * dt;
+    }
+}
+
+/// Nudges the camera by a fixed step, scaled by current zoom so panning feels
+/// consistent whether zoomed in or out. Used by the on-screen arrow buttons.
+pub fn pan_map_editor_camera(direction: Vec2, camera: &mut Query<(&Projection, &mut Transform), With<GameCamera>>) {
+    let Ok((projection, mut transform)) = camera.single_mut() else {
+        return;
+    };
+    let scale = if let Projection::Orthographic(ortho) = projection {
+        ortho.scale
+    } else {
+        1.0
+    };
+    transform.translation += (direction * 120.0 * scale).extend(0.0);
 }

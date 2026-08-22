@@ -3,8 +3,11 @@ use bevy::ui_widgets::Activate;
 use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
 
 use crate::GameState;
-use crate::civilization::Z_DIALOG;
+use crate::civilization::components::GameCamera;
+use crate::civilization::concepts::map::CameraFocusQueue;
 use crate::civilization::concepts::map_editor::map_editor_components::*;
+use crate::civilization::concepts::map_editor::map_editor_systems::pan_map_editor_camera;
+use crate::civilization::Z_DIALOG;
 
 #[derive(Component, Default)]
 pub struct MapEditorUiRoot;
@@ -47,13 +50,13 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
 
     ui.add_text_child(
         "Map Editor",
-        Some(TextStyle::size_color(22.0, Color::srgb(0.4, 0.8, 1.0))),
+        Some(TextStyle::size_color(16.0, Color::srgb(0.4, 0.8, 1.0))),
     );
 
     ui.with_child(|c| {
         c.component::<AreaHeaderText>().with_text(
             "Area: -",
-            Some(TextStyle::size_color(16.0, Color::srgb(1.0, 1.0, 0.7))),
+            Some(TextStyle::size_color(13.0, Color::srgb(1.0, 1.0, 0.7))),
         );
     });
 
@@ -62,37 +65,39 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
         row.add_button_observe(
             "< Prev",
             |btn| {
-                btn.size_px(90.0, 32.0);
+                btn.size_px(90.0, 26.0).font_size(11.0);
             },
             |_: On<Activate>,
              mut state: ResMut<MapEditorState>,
-             areas: Query<(Entity, &EditableArea)>| {
-                step_area(&mut state, &areas, -1);
+             areas: Query<(Entity, &EditableArea, &Transform)>,
+             mut focus: ResMut<CameraFocusQueue>| {
+                step_area(&mut state, &areas, -1, &mut focus);
             },
         );
         row.add_button_observe(
             "Next >",
             |btn| {
-                btn.size_px(90.0, 32.0);
+                btn.size_px(90.0, 26.0).font_size(11.0);
             },
             |_: On<Activate>,
              mut state: ResMut<MapEditorState>,
-             areas: Query<(Entity, &EditableArea)>| {
-                step_area(&mut state, &areas, 1);
+             areas: Query<(Entity, &EditableArea, &Transform)>,
+             mut focus: ResMut<CameraFocusQueue>| {
+                step_area(&mut state, &areas, 1, &mut focus);
             },
         );
     });
 
     ui.add_text_child(
         "Max population",
-        Some(TextStyle::size_color(13.0, Color::srgb(0.7, 0.7, 0.7))),
+        Some(TextStyle::size_color(11.0, Color::srgb(0.7, 0.7, 0.7))),
     );
     ui.add_row(|row| {
         row.align_items_center().gap_px(6.0);
         row.add_button_observe(
             "-1",
             |btn| {
-                btn.size_px(36.0, 28.0);
+                btn.size_px(30.0, 24.0).font_size(11.0);
             },
             |_: On<Activate>, state: Res<MapEditorState>, mut areas: Query<&mut EditableArea>| {
                 adjust_population(&state, &mut areas, -1);
@@ -102,14 +107,14 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
             c.component::<PopulationText>()
                 .with_text(
                     "-",
-                    Some(TextStyle::size_color(16.0, Color::srgb(1.0, 1.0, 0.7))),
+                    Some(TextStyle::size_color(13.0, Color::srgb(1.0, 1.0, 0.7))),
                 )
-                .width_px(50.0);
+                .width_px(40.0);
         });
         row.add_button_observe(
             "+1",
             |btn| {
-                btn.size_px(36.0, 28.0);
+                btn.size_px(30.0, 24.0).font_size(11.0);
             },
             |_: On<Activate>, state: Res<MapEditorState>, mut areas: Query<&mut EditableArea>| {
                 adjust_population(&state, &mut areas, 1);
@@ -119,7 +124,7 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
 
     ui.add_text_child(
         "Terrain",
-        Some(TextStyle::size_color(13.0, Color::srgb(0.7, 0.7, 0.7))),
+        Some(TextStyle::size_color(11.0, Color::srgb(0.7, 0.7, 0.7))),
     );
     ui.add_row(|row| {
         row.display_flex().flex_row().gap_px(6.0);
@@ -130,7 +135,7 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
             row.add_button_observe(
                 label,
                 move |btn| {
-                    btn.size_px(78.0, 28.0).insert(FlagButton(flag));
+                    btn.size_px(78.0, 24.0).font_size(10.0).insert(FlagButton(flag));
                 },
                 move |_: On<Activate>,
                       state: Res<MapEditorState>,
@@ -149,7 +154,7 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
             row.add_button_observe(
                 label,
                 move |btn| {
-                    btn.size_px(78.0, 28.0).insert(FlagButton(flag));
+                    btn.size_px(78.0, 24.0).font_size(10.0).insert(FlagButton(flag));
                 },
                 move |_: On<Activate>,
                       state: Res<MapEditorState>,
@@ -163,13 +168,13 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
     ui.with_child(|c| {
         c.component::<StartAreaText>().with_text(
             "Start area: -",
-            Some(TextStyle::size_color(14.0, Color::srgb(0.9, 0.9, 0.9))),
+            Some(TextStyle::size_color(11.0, Color::srgb(0.9, 0.9, 0.9))),
         );
     });
     ui.add_button_observe(
         "Cycle Start Faction",
         |btn| {
-            btn.size_px(200.0, 28.0);
+            btn.size_px(180.0, 24.0).font_size(11.0);
         },
         |_: On<Activate>, state: Res<MapEditorState>, mut areas: Query<&mut EditableArea>| {
             let Some(entity) = state.current_area else {
@@ -184,19 +189,19 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
     ui.with_child(|c| {
         c.component::<ConnectionsText>().with_text(
             "Land: -  Sea: -",
-            Some(TextStyle::size_color(13.0, Color::srgb(0.8, 0.8, 0.8))),
+            Some(TextStyle::size_color(11.0, Color::srgb(0.8, 0.8, 0.8))),
         );
     });
     ui.add_text_child(
         "Click another area's dot to connect. Click the X on an arrow to remove it.",
-        Some(TextStyle::size_color(11.0, Color::srgb(0.6, 0.6, 0.6))),
+        Some(TextStyle::size_color(10.0, Color::srgb(0.6, 0.6, 0.6))),
     );
     ui.add_row(|row| {
         row.align_items_center().gap_px(6.0);
         row.add_button_observe(
             "+ Land",
             |btn| {
-                btn.size_px(90.0, 28.0);
+                btn.size_px(80.0, 24.0).font_size(11.0);
             },
             |_: On<Activate>, mut state: ResMut<MapEditorState>| {
                 state.pending_connection = Some(ConnectionKind::Land);
@@ -205,7 +210,7 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
         row.add_button_observe(
             "+ Sea",
             |btn| {
-                btn.size_px(90.0, 28.0);
+                btn.size_px(80.0, 24.0).font_size(11.0);
             },
             |_: On<Activate>, mut state: ResMut<MapEditorState>| {
                 state.pending_connection = Some(ConnectionKind::Sea);
@@ -214,7 +219,7 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
         row.add_button_observe(
             "Cancel",
             |btn| {
-                btn.size_px(80.0, 28.0);
+                btn.size_px(70.0, 24.0).font_size(11.0);
             },
             |_: On<Activate>, mut state: ResMut<MapEditorState>| {
                 state.pending_connection = None;
@@ -225,7 +230,55 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
     ui.with_child(|c| {
         c.component::<StatusText>().with_text(
             "",
-            Some(TextStyle::size_color(12.0, Color::srgb(1.0, 0.8, 0.4))),
+            Some(TextStyle::size_color(10.0, Color::srgb(1.0, 0.8, 0.4))),
+        );
+    });
+
+    ui.add_text_child(
+        "Camera (Z/X or buttons to zoom, arrow keys or buttons to pan)",
+        Some(TextStyle::size_color(10.0, Color::srgb(0.6, 0.6, 0.6))),
+    );
+    ui.add_row(|row| {
+        row.align_items_center().gap_px(6.0);
+        for (label, dir) in [("<", Vec2::NEG_X), ("^", Vec2::Y), ("v", Vec2::NEG_Y), (">", Vec2::X)] {
+            row.add_button_observe(
+                label,
+                |btn| {
+                    btn.size_px(30.0, 24.0).font_size(11.0);
+                },
+                move |_: On<Activate>,
+                      mut camera: Query<(&Projection, &mut Transform), With<GameCamera>>| {
+                    pan_map_editor_camera(dir, &mut camera);
+                },
+            );
+        }
+        row.add_button_observe(
+            "Zoom +",
+            |btn| {
+                btn.size_px(60.0, 24.0).font_size(10.0);
+            },
+            |_: On<Activate>, mut camera: Query<&mut Projection, With<GameCamera>>| {
+                let Ok(mut projection) = camera.single_mut() else {
+                    return;
+                };
+                if let Projection::Orthographic(ref mut ortho) = *projection {
+                    ortho.scale = (ortho.scale / 1.3).max(0.2);
+                }
+            },
+        );
+        row.add_button_observe(
+            "Zoom -",
+            |btn| {
+                btn.size_px(60.0, 24.0).font_size(10.0);
+            },
+            |_: On<Activate>, mut camera: Query<&mut Projection, With<GameCamera>>| {
+                let Ok(mut projection) = camera.single_mut() else {
+                    return;
+                };
+                if let Projection::Orthographic(ref mut ortho) = *projection {
+                    ortho.scale = (ortho.scale * 1.3).min(3.0);
+                }
+            },
         );
     });
 
@@ -234,7 +287,8 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
         row.add_button_observe(
             "Save",
             |btn| {
-                btn.size_px(90.0, 34.0)
+                btn.size_px(80.0, 28.0)
+                    .font_size(12.0)
                     .insert(SaveButtonMarker)
                     .bg_color(Color::srgb(0.2, 0.5, 0.2));
             },
@@ -245,7 +299,7 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
         row.add_button_observe(
             "Back to Menu",
             |btn| {
-                btn.size_px(150.0, 34.0);
+                btn.size_px(130.0, 28.0).font_size(12.0);
             },
             |_: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
                 next_state.set(GameState::Menu);
@@ -256,15 +310,23 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
     ui.build();
 }
 
-fn step_area(state: &mut MapEditorState, areas: &Query<(Entity, &EditableArea)>, delta: i32) {
-    let mut sorted: Vec<(Entity, i32)> = areas.iter().map(|(e, a)| (e, a.id)).collect();
-    sorted.sort_by_key(|&(_, id)| id);
+fn step_area(
+    state: &mut MapEditorState,
+    areas: &Query<(Entity, &EditableArea, &Transform)>,
+    delta: i32,
+    focus: &mut CameraFocusQueue,
+) {
+    let mut sorted: Vec<(Entity, i32, Vec3)> = areas
+        .iter()
+        .map(|(e, a, t)| (e, a.id, t.translation))
+        .collect();
+    sorted.sort_by_key(|&(_, id, _)| id);
     if sorted.is_empty() {
         return;
     }
     let current_idx = state
         .current_area
-        .and_then(|cur| sorted.iter().position(|&(e, _)| e == cur));
+        .and_then(|cur| sorted.iter().position(|&(e, _, _)| e == cur));
     let next_idx = match current_idx {
         Some(idx) => {
             let len = sorted.len() as i32;
@@ -272,7 +334,9 @@ fn step_area(state: &mut MapEditorState, areas: &Query<(Entity, &EditableArea)>,
         }
         None => 0,
     };
-    state.current_area = Some(sorted[next_idx as usize].0);
+    let (entity, _, position) = sorted[next_idx as usize];
+    state.current_area = Some(entity);
+    focus.add_focus(position, 0.0, "Map editor: stepped area");
 }
 
 fn adjust_population(state: &Res<MapEditorState>, areas: &mut Query<&mut EditableArea>, delta: i32) {
