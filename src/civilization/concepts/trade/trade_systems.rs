@@ -1224,16 +1224,16 @@ fn spawn_card_adjust_row(
     ui.add_row(|row| {
         row.width_percent(100.0)
             .align_items_center()
-            .margin(UiRect::vertical(Val::Px(2.0)));
+            .margin(UiRect::vertical(Val::Px(4.0)));
 
         // < button (decrement)
         row.add_button(
             "<",
-            30.0,
-            24.0,
+            44.0,
+            36.0,
             Color::srgb(0.4, 0.3, 0.3),
-            14.0,
-            4.0,
+            18.0,
+            6.0,
             CardCountAdjustButton {
                 card,
                 delta: -1,
@@ -1244,38 +1244,38 @@ fn spawn_card_adjust_row(
         // Card name label with commodity color
         row.with_child(|label| {
             label.set_node(Node {
-                padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
-                margin: UiRect::horizontal(Val::Px(4.0)),
-                min_width: Val::Px(100.0),
+                padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
+                margin: UiRect::horizontal(Val::Px(6.0)),
+                min_width: Val::Px(130.0),
                 justify_content: JustifyContent::Center,
                 ..Default::default()
             });
             label.bg_color(color);
             label.add_text_child(
                 format!("{card}"),
-                Some(TextStyle::size_color(12.0, Color::WHITE)),
+                Some(TextStyle::size_color(14.0, Color::WHITE)),
             );
         });
 
         // Count display
         row.with_child(|count| {
             count.set_node(Node {
-                min_width: Val::Px(30.0),
+                min_width: Val::Px(40.0),
                 justify_content: JustifyContent::Center,
                 ..Default::default()
             });
             count.insert(CardCountDisplay { card, is_offering });
-            count.with_text("0", Some(TextStyle::size_color(14.0, Color::WHITE)));
+            count.with_text("0", Some(TextStyle::size_color(18.0, Color::WHITE)));
         });
 
         // > button (increment)
         row.add_button(
             ">",
-            30.0,
-            24.0,
+            44.0,
+            36.0,
             Color::srgb(0.3, 0.4, 0.3),
-            14.0,
-            4.0,
+            18.0,
+            6.0,
             CardCountAdjustButton {
                 card,
                 delta: 1,
@@ -1287,7 +1287,7 @@ fn spawn_card_adjust_row(
         if !suffix.is_empty() {
             row.add_text_child(
                 format!("  {suffix}"),
-                Some(TextStyle::size_color(11.0, Color::srgb(0.5, 0.5, 0.5))),
+                Some(TextStyle::size_color(13.0, Color::srgb(0.5, 0.5, 0.5))),
             );
         }
     });
@@ -1298,20 +1298,20 @@ fn spawn_hidden_count_row(ui: &mut UIBuilder, label_text: &str, is_offering: boo
     ui.add_row(|row| {
         row.width_percent(100.0)
             .align_items_center()
-            .margin(UiRect::top(Val::Px(8.0)));
+            .margin(UiRect::top(Val::Px(10.0)));
 
         row.add_text_child(
             label_text,
-            Some(TextStyle::size_color(12.0, Color::srgb(0.7, 0.7, 0.7))),
+            Some(TextStyle::size_color(14.0, Color::srgb(0.7, 0.7, 0.7))),
         );
 
         row.add_button(
             "-",
-            30.0,
-            24.0,
+            44.0,
+            36.0,
             Color::srgb(0.4, 0.3, 0.3),
-            14.0,
-            4.0,
+            18.0,
+            6.0,
             HiddenCountButton {
                 is_offering,
                 delta: -1,
@@ -1319,17 +1319,22 @@ fn spawn_hidden_count_row(ui: &mut UIBuilder, label_text: &str, is_offering: boo
         );
 
         row.with_child(|count| {
+            count.set_node(Node {
+                min_width: Val::Px(40.0),
+                justify_content: JustifyContent::Center,
+                ..Default::default()
+            });
             count.insert(OfferHiddenCountDisplay { is_offering });
-            count.with_text("0", Some(TextStyle::size_color(14.0, Color::WHITE)));
+            count.with_text("0", Some(TextStyle::size_color(18.0, Color::WHITE)));
         });
 
         row.add_button(
             "+",
-            30.0,
-            24.0,
+            44.0,
+            36.0,
             Color::srgb(0.3, 0.4, 0.3),
-            14.0,
-            4.0,
+            18.0,
+            6.0,
             HiddenCountButton {
                 is_offering,
                 delta: 1,
@@ -1408,8 +1413,8 @@ pub fn spawn_create_offer_modal(
     ui.with_child(|dialog| {
         dialog
             .set_node(Node {
-                width: Val::Percent(80.0),
-                height: Val::Percent(90.0),
+                width: Val::Percent(94.0),
+                height: Val::Percent(92.0),
                 flex_direction: FlexDirection::Column,
                 padding: UiRect::all(Val::Px(16.0)),
                 ..Default::default()
@@ -1448,71 +1453,102 @@ pub fn spawn_create_offer_modal(
 
         // ── Scrolling middle ──────────────────────────────────────────────
         // The card rows (one per owned commodity, one per *every* commodity
-        // type in the wanting section) run well past a screen height. They used
-        // to scroll the whole dialog, which pushed the Publish button off the
-        // bottom where nobody could find it; only this section scrolls now.
+        // type in the wanting section) run well past a screen height. This
+        // used to be a single stacked column, which meant the "what you
+        // want" section -- and its hidden-cards-wanted row in particular --
+        // could get pushed out of the dialog before the Publish button. Two
+        // side-by-side columns, each scrolling independently, make full use
+        // of the dialog's width instead of forcing everything into one long
+        // vertical list.
         dialog.with_child(|body| {
             body.display_flex()
-                .flex_column()
+                .flex_row()
                 .width_percent(100.0)
                 .with_flex_grow(1.0)
-                .overflow_scroll_y();
+                .gap_px(12.0);
+            // Flex items default to `min-height: auto`, which clamps their
+            // size to their content's height and defeats `overflow_scroll_y`
+            // below no matter how large `flex_grow` is -- this row must be
+            // allowed to shrink to the space actually left in the dialog so
+            // its columns clip and scroll internally instead of pushing the
+            // footer (with the Publish button) out of the dialog.
+            body.modify_node(|mut node| node.min_height = Val::Px(0.0));
 
             // === WHAT YOU OFFER SECTION ===
-            body.add_column(|section| {
-                section
-                    .width_percent(100.0)
-                    .margin(UiRect::top(Val::Px(12.0)))
-                    .padding_all_px(10.0)
-                    .bg_color(Color::srgba(0.15, 0.2, 0.15, 0.6));
+            body.with_child(|column| {
+                column
+                    .display_flex()
+                    .flex_column()
+                    .width_percent(50.0)
+                    .height_percent(100.0)
+                    .overflow_scroll_y();
+                column.modify_node(|mut node| node.min_height = Val::Px(0.0));
 
-                section.add_text_child(
-                    format!("WHAT YOU OFFER (Your Cards - {player_name})"),
-                    Some(TextStyle::size_color(15.0, Color::srgb(0.5, 0.9, 0.5))),
-                );
-                section.add_text_child(
-                    "Use < > to adjust guaranteed card counts (max 2 total):",
-                    Some(TextStyle::size_color(11.0, Color::srgb(0.6, 0.6, 0.6))),
-                );
+                column.add_column(|section| {
+                    section
+                        .width_percent(100.0)
+                        .margin(UiRect::top(Val::Px(12.0)))
+                        .padding_all_px(12.0)
+                        .bg_color(Color::srgba(0.15, 0.2, 0.15, 0.6));
 
-                // One row per commodity type the player owns
-                for (card, count) in &owned_commodities {
-                    spawn_card_adjust_row(section, *card, true, &format!("/ {count} owned"));
-                }
+                    section.add_text_child(
+                        format!("WHAT YOU OFFER (Your Cards - {player_name})"),
+                        Some(TextStyle::size_color(17.0, Color::srgb(0.5, 0.9, 0.5))),
+                    );
+                    section.add_text_child(
+                        "Use < > to adjust guaranteed card counts (max 2 total):",
+                        Some(TextStyle::size_color(13.0, Color::srgb(0.6, 0.6, 0.6))),
+                    );
 
-                // Calamity cards (can be hidden in trades)
-                for card in &owned_calamities {
-                    spawn_card_adjust_row(section, *card, true, "(calamity)");
-                }
+                    // One row per commodity type the player owns
+                    for (card, count) in &owned_commodities {
+                        spawn_card_adjust_row(section, *card, true, &format!("/ {count} owned"));
+                    }
 
-                // Hidden cards count for offering
-                spawn_hidden_count_row(section, "Hidden cards to offer: ", true);
+                    // Calamity cards (can be hidden in trades)
+                    for card in &owned_calamities {
+                        spawn_card_adjust_row(section, *card, true, "(calamity)");
+                    }
+
+                    // Hidden cards count for offering
+                    spawn_hidden_count_row(section, "Hidden cards to offer: ", true);
+                });
             });
 
             // === WHAT YOU WANT SECTION ===
-            body.add_column(|section| {
-                section
-                    .width_percent(100.0)
-                    .margin(UiRect::top(Val::Px(12.0)))
-                    .padding_all_px(10.0)
-                    .bg_color(Color::srgba(0.2, 0.15, 0.15, 0.6));
+            body.with_child(|column| {
+                column
+                    .display_flex()
+                    .flex_column()
+                    .width_percent(50.0)
+                    .height_percent(100.0)
+                    .overflow_scroll_y();
+                column.modify_node(|mut node| node.min_height = Val::Px(0.0));
 
-                section.add_text_child(
-                    "WHAT YOU WANT (Guaranteed cards you request)",
-                    Some(TextStyle::size_color(15.0, Color::srgb(0.9, 0.6, 0.5))),
-                );
-                section.add_text_child(
-                    "Use < > to adjust guaranteed card counts (max 2 total):",
-                    Some(TextStyle::size_color(11.0, Color::srgb(0.6, 0.6, 0.6))),
-                );
+                column.add_column(|section| {
+                    section
+                        .width_percent(100.0)
+                        .margin(UiRect::top(Val::Px(12.0)))
+                        .padding_all_px(12.0)
+                        .bg_color(Color::srgba(0.2, 0.15, 0.15, 0.6));
 
-                // One row per commodity type
-                for card_type in &all_commodity_types {
-                    spawn_card_adjust_row(section, *card_type, false, "");
-                }
+                    section.add_text_child(
+                        "WHAT YOU WANT (Guaranteed cards you request)",
+                        Some(TextStyle::size_color(17.0, Color::srgb(0.9, 0.6, 0.5))),
+                    );
+                    section.add_text_child(
+                        "Use < > to adjust guaranteed card counts (max 2 total):",
+                        Some(TextStyle::size_color(13.0, Color::srgb(0.6, 0.6, 0.6))),
+                    );
 
-                // Hidden cards count for wanting
-                spawn_hidden_count_row(section, "Hidden cards wanted: ", false);
+                    // One row per commodity type
+                    for card_type in &all_commodity_types {
+                        spawn_card_adjust_row(section, *card_type, false, "");
+                    }
+
+                    // Hidden cards count for wanting
+                    spawn_hidden_count_row(section, "Hidden cards wanted: ", false);
+                });
             });
         });
 
@@ -1548,18 +1584,18 @@ pub fn spawn_create_offer_modal(
             section.add_row(|btn_row| {
                 btn_row
                     .width_percent(100.0)
-                    .height_px(50.0)
+                    .height_px(60.0)
                     .justify_center()
                     .align_items_center()
                     .margin(UiRect::top(Val::Px(8.0)));
 
                 btn_row.add_button(
                     "Publish Offer",
-                    200.0,
-                    40.0,
+                    240.0,
+                    50.0,
                     Color::srgb(0.3, 0.3, 0.3),
-                    16.0,
-                    6.0,
+                    18.0,
+                    8.0,
                     PublishOfferButton,
                 );
             });
