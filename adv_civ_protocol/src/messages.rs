@@ -105,10 +105,10 @@ pub enum NetPhase {
     CheckCitySupportAfterRemoveSurplusPopulation,
     AcquireTradeCards,
     Trade,
-    ShedCommodityCards,
     ResolveCalamities,
     CheckCitySupportAfterResolveCalamities,
     AcquireCivilizationCards,
+    ShedCommodityCards,
     MoveSuccessionMarkers,
     GameOver,
 }

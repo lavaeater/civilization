@@ -68,10 +68,12 @@ pub enum GameActivity {
     CheckCitySupportAfterRemoveSurplusPopulation,
     AcquireTradeCards,
     Trade,
-    ShedCommodityCards,
     ResolveCalamities,
     CheckCitySupportAfterResolveCalamities,
     AcquireCivilizationCards,
+    /// Rule 31.71: after civ-card purchases, players discard commodity cards
+    /// (of their choice) down to the 8-card retention limit.
+    ShedCommodityCards,
     MoveSuccessionMarkers,
     /// Terminal state entered when a player reaches a finish square (rule 34.1A).
     /// Final scoring (rule 35) runs on entry; no phase transitions out of here.
@@ -97,12 +99,12 @@ impl From<&GameActivity> for adv_civ_protocol::NetPhase {
             }
             GameActivity::AcquireTradeCards => NetPhase::AcquireTradeCards,
             GameActivity::Trade => NetPhase::Trade,
-            GameActivity::ShedCommodityCards => NetPhase::ShedCommodityCards,
             GameActivity::ResolveCalamities => NetPhase::ResolveCalamities,
             GameActivity::CheckCitySupportAfterResolveCalamities => {
                 NetPhase::CheckCitySupportAfterResolveCalamities
             }
             GameActivity::AcquireCivilizationCards => NetPhase::AcquireCivilizationCards,
+            GameActivity::ShedCommodityCards => NetPhase::ShedCommodityCards,
             GameActivity::MoveSuccessionMarkers => NetPhase::MoveSuccessionMarkers,
             GameActivity::GameOver => NetPhase::GameOver,
         }

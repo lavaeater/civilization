@@ -36,7 +36,10 @@ fn under_limit_player_is_untouched_and_phase_advances() {
 
     assert!(world.get::<NeedsToShedCommodityCards>(player).is_none());
     let state = world.get_resource::<NextState<GameActivity>>().unwrap();
-    assert!(matches!(state, NextState::Pending(GameActivity::ResolveCalamities)));
+    assert!(matches!(
+        state,
+        NextState::Pending(GameActivity::MoveSuccessionMarkers)
+    ));
 }
 
 /// Regression guard for the "favor high value and series" request: given a

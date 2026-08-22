@@ -42,7 +42,7 @@ This is a Bevy 0.18 ECS game implementing the Advanced Civilization board game. 
 
 ### Game phases (in order)
 
-`PrepareGame` → `StartGame` → `PopulationExpansion` → `Census` → `Movement` → `Conflict` → `CityConstruction` → `RemoveSurplusPopulation` → `CheckCitySupportAfterRemoveSurplusPopulation` → `AcquireTradeCards` → `Trade` → `ResolveCalamities` → `CheckCitySupportAfterResolveCalamities` → `AcquireCivilizationCards`
+`PrepareGame` → `StartGame` → `PopulationExpansion` → `Census` → `Movement` → `Conflict` → `CityConstruction` → `RemoveSurplusPopulation` → `CheckCitySupportAfterRemoveSurplusPopulation` → `AcquireTradeCards` → `Trade` → `ResolveCalamities` → `CheckCitySupportAfterResolveCalamities` → `AcquireCivilizationCards` → `ShedCommodityCards` → `MoveSuccessionMarkers`
 
 Each phase is a separate module under `src/civilization/concepts/`, containing its own Bevy plugin, systems, components, and events.
 

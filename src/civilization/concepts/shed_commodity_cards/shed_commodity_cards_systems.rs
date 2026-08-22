@@ -9,8 +9,8 @@ use crate::stupid_ai::IsHuman;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 
-/// House rule (not in the base Advanced Civilization rulebook): a player's
-/// commodity hand may not exceed this many cards once the Trade phase ends.
+/// Rule 31.71: after civ-card purchases, a player may retain at most this
+/// many commodity cards for the next turn.
 pub const COMMODITY_CARD_HAND_LIMIT: usize = 8;
 
 /// Marks every player whose commodity hand exceeds [`COMMODITY_CARD_HAND_LIMIT`]
@@ -43,7 +43,7 @@ pub fn apply_commodity_shed(
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     if shedders.is_empty() && awaiting_query.is_empty() {
-        next_state.set(GameActivity::ResolveCalamities);
+        next_state.set(GameActivity::MoveSuccessionMarkers);
         return;
     }
 

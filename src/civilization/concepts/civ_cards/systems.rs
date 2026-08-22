@@ -920,34 +920,11 @@ pub fn process_civ_card_purchase(
     }
 }
 
-/// Rule 31.71: after finishing civ-card purchases a player may retain at most
-/// eight commodity cards for next turn; the excess (lowest-value first) is
-/// surrendered to the bottom of the appropriate trade-card stacks. Calamity
-/// cards are not counted toward this limit nor surrendered here (rule 31.72 —
-/// they are resolved against the holder elsewhere).
-fn enforce_commodity_retention_limit(
-    trade_cards: &mut PlayerTradeCards,
-    piles: &mut CivilizationTradeCards,
-) {
-    const MAX_RETAINED: usize = 8;
-    let commodity_count: usize = trade_cards.commodity_cards().values().sum();
-    let mut excess = commodity_count.saturating_sub(MAX_RETAINED);
-    while excess > 0 {
-        let Some(card) = trade_cards.remove_worst_commodity() else {
-            break;
-        };
-        piles.card_piles.entry(card.value()).or_default().push(card);
-        excess -= 1;
-    }
-}
-
 pub fn player_is_done(
     mut commands: Commands,
     mut done_reader: MessageReader<PlayerDoneAcquiringCivilizationCards>,
     mut civ_cards_acquisition: ResMut<CivCardsAcquisition>,
     mut next_state: ResMut<NextState<GameActivity>>,
-    mut player_trade_cards: Query<&mut PlayerTradeCards>,
-    mut trade_cards_resource: ResMut<CivilizationTradeCards>,
     ui_query: Query<Entity, With<CivTradeUi>>,
 ) {
     let mut human_done = false;
@@ -958,11 +935,6 @@ pub fn player_is_done(
         commands
             .entity(done.0)
             .remove::<CardsHeldBeforePurchasing>();
-        // Enforce the 8-commodity-card retention limit now that this player has
-        // finished acquiring (rule 31.71).
-        if let Ok(mut trade_cards) = player_trade_cards.get_mut(done.0) {
-            enforce_commodity_retention_limit(&mut trade_cards, &mut trade_cards_resource);
-        }
         if civ_cards_acquisition.human_players.remove(&done.0) {
             human_done = true;
         }
@@ -973,8 +945,12 @@ pub fn player_is_done(
             commands.entity(entity).despawn();
         }
     }
+    // Rule 31.71: after everyone finishes purchasing, players may retain up
+    // to eight commodity cards; excess "of the player's choice" must be
+    // surrendered -- so this is a player decision (`ShedCommodityCardsPlugin`),
+    // not something to auto-discard here.
     if civ_cards_acquisition.is_empty() {
-        next_state.set(GameActivity::MoveSuccessionMarkers);
+        next_state.set(GameActivity::ShedCommodityCards);
     }
 }
 
