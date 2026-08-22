@@ -29,6 +29,8 @@ pub enum GameState {
     Playing,
     Sandbox,
     Menu,
+    /// Standalone map area/connection editor, reachable from the main menu.
+    MapEditor,
     /// Connected to a multiplayer server: the local rules engine stays
     /// dormant; `network_client` drives everything from protocol messages.
     Online,
@@ -119,6 +121,7 @@ impl Plugin for GamePlugin {
             LoadingPlugin,
             MenuPlugin,
             SandboxPlugin,
+            crate::civilization::MapEditorPlugin,
             CivilizationPlugin,
             crate::network_client::NetworkClientPlugin,
         ));
