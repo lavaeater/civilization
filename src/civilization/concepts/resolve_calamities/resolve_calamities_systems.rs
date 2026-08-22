@@ -3469,7 +3469,7 @@ pub fn apply_monotheism_conversions(
     human_query: Query<(), With<IsHuman>>,
     all_players_civ: Query<(Entity, &PlayerCivilizationCards)>,
     land_passage_query: Query<&LandPassage>,
-    population_query: Query<&Population>,
+    mut population_query: Query<&mut Population>,
     mut mono_state: ResMut<MonotheismSelectionState>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
@@ -3533,7 +3533,10 @@ pub fn apply_monotheism_conversions(
             if mono_state.player == Some(holder_entity) {
                 // Human just confirmed (AwaitingMonotheismSelection removed by button handler).
                 let selected = mono_state.take_result();
-                for token in selected {
+                for (token, area) in selected {
+                    if let Ok(mut pop) = population_query.get_mut(area) {
+                        pop.remove_token(token);
+                    }
                     commands.entity(token).insert(ReturnTokenToStock);
                     info!("[MONOTHEISM] Human eliminated token {:?}", token);
                 }
@@ -3553,7 +3556,10 @@ pub fn apply_monotheism_conversions(
             }
         } else {
             // AI: auto-select up to 2 candidates.
-            for (token, _) in candidates.into_iter().take(2) {
+            for (token, area) in candidates.into_iter().take(2) {
+                if let Ok(mut pop) = population_query.get_mut(area) {
+                    pop.remove_token(token);
+                }
                 commands.entity(token).insert(ReturnTokenToStock);
                 info!(
                     "[MONOTHEISM] {:?} eliminates token {:?}",

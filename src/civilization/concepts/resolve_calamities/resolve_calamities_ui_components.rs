@@ -406,11 +406,21 @@ impl MonotheismSelectionState {
         self.selected.contains(&token)
     }
 
-    /// Drain and return the selected tokens, clearing state.
-    pub fn take_result(&mut self) -> Vec<Entity> {
-        let tokens = std::mem::take(&mut self.selected);
+    /// Drain and return the selected tokens paired with the area each was
+    /// found in, clearing state.
+    pub fn take_result(&mut self) -> Vec<(Entity, Entity)> {
+        let selected = std::mem::take(&mut self.selected);
+        let results = selected
+            .into_iter()
+            .filter_map(|token| {
+                self.candidates
+                    .iter()
+                    .find(|&&(t, _)| t == token)
+                    .map(|&(t, area)| (t, area))
+            })
+            .collect();
         self.clear();
-        tokens
+        results
     }
 }
 

@@ -12,7 +12,7 @@ use bevy_enhanced_input::actions;
 use bevy_enhanced_input::prelude::*;
 use rand::seq::SliceRandom;
 
-pub const TOKENS_PER_PLAYER = 47;
+pub const TOKENS_PER_PLAYER: usize = 47;
 
 pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
@@ -249,7 +249,7 @@ pub fn setup_players(
         let token_count = if is_human {
             debug_options.human_token_count.unwrap_or(TOKENS_PER_PLAYER)
         } else {
-          TOKENS_PER_PLAYER
+            TOKENS_PER_PLAYER
         };
 
         let tokens = (0..token_count)

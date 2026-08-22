@@ -4368,4 +4368,58 @@ mod tests {
             "30.414: the second faction (25 pts) must be reduced to 20 before transferring"
         );
     }
+
+    // ========================================================================
+    // Token conservation: Monotheism (rule 32.95) must not duplicate tokens
+    // ========================================================================
+
+    /// `apply_monotheism_conversions` used to insert `ReturnTokenToStock` on an
+    /// eliminated enemy token without first removing it from the victim's
+    /// `Population` in the area it occupied. `ReturnTokenToStock`'s handler only
+    /// updates `TokenStock`/`PlayerAreas`, so the token stayed listed in
+    /// `Population` *and* went back to the stock -- a silent duplicate that
+    /// broke the game's 47-tokens-per-player conservation invariant.
+    #[test]
+    fn ai_monotheism_conversion_removes_the_token_from_population_before_returning_it() {
+        use crate::GameActivity;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::apply_monotheism_conversions;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::MonotheismSelectionState;
+
+        let mut world = World::new();
+        world.init_resource::<NextState<GameActivity>>();
+        world.init_resource::<MonotheismSelectionState>();
+
+        let enemy_player = world.spawn_empty().id();
+        let enemy_token = world.spawn_empty().id();
+
+        let mut adj_population = Population::new(4);
+        adj_population.add_token_to_area(enemy_player, enemy_token);
+        let adj_area = world.spawn((Name::new("adjacent"), adj_population)).id();
+
+        let mut land_passage = LandPassage::default();
+        land_passage.add_passage(adj_area);
+        let holder_area = world.spawn((Name::new("holder"), land_passage)).id();
+
+        let mut holder_areas = PlayerAreas::default();
+        holder_areas.add_token_to_area(holder_area, world.spawn_empty().id());
+        let holder = world
+            .spawn((Name::new("holder-player"), holder_areas, NeedsMonotheismConversion))
+            .id();
+        let _ = holder; // AI holder: no IsHuman component.
+
+        world.run_system_once(apply_monotheism_conversions).unwrap();
+        world.flush();
+
+        let adj_population_after = world.get::<Population>(adj_area).unwrap();
+        assert!(
+            adj_population_after
+                .tokens_for_player(&enemy_player)
+                .is_none_or(|tokens| !tokens.contains(&enemy_token)),
+            "the eliminated token must be removed from Population, not just marked to return to stock"
+        );
+        assert!(
+            world.get::<ReturnTokenToStock>(enemy_token).is_some(),
+            "the token should still be returned to its owner's stock"
+        );
+    }
 }

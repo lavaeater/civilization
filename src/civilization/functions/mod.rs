@@ -209,6 +209,50 @@ mod tests {
         assert!(!player_areas.contains(area));
     }
 
+    /// Regression guard for the token-drain bug: a round trip through the
+    /// "safe" primitives (stock -> area -> stock) must never change the total
+    /// token count. If a caller ever bypasses these primitives and mutates
+    /// `Population`/`TokenStock` directly without keeping both in sync, this
+    /// is the kind of check that would have caught it.
+    #[test]
+    fn test_round_trip_move_and_return_conserves_total_tokens() {
+        let total = 5;
+        let all_tokens: Vec<Entity> = (0..total).map(|_| create_entity()).collect();
+        let mut population = Population::new(4);
+        let mut token_stock = TokenStock::new(total, all_tokens);
+        let mut player_areas = PlayerAreas::default();
+        let player = create_entity();
+        let area = create_entity();
+
+        move_from_stock_to_area(
+            player,
+            area,
+            3,
+            &mut population,
+            &mut token_stock,
+            &mut player_areas,
+        );
+        assert_eq!(
+            population.total_population() + token_stock.tokens_in_stock(),
+            total
+        );
+
+        let token = *population
+            .tokens_for_player(&player)
+            .unwrap()
+            .iter()
+            .next()
+            .unwrap();
+        population.remove_token_from_area(player, token);
+        return_token_to_stock(token, &mut token_stock, &mut player_areas);
+
+        assert_eq!(
+            population.total_population() + token_stock.tokens_in_stock(),
+            total,
+            "total tokens must be conserved across a move-out-and-back round trip"
+        );
+    }
+
     #[test]
     fn test_replace_city_with_tokens_for_conflict_city_removed() {
         let area_entity = create_entity();

@@ -144,22 +144,41 @@ pub fn move_tokens_from_area_to_area(
     let human_player = human_query.iter().next();
 
     for ev in move_events.read() {
-        if let Ok((mut from_pop, _, _, _)) = pop_query.get_mut(ev.source_area) {
-            let cloned = from_pop.player_tokens().clone();
-            if let Some(player_tokens) = cloned.get(&ev.player) {
-                let tokens_that_can_move = player_tokens
+        // Read-only phase, so this borrow of `pop_query` doesn't overlap with
+        // the mutable borrows taken below.
+        let source_tokens = pop_query
+            .get(ev.source_area)
+            .ok()
+            .and_then(|(pop, _, _, _)| pop.player_tokens().get(&ev.player).cloned());
+
+        if let Some(player_tokens) = source_tokens {
+            let tokens_that_can_move = player_tokens
+                .iter()
+                .filter(|t| tokens_that_can_move.get(**t).is_ok())
+                .copied()
+                .collect::<Vec<_>>();
+            if tokens_that_can_move.len() < ev.number_of_tokens {
+                recalculate_player_moves.write(RecalculatePlayerMoves::new(ev.player));
+            } else {
+                let tokens_to_move = tokens_that_can_move
                     .iter()
-                    .filter(|t| tokens_that_can_move.get(**t).is_ok())
+                    .take(ev.number_of_tokens)
                     .copied()
                     .collect::<Vec<_>>();
-                if tokens_that_can_move.len() < ev.number_of_tokens {
-                    recalculate_player_moves.write(RecalculatePlayerMoves::new(ev.player));
-                } else {
-                    let tokens_to_move = tokens_that_can_move
-                        .iter()
-                        .take(ev.number_of_tokens)
-                        .copied()
-                        .collect::<Vec<_>>();
+
+                // Only remove tokens from the source once we've confirmed the
+                // target area and the mover's PlayerAreas both exist, so a
+                // missing component can't strand tokens between the two --
+                // previously the source removal ran unconditionally while the
+                // target-side insert was gated, silently dropping tokens on a
+                // failed lookup (token-conservation bug).
+                let target_ready = pop_query.get(ev.target_area).is_ok();
+                let player_area_ready = player_areas.get(ev.player).is_ok();
+
+                if target_ready
+                    && player_area_ready
+                    && let Ok((mut from_pop, _, _, _)) = pop_query.get_mut(ev.source_area)
+                {
                     for token in &tokens_to_move {
                         from_pop.remove_token_from_area(ev.player, *token);
                     }
@@ -252,40 +271,52 @@ pub fn execute_ship_ferry(
             continue;
         }
 
-        // Remove tokens from source population.
-        if let Ok((mut from_pop, _)) = pop_query.get_mut(ev.source_area) {
-            for &token in &tokens_to_ferry {
-                from_pop.remove_token_from_area(ev.player, token);
-            }
-        }
-
         // Get target area transform for animation end-point.
         let target_pos = pop_query
             .get(ev.target_area)
             .map(|(_, t)| t.translation)
             .unwrap_or_default();
 
-        // Add tokens to target population and mark as moved.
-        if let Ok((mut to_pop, _)) = pop_query.get_mut(ev.target_area) {
-            for &token in &tokens_to_ferry {
-                to_pop.add_token_to_area(ev.player, token);
-            }
-        }
+        // Only remove tokens from the source once we've confirmed the target
+        // area and the mover's PlayerAreas both exist, so a missing component
+        // can't strand tokens between the two -- previously the source removal
+        // ran unconditionally while the target-side inserts were each gated on
+        // their own lookup, silently dropping tokens on a failed lookup
+        // (token-conservation bug).
+        if !tokens_to_ferry.is_empty() {
+            let target_ready = pop_query.get(ev.target_area).is_ok();
+            let player_areas_ready = player_areas_query.get(ev.player).is_ok();
 
-        // Update PlayerAreas and animate tokens.
-        if let Ok(mut player_areas) = player_areas_query.get_mut(ev.player) {
-            for &token in &tokens_to_ferry {
-                player_areas.remove_token_from_area(&ev.source_area, token);
-                player_areas.add_token_to_area(ev.target_area, token);
-
-                commands.entity(token).insert(TokenHasMoved);
-                if let Ok(start) = token_transform.get(token) {
-                    commands.entity(token).insert(TokenMoveAnimation::new(
-                        start.translation,
-                        target_pos,
-                        0.25, // slightly longer than land movement to feel different
-                    ));
+            if target_ready && player_areas_ready {
+                if let Ok((mut from_pop, _)) = pop_query.get_mut(ev.source_area) {
+                    for &token in &tokens_to_ferry {
+                        from_pop.remove_token_from_area(ev.player, token);
+                    }
                 }
+
+                if let Ok((mut to_pop, _)) = pop_query.get_mut(ev.target_area) {
+                    for &token in &tokens_to_ferry {
+                        to_pop.add_token_to_area(ev.player, token);
+                    }
+                }
+
+                if let Ok(mut player_areas) = player_areas_query.get_mut(ev.player) {
+                    for &token in &tokens_to_ferry {
+                        player_areas.remove_token_from_area(&ev.source_area, token);
+                        player_areas.add_token_to_area(ev.target_area, token);
+
+                        commands.entity(token).insert(TokenHasMoved);
+                        if let Ok(start) = token_transform.get(token) {
+                            commands.entity(token).insert(TokenMoveAnimation::new(
+                                start.translation,
+                                target_pos,
+                                0.25, // slightly longer than land movement to feel different
+                            ));
+                        }
+                    }
+                }
+            } else {
+                recalculate_player_moves.write(RecalculatePlayerMoves::new(ev.player));
             }
         }
 
