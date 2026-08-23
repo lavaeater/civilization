@@ -9,8 +9,9 @@ use crate::civilization::concepts::movement::movement_ui_components::{
 };
 use crate::civilization::game_moves::{AvailableMoves, GameMove, MovementMove};
 use crate::stupid_ai::IsHuman;
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
-use bevy::ui_widgets::Activate;
+use bevy::ui_widgets::{Activate, Button as WidgetsButton};
 use bevy::window::PrimaryWindow;
 use lava_ui_builder::{ButtonTheme, LavaTheme, TextStyle, UIBuilder};
 
@@ -151,7 +152,7 @@ pub fn handle_movement_target_click(
     camera_query: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
     human_players: Query<(Entity, &AvailableMoves), (With<IsHuman>, With<PerformingMovement>)>,
     area_query: Query<(Entity, &Transform), With<GameArea>>,
-    ui_button_interactions: Query<&Interaction, With<Button>>,
+    ui_button_hover: Query<&Hovered, With<WidgetsButton>>,
     mut selection_state: ResMut<MovementSelectionState>,
 ) {
     const CLICK_RADIUS: f32 = 30.0;
@@ -164,11 +165,10 @@ pub fn handle_movement_target_click(
     // about the movement controls panel drawn on top of the board. Without
     // this guard, clicking OK/Cancel/Prev/etc. also "clicks through" to
     // whatever area happens to be under the panel, silently changing the
-    // selected target.
-    if ui_button_interactions
-        .iter()
-        .any(|interaction| *interaction != Interaction::None)
-    {
+    // selected target. The movement UI's buttons are `feathers`/
+    // `ui_widgets::Button`s tracked via picking's `Hovered`, not the
+    // classic `bevy::prelude::Button`/`Interaction` pair.
+    if ui_button_hover.iter().any(|hovered| hovered.0) {
         return;
     }
 

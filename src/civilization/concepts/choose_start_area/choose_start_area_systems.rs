@@ -3,6 +3,7 @@ use crate::civilization::DebugOptions;
 use crate::civilization::components::GameCamera;
 use crate::civilization::MoveTokensFromStockToAreaCommand;
 use crate::civilization::concepts::choose_start_area::choose_start_area_components::*;
+use crate::civilization::concepts::save_game::LoadingFromSave;
 use crate::stupid_ai::IsHuman;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
@@ -22,8 +23,19 @@ pub fn apply_start_area_choice(
     mut writer: MessageWriter<MoveTokensFromStockToAreaCommand>,
     mut next_state: ResMut<NextState<GameActivity>>,
     debug_options: Res<DebugOptions>,
+    loading_from_save: Option<Res<LoadingFromSave>>,
 ) {
+    // When resuming from a save, `start_game` (OnEnter(StartGame)) already
+    // queued the correct saved activity via `NextState`. No player gets
+    // `NeedsToChooseStartArea` on a resumed game, so `needing`/`awaiting`
+    // are both empty this frame too -- without this guard this system's
+    // "nothing to choose" branch runs later in the schedule and clobbers
+    // that queued transition with `PopulationExpansion`, re-running
+    // expansion (and duplicating tokens) on top of the restored board.
     if needing.is_empty() && awaiting.is_empty() {
+        if loading_from_save.is_some() {
+            return;
+        }
         let start_activity = debug_options
             .start_at_activity
             .clone()

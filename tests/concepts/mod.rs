@@ -7,6 +7,7 @@ pub mod movement_tests;
 pub mod player_trading_card_tests;
 pub mod population_expansion_tests;
 pub mod remove_surplus_tests;
+pub mod save_game_resume_tests;
 pub mod shed_commodity_cards_tests;
 pub mod succession_tests;
 pub mod trade_tests;
