@@ -151,6 +151,7 @@ pub fn handle_movement_target_click(
     camera_query: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
     human_players: Query<(Entity, &AvailableMoves), (With<IsHuman>, With<PerformingMovement>)>,
     area_query: Query<(Entity, &Transform), With<GameArea>>,
+    ui_button_interactions: Query<&Interaction, With<Button>>,
     mut selection_state: ResMut<MovementSelectionState>,
 ) {
     const CLICK_RADIUS: f32 = 30.0;
@@ -158,6 +159,19 @@ pub fn handle_movement_target_click(
     if !mouse_button.just_pressed(MouseButton::Left) {
         return;
     }
+
+    // This system does a raw cursor/world-space hit test and has no idea
+    // about the movement controls panel drawn on top of the board. Without
+    // this guard, clicking OK/Cancel/Prev/etc. also "clicks through" to
+    // whatever area happens to be under the panel, silently changing the
+    // selected target.
+    if ui_button_interactions
+        .iter()
+        .any(|interaction| *interaction != Interaction::None)
+    {
+        return;
+    }
+
     let Ok(window) = windows.single() else { return };
     let Some(cursor_pos) = window.cursor_position() else {
         return;
