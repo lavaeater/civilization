@@ -1,3 +1,4 @@
+pub mod choose_start_area_tests;
 pub mod city_construction_tests;
 pub mod city_support_tests;
 pub mod civ_cards_tests;

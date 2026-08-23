@@ -10,11 +10,12 @@ use bevy::prelude::{
 };
 use bevy_enhanced_input::actions;
 use bevy_enhanced_input::prelude::*;
-use rand::seq::SliceRandom;
+use rand::seq::{IndexedRandom, SliceRandom};
 
 pub const TOKENS_PER_PLAYER: usize = 47;
 
 pub fn start_game(
+    mut commands: Commands,
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
     human_query: Query<Entity, With<IsHuman>>,
     start_area_query: Query<(Entity, &Name, &StartArea)>,
@@ -36,6 +37,14 @@ pub fn start_game(
     debug!("4. Starting the game!");
     let human_entity = human_query.iter().next();
 
+    // Areas already claimed by an existing faction's start_area, excluded
+    // from the debug human_starting_areas pool below so a debug placement
+    // can never land on top of another faction's home area.
+    let claimed_start_areas: bevy::platform::collections::HashSet<Entity> =
+        start_area_query.iter().map(|(e, _, _)| e).collect();
+
+    let mut any_pending_choice = false;
+
     player_query
         .iter()
         .for_each(|(player_entity, name, player_faction)| {
@@ -46,7 +55,11 @@ pub fn start_game(
             if is_human && debug_options.human_starting_areas.is_some() {
                 #[allow(clippy::unnecessary_unwrap)]
                 let num_areas = debug_options.human_starting_areas.unwrap();
-                let areas: Vec<Entity> = all_areas_query.iter().take(num_areas).collect();
+                let areas: Vec<Entity> = all_areas_query
+                    .iter()
+                    .filter(|e| !claimed_start_areas.contains(e))
+                    .take(num_areas)
+                    .collect();
                 for area_entity in areas {
                     debug!(
                         "Debug: Putting a token in area {:?} for human player",
@@ -58,20 +71,37 @@ pub fn start_game(
                         number_of_tokens: 1,
                     });
                 }
-            } else {
-                // Normal mode: place token in start area
-                if let Some((area_entity, _area_name, _)) = start_area_query
-                    .iter()
-                    .find(|(_, _, start_area)| start_area.faction == player_faction.faction)
-                {
-                    writer.write(MoveTokensFromStockToAreaCommand {
-                        area_entity,
-                        player_entity,
-                        number_of_tokens: 1,
-                    });
-                }
+                return;
+            }
+
+            // Rule: a faction may have more than one eligible home area on
+            // this map (e.g. Egypt has 6); the player picks which one to
+            // start in. AI just rolls one at random.
+            let eligible: Vec<Entity> = start_area_query
+                .iter()
+                .filter(|(_, _, start_area)| start_area.faction == player_faction.faction)
+                .map(|(e, _, _)| e)
+                .collect();
+
+            if is_human && eligible.len() > 1 {
+                commands
+                    .entity(player_entity)
+                    .insert(NeedsToChooseStartArea { eligible });
+                any_pending_choice = true;
+            } else if let Some(&area_entity) = eligible.choose(&mut rand::rng()) {
+                writer.write(MoveTokensFromStockToAreaCommand {
+                    area_entity,
+                    player_entity,
+                    number_of_tokens: 1,
+                });
             }
         });
+
+    // If a human still needs to pick their start area, `apply_start_area_choice`
+    // owns the transition out of `StartGame` once they do.
+    if any_pending_choice {
+        return;
+    }
 
     // Use debug start activity if set, otherwise normal flow
     let start_activity = debug_options
