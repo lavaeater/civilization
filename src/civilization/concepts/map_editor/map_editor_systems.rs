@@ -130,7 +130,7 @@ pub fn draw_map_editor_gizmos(
             } else {
                 land_color.with_alpha(dim_alpha)
             };
-            draw_fat_arrow(&mut gizmos, from, to, color);
+            draw_fat_arrow(&mut gizmos, from, to, color, connection_lane_offset(ConnectionKind::Land));
         }
         for &target_id in &area.sea_connections {
             let Some(&to) = by_id.get(&target_id) else {
@@ -141,7 +141,7 @@ pub fn draw_map_editor_gizmos(
             } else {
                 sea_color.with_alpha(dim_alpha)
             };
-            draw_fat_arrow(&mut gizmos, from, to, color);
+            draw_fat_arrow(&mut gizmos, from, to, color, connection_lane_offset(ConnectionKind::Sea));
         }
     }
 
@@ -150,12 +150,12 @@ pub fn draw_map_editor_gizmos(
         gizmos.circle_2d(pos, 18.0, Color::srgb(1.0, 1.0, 0.3));
         for &target_id in &area.land_connections {
             if let Some(&to) = by_id.get(&target_id) {
-                draw_remove_marker(&mut gizmos, midpoint(pos, to));
+                draw_remove_marker(&mut gizmos, connection_midpoint(pos, to, ConnectionKind::Land));
             }
         }
         for &target_id in &area.sea_connections {
             if let Some(&to) = by_id.get(&target_id) {
-                draw_remove_marker(&mut gizmos, midpoint(pos, to));
+                draw_remove_marker(&mut gizmos, connection_midpoint(pos, to, ConnectionKind::Sea));
             }
         }
     }
@@ -171,15 +171,40 @@ pub fn draw_map_editor_gizmos(
     }
 }
 
+/// Land and sea arrows between the same two areas would otherwise be drawn on
+/// the exact same line, so whichever type draws last (sea) hides the other.
+/// Give each connection type its own parallel lane, offset perpendicular to
+/// the line, so both stay visible.
+fn connection_lane_offset(kind: ConnectionKind) -> f32 {
+    match kind {
+        ConnectionKind::Land => -7.0,
+        ConnectionKind::Sea => 7.0,
+    }
+}
+
 fn midpoint(a: Vec2, b: Vec2) -> Vec2 {
     (a + b) * 0.5
 }
 
-/// Draws an arrow as three parallel offset lines so it reads clearly at
-/// map scale, plus a triangular head at the target end.
-fn draw_fat_arrow(gizmos: &mut Gizmos, from: Vec2, to: Vec2, color: Color) {
+/// Midpoint of a connection's arrow, in its own lane -- matches where
+/// `draw_fat_arrow` actually draws it, so the remove-marker gizmo (and its
+/// click target) lines up with what's on screen.
+fn connection_midpoint(a: Vec2, b: Vec2, kind: ConnectionKind) -> Vec2 {
+    let dir = (b - a).normalize_or_zero();
+    let perp = Vec2::new(-dir.y, dir.x);
+    midpoint(a, b) + perp * connection_lane_offset(kind)
+}
+
+/// Draws an arrow as three parallel offset lines so it reads clearly at map
+/// scale, plus a triangular head at the target end. `lane_offset` shifts the
+/// whole arrow perpendicular to its direction, so land/sea connections
+/// between the same two areas run side by side instead of overlapping.
+fn draw_fat_arrow(gizmos: &mut Gizmos, from: Vec2, to: Vec2, color: Color, lane_offset: f32) {
     let dir = (to - from).normalize_or_zero();
     let perp = Vec2::new(-dir.y, dir.x);
+    let lane = perp * lane_offset;
+    let from = from + lane;
+    let to = to + lane;
     for offset in [-2.5, 0.0, 2.5] {
         gizmos.line_2d(from + perp * offset, to + perp * offset, color);
     }
@@ -243,7 +268,7 @@ pub fn handle_map_editor_click(
                     let Some(&to) = by_id.get(&target_id) else {
                         continue;
                     };
-                    if world_pos.distance(midpoint(current_pos, to)) <= REMOVE_CLICK_RADIUS {
+                    if world_pos.distance(connection_midpoint(current_pos, to, kind)) <= REMOVE_CLICK_RADIUS {
                         if let Ok((_, mut area, _)) = areas.get_mut(current_entity) {
                             match kind {
                                 ConnectionKind::Land => area.land_connections.retain(|&id| id != target_id),

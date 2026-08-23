@@ -2608,6 +2608,7 @@
             max_population: 1,
             land_connections: [
                 127,
+                128,
                 126,
                 130,
                 131,
