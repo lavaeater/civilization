@@ -43,7 +43,7 @@ fn area_info_text_name(area_id: i32) -> String {
 /// Static, map-defined terrain/site flags for an area, gathered up so the
 /// text-building code doesn't need a growing pile of `Has<T>` parameters.
 #[derive(Clone, Copy, Default)]
-struct AreaTerrainFlags {
+#[allow(clippy::struct_excessive_bools)]struct AreaTerrainFlags {
     has_city: bool,
     city_site: bool,
     volcano: bool,

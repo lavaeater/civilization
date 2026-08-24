@@ -2125,7 +2125,7 @@ pub fn advance_epidemic(
                     };
                     let (sec_is_human, sec_is_awaiting) = human_flags
                         .get(secondary_entity)
-                        .map_or((false, false), |(h, a)| (h, a));
+                        .unwrap_or((false, false));
 
                     // Cities absorb up to 4 points each (30.612) and are picked
                     // deterministically -- spend them once, then let the victim
@@ -3290,7 +3290,7 @@ pub fn advance_piracy(
                 let trader = resolution.context.traded_by;
                 let (trader_is_human, trader_awaiting) = trader
                     .and_then(|t| human_flags.get(t).ok())
-                    .map_or((false, false), |(h, a)| (h, a));
+                    .unwrap_or((false, false));
 
                 if !trader_is_human {
                     state.cities_to_replace = coastal_cities.into_iter().take(2).collect();
