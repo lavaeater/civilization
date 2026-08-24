@@ -22,7 +22,7 @@ impl Plugin for StupidAiPlugin {
                     select_stupid_movement.run_if(in_state(GameActivity::Movement)),
                     select_stupid_city_building.run_if(in_state(GameActivity::CityConstruction)),
                     select_stupid_city_elimination.run_if(
-                        in_state(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation).or(
+                        in_state(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation).or_else(
                             in_state(GameActivity::CheckCitySupportAfterResolveCalamities),
                         ),
                     ),

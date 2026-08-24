@@ -23,12 +23,12 @@ impl Plugin for CitySupportPlugin {
                 Update,
                 (
                     eliminate_city.run_if(
-                        in_state(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation).or(
+                        in_state(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation).or_else(
                             in_state(GameActivity::CheckCitySupportAfterResolveCalamities),
                         ),
                     ),
                     check_player_city_support.run_if(
-                        in_state(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation).or(
+                        in_state(GameActivity::CheckCitySupportAfterRemoveSurplusPopulation).or_else(
                             in_state(GameActivity::CheckCitySupportAfterResolveCalamities),
                         ),
                     ),

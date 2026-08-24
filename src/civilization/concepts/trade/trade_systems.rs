@@ -494,7 +494,7 @@ pub fn setup_trade_phase_ui(
                     header.spawn((
                         Text::new("⚖️ TRADE PHASE"),
                         TextFont {
-                            font_size: 28.0,
+                            font_size: FontSize::Px(28.0),
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.9, 0.8, 0.3)),
@@ -505,7 +505,7 @@ pub fn setup_trade_phase_ui(
                         TradeCountdownText,
                         Text::new("5:00"),
                         TextFont {
-                            font_size: 24.0,
+                            font_size: FontSize::Px(24.0),
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.8, 0.8, 0.8)),
@@ -525,7 +525,7 @@ pub fn setup_trade_phase_ui(
                     status_row.spawn((
                         Text::new("Trading: "),
                         TextFont {
-                            font_size: 12.0,
+                            font_size: FontSize::Px(12.0),
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.6, 0.6, 0.6)),
@@ -534,7 +534,7 @@ pub fn setup_trade_phase_ui(
                         PlayerTradingStatusDisplay,
                         Text::new("Loading..."),
                         TextFont {
-                            font_size: 12.0,
+                            font_size: FontSize::Px(12.0),
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.7, 0.9, 0.7)),
@@ -557,7 +557,7 @@ pub fn setup_trade_phase_ui(
                     cards_section.spawn((
                         Text::new(format!("Your Cards ({player_name})")),
                         TextFont {
-                            font_size: 16.0,
+                            font_size: FontSize::Px(16.0),
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.7, 0.7, 0.7)),
@@ -593,7 +593,7 @@ pub fn setup_trade_phase_ui(
                                         .with_child((
                                             Text::new(format!("{card}")),
                                             TextFont {
-                                                font_size: 12.0,
+                                                font_size: FontSize::Px(12.0),
                                                 ..Default::default()
                                             },
                                             TextColor(Color::WHITE),
@@ -614,7 +614,7 @@ pub fn setup_trade_phase_ui(
                                     .with_child((
                                         Text::new(format!("{card}")),
                                         TextFont {
-                                            font_size: 12.0,
+                                            font_size: FontSize::Px(12.0),
                                             ..Default::default()
                                         },
                                         TextColor(Color::WHITE),
@@ -637,7 +637,7 @@ pub fn setup_trade_phase_ui(
                     offers_section.spawn((
                         Text::new("📜 Open Offers"),
                         TextFont {
-                            font_size: 18.0,
+                            font_size: FontSize::Px(18.0),
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.7, 0.7, 0.7)),
@@ -661,7 +661,7 @@ pub fn setup_trade_phase_ui(
                         .with_child((
                             Text::new("No open offers yet. Create one or wait for others!"),
                             TextFont {
-                                font_size: 14.0,
+                                font_size: FontSize::Px(14.0),
                                 ..Default::default()
                             },
                             TextColor(Color::srgb(0.5, 0.5, 0.5)),
@@ -693,7 +693,7 @@ pub fn setup_trade_phase_ui(
                         .with_child((
                             Text::new("➕ Create Offer"),
                             TextFont {
-                                font_size: 16.0,
+                                font_size: FontSize::Px(16.0),
                                 ..Default::default()
                             },
                             TextColor(Color::WHITE),
@@ -714,7 +714,7 @@ pub fn setup_trade_phase_ui(
                         .with_child((
                             Text::new("✓ Done Trading"),
                             TextFont {
-                                font_size: 16.0,
+                                font_size: FontSize::Px(16.0),
                                 ..Default::default()
                             },
                             TextColor(Color::WHITE),
@@ -865,7 +865,7 @@ pub fn update_open_offers_display(
             parent.spawn((
                 Text::new("No open offers yet. Create one or wait for others!"),
                 TextFont {
-                    font_size: 14.0,
+                    font_size: FontSize::Px(14.0),
                     ..Default::default()
                 },
                 TextColor(Color::srgb(0.5, 0.5, 0.5)),
@@ -917,7 +917,7 @@ pub fn update_open_offers_display(
                         header.spawn((
                             Text::new(format!("📤 {}", offer.creator_name)),
                             TextFont {
-                                font_size: 14.0,
+                                font_size: FontSize::Px(14.0),
                                 ..Default::default()
                             },
                             TextColor(Color::srgb(0.9, 0.9, 0.9)),
@@ -930,7 +930,7 @@ pub fn update_open_offers_display(
                                     offer.accepted_by_name.as_deref().unwrap_or("?")
                                 )),
                                 TextFont {
-                                    font_size: 12.0,
+                                    font_size: FontSize::Px(12.0),
                                     ..Default::default()
                                 },
                                 TextColor(Color::srgb(0.5, 0.9, 0.5)),
@@ -939,7 +939,7 @@ pub fn update_open_offers_display(
                             header.spawn((
                                 Text::new("(Your offer)"),
                                 TextFont {
-                                    font_size: 12.0,
+                                    font_size: FontSize::Px(12.0),
                                     ..Default::default()
                                 },
                                 TextColor(Color::srgb(0.6, 0.7, 0.9)),
@@ -958,7 +958,7 @@ pub fn update_open_offers_display(
                         row.spawn((
                             Text::new("Offers: "),
                             TextFont {
-                                font_size: 12.0,
+                                font_size: FontSize::Px(12.0),
                                 ..Default::default()
                             },
                             TextColor(Color::srgb(0.7, 0.7, 0.7)),
@@ -984,7 +984,7 @@ pub fn update_open_offers_display(
                         row.spawn((
                             Text::new(format!("{}{}", offering_text.join(", "), hidden_text)),
                             TextFont {
-                                font_size: 12.0,
+                                font_size: FontSize::Px(12.0),
                                 ..Default::default()
                             },
                             TextColor(Color::srgb(0.5, 0.9, 0.5)),
@@ -1002,7 +1002,7 @@ pub fn update_open_offers_display(
                         row.spawn((
                             Text::new("Wants: "),
                             TextFont {
-                                font_size: 12.0,
+                                font_size: FontSize::Px(12.0),
                                 ..Default::default()
                             },
                             TextColor(Color::srgb(0.7, 0.7, 0.7)),
@@ -1028,7 +1028,7 @@ pub fn update_open_offers_display(
                         row.spawn((
                             Text::new(format!("{}{}", wanting_text.join(", "), hidden_text)),
                             TextFont {
-                                font_size: 12.0,
+                                font_size: FontSize::Px(12.0),
                                 ..Default::default()
                             },
                             TextColor(Color::srgb(0.9, 0.6, 0.3)),
@@ -1060,7 +1060,7 @@ pub fn update_open_offers_display(
                                 .with_child((
                                     Text::new("Accept"),
                                     TextFont {
-                                        font_size: 12.0,
+                                        font_size: FontSize::Px(12.0),
                                         ..Default::default()
                                     },
                                     TextColor(Color::WHITE),
@@ -2155,7 +2155,7 @@ pub fn spawn_settlement_modal(
                     header.spawn((
                         Text::new("🤝 Settle Trade"),
                         TextFont {
-                            font_size: 26.0,
+                            font_size: FontSize::Px(26.0),
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.3, 0.8, 0.5)),
@@ -2175,7 +2175,7 @@ pub fn spawn_settlement_modal(
                         .with_child((
                             Text::new("✕ Cancel"),
                             TextFont {
-                                font_size: 14.0,
+                                font_size: FontSize::Px(14.0),
                                 ..Default::default()
                             },
                             TextColor(Color::WHITE),
@@ -2197,7 +2197,7 @@ pub fn spawn_settlement_modal(
                     summary.spawn((
                         Text::new(format!("{role_text}: {total_required} cards total")),
                         TextFont {
-                            font_size: 16.0,
+                            font_size: FontSize::Px(16.0),
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.8, 0.8, 0.8)),
@@ -2215,7 +2215,7 @@ pub fn spawn_settlement_modal(
                             guaranteed_text.join(", ")
                         )),
                         TextFont {
-                            font_size: 14.0,
+                            font_size: FontSize::Px(14.0),
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.9, 0.7, 0.3)),
@@ -2225,7 +2225,7 @@ pub fn spawn_settlement_modal(
                         summary.spawn((
                             Text::new(format!("+ {required_hidden} hidden cards (your choice)")),
                             TextFont {
-                                font_size: 14.0,
+                                font_size: FontSize::Px(14.0),
                                 ..Default::default()
                             },
                             TextColor(Color::srgb(0.6, 0.6, 0.6)),
@@ -2237,7 +2237,7 @@ pub fn spawn_settlement_modal(
             modal.spawn((
                 Text::new("Click cards below to select them for this trade:"),
                 TextFont {
-                    font_size: 14.0,
+                    font_size: FontSize::Px(14.0),
                     ..Default::default()
                 },
                 TextColor(Color::srgb(0.7, 0.7, 0.7)),
@@ -2255,7 +2255,7 @@ pub fn spawn_settlement_modal(
                     section.spawn((
                         Text::new(format!("Your Cards ({player_name}):")),
                         TextFont {
-                            font_size: 14.0,
+                            font_size: FontSize::Px(14.0),
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.6, 0.6, 0.6)),
@@ -2295,7 +2295,7 @@ pub fn spawn_settlement_modal(
                                         .with_child((
                                             Text::new(format!("{card}")),
                                             TextFont {
-                                                font_size: 12.0,
+                                                font_size: FontSize::Px(12.0),
                                                 ..Default::default()
                                             },
                                             TextColor(Color::WHITE),
@@ -2330,7 +2330,7 @@ pub fn spawn_settlement_modal(
                                         .with_child((
                                             Text::new(format!("{card}")),
                                             TextFont {
-                                                font_size: 12.0,
+                                                font_size: FontSize::Px(12.0),
                                                 ..Default::default()
                                             },
                                             TextColor(Color::WHITE),
@@ -2355,7 +2355,7 @@ pub fn spawn_settlement_modal(
                     selected_section.spawn((
                         Text::new("Selected Cards (0):"),
                         TextFont {
-                            font_size: 14.0,
+                            font_size: FontSize::Px(14.0),
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.5, 0.8, 0.5)),
@@ -2365,7 +2365,7 @@ pub fn spawn_settlement_modal(
                         SettlementSelectedCardsDisplay,
                         Text::new("None selected yet"),
                         TextFont {
-                            font_size: 13.0,
+                            font_size: FontSize::Px(13.0),
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.5, 0.5, 0.5)),
@@ -2398,7 +2398,7 @@ pub fn spawn_settlement_modal(
                         .with_child((
                             Text::new("✕ Cancel Trade"),
                             TextFont {
-                                font_size: 16.0,
+                                font_size: FontSize::Px(16.0),
                                 ..Default::default()
                             },
                             TextColor(Color::WHITE),
@@ -2418,7 +2418,7 @@ pub fn spawn_settlement_modal(
                         .with_child((
                             Text::new("✓ Confirm Settlement"),
                             TextFont {
-                                font_size: 16.0,
+                                font_size: FontSize::Px(16.0),
                                 ..Default::default()
                             },
                             TextColor(Color::srgb(0.6, 0.6, 0.6)),

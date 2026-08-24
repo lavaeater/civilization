@@ -135,8 +135,8 @@ pub fn spawn_city_construction_controls_ui(
                 parent.spawn((
                     Text::new("CITY CONSTRUCTION"),
                     TextFont {
-                        font: font.clone(),
-                        font_size: 22.0,
+                        font: FontSource::Handle(font.clone()),
+                        font_size: FontSize::Px(22.0),
                         ..default()
                     },
                     TextColor(Color::srgb(1.0, 0.8, 0.0)),
@@ -172,8 +172,8 @@ pub fn spawn_city_construction_controls_ui(
                         .with_child((
                             Text::new("<"),
                             TextFont {
-                                font: font.clone(),
-                                font_size: 24.0,
+                                font: FontSource::Handle(font.clone()),
+                                font_size: FontSize::Px(24.0),
                                 ..default()
                             },
                             TextColor(Color::WHITE),
@@ -184,8 +184,8 @@ pub fn spawn_city_construction_controls_ui(
                             BuildSiteDisplay,
                             Text::new("Site: ?"),
                             TextFont {
-                                font: font.clone(),
-                                font_size: 20.0,
+                                font: FontSource::Handle(font.clone()),
+                                font_size: FontSize::Px(20.0),
                                 ..default()
                             },
                             TextColor(Color::srgb(1.0, 1.0, 0.0)),
@@ -211,8 +211,8 @@ pub fn spawn_city_construction_controls_ui(
                         .with_child((
                             Text::new(">"),
                             TextFont {
-                                font: font.clone(),
-                                font_size: 24.0,
+                                font: FontSource::Handle(font.clone()),
+                                font_size: FontSize::Px(24.0),
                                 ..default()
                             },
                             TextColor(Color::WHITE),
@@ -243,8 +243,8 @@ pub fn spawn_city_construction_controls_ui(
                         .with_child((
                             Text::new("Build"),
                             TextFont {
-                                font: font.clone(),
-                                font_size: 20.0,
+                                font: FontSource::Handle(font.clone()),
+                                font_size: FontSize::Px(20.0),
                                 ..default()
                             },
                             TextColor(Color::WHITE),
@@ -266,8 +266,8 @@ pub fn spawn_city_construction_controls_ui(
                         .with_child((
                             Text::new("Skip"),
                             TextFont {
-                                font: font.clone(),
-                                font_size: 20.0,
+                                font: FontSource::Handle(font.clone()),
+                                font_size: FontSize::Px(20.0),
                                 ..default()
                             },
                             TextColor(Color::WHITE),

@@ -42,7 +42,7 @@ impl Plugin for MovementPlugin {
                     update_token_count_display.run_if(in_state(GameActivity::Movement)),
                     update_source_area_display.run_if(in_state(GameActivity::Movement)),
                     pan_camera_to_current_source
-                        .run_if(in_state(GameActivity::Movement).and(camera_auto_pan_enabled)),
+                        .run_if(in_state(GameActivity::Movement).and_then(camera_auto_pan_enabled)),
                     cleanup_movement_ui.run_if(in_state(GameActivity::Movement)),
                 ),
             )
