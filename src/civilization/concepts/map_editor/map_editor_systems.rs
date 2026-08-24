@@ -395,7 +395,7 @@ pub fn save_map_editor(
     }
 
     if let Some(handle) = handle
-        && let Some(asset) = maps.get_mut(handle.0.id())
+        && let Some(mut asset) = maps.get_mut(handle.0.id())
     {
         *asset = map;
     }

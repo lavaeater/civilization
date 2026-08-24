@@ -330,8 +330,8 @@ fn spawn_connection(
     let config = ClientConfig;
     let client = commands
         .spawn((
-            Client::default(),
-            Link::new(None),
+            Client,
+            Link::default().with_conditioner(None),
             netcode,
             WebSocketClientIo::from_url(config, ws_url.clone()),
             Name::new("Online game connection"),
@@ -429,7 +429,7 @@ fn spawn_net_map(
             NetMapLabel(AreaId(area.id)),
             Text2d::new(String::new()),
             TextFont {
-                font_size: 18.0,
+                font_size: FontSize::Px(18.0),
                 ..default()
             },
             TextColor(Color::WHITE),

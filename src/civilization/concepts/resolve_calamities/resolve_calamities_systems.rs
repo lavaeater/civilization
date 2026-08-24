@@ -897,12 +897,16 @@ pub fn advance_flood(
                     state.phase = FloodPhase::Complete;
                     continue;
                 };
-                let secondary_players: Vec<(Entity, usize)> = pop
+                let mut secondary_players: Vec<(Entity, usize)> = pop
                     .player_tokens()
                     .keys()
                     .filter(|&&e| e != player_entity)
                     .map(|&e| (e, pop.population_for_player(e)))
                     .collect();
+                // HashMap iteration order isn't stable across runs, but this list
+                // becomes the UI's candidate order (and its default selection) --
+                // sort it so that order is deterministic and reproducible.
+                secondary_players.sort_by_key(|&(e, _)| e.index());
                 let n = secondary_players.len();
                 if n == 0 {
                     state.phase = FloodPhase::Complete;

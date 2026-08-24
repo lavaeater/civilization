@@ -60,8 +60,8 @@ pub fn spawn_calamity_selection_ui(
                     }
                 )),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 20.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(20.0),
                     ..default()
                 },
                 TextColor(Color::srgb(1.0, 0.7, 0.2)),
@@ -92,8 +92,8 @@ pub fn spawn_calamity_selection_ui(
                     .with_child((
                         Text::new("<"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 20.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(20.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -104,8 +104,8 @@ pub fn spawn_calamity_selection_ui(
                         CalamitySelectionCityNameText,
                         Text::new("?"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 18.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(18.0),
                             ..default()
                         },
                         TextColor(Color::srgb(1.0, 1.0, 0.7)),
@@ -131,8 +131,8 @@ pub fn spawn_calamity_selection_ui(
                     .with_child((
                         Text::new(">"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 20.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(20.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -165,8 +165,8 @@ pub fn spawn_calamity_selection_ui(
                     .with_child((
                         Text::new("Select"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 18.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(18.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -177,8 +177,8 @@ pub fn spawn_calamity_selection_ui(
                         CalamitySelectionProgressText,
                         Text::new(format!("0 / {}", calamity_selection.required_count)),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 18.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(18.0),
                             ..default()
                         },
                         TextColor(Color::srgb(0.8, 0.8, 0.8)),
@@ -203,8 +203,8 @@ pub fn spawn_calamity_selection_ui(
                 .with_child((
                     Text::new("Confirm"),
                     TextFont {
-                        font: font.clone(),
-                        font_size: 20.0,
+                        font: FontSource::Handle(font.clone()),
+                        font_size: FontSize::Px(20.0),
                         ..default()
                     },
                     TextColor(Color::srgb(0.5, 0.5, 0.5)),
@@ -485,8 +485,8 @@ pub fn spawn_civil_war_selection_ui(
                 CivilWarTitleText,
                 Text::new(role_label),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 20.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(20.0),
                     ..default()
                 },
                 TextColor(Color::srgb(1.0, 0.5, 0.3)),
@@ -496,8 +496,8 @@ pub fn spawn_civil_war_selection_ui(
             parent.spawn((
                 Text::new(hint),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 14.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(14.0),
                     ..default()
                 },
                 TextColor(Color::srgb(0.7, 0.7, 0.7)),
@@ -508,8 +508,8 @@ pub fn spawn_civil_war_selection_ui(
                 CivilWarPointsText,
                 Text::new("Points: 0 / ?"),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 18.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(18.0),
                     ..default()
                 },
                 TextColor(Color::srgb(1.0, 1.0, 0.5)),
@@ -538,8 +538,8 @@ pub fn spawn_civil_war_selection_ui(
                     .with_child((
                         Text::new("Tokens"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 16.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(16.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -559,8 +559,8 @@ pub fn spawn_civil_war_selection_ui(
                     .with_child((
                         Text::new("Cities"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 16.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(16.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -591,8 +591,8 @@ pub fn spawn_civil_war_selection_ui(
                     .with_child((
                         Text::new("−"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 22.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(22.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -605,8 +605,8 @@ pub fn spawn_civil_war_selection_ui(
                             cw_selection.total_available_tokens
                         )),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 16.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(16.0),
                             ..default()
                         },
                         TextColor(Color::srgb(0.9, 0.9, 0.9)),
@@ -631,8 +631,8 @@ pub fn spawn_civil_war_selection_ui(
                     .with_child((
                         Text::new("+"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 22.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(22.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -664,8 +664,8 @@ pub fn spawn_civil_war_selection_ui(
                         .with_child((
                             Text::new("<"),
                             TextFont {
-                                font: font.clone(),
-                                font_size: 18.0,
+                                font: FontSource::Handle(font.clone()),
+                                font_size: FontSize::Px(18.0),
                                 ..default()
                             },
                             TextColor(Color::WHITE),
@@ -675,8 +675,8 @@ pub fn spawn_civil_war_selection_ui(
                             CivilWarCityNameText,
                             Text::new("City: ?"),
                             TextFont {
-                                font: font.clone(),
-                                font_size: 16.0,
+                                font: FontSource::Handle(font.clone()),
+                                font_size: FontSize::Px(16.0),
                                 ..default()
                             },
                             TextColor(Color::srgb(1.0, 1.0, 0.7)),
@@ -701,8 +701,8 @@ pub fn spawn_civil_war_selection_ui(
                         .with_child((
                             Text::new(">"),
                             TextFont {
-                                font: font.clone(),
-                                font_size: 18.0,
+                                font: FontSource::Handle(font.clone()),
+                                font_size: FontSize::Px(18.0),
                                 ..default()
                             },
                             TextColor(Color::WHITE),
@@ -724,8 +724,8 @@ pub fn spawn_civil_war_selection_ui(
                         .with_child((
                             Text::new("Select"),
                             TextFont {
-                                font: font.clone(),
-                                font_size: 14.0,
+                                font: FontSource::Handle(font.clone()),
+                                font_size: FontSize::Px(14.0),
                                 ..default()
                             },
                             TextColor(Color::WHITE),
@@ -752,8 +752,8 @@ pub fn spawn_civil_war_selection_ui(
                 .with_child((
                     Text::new("Confirm"),
                     TextFont {
-                        font: font.clone(),
-                        font_size: 20.0,
+                        font: FontSource::Handle(font.clone()),
+                        font_size: FontSize::Px(20.0),
                         ..default()
                     },
                     TextColor(Color::WHITE),
@@ -789,8 +789,8 @@ fn spawn_civil_war_faction_choice_ui(
                 CivilWarTitleText,
                 Text::new("Civil War — Choose Your Faction"),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 20.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(20.0),
                     ..default()
                 },
                 TextColor(Color::srgb(1.0, 0.5, 0.3)),
@@ -798,8 +798,8 @@ fn spawn_civil_war_faction_choice_ui(
             parent.spawn((
                 Text::new("Whichever faction you don't keep is annexed by the beneficiary"),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 14.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(14.0),
                     ..default()
                 },
                 TextColor(Color::srgb(0.7, 0.7, 0.7)),
@@ -831,8 +831,8 @@ fn spawn_civil_war_faction_choice_ui(
                             cw_selection.first_faction_points
                         )),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 14.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(14.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -857,8 +857,8 @@ fn spawn_civil_war_faction_choice_ui(
                             cw_selection.second_faction_points
                         )),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 14.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(14.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -1336,8 +1336,8 @@ pub fn spawn_flood_selection_ui(
             parent.spawn((
                 Text::new("Flood — Divide the secondary loss"),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 20.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(20.0),
                     ..default()
                 },
                 TextColor(Color::srgb(0.4, 0.7, 1.0)),
@@ -1346,8 +1346,8 @@ pub fn spawn_flood_selection_ui(
             parent.spawn((
                 Text::new("Choose how many points each secondary victim loses"),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 14.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(14.0),
                     ..default()
                 },
                 TextColor(Color::srgb(0.7, 0.7, 0.7)),
@@ -1357,8 +1357,8 @@ pub fn spawn_flood_selection_ui(
                 FloodPointsText,
                 Text::new("Allocated: 0 / ?"),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 18.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(18.0),
                     ..default()
                 },
                 TextColor(Color::srgb(1.0, 1.0, 0.5)),
@@ -1388,8 +1388,8 @@ pub fn spawn_flood_selection_ui(
                     .with_child((
                         Text::new("<"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 18.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(18.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -1399,8 +1399,8 @@ pub fn spawn_flood_selection_ui(
                         FloodVictimNameText,
                         Text::new("Victim: ?"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 16.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(16.0),
                             ..default()
                         },
                         TextColor(Color::srgb(1.0, 1.0, 0.7)),
@@ -1425,8 +1425,8 @@ pub fn spawn_flood_selection_ui(
                     .with_child((
                         Text::new(">"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 18.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(18.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -1447,8 +1447,8 @@ pub fn spawn_flood_selection_ui(
                     .with_child((
                         Text::new("−"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 22.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(22.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -1469,8 +1469,8 @@ pub fn spawn_flood_selection_ui(
                     .with_child((
                         Text::new("+"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 22.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(22.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -1495,8 +1495,8 @@ pub fn spawn_flood_selection_ui(
                 .with_child((
                     Text::new("Confirm"),
                     TextFont {
-                        font: font.clone(),
-                        font_size: 20.0,
+                        font: FontSource::Handle(font.clone()),
+                        font_size: FontSize::Px(20.0),
                         ..default()
                     },
                     TextColor(Color::WHITE),
@@ -1646,8 +1646,8 @@ pub fn spawn_famine_selection_ui(
             parent.spawn((
                 Text::new("Famine — Divide the secondary loss"),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 20.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(20.0),
                     ..default()
                 },
                 TextColor(Color::srgb(1.0, 0.6, 0.3)),
@@ -1656,8 +1656,8 @@ pub fn spawn_famine_selection_ui(
             parent.spawn((
                 Text::new("Choose how many points each secondary victim loses"),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 14.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(14.0),
                     ..default()
                 },
                 TextColor(Color::srgb(0.7, 0.7, 0.7)),
@@ -1667,8 +1667,8 @@ pub fn spawn_famine_selection_ui(
                 FaminePointsText,
                 Text::new("Allocated: 0 / ?"),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 18.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(18.0),
                     ..default()
                 },
                 TextColor(Color::srgb(1.0, 1.0, 0.5)),
@@ -1698,8 +1698,8 @@ pub fn spawn_famine_selection_ui(
                     .with_child((
                         Text::new("<"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 18.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(18.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -1709,8 +1709,8 @@ pub fn spawn_famine_selection_ui(
                         FamineVictimNameText,
                         Text::new("Victim: ?"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 16.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(16.0),
                             ..default()
                         },
                         TextColor(Color::srgb(1.0, 1.0, 0.7)),
@@ -1735,8 +1735,8 @@ pub fn spawn_famine_selection_ui(
                     .with_child((
                         Text::new(">"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 18.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(18.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -1757,8 +1757,8 @@ pub fn spawn_famine_selection_ui(
                     .with_child((
                         Text::new("−"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 22.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(22.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -1779,8 +1779,8 @@ pub fn spawn_famine_selection_ui(
                     .with_child((
                         Text::new("+"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 22.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(22.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -1805,8 +1805,8 @@ pub fn spawn_famine_selection_ui(
                 .with_child((
                     Text::new("Confirm"),
                     TextFont {
-                        font: font.clone(),
-                        font_size: 20.0,
+                        font: FontSource::Handle(font.clone()),
+                        font_size: FontSize::Px(20.0),
                         ..default()
                     },
                     TextColor(Color::WHITE),
@@ -1956,8 +1956,8 @@ pub fn spawn_epidemic_selection_ui(
             parent.spawn((
                 Text::new("Epidemic — Divide the secondary loss"),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 20.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(20.0),
                     ..default()
                 },
                 TextColor(Color::srgb(0.4, 0.7, 1.0)),
@@ -1966,8 +1966,8 @@ pub fn spawn_epidemic_selection_ui(
             parent.spawn((
                 Text::new("Choose how many points each secondary victim loses"),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 14.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(14.0),
                     ..default()
                 },
                 TextColor(Color::srgb(0.7, 0.7, 0.7)),
@@ -1977,8 +1977,8 @@ pub fn spawn_epidemic_selection_ui(
                 EpidemicPointsText,
                 Text::new("Allocated: 0 / ?"),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 18.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(18.0),
                     ..default()
                 },
                 TextColor(Color::srgb(1.0, 1.0, 0.5)),
@@ -2008,8 +2008,8 @@ pub fn spawn_epidemic_selection_ui(
                     .with_child((
                         Text::new("<"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 18.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(18.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -2019,8 +2019,8 @@ pub fn spawn_epidemic_selection_ui(
                         EpidemicVictimNameText,
                         Text::new("Victim: ?"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 16.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(16.0),
                             ..default()
                         },
                         TextColor(Color::srgb(1.0, 1.0, 0.7)),
@@ -2045,8 +2045,8 @@ pub fn spawn_epidemic_selection_ui(
                     .with_child((
                         Text::new(">"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 18.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(18.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -2067,8 +2067,8 @@ pub fn spawn_epidemic_selection_ui(
                     .with_child((
                         Text::new("−"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 22.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(22.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -2089,8 +2089,8 @@ pub fn spawn_epidemic_selection_ui(
                     .with_child((
                         Text::new("+"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 22.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(22.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -2115,8 +2115,8 @@ pub fn spawn_epidemic_selection_ui(
                 .with_child((
                     Text::new("Confirm"),
                     TextFont {
-                        font: font.clone(),
-                        font_size: 20.0,
+                        font: FontSource::Handle(font.clone()),
+                        font_size: FontSize::Px(20.0),
                         ..default()
                     },
                     TextColor(Color::WHITE),
@@ -2268,8 +2268,8 @@ pub fn spawn_unit_loss_selection_ui(
                 UnitLossTitleText,
                 Text::new(format!("{} — Choose your losses", unit_loss.calamity_name)),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 20.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(20.0),
                     ..default()
                 },
                 TextColor(Color::srgb(1.0, 0.6, 0.3)),
@@ -2278,8 +2278,8 @@ pub fn spawn_unit_loss_selection_ui(
             parent.spawn((
                 Text::new("Pick which areas your units are removed from"),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 14.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(14.0),
                     ..default()
                 },
                 TextColor(Color::srgb(0.7, 0.7, 0.7)),
@@ -2289,8 +2289,8 @@ pub fn spawn_unit_loss_selection_ui(
                 UnitLossPointsText,
                 Text::new("Assigned: 0 / ?"),
                 TextFont {
-                    font: font.clone(),
-                    font_size: 18.0,
+                    font: FontSource::Handle(font.clone()),
+                    font_size: FontSize::Px(18.0),
                     ..default()
                 },
                 TextColor(Color::srgb(1.0, 1.0, 0.5)),
@@ -2320,8 +2320,8 @@ pub fn spawn_unit_loss_selection_ui(
                     .with_child((
                         Text::new("<"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 18.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(18.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -2331,8 +2331,8 @@ pub fn spawn_unit_loss_selection_ui(
                         UnitLossAreaNameText,
                         Text::new("Area: ?"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 16.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(16.0),
                             ..default()
                         },
                         TextColor(Color::srgb(1.0, 1.0, 0.7)),
@@ -2357,8 +2357,8 @@ pub fn spawn_unit_loss_selection_ui(
                     .with_child((
                         Text::new(">"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 18.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(18.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -2379,8 +2379,8 @@ pub fn spawn_unit_loss_selection_ui(
                     .with_child((
                         Text::new("−"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 22.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(22.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -2401,8 +2401,8 @@ pub fn spawn_unit_loss_selection_ui(
                     .with_child((
                         Text::new("+"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 22.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(22.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -2435,8 +2435,8 @@ pub fn spawn_unit_loss_selection_ui(
                     .with_child((
                         Text::new("<"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 18.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(18.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -2446,8 +2446,8 @@ pub fn spawn_unit_loss_selection_ui(
                         UnitLossCityText,
                         Text::new("City: —"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 16.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(16.0),
                             ..default()
                         },
                         TextColor(Color::srgb(1.0, 0.85, 0.85)),
@@ -2472,8 +2472,8 @@ pub fn spawn_unit_loss_selection_ui(
                     .with_child((
                         Text::new(">"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 18.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(18.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -2494,8 +2494,8 @@ pub fn spawn_unit_loss_selection_ui(
                     .with_child((
                         Text::new("Give up"),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 15.0,
+                            font: FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(15.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -2520,8 +2520,8 @@ pub fn spawn_unit_loss_selection_ui(
                 .with_child((
                     Text::new("Confirm"),
                     TextFont {
-                        font: font.clone(),
-                        font_size: 20.0,
+                        font: FontSource::Handle(font.clone()),
+                        font_size: FontSize::Px(20.0),
                         ..default()
                     },
                     TextColor(Color::WHITE),
