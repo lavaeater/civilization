@@ -8,15 +8,17 @@
 use adv_civ::civilization::{
     AvailableCivCards, CardsHeldBeforePurchasing, CivCardDefinition, CivCardName,
     CivCardSelectionState, CivCardType, CivCardsAcquisition, CivTradeUi, CivilizationTradeCards,
-    ConfirmCivCardPurchase, PaymentState, PlayerCivilizationCards,
-    PlayerDoneAcquiringCivilizationCards, PlayerTradeCards, RecalculatePlayerMoves, TokenStock,
-    TradeCard, Treasury, begin_acquire_civ_cards, process_civ_card_purchase,
+    ConfirmCivCardPurchase, PaymentState, PlayerAcquiringCivilizationCards,
+    PlayerCivilizationCards, PlayerDoneAcquiringCivilizationCards, PlayerTradeCards,
+    RecalculatePlayerMoves, TokenStock, TradeCard, Treasury, begin_acquire_civ_cards,
+    on_add_player_acquiring_civilization_cards, process_civ_card_purchase,
     resolve_calamities::resolve_calamities_components::GrainLockedForPurchase,
 };
 use adv_civ::player::Player;
 use adv_civ::stupid_ai::IsHuman;
 use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{App, Update};
+use lava_ui_builder::LavaTheme;
 
 fn setup_app() -> App {
     let mut app = App::new();
@@ -314,6 +316,58 @@ fn an_ai_purchase_leaves_the_human_purchase_ui_alone() {
     assert!(
         selection.selected_cards.contains(&CivCardName::Pottery),
         "the AI's purchase cleared the human's card selection"
+    );
+}
+
+// ── A human who never traded should still get a purchase dialog ──
+//
+// A player can amass enough treasury + commodity cards to afford a card
+// purely from census draws, with no Trade activity that turn. Reproduces
+// entering AcquireCivilizationCards the same way the real game does:
+// begin_acquire_civ_cards inserts PlayerAcquiringCivilizationCards for every
+// player, whose Add observer (on_add_player_acquiring_civilization_cards)
+// is supposed to build the dialog for the human.
+#[test]
+fn a_human_who_never_traded_still_gets_a_purchase_dialog() {
+    let mut app = App::new();
+    app.init_resource::<CivCardsAcquisition>()
+        .init_resource::<CivCardSelectionState>()
+        .init_resource::<AvailableCivCards>()
+        .init_resource::<LavaTheme>()
+        .add_observer(on_add_player_acquiring_civilization_cards)
+        .add_systems(Update, begin_acquire_civ_cards);
+
+    let mut trade_cards = PlayerTradeCards::default();
+    for _ in 0..5 {
+        trade_cards.add_trade_card(TradeCard::Grain);
+    }
+    let human = app
+        .world_mut()
+        .spawn((
+            Player,
+            IsHuman,
+            PlayerCivilizationCards::default(),
+            trade_cards,
+            Treasury::default(),
+        ))
+        .id();
+
+    app.update();
+
+    assert!(
+        app.world()
+            .get::<PlayerAcquiringCivilizationCards>(human)
+            .is_some(),
+        "begin_acquire_civ_cards should mark the human as acquiring"
+    );
+    let ui_count = app
+        .world_mut()
+        .query::<&CivTradeUi>()
+        .iter(app.world())
+        .count();
+    assert_eq!(
+        ui_count, 1,
+        "the human should get a purchase dialog even without having traded this turn"
     );
 }
 
