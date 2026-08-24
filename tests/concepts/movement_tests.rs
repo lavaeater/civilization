@@ -577,6 +577,138 @@ fn ship_ferry_only_moves_tokens_that_have_not_already_moved() {
     assert_eq!(target_pop.population_for_player(player_one), 1);
 }
 
+// ── Token conservation: a failed target-side lookup must not drop tokens ───
+
+/// `move_tokens_from_area_to_area` used to remove tokens from the source
+/// area's `Population` unconditionally, then only add them to the target
+/// inside a nested lookup that could fail independently (e.g. the target
+/// area entity has no `Population` component). A failed lookup silently
+/// dropped the tokens: not in the source, not in the target, not in stock.
+/// This asserts the tokens stay put when the target-side move can't complete.
+#[test]
+fn move_tokens_from_area_to_area_keeps_tokens_in_source_if_target_lookup_fails() {
+    // Arrange
+    let mut app = setup_app();
+
+    let (player_one, mut player_one_tokens, _) =
+        setup_player(&mut app, "player one", GameFaction::Egypt);
+
+    let mut population = Population::new(6);
+    let moved_tokens: Vec<_> = player_one_tokens.drain(0..3).collect();
+    for &token in &moved_tokens {
+        population.add_token_to_area(player_one, token);
+    }
+
+    let from_area = app
+        .world_mut()
+        .spawn((
+            Name::new("egypt"),
+            GameArea::new(1),
+            LandPassage::default(),
+            population,
+            Transform::from_xyz(0.0, 0.0, 0.0),
+        ))
+        .id();
+
+    // Target area intentionally has NO `Population` component -- simulates a
+    // stale/invalid move command whose target-side lookup fails.
+    let to_area = app
+        .world_mut()
+        .spawn((Name::new("crete"), GameArea::new(2), LandPassage::default()))
+        .id();
+
+    let mut player_areas = PlayerAreas::default();
+    for &token in &moved_tokens {
+        player_areas.add_token_to_area(from_area, token);
+    }
+    app.world_mut().entity_mut(player_one).insert(player_areas);
+
+    let mut events = app
+        .world_mut()
+        .resource_mut::<Messages<MoveTokenFromAreaToAreaCommand>>();
+    events.write(MoveTokenFromAreaToAreaCommand::new(
+        from_area, to_area, 2, player_one,
+    ));
+
+    // Act
+    app.update();
+
+    // Assert: nothing vanished -- all 3 tokens are still in the source
+    // Population, and PlayerAreas still points only at the source area.
+    let from_pop = app.world().entity(from_area).get::<Population>().unwrap();
+    assert_eq!(from_pop.population_for_player(player_one), 3);
+
+    let player_areas = app.world().entity(player_one).get::<PlayerAreas>().unwrap();
+    assert!(player_areas.contains(from_area));
+    assert!(!player_areas.contains(to_area));
+}
+
+/// Same conservation guarantee for `execute_ship_ferry`: a target area with no
+/// `Population` component must not cause ferried tokens to be removed from
+/// the source without ever landing anywhere.
+#[test]
+fn ship_ferry_keeps_tokens_in_source_if_target_lookup_fails() {
+    // Arrange
+    let mut app = App::new();
+    app.add_plugins(StatesPlugin)
+        .add_message::<ShipFerryCommand>()
+        .add_message::<RecalculatePlayerMoves>()
+        .insert_state(GameState::Playing)
+        .add_sub_state::<GameActivity>()
+        .add_systems(Update, execute_ship_ferry);
+
+    let (player_one, mut player_one_tokens, _) =
+        setup_player(&mut app, "player one", GameFaction::Egypt);
+
+    let mut source_population = Population::new(6);
+    let tokens_to_ferry: Vec<_> = player_one_tokens.drain(0..3).collect();
+    for &token in &tokens_to_ferry {
+        source_population.add_token_to_area(player_one, token);
+    }
+
+    let source_area = create_area_w_components(&mut app, "source", Some(source_population));
+    // Target area has no `Population` component.
+    let target_area = app
+        .world_mut()
+        .spawn((
+            Name::new("target"),
+            GameArea::new(2),
+            LandPassage::default(),
+            Transform::from_xyz(0.0, 0.0, 0.0),
+        ))
+        .id();
+
+    let mut player_areas = PlayerAreas::default();
+    for &token in &tokens_to_ferry {
+        player_areas.add_token_to_area(source_area, token);
+    }
+    app.world_mut().entity_mut(player_one).insert(player_areas);
+
+    let ship = app.world_mut().spawn(Name::new("Ship")).id();
+    let mut player_ships = PlayerShips::default();
+    player_ships.place_ship(source_area, ship);
+    app.world_mut().entity_mut(player_one).insert(player_ships);
+
+    app.world_mut()
+        .resource_mut::<Messages<ShipFerryCommand>>()
+        .write(ShipFerryCommand::new(
+            source_area,
+            target_area,
+            3,
+            player_one,
+        ));
+
+    // Act
+    app.update();
+
+    // Assert: the tokens are still in the source population, not dropped.
+    let source_pop = app.world().get::<Population>(source_area).unwrap();
+    assert_eq!(source_pop.population_for_player(player_one), 3);
+
+    let areas = app.world().get::<PlayerAreas>(player_one).unwrap();
+    assert!(areas.areas().contains(&source_area));
+}
+
 /// Rule 23.1: ships move independently of tokens -- an empty ship in an area
 /// with no unmoved (or no) tokens must still be able to relocate on its own.
 #[test]

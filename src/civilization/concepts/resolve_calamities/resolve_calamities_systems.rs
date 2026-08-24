@@ -4,6 +4,7 @@ use rand::seq::SliceRandom;
 
 use crate::GameActivity;
 use crate::civilization::components::*;
+use crate::civilization::concepts::acquire_trade_cards::CivilizationTradeCards;
 use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
 use crate::civilization::concepts::conflict::{
     ConflictCounterResource, UnresolvedCityConflict, UnresolvedConflict,
@@ -82,6 +83,7 @@ pub fn start_calamity_resolution(
         With<Player>,
     >,
     mut next_state: ResMut<NextState<GameActivity>>,
+    mut trade_cards_resource: ResMut<CivilizationTradeCards>,
 ) {
     info!("[CALAMITIES] Starting calamity resolution phase");
 
@@ -128,6 +130,13 @@ pub fn start_calamity_resolution(
         let selected: Vec<TradeCard> = calamities_to_resolve.iter().map(|(c, _)| *c).collect();
         for discarded in calamity_cards.iter().filter(|c| !selected.contains(c)) {
             let removed = trade_cards.remove_n_trade_cards(1, *discarded);
+            if removed.is_some() {
+                trade_cards_resource
+                    .card_piles
+                    .entry(discarded.value())
+                    .or_default()
+                    .push(*discarded);
+            }
             info!(
                 "[CALAMITIES] {} exceeds the two-calamity limit (29.5): {:?} discarded{}",
                 player_label,
@@ -182,6 +191,7 @@ pub fn process_pending_calamities(
     all_players_civ: Query<(Entity, &PlayerCivilizationCards), With<Player>>,
     existing_resolutions: Query<Entity, With<ResolvingCalamity>>,
     mut next_state: ResMut<NextState<GameActivity>>,
+    mut trade_cards_resource: ResMut<CivilizationTradeCards>,
 ) {
     // One calamity at a time – wait until the current one finishes
     if !existing_resolutions.is_empty() {
@@ -250,7 +260,18 @@ pub fn process_pending_calamities(
         if let Ok((_, mut pending, mut trade_cards)) = players_with_pending.get_mut(*player_entity)
         {
             pending.calamities.retain(|(c, _)| c != calamity);
-            let _ = trade_cards.remove_n_trade_cards(1, *calamity);
+            if trade_cards.remove_n_trade_cards(1, *calamity).is_some() {
+                // Rule 29.4: a resolved calamity is returned to the bottom of
+                // its trade card stack -- it cannot be held for future turns,
+                // and leaving it out of circulation here was silently
+                // shrinking the pile every time a calamity resolved, which
+                // over a long game empties the piles and starves later draws.
+                trade_cards_resource
+                    .card_piles
+                    .entry(calamity.value())
+                    .or_default()
+                    .push(*calamity);
+            }
 
             let context = CalamityContext::new(*calamity, *player_entity, *traded_by);
 
@@ -2104,7 +2125,7 @@ pub fn advance_epidemic(
                     };
                     let (sec_is_human, sec_is_awaiting) = human_flags
                         .get(secondary_entity)
-                        .map_or((false, false), |(h, a)| (h, a));
+                        .unwrap_or((false, false));
 
                     // Cities absorb up to 4 points each (30.612) and are picked
                     // deterministically -- spend them once, then let the victim
@@ -3269,7 +3290,7 @@ pub fn advance_piracy(
                 let trader = resolution.context.traded_by;
                 let (trader_is_human, trader_awaiting) = trader
                     .and_then(|t| human_flags.get(t).ok())
-                    .map_or((false, false), |(h, a)| (h, a));
+                    .unwrap_or((false, false));
 
                 if !trader_is_human {
                     state.cities_to_replace = coastal_cities.into_iter().take(2).collect();
@@ -3448,7 +3469,7 @@ pub fn apply_monotheism_conversions(
     human_query: Query<(), With<IsHuman>>,
     all_players_civ: Query<(Entity, &PlayerCivilizationCards)>,
     land_passage_query: Query<&LandPassage>,
-    population_query: Query<&Population>,
+    mut population_query: Query<&mut Population>,
     mut mono_state: ResMut<MonotheismSelectionState>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
@@ -3512,7 +3533,10 @@ pub fn apply_monotheism_conversions(
             if mono_state.player == Some(holder_entity) {
                 // Human just confirmed (AwaitingMonotheismSelection removed by button handler).
                 let selected = mono_state.take_result();
-                for token in selected {
+                for (token, area) in selected {
+                    if let Ok(mut pop) = population_query.get_mut(area) {
+                        pop.remove_token(token);
+                    }
                     commands.entity(token).insert(ReturnTokenToStock);
                     info!("[MONOTHEISM] Human eliminated token {:?}", token);
                 }
@@ -3532,7 +3556,10 @@ pub fn apply_monotheism_conversions(
             }
         } else {
             // AI: auto-select up to 2 candidates.
-            for (token, _) in candidates.into_iter().take(2) {
+            for (token, area) in candidates.into_iter().take(2) {
+                if let Ok(mut pop) = population_query.get_mut(area) {
+                    pop.remove_token(token);
+                }
                 commands.entity(token).insert(ReturnTokenToStock);
                 info!(
                     "[MONOTHEISM] {:?} eliminates token {:?}",

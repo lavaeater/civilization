@@ -1,14 +1,21 @@
 use crate::GameActivity;
+use crate::civilization::BuildCityCommand;
 use crate::civilization::CivCardName;
-use crate::civilization::components::{BuiltCity, CityToken, PlayerCities, TokenStock};
+use crate::civilization::components::{
+    BuiltCity, CityTokenStock, Faction, GameArea, PlayerCities, TokenStock, Treasury,
+};
 use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
+use crate::civilization::concepts::map::AvailableFactions;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::ReturnCityToStock;
 use crate::civilization::concepts::taxation::taxation_components::{
     CityInRevolt, CoinageTaxRate, NeedsToPayTaxes,
 };
+use crate::civilization::functions::build_city_in_area;
 use crate::player::Player;
 use crate::stupid_ai::StupidAi;
-use bevy::prelude::{Commands, Entity, Has, Name, NextState, Query, ResMut, With, info};
+use bevy::prelude::{
+    Commands, Entity, Name, NextState, Query, Res, ResMut, Transform, With, info, warn,
+};
 
 /// Called on entering `CollectTaxes`. Skips the phase entirely if no player has any
 /// cities (this will be the case on the very first turn of the game).
@@ -82,13 +89,13 @@ pub fn collect_taxes(
         &Name,
         &NeedsToPayTaxes,
         &mut TokenStock,
+        &mut Treasury,
         &mut PlayerCities,
-        Has<PlayerCivilizationCards>,
     )>,
     civ_cards_query: Query<&PlayerCivilizationCards>,
     mut commands: Commands,
 ) {
-    for (player_entity, name, needs_to_pay, mut stock, cities, _) in &mut player_query {
+    for (player_entity, name, needs_to_pay, mut stock, mut treasury, cities) in &mut player_query {
         let tokens_owed = needs_to_pay.tokens_owed;
         let has_democracy = civ_cards_query
             .get(player_entity)
@@ -99,11 +106,13 @@ pub fn collect_taxes(
             let to_pay = tokens_owed.min(stock.tokens_in_stock());
             if let Some(tokens) = stock.remove_at_most_n_tokens_from_stock(to_pay) {
                 for token in tokens {
-                    // Taxes return to the player's own stock (the supply), not a
-                    // hoarded treasury — treasury tokens are the same finite pool
-                    // and accumulating them there starves expansion. The solvency
-                    // check / revolt logic below is the meaningful part.
-                    stock.return_token_to_stock(token);
+                    // Rule 19.1: taxes move stock -> treasury. This is the only
+                    // route into the treasury besides pillage (24.52) and
+                    // Architecture (25.3), and the treasury is what pays for
+                    // ninth-stack cards (27.51) and scores at game end -- paying
+                    // them back into stock made the whole phase free and left the
+                    // treasury permanently empty.
+                    treasury.add_token_to_treasury(token);
                 }
             }
             info!(
@@ -119,11 +128,13 @@ pub fn collect_taxes(
             // Full payment.
             if let Some(tokens) = stock.remove_tokens_from_stock(tokens_owed) {
                 for token in tokens {
-                    // Taxes return to the player's own stock (the supply), not a
-                    // hoarded treasury — treasury tokens are the same finite pool
-                    // and accumulating them there starves expansion. The solvency
-                    // check / revolt logic below is the meaningful part.
-                    stock.return_token_to_stock(token);
+                    // Rule 19.1: taxes move stock -> treasury. This is the only
+                    // route into the treasury besides pillage (24.52) and
+                    // Architecture (25.3), and the treasury is what pays for
+                    // ninth-stack cards (27.51) and scores at game end -- paying
+                    // them back into stock made the whole phase free and left the
+                    // treasury permanently empty.
+                    treasury.add_token_to_treasury(token);
                 }
             }
             info!("[TAXATION] {} pays {} tokens in full", name, tokens_owed);
@@ -143,11 +154,13 @@ pub fn collect_taxes(
 
             if let Some(tokens) = stock.remove_at_most_n_tokens_from_stock(to_pay) {
                 for token in tokens {
-                    // Taxes return to the player's own stock (the supply), not a
-                    // hoarded treasury — treasury tokens are the same finite pool
-                    // and accumulating them there starves expansion. The solvency
-                    // check / revolt logic below is the meaningful part.
-                    stock.return_token_to_stock(token);
+                    // Rule 19.1: taxes move stock -> treasury. This is the only
+                    // route into the treasury besides pillage (24.52) and
+                    // Architecture (25.3), and the treasury is what pays for
+                    // ninth-stack cards (27.51) and scores at game end -- paying
+                    // them back into stock made the whole phase free and left the
+                    // treasury permanently empty.
+                    treasury.add_token_to_treasury(token);
                 }
             }
 
@@ -176,14 +189,27 @@ pub fn collect_taxes(
     }
 }
 
-/// Resolves city revolts after all taxes have been paid.
-/// The player with the most **unit points in stock** (cities=5, tokens=1) claims
-/// revolting cities by replacing them with his own. Ties broken by A.S.T. order
-/// (not yet tracked, so currently resolved in arbitrary entity order).
-/// If no one can take over a city, it is eliminated.
+/// Resolves city revolts after all taxes have been paid (rule 19.32).
+///
+/// The player with the **most unit points in stock** (cities = 5 each, tokens = 1
+/// each) is the beneficiary and replaces the revolting city with one of his own;
+/// if he has no city token left in stock the next-largest stock takes it, and so
+/// on. A city nobody can take over is eliminated (19.33).
 pub fn resolve_revolts(
     revolting_cities_query: Query<(Entity, &CityInRevolt)>,
-    player_query: Query<(Entity, &Name, &TokenStock, &PlayerCities), With<Player>>,
+    mut player_query: Query<
+        (
+            Entity,
+            &Name,
+            &TokenStock,
+            &mut PlayerCities,
+            &mut CityTokenStock,
+            &Faction,
+        ),
+        With<Player>,
+    >,
+    area_query: Query<&Transform, With<GameArea>>,
+    game_factions: Res<AvailableFactions>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
@@ -200,93 +226,94 @@ pub fn resolve_revolts(
 
     info!("[TAXATION] Resolving {} revolting cities", revolting.len());
 
-    // Build a list of candidates sorted by unit points in stock (descending).
+    // Candidates ordered by unit points in stock, strongest first (19.32).
     let mut candidates: Vec<(Entity, usize)> = player_query
         .iter()
-        .map(|(entity, _, stock, cities)| {
-            let unit_points = stock.tokens_in_stock() + cities.number_of_cities() * 5;
-            (entity, unit_points)
+        .map(|(entity, _, stock, cities, _, _)| {
+            (
+                entity,
+                stock.tokens_in_stock() + cities.number_of_cities() * 5,
+            )
         })
         .collect();
-    candidates.sort_by_key(|(_, b)| *b);
+    candidates.sort_by_key(|(_, points)| std::cmp::Reverse(*points));
 
-    // Collect (city_entity, area_entity, original_owner) triples so we can
-    // update PlayerCities without conflicting borrows.
-    let mut city_area_owner: Vec<(Entity, Option<Entity>, Entity)> = Vec::new();
-    for (revolting_city, original_owner) in &revolting {
-        let area = player_query
-            .get(*original_owner)
-            .ok()
-            .and_then(|(_, _, _, cities)| {
-                cities
-                    .areas_and_cities
-                    .iter()
-                    .find(|(_, c)| **c == *revolting_city)
-                    .map(|(&a, _)| a)
-            });
-        city_area_owner.push((*revolting_city, area, *original_owner));
-    }
+    // Which area each revolting city sits in, resolved before we start mutating.
+    let city_area_owner: Vec<(Entity, Option<Entity>, Entity)> = revolting
+        .iter()
+        .map(|(city, original_owner)| {
+            let area = player_query
+                .get(*original_owner)
+                .ok()
+                .and_then(|(_, _, _, cities, _, _)| cities.area_for_city(*city));
+            (*city, area, *original_owner)
+        })
+        .collect();
 
-    // Issue commands to update ownership. PlayerCities mutations happen via a
-    // separate system pass (commands are deferred), so we queue them here.
     for (revolting_city, area_opt, original_owner) in city_area_owner {
-        let beneficiary = candidates
-            .iter()
-            .find(|(e, _)| *e != original_owner)
-            .map(|(e, _)| *e);
+        // 19.32: the beneficiary replaces the city with one of his own, so he
+        // needs a city token in stock. Whoever is strongest without one is
+        // skipped in favour of the next player down.
+        let beneficiary = area_opt.and_then(|_| {
+            candidates.iter().map(|(entity, _)| *entity).find(|entity| {
+                *entity != original_owner
+                    && player_query
+                        .get(*entity)
+                        .is_ok_and(|(_, _, _, _, city_stock, _)| city_stock.has_tokens())
+            })
+        });
 
-        if let Some(new_owner) = beneficiary {
-            info!(
-                "[TAXATION] Revolting city {:?} taken over by {:?}",
-                revolting_city, new_owner
-            );
-            // Update the BuiltCity *and* the CityToken to reflect the new
-            // owner. Leaving CityToken stale points later owner lookups
-            // (e.g. eliminate_city, conflict resolution) at the previous
-            // owner, which silently no-ops and can spin the city-support
-            // phase forever.
-            commands
-                .entity(revolting_city)
-                .remove::<CityInRevolt>()
-                .insert(BuiltCity::new(revolting_city, new_owner))
-                .insert(CityToken::new(new_owner));
-
-            // Remove the city from the original owner's record and add to new owner.
-            if let Some(area) = area_opt {
-                commands.entity(original_owner).queue(
-                    move |mut entity: bevy::ecs::world::EntityWorldMut| {
-                        if let Some(mut cities) = entity.get_mut::<PlayerCities>() {
-                            cities.remove_city_from_area(area);
-                        }
-                    },
-                );
-                commands.entity(new_owner).queue(
-                    move |mut entity: bevy::ecs::world::EntityWorldMut| {
-                        if let Some(mut cities) = entity.get_mut::<PlayerCities>() {
-                            cities.build_city_in_area(area, revolting_city);
-                        }
-                    },
-                );
-            }
-        } else {
-            info!(
-                "[TAXATION] No player can take revolting city {:?} — eliminating",
-                revolting_city
-            );
+        let (Some(area), Some(new_owner)) = (area_opt, beneficiary) else {
+            info!("[TAXATION] No player can take revolting city {revolting_city:?} — eliminating");
+            // Hands the token back to its owner's stock, drops it from their
+            // PlayerCities and strips its map sprite.
             commands
                 .entity(revolting_city)
                 .remove::<CityInRevolt>()
                 .insert(ReturnCityToStock);
-
             if let Some(area) = area_opt {
-                commands.entity(original_owner).queue(
-                    move |mut entity: bevy::ecs::world::EntityWorldMut| {
-                        if let Some(mut cities) = entity.get_mut::<PlayerCities>() {
-                            cities.remove_city_from_area(area);
-                        }
-                    },
-                );
+                commands.entity(area).remove::<BuiltCity>();
             }
+            continue;
+        };
+
+        // Give the original owner his city token back before handing the area
+        // over, so both players' city stocks stay honest.
+        commands
+            .entity(revolting_city)
+            .remove::<CityInRevolt>()
+            .insert(ReturnCityToStock);
+
+        let Ok(area_transform) = area_query.get(area).copied() else {
+            warn!("[TAXATION] Area {area:?} has no transform — city {revolting_city:?} eliminated");
+            commands.entity(area).remove::<BuiltCity>();
+            continue;
+        };
+
+        if let Ok((_, new_owner_name, _, mut player_cities, mut city_stock, faction)) =
+            player_query.get_mut(new_owner)
+        {
+            let Some(texture) = game_factions
+                .faction_city_icons
+                .get(&faction.faction)
+                .cloned()
+            else {
+                warn!("[TAXATION] No city icon for {:?}", faction.faction);
+                commands.entity(area).remove::<BuiltCity>();
+                continue;
+            };
+            info!("[TAXATION] Revolting city in {area:?} taken over by {new_owner_name}");
+            build_city_in_area(
+                &mut commands,
+                texture,
+                &BuildCityCommand {
+                    player: new_owner,
+                    area,
+                },
+                &mut city_stock,
+                &mut player_cities,
+                &area_transform,
+            );
         }
     }
 
@@ -311,6 +338,7 @@ pub fn taxation_gate(
 mod tests {
     use super::*;
     use crate::civilization::components::{PlayerCities, TokenStock, Treasury};
+    use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
     use bevy::prelude::*;
 
     /// Helper: create a player entity with `n` city-slot entries in `PlayerCities`
@@ -342,6 +370,95 @@ mod tests {
         world
             .spawn((Name::new("TestPlayer"), stock, cities, Treasury::default()))
             .id()
+    }
+
+    // ── Rule 19.1: taxes really move stock -> treasury ───────────────────────
+    //
+    // `collect_taxes` used to hand every paid token straight back to stock, so
+    // the treasury (which pays for ninth-stack cards, 27.51, and scores at the
+    // end) never grew and the phase cost nothing. These run the real system.
+
+    fn taxation_app() -> App {
+        let mut app = App::new();
+        app.add_systems(Update, collect_taxes);
+        app
+    }
+
+    fn spawn_taxpayer(app: &mut App, stock_tokens: usize, city_count: usize) -> Entity {
+        let player = setup_player_with_cities(app.world_mut(), stock_tokens, city_count);
+        app.world_mut()
+            .entity_mut(player)
+            .insert(NeedsToPayTaxes::new(city_count * 2));
+        player
+    }
+
+    #[test]
+    fn paid_taxes_end_up_in_the_treasury_not_back_in_stock() {
+        let mut app = taxation_app();
+        let player = spawn_taxpayer(&mut app, 10, 2); // 2 cities -> owes 4
+        app.update();
+
+        let stock = app.world().get::<TokenStock>(player).unwrap();
+        let treasury = app.world().get::<Treasury>(player).unwrap();
+        assert_eq!(
+            stock.tokens_in_stock(),
+            6,
+            "4 tokens should have left stock"
+        );
+        assert_eq!(treasury.tokens_in_treasury(), 4);
+        assert!(app.world().get::<NeedsToPayTaxes>(player).is_none());
+    }
+
+    #[test]
+    fn a_shortfall_pays_what_it_can_and_revolts_the_rest() {
+        let mut app = taxation_app();
+        // 3 cities owe 6; only 3 tokens in stock -> pays for 1 city, 2 revolt.
+        let player = spawn_taxpayer(&mut app, 3, 3);
+        app.update();
+
+        let treasury = app.world().get::<Treasury>(player).unwrap();
+        assert_eq!(treasury.tokens_in_treasury(), 2);
+        let stock = app.world().get::<TokenStock>(player).unwrap();
+        assert_eq!(stock.tokens_in_stock(), 1);
+
+        let revolts = app
+            .world_mut()
+            .query::<&CityInRevolt>()
+            .iter(app.world())
+            .count();
+        assert_eq!(revolts, 2);
+    }
+
+    #[test]
+    fn democracy_pays_taxes_but_never_revolts() {
+        let mut app = taxation_app();
+        let player = spawn_taxpayer(&mut app, 3, 3);
+        let mut civ_cards = PlayerCivilizationCards::default();
+        civ_cards.add_card(CivCardName::Democracy);
+        app.world_mut().entity_mut(player).insert(civ_cards);
+        app.update();
+
+        // Pays everything it has (3), no revolt.
+        let treasury = app.world().get::<Treasury>(player).unwrap();
+        assert_eq!(treasury.tokens_in_treasury(), 3);
+        let revolts = app
+            .world_mut()
+            .query::<&CityInRevolt>()
+            .iter(app.world())
+            .count();
+        assert_eq!(revolts, 0);
+    }
+
+    // ── Rule 19.32: the *strongest* stock takes the revolting city ───────────
+
+    #[test]
+    fn revolt_beneficiary_ordering_prefers_the_largest_stock() {
+        // The candidate list is sorted strongest-first and the first eligible
+        // non-owner wins. Sorting ascending (the old behaviour) handed revolting
+        // cities to the weakest player at the table.
+        let mut candidates = [(1usize, 4usize), (2, 30), (3, 12)];
+        candidates.sort_by_key(|(_, points)| std::cmp::Reverse(*points));
+        assert_eq!(candidates.first().map(|(id, _)| *id), Some(2));
     }
 
     // ── Rule 19.1: standard taxation ─────────────────────────────────────────

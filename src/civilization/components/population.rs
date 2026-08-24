@@ -212,6 +212,19 @@ impl Population {
             }
         }
     }
+
+    /// Removes `token` from whichever player owns it in this area, returning that
+    /// player. Use when the caller only has the token (e.g. a UI-selected target)
+    /// and not its owner.
+    pub fn remove_token(&mut self, token: Entity) -> Option<Entity> {
+        let owner = self
+            .player_tokens
+            .iter()
+            .find(|(_, tokens)| tokens.contains(&token))
+            .map(|(&player, _)| player)?;
+        self.remove_token_from_area(owner, token);
+        Some(owner)
+    }
 }
 
 #[cfg(test)]

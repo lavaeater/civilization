@@ -6,13 +6,15 @@
 // tests exercise it directly through the real ECS system, not a stand-in.
 
 use adv_civ::civilization::{
-    CardsHeldBeforePurchasing, CivCardName, CivCardSelectionState, CivCardsAcquisition, CivTradeUi,
-    CivilizationTradeCards, ConfirmCivCardPurchase, PlayerCivilizationCards,
-    PlayerDoneAcquiringCivilizationCards, PlayerTradeCards, RecalculatePlayerMoves, TradeCard,
-    begin_acquire_civ_cards, process_civ_card_purchase,
+    AvailableCivCards, CardsHeldBeforePurchasing, CivCardDefinition, CivCardName,
+    CivCardSelectionState, CivCardType, CivCardsAcquisition, CivTradeUi, CivilizationTradeCards,
+    ConfirmCivCardPurchase, PaymentState, PlayerCivilizationCards,
+    PlayerDoneAcquiringCivilizationCards, PlayerTradeCards, RecalculatePlayerMoves, TokenStock,
+    TradeCard, Treasury, begin_acquire_civ_cards, process_civ_card_purchase,
     resolve_calamities::resolve_calamities_components::GrainLockedForPurchase,
 };
 use adv_civ::player::Player;
+use adv_civ::stupid_ai::IsHuman;
 use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{App, Update};
 
@@ -23,6 +25,7 @@ fn setup_app() -> App {
         .add_message::<RecalculatePlayerMoves>()
         .init_resource::<CivilizationTradeCards>()
         .init_resource::<CivCardSelectionState>()
+        .init_resource::<AvailableCivCards>()
         .add_systems(Update, process_civ_card_purchase);
     app
 }
@@ -36,9 +39,12 @@ fn spawn_player_with_grain(
     for _ in 0..grain_held {
         trade_cards.add_trade_card(TradeCard::Grain);
     }
-    let mut entity = app
-        .world_mut()
-        .spawn((PlayerCivilizationCards::default(), trade_cards));
+    let mut entity = app.world_mut().spawn((
+        PlayerCivilizationCards::default(),
+        trade_cards,
+        Treasury::default(),
+        TokenStock::new(55, Vec::new()),
+    ));
     if let Some(locked) = grain_locked {
         entity.insert(GrainLockedForPurchase(locked));
     }
@@ -56,6 +62,7 @@ fn fully_locked_grain_cannot_be_spent_even_if_the_message_requests_it() {
         player,
         cards_to_buy: vec![CivCardName::Pottery],
         payment,
+        treasury_tokens: 0,
     });
     app.update();
 
@@ -82,6 +89,7 @@ fn partially_locked_grain_only_the_unlocked_portion_is_spent() {
         player,
         cards_to_buy: vec![CivCardName::Pottery],
         payment,
+        treasury_tokens: 0,
     });
     app.update();
 
@@ -104,6 +112,7 @@ fn no_lock_component_allows_full_normal_grain_spending() {
         player,
         cards_to_buy: vec![CivCardName::Pottery],
         payment,
+        treasury_tokens: 0,
     });
     app.update();
 
@@ -129,6 +138,8 @@ fn grain_lock_does_not_affect_other_commodity_types_in_the_same_payment() {
         .spawn((
             PlayerCivilizationCards::default(),
             trade_cards,
+            Treasury::default(),
+            TokenStock::new(55, Vec::new()),
             GrainLockedForPurchase(3),
         ))
         .id();
@@ -140,6 +151,7 @@ fn grain_lock_does_not_affect_other_commodity_types_in_the_same_payment() {
         player,
         cards_to_buy: vec![CivCardName::Pottery],
         payment,
+        treasury_tokens: 0,
     });
     app.update();
 
@@ -153,6 +165,114 @@ fn grain_lock_does_not_affect_other_commodity_types_in_the_same_payment() {
         trade_cards.number_of_cards_for_trade_card(TradeCard::Salt),
         1
     );
+}
+
+// ── Rule 31.1/31.4: treasury tokens help pay for civilization cards ──
+//
+// "Each player may acquire one or more civilization cards by turning in
+// commodity cards *and treasury tokens*" -- but 31.4 bars spending more tokens
+// than the purchase requires. Spent tokens go back to stock, the same route
+// ninth-stack purchases use.
+
+/// A one-card catalogue so the commit path can work out what a purchase costs.
+fn app_with_card(name: CivCardName, cost: u32) -> App {
+    let mut app = setup_app();
+    app.insert_resource(AvailableCivCards {
+        cards: vec![CivCardDefinition {
+            name,
+            description: String::new(),
+            card_type: CivCardType::Crafts.into(),
+            cost,
+            credits: vec![],
+            prerequisites: vec![],
+        }],
+    });
+    app
+}
+
+fn treasury_tokens(app: &mut App, player: bevy::prelude::Entity, count: usize) {
+    let tokens: Vec<bevy::prelude::Entity> = (0..count)
+        .map(|_| app.world_mut().spawn_empty().id())
+        .collect();
+    let mut treasury = app.world_mut().get_mut::<Treasury>(player).unwrap();
+    for token in tokens {
+        treasury.add_token_to_treasury(token);
+    }
+}
+
+#[test]
+fn treasury_tokens_pay_the_part_the_cards_do_not_cover() {
+    let mut app = app_with_card(CivCardName::Pottery, 10);
+    let player = spawn_player_with_grain(&mut app, 1, None); // 1 Grain = 4 points
+    treasury_tokens(&mut app, player, 20);
+
+    let mut payment = HashMap::default();
+    payment.insert(TradeCard::Grain, 1);
+    app.world_mut().write_message(ConfirmCivCardPurchase {
+        player,
+        cards_to_buy: vec![CivCardName::Pottery],
+        payment,
+        treasury_tokens: 6,
+    });
+    app.update();
+
+    let treasury = app.world().get::<Treasury>(player).unwrap();
+    assert_eq!(
+        treasury.tokens_in_treasury(),
+        14,
+        "6 tokens should be spent"
+    );
+    let stock = app.world().get::<TokenStock>(player).unwrap();
+    assert_eq!(stock.tokens_in_stock(), 6, "spent tokens return to stock");
+    assert!(
+        app.world()
+            .get::<PlayerCivilizationCards>(player)
+            .unwrap()
+            .owns(&CivCardName::Pottery)
+    );
+}
+
+#[test]
+fn no_more_treasury_tokens_are_spent_than_the_card_costs() {
+    // Rule 31.4: a player "may not intentionally spend more treasury tokens
+    // than required". The cards already cover 4 of a cost of 10, so however
+    // many tokens the message asks for, only 6 may leave the treasury.
+    let mut app = app_with_card(CivCardName::Pottery, 10);
+    let player = spawn_player_with_grain(&mut app, 1, None);
+    treasury_tokens(&mut app, player, 20);
+
+    let mut payment = HashMap::default();
+    payment.insert(TradeCard::Grain, 1);
+    app.world_mut().write_message(ConfirmCivCardPurchase {
+        player,
+        cards_to_buy: vec![CivCardName::Pottery],
+        payment,
+        treasury_tokens: 20,
+    });
+    app.update();
+
+    let treasury = app.world().get::<Treasury>(player).unwrap();
+    assert_eq!(treasury.tokens_in_treasury(), 14);
+}
+
+#[test]
+fn treasury_spending_cannot_exceed_the_treasury() {
+    let mut app = app_with_card(CivCardName::Pottery, 100);
+    let player = spawn_player_with_grain(&mut app, 0, None);
+    treasury_tokens(&mut app, player, 3);
+
+    app.world_mut().write_message(ConfirmCivCardPurchase {
+        player,
+        cards_to_buy: vec![CivCardName::Pottery],
+        payment: HashMap::default(),
+        treasury_tokens: 50,
+    });
+    app.update();
+
+    let treasury = app.world().get::<Treasury>(player).unwrap();
+    assert_eq!(treasury.tokens_in_treasury(), 0);
+    let stock = app.world().get::<TokenStock>(player).unwrap();
+    assert_eq!(stock.tokens_in_stock(), 3);
 }
 
 // ── An AI purchase must not disturb the human's open purchase dialog ──
@@ -181,6 +301,7 @@ fn an_ai_purchase_leaves_the_human_purchase_ui_alone() {
         player: ai,
         cards_to_buy: vec![CivCardName::Pottery],
         payment,
+        treasury_tokens: 0,
     });
     app.update();
 
@@ -271,4 +392,42 @@ fn begin_acquire_snapshot_is_frozen_even_if_the_live_hand_grows_afterward() {
         .unwrap();
     let expected: HashSet<CivCardName> = [CivCardName::Pottery].into_iter().collect();
     assert_eq!(snapshot.0, expected);
+}
+
+// ── The payment-amount widgets must reset after a purchase ──
+//
+// PaymentState::chosen used to survive a confirmed purchase, so a human who
+// paid 2 Grain for one card would see "2/1" (or worse) still selected the
+// next time they opened the dialog -- as if they still had 2 Grain to spend
+// even after having only 1 left.
+
+#[test]
+fn payment_amounts_are_reset_after_a_human_purchase() {
+    let mut app = setup_app();
+    app.init_resource::<PaymentState>();
+    let player = spawn_player_with_grain(&mut app, 1, None);
+    app.world_mut().entity_mut(player).insert(IsHuman);
+
+    app.world_mut()
+        .resource_mut::<PaymentState>()
+        .chosen
+        .insert(TradeCard::Grain, 2);
+    app.world_mut().resource_mut::<PaymentState>().treasury_tokens = 3;
+
+    let mut payment = HashMap::default();
+    payment.insert(TradeCard::Grain, 1);
+    app.world_mut().write_message(ConfirmCivCardPurchase {
+        player,
+        cards_to_buy: vec![CivCardName::Pottery],
+        payment,
+        treasury_tokens: 0,
+    });
+    app.update();
+
+    let payment_state = app.world().resource::<PaymentState>();
+    assert!(
+        payment_state.chosen.is_empty(),
+        "chosen payment amounts must not carry over to the next purchase"
+    );
+    assert_eq!(payment_state.treasury_tokens, 0);
 }

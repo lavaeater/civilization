@@ -245,6 +245,14 @@ impl PlayerCities {
 
     /// Drops whichever area holds `city_token`, returning that area. Used when
     /// a city is retired by token rather than by location.
+    /// The area `city_token` currently occupies, if this player owns it.
+    pub fn area_for_city(&self, city_token: Entity) -> Option<Entity> {
+        self.areas_and_cities
+            .iter()
+            .find(|(_, city)| **city == city_token)
+            .map(|(&area, _)| area)
+    }
+
     pub fn remove_city_by_token(&mut self, city_token: Entity) -> Option<Entity> {
         let area = self
             .areas_and_cities

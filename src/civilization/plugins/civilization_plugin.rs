@@ -95,6 +95,8 @@ impl Plugin for CivLogicPlugins {
             .add_plugins((
                 CityConstructionPlugin,
                 RemoveSurplusPlugin,
+                ChooseStartAreaPlugin,
+                ShedCommodityCardsPlugin,
                 ResolveCalamitiesPlugin,
                 CitySupportPlugin,
                 StupidAiPlugin,
@@ -173,7 +175,7 @@ impl Default for DebugOptions {
     fn default() -> Self {
         Self {
             add_human_player: true,
-            human_faction: GameFaction::Assyria,
+            human_faction: GameFaction::Egypt,
             human_always_pulls_trade_cards: false,
             ai_always_pulls_trade_cards: false,
             human_starts_with_trade_cards: false,
@@ -230,7 +232,7 @@ impl DebugOptions {
     pub fn test_civ_cards() -> Self {
         Self {
             add_human_player: false,
-            human_faction: GameFaction::Assyria,
+            human_faction: GameFaction::Babylon,
             human_always_pulls_trade_cards: false,
             ai_always_pulls_trade_cards: false,
             human_starts_with_trade_cards: false,

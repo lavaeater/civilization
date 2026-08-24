@@ -4,7 +4,7 @@ use crate::civilization::{
     PlayerDoneAcquiringCivilizationCards, ProceedToPayment, RefreshCivCardsUi,
     ToggleCivCardSelection, begin_acquire_civ_cards, ensure_human_civ_cards_ui,
     handle_back_to_selection, handle_payment_adjust, handle_proceed_to_payment_message,
-    handle_toggle_card_selection, init_civ_cards, load_civ_cards,
+    handle_toggle_card_selection, handle_treasury_adjust, init_civ_cards, load_civ_cards,
     on_add_player_acquiring_civilization_cards, player_is_done, process_civ_card_purchase,
     refresh_civ_cards_ui, shuffle_trade_card_piles_on_exit,
 };
@@ -73,6 +73,7 @@ impl Plugin for CivCardsPlugin {
                     handle_proceed_to_payment_message,
                     handle_back_to_selection,
                     handle_payment_adjust,
+                    handle_treasury_adjust,
                     process_civ_card_purchase,
                     refresh_civ_cards_ui,
                     player_is_done,

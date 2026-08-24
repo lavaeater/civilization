@@ -108,6 +108,7 @@ pub enum NetPhase {
     ResolveCalamities,
     CheckCitySupportAfterResolveCalamities,
     AcquireCivilizationCards,
+    ShedCommodityCards,
     MoveSuccessionMarkers,
     GameOver,
 }

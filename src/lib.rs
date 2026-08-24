@@ -29,6 +29,8 @@ pub enum GameState {
     Playing,
     Sandbox,
     Menu,
+    /// Standalone map area/connection editor, reachable from the main menu.
+    MapEditor,
     /// Connected to a multiplayer server: the local rules engine stays
     /// dormant; `network_client` drives everything from protocol messages.
     Online,
@@ -71,6 +73,9 @@ pub enum GameActivity {
     ResolveCalamities,
     CheckCitySupportAfterResolveCalamities,
     AcquireCivilizationCards,
+    /// Rule 31.71: after civ-card purchases, players discard commodity cards
+    /// (of their choice) down to the 8-card retention limit.
+    ShedCommodityCards,
     MoveSuccessionMarkers,
     /// Terminal state entered when a player reaches a finish square (rule 34.1A).
     /// Final scoring (rule 35) runs on entry; no phase transitions out of here.
@@ -101,6 +106,7 @@ impl From<&GameActivity> for adv_civ_protocol::NetPhase {
                 NetPhase::CheckCitySupportAfterResolveCalamities
             }
             GameActivity::AcquireCivilizationCards => NetPhase::AcquireCivilizationCards,
+            GameActivity::ShedCommodityCards => NetPhase::ShedCommodityCards,
             GameActivity::MoveSuccessionMarkers => NetPhase::MoveSuccessionMarkers,
             GameActivity::GameOver => NetPhase::GameOver,
         }
@@ -115,6 +121,7 @@ impl Plugin for GamePlugin {
             LoadingPlugin,
             MenuPlugin,
             SandboxPlugin,
+            crate::civilization::MapEditorPlugin,
             CivilizationPlugin,
             crate::network_client::NetworkClientPlugin,
         ));

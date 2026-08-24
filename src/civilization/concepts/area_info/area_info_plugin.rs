@@ -3,7 +3,9 @@ use bevy::prelude::*;
 use bevy::ui::ZIndex;
 use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
 
-use crate::civilization::components::{BuiltCity, Faction, GameArea, GameCamera, Population};
+use crate::civilization::components::{
+    BuiltCity, CityFlood, CitySite, Faction, FloodPlain, GameArea, GameCamera, Population, Volcano,
+};
 use crate::civilization::game_moves::{AvailableMoves, GameMove};
 use crate::civilization::{MovementSelectionState, Z_AREA_INDICATOR};
 use crate::player::Player;
@@ -38,9 +40,29 @@ fn area_info_text_name(area_id: i32) -> String {
     format!("area_info_text_{area_id}")
 }
 
+/// Static, map-defined terrain/site flags for an area, gathered up so the
+/// text-building code doesn't need a growing pile of `Has<T>` parameters.
+#[derive(Clone, Copy, Default)]
+#[allow(clippy::struct_excessive_bools)]struct AreaTerrainFlags {
+    has_city: bool,
+    city_site: bool,
+    volcano: bool,
+    flood_plain: bool,
+    city_flood: bool,
+}
+
 fn spawn_area_info_markers(
     commands: Commands,
-    area_query: Query<(Entity, &GameArea, &Population, Has<BuiltCity>)>,
+    area_query: Query<(
+        Entity,
+        &GameArea,
+        &Population,
+        Has<BuiltCity>,
+        Has<CitySite>,
+        Has<Volcano>,
+        Has<FloodPlain>,
+        Has<CityFlood>,
+    )>,
     player_query: Query<(Entity, &Faction, &Name), With<Player>>,
     ui_theme: Res<LavaTheme>,
 ) {
@@ -57,10 +79,18 @@ fn spawn_area_info_markers(
             ..default()
         });
 
-    for (area_entity, game_area, population, has_city) in area_query.iter() {
+    for (area_entity, game_area, population, has_city, city_site, volcano, flood_plain, city_flood) in
+        area_query.iter()
+    {
         let max_pop = population.max_population;
-        let text_content =
-            build_area_info_text(game_area.id, population, &player_query, has_city, max_pop);
+        let flags = AreaTerrainFlags {
+            has_city,
+            city_site,
+            volcano,
+            flood_plain,
+            city_flood,
+        };
+        let text_content = build_area_info_text(game_area.id, population, &player_query, flags, max_pop);
 
         ui.with_child(|marker| {
             marker
@@ -76,7 +106,7 @@ fn spawn_area_info_markers(
                     .insert(Name::new(area_info_text_name(game_area.id)))
                     .with_text(
                         text_content,
-                        Some(TextStyle::size_color(10.0, Color::WHITE)),
+                        Some(TextStyle::size_color(20.0, Color::WHITE)),
                     );
             });
         });
@@ -92,6 +122,10 @@ fn update_area_info_markers(
         &Population,
         &GlobalTransform,
         Has<BuiltCity>,
+        Has<CitySite>,
+        Has<Volcano>,
+        Has<FloodPlain>,
+        Has<CityFlood>,
     )>,
     player_query: Query<(Entity, &Faction, &Name), With<Player>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
@@ -120,10 +154,18 @@ fn update_area_info_markers(
         };
     }
 
-    for (area_entity, game_area, population, area_gt, has_city) in area_query.iter() {
+    for (area_entity, game_area, population, area_gt, has_city, city_site, volcano, flood_plain, city_flood) in
+        area_query.iter()
+    {
         let max_pop = population.max_population;
-        let text_content =
-            build_area_info_text(game_area.id, population, &player_query, has_city, max_pop);
+        let flags = AreaTerrainFlags {
+            has_city,
+            city_site,
+            volcano,
+            flood_plain,
+            city_flood,
+        };
+        let text_content = build_area_info_text(game_area.id, population, &player_query, flags, max_pop);
 
         let expected_text_name = area_info_text_name(game_area.id);
         for (name, mut text) in &mut text_query {
@@ -212,15 +254,34 @@ fn build_area_info_text(
     area_id: i32,
     population: &Population,
     player_query: &Query<(Entity, &Faction, &Name), With<Player>>,
-    has_city: bool,
+    flags: AreaTerrainFlags,
     max_pop: usize,
 ) -> String {
     let mut lines = Vec::new();
 
     let total_pop = population.total_population();
-    let city_marker = if has_city { " 🏙" } else { "" };
 
-    lines.push(format!("{area_id}{city_marker} [{total_pop}/{max_pop}]"));
+    // City-site markers describe distinct things: a built city, an area
+    // eligible to found one but not yet built, and terrain/calamity
+    // hazards that can strike this area (volcano, flood plain, or a flood
+    // plain that specifically threatens a city here). Plain-text tags
+    // rather than emoji, since the game's fonts don't carry emoji glyphs.
+    let mut markers = String::new();
+    if flags.has_city {
+        markers.push_str(" [City]");
+    } else if flags.city_site {
+        markers.push_str(" [Site]");
+    }
+    if flags.volcano {
+        markers.push_str(" [Volcano]");
+    }
+    if flags.city_flood {
+        markers.push_str(" [Flood/City]");
+    } else if flags.flood_plain {
+        markers.push_str(" [Flood]");
+    }
+
+    lines.push(format!("{area_id}{markers} [{total_pop}/{max_pop}]"));
 
     for (player_entity, faction, _player_name) in player_query.iter() {
         let count = population.population_for_player(player_entity);

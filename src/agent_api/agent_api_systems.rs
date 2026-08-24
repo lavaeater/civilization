@@ -252,6 +252,7 @@ pub fn poll_agent_api(
         &PlayerCivilizationCards,
         Option<&crate::civilization::resolve_calamities::resolve_calamities_components::GrainLockedForPurchase>,
         Option<&crate::civilization::CardsHeldBeforePurchasing>,
+        Option<&crate::civilization::Treasury>,
     )>,
     mut writers: MoveWriters,
 ) {
@@ -459,7 +460,13 @@ pub fn poll_agent_api(
                             ResolvedMove::AcquireCivCard { player, card } => {
                                 if let (
                                     Some(cards_res),
-                                    Ok((trade_cards, civ_cards, grain_locked, cards_held_before)),
+                                    Ok((
+                                        trade_cards,
+                                        civ_cards,
+                                        grain_locked,
+                                        cards_held_before,
+                                        treasury,
+                                    )),
                                 ) = (civ_data.as_deref(), civ_cards_query.get(*player))
                                 {
                                     // Rule 31.53: see CardsHeldBeforePurchasing's doc comment.
@@ -470,15 +477,20 @@ pub fn poll_agent_api(
                                         cards_res.cards.iter().find(|c| c.name == *card)
                                     {
                                         let cost = def.calculate_cost(&credits) as usize;
-                                        let payment = compute_ai_payment(
+                                        let (payment, treasury_tokens) = compute_ai_payment(
                                             trade_cards,
                                             cost,
                                             grain_locked.map_or(0, |l| l.0),
+                                            treasury.map_or(
+                                                0,
+                                                crate::civilization::Treasury::tokens_in_treasury,
+                                            ),
                                         );
                                         writers.purchase.write(ConfirmCivCardPurchase {
                                             player: *player,
                                             cards_to_buy: vec![*card],
                                             payment,
+                                            treasury_tokens,
                                         });
                                     }
                                 }

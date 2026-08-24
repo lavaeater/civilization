@@ -24,6 +24,9 @@ pub struct ConfirmCivCardPurchase {
     pub player: Entity,
     pub cards_to_buy: Vec<CivCardName>,
     pub payment: HashMap<TradeCard, usize>,
+    /// Rule 31.1/31.4: treasury tokens put toward the cost, one point each.
+    /// Capped at what is actually required when the purchase commits.
+    pub treasury_tokens: usize,
 }
 
 /// Message to refresh the civ cards UI
