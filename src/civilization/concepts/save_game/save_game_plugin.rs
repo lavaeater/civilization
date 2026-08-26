@@ -558,13 +558,26 @@ fn load_game_from_save(
 
         // Build onto the entity reserved for this faction above.
         let player = faction_to_player[&saved_player.faction];
+
+        // Create tokens for the treasury. Without this, a loaded player's
+        // treasury tokens simply ceased to exist -- the saved `treasury`
+        // count was recorded, but nothing ever spawned tokens to back it up,
+        // so every treasury token was silently discarded on load.
+        let mut treasury = Treasury::default();
+        for _ in 0..saved_player.treasury {
+            let token = commands
+                .spawn((Name::new(format!("Treasury Token {n}")), Token::new(player)))
+                .id();
+            treasury.add_token_to_treasury(token);
+        }
+
         commands.entity(player).insert((
             Player,
             Name::new(saved_player.name.clone()),
             Census {
                 population: saved_player.census_population,
             },
-            Treasury::default(), // Treasury tokens will be created separately if needed
+            treasury,
             Faction::new(saved_player.faction),
             PlayerAreas::default(),
             PlayerCities::default(),
