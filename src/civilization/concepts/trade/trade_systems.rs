@@ -1479,7 +1479,7 @@ pub fn spawn_create_offer_modal(
                 column
                     .display_flex()
                     .flex_column()
-                    .width_percent(50.0)
+                    .width_percent(58.0)
                     .height_percent(100.0)
                     .overflow_scroll_y();
                 column.modify_node(|mut node| node.min_height = Val::Px(0.0));
@@ -1500,15 +1500,20 @@ pub fn spawn_create_offer_modal(
                         Some(TextStyle::size_color(13.0, Color::srgb(0.6, 0.6, 0.6))),
                     );
 
-                    // One row per commodity type the player owns
-                    for (card, count) in &owned_commodities {
-                        spawn_card_adjust_row(section, *card, true, &format!("/ {count} owned"));
-                    }
+                    // Two columns of card rows so the (potentially long) list of
+                    // owned commodity/calamity types doesn't push the hidden-cards
+                    // toggle below the scroll fold.
+                    section.add_grid(2, |grid| {
+                        // One row per commodity type the player owns
+                        for (card, count) in &owned_commodities {
+                            spawn_card_adjust_row(grid, *card, true, &format!("/ {count} owned"));
+                        }
 
-                    // Calamity cards (can be hidden in trades)
-                    for card in &owned_calamities {
-                        spawn_card_adjust_row(section, *card, true, "(calamity)");
-                    }
+                        // Calamity cards (can be hidden in trades)
+                        for card in &owned_calamities {
+                            spawn_card_adjust_row(grid, *card, true, "(calamity)");
+                        }
+                    });
 
                     // Hidden cards count for offering
                     spawn_hidden_count_row(section, "Hidden cards to offer: ", true);
@@ -1520,7 +1525,7 @@ pub fn spawn_create_offer_modal(
                 column
                     .display_flex()
                     .flex_column()
-                    .width_percent(50.0)
+                    .width_percent(42.0)
                     .height_percent(100.0)
                     .overflow_scroll_y();
                 column.modify_node(|mut node| node.min_height = Val::Px(0.0));
