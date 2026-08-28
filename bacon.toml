@@ -42,7 +42,8 @@ RUSTFLAGS = "-Z threads=8"
 command = [
     "cargo", "+nightly", "clippy",
     "--all-targets",
-    "--fix"
+    "--fix",
+    "--allow-dirty"
 ]
 need_stdout = true
 
