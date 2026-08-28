@@ -3,6 +3,7 @@ use crate::civilization::*;
 use crate::player::Player;
 use crate::stupid_ai::*;
 use bevy::math::{Vec2, Vec3, vec3};
+use bevy::platform::collections::HashSet;
 use bevy::prelude::{
     Bundle, Commands, Entity, KeyCode, MessageReader, MessageWriter, Name, NextState, Query, Res,
     ResMut, SpawnRelated, Sprite, StateTransitionEvent, Transform, With, Without, debug, default,
@@ -413,14 +414,32 @@ pub fn connect_areas(
     }
 }
 
+/// Lays each player's tokens out in their own column (`player_index * 15` on
+/// x) with a vertical stack within it (`token_index * -5` on y), so different
+/// civilizations' tokens visibly form independent piles instead of
+/// overlapping (roadmap: "tokens of different civilizations should not stack
+/// together").
+///
+/// `Population::player_tokens()` is a `HashMap<Entity, HashSet<Entity>>`, and
+/// Rust's default hasher seeds every `HashMap`/`HashSet` instance randomly —
+/// so iterating it directly assigns each player (and each token within a
+/// player) an *unstable* index that can differ across recomputations even
+/// though the underlying tokens haven't moved. That's what the "this
+/// information is thrown away in some circumstances" complaint was: it
+/// wasn't lost, it was re-shuffled every time this system re-ran. Sorting by
+/// `Entity` before indexing makes the layout deterministic and stable.
 pub fn fix_token_positions(
     population_query: Query<(Entity, &Population, &Transform, &FixTokenPositions), Without<Token>>,
     mut token_transform_query: Query<&mut Transform, With<Token>>,
     mut commands: Commands,
 ) {
     for (area_entity, pop, area_transform, _) in population_query.iter() {
-        for (player_index, (_, tokens)) in pop.player_tokens().iter().enumerate() {
-            for (token_index, token) in tokens.iter().enumerate() {
+        let mut players: Vec<(&Entity, &HashSet<Entity>)> = pop.player_tokens().iter().collect();
+        players.sort_by_key(|(player, _)| **player);
+        for (player_index, (_, tokens)) in players.into_iter().enumerate() {
+            let mut sorted_tokens: Vec<&Entity> = tokens.iter().collect();
+            sorted_tokens.sort();
+            for (token_index, token) in sorted_tokens.into_iter().enumerate() {
                 if let Ok(mut token_transform) = token_transform_query.get_mut(*token) {
                     token_transform.translation = area_transform.translation
                         + vec3(
@@ -479,5 +498,108 @@ pub fn print_names_of_phases(
         for event in state_transition_event.read() {
             info!("Went from: {:#?} to {:#?}", event.exited, event.entered);
         }
+    }
+}
+
+#[cfg(test)]
+mod fix_token_positions_tests {
+    use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::prelude::World;
+
+    /// Two players, several tokens each, sharing one area: different
+    /// civilizations must not overlap (distinct x per player), and re-running
+    /// the system must not reshuffle anyone (regression test for the
+    /// HashMap-iteration-order bug described above `fix_token_positions`).
+    #[test]
+    fn different_players_get_distinct_stable_columns() {
+        let mut world = World::new();
+        let area_transform = Transform::from_xyz(100.0, 200.0, 0.0);
+
+        let player_a = world.spawn_empty().id();
+        let player_b = world.spawn_empty().id();
+
+        let mut population = Population::new(20);
+        let a_tokens: Vec<Entity> = (0..3)
+            .map(|_| {
+                world
+                    .spawn((Token::new(player_a), Transform::default()))
+                    .id()
+            })
+            .collect();
+        let b_tokens: Vec<Entity> = (0..2)
+            .map(|_| {
+                world
+                    .spawn((Token::new(player_b), Transform::default()))
+                    .id()
+            })
+            .collect();
+        for &t in &a_tokens {
+            population.add_token_to_area(player_a, t);
+        }
+        for &t in &b_tokens {
+            population.add_token_to_area(player_b, t);
+        }
+
+        let area = world
+            .spawn((population, area_transform, FixTokenPositions))
+            .id();
+
+        world.run_system_once(fix_token_positions).unwrap();
+
+        // Exact-integer offsets (index * a small constant): comparing as i64
+        // sidesteps clippy's float_cmp lint without weakening the assertion.
+        let x_of =
+            |world: &World, token: Entity| world.get::<Transform>(token).unwrap().translation.x as i64;
+
+        // Every token of a given player shares that player's column (x).
+        let a_x = x_of(&world, a_tokens[0]);
+        for &t in &a_tokens {
+            assert_eq!(x_of(&world, t), a_x, "player A tokens must share a column");
+        }
+        let b_x = x_of(&world, b_tokens[0]);
+        for &t in &b_tokens {
+            assert_eq!(x_of(&world, t), b_x, "player B tokens must share a column");
+        }
+        // The two players must not share a column.
+        assert_ne!(a_x, b_x, "different players must not overlap");
+
+        // The marker is consumed.
+        assert!(world.get::<FixTokenPositions>(area).is_none());
+
+        // Re-running after re-adding the marker (as a later phase would)
+        // must reproduce the exact same layout, not reshuffle it.
+        world.entity_mut(area).insert(FixTokenPositions);
+        world.run_system_once(fix_token_positions).unwrap();
+        assert_eq!(x_of(&world, a_tokens[0]), a_x, "layout must be stable across re-runs");
+        assert_eq!(x_of(&world, b_tokens[0]), b_x, "layout must be stable across re-runs");
+    }
+
+    /// Within one player's stack, tokens get distinct y offsets — no two
+    /// tokens land on the exact same spot.
+    #[test]
+    fn tokens_within_a_player_stack_vertically_without_overlap() {
+        let mut world = World::new();
+        let player = world.spawn_empty().id();
+        let mut population = Population::new(20);
+        let tokens: Vec<Entity> = (0..4)
+            .map(|_| {
+                world
+                    .spawn((Token::new(player), Transform::default()))
+                    .id()
+            })
+            .collect();
+        for &t in &tokens {
+            population.add_token_to_area(player, t);
+        }
+        world.spawn((population, Transform::default(), FixTokenPositions));
+
+        world.run_system_once(fix_token_positions).unwrap();
+
+        let ys: HashSet<i64> = tokens
+            .iter()
+            .map(|&t| world.get::<Transform>(t).unwrap().translation.y as i64)
+            .collect();
+        assert_eq!(ys.len(), tokens.len(), "no two tokens in a stack overlap");
     }
 }

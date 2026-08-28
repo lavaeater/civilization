@@ -310,9 +310,25 @@ corrections above) and are **not** repeated here.
      (`focus_camera_on_ship_area`, `ship_plugin.rs`).
    Nothing here needed building. Verified by reading the actual wiring in each
    file, not just grepping for the helper's name.
-7. **Population-expansion token stacking (item 2 in the notes).** Fix/verify the
-   token-offset algorithm so multiple tokens — and separately, different civs' tokens —
-   visibly form independent piles instead of overlapping or losing their offsets.
+7. ~~**Population-expansion token stacking (item 2 in the notes).**~~ **Root
+   cause found and fixed (26-08-28).** `fix_token_positions`
+   (`general_systems/mod.rs`) already grouped tokens per-player into columns
+   and stacked them vertically within a column — the layout algorithm you
+   remembered existing was real. The bug was *stability*: it indexed players
+   and tokens by iterating `Population`'s `HashMap`/`HashSet` directly, and
+   Rust's default hasher seeds every such collection randomly, so the same set
+   of tokens could land in a different column/row order every time this
+   system re-ran (movement, calamities, save/load, expansion — anything that
+   re-triggers `FixTokenPositions`) with no underlying state change. That's
+   exactly "shifts tokens slightly... this information is thrown away in some
+   circumstances": nothing was thrown away, it was reshuffled. Fixed by
+   sorting players and their tokens by `Entity` before indexing, so the same
+   tokens always land in the same column/row. 2 new unit tests: distinct,
+   stable columns per player, and re-running the system twice reproduces the
+   identical layout. 354/354 lib tests green.
+   **Caveat**: same as items 4/5 — this is a visual/layout change not run in a
+   window in this session. The logic is deterministic and tested, but please
+   confirm the columns actually look right on a crowded area in-game.
 8. **Enhanced Input Steps 5–6 — phase input contexts.** Wire `Confirm`/`Cancel`/
    `Navigate*` into each phase (Trade, Calamity, Movement, City/Ship build, Civ-card),
    one at a time as the doc suggests. Pure UX polish, not blocking anything else — do it
