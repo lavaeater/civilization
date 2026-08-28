@@ -100,6 +100,12 @@ pub fn build_city(
                 &mut player_cities,
                 area_transform,
             );
+            info!(
+                "[CITY_CONSTRUCTION] {:?} built a city in {:?} (now has {})",
+                faction.faction,
+                build_city.area,
+                player_cities.number_of_cities()
+            );
             recalculate_player_moves.write(RecalculatePlayerMoves::new(build_city.player));
         }
     }

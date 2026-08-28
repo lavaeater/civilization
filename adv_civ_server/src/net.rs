@@ -404,6 +404,9 @@ fn receive_moves(
                             player,
                             cards_to_buy: vec![*card],
                             payment: submit.payment.iter().copied().collect(),
+                            // Protocol doesn't expose treasury-token payment yet;
+                            // networked purchases pay in commodity cards only.
+                            treasury_tokens: 0,
                         });
                     }
                     AcquireCivilizationCardsMove::AcquireCards(cards) => {
@@ -411,6 +414,7 @@ fn receive_moves(
                             player,
                             cards_to_buy: cards.clone(),
                             payment: submit.payment.iter().copied().collect(),
+                            treasury_tokens: 0,
                         });
                     }
                     AcquireCivilizationCardsMove::DoneAcquiringCards => {

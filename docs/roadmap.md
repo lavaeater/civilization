@@ -173,12 +173,43 @@ Ordered so each item is cheap-and-standalone or unblocks/derisks the ones after 
 Several "follow-ups" from the source docs turned out to already be done (see the
 corrections above) and are **not** repeated here.
 
-1. **Utility AI M6 — tuning pass.** Run `AGENT_FACTIONS=all cargo run` /
-   headless self-play, watch playstyles separate, tune weights — this is the last open
-   milestone in `utility-ai-design.md` and directly targets the "AI doesn't build enough
-   cities" complaint. No new subsystems needed, just running the harness that already
-   exists and adjusting `Weights`/curves in `stupid_ai/`. Cheapest high-value item on
-   the list.
+1. ~~**Utility AI M6 — tuning pass.**~~ **Done (26-08-28).** Fixed the `adv_civ_server`
+   release build first (it didn't compile — `ConfirmCivCardPurchase` was missing the
+   `treasury_tokens` field added to the struct without updating the network path;
+   networked purchases now pay 0 treasury tokens toward cost, matching the fact the
+   wire protocol doesn't expose treasury payment yet). Then ran real headless
+   9-player AI-only self-play (`SEATS=0 NUM_PLAYERS=9 BEVY_ASSET_ROOT=$(pwd)
+   ./target/release/adv_civ_server`, `adv_civ_server/src/game.rs`'s existing
+   `HeadlessGamePlugin`) with added instrumentation (playstyle-at-setup log, a
+   city-built log line) to see what's actually happening.
+   - **Confirmed root cause of the "AI doesn't build cities" complaint**: found a
+     concrete case (a Warlord faction that built zero cities in 27 rounds while
+     "frozen" at 0 cities). `score_city_construction`'s `city_income` weight is
+     genuinely low for Warlord/Turtle, so `EndCityConstruction` could out-score
+     building even when a decent site was available.
+   - **Fix**: `score_city_construction` (`src/stupid_ai/scoring/city.rs`) now takes
+     an `urgency: f32` (0 or 1) that overrides `city_income` when the player is
+     short of the cities needed to clear their *next* A.S.T. epoch gate — computed
+     in `select_stupid_city_building` (`src/stupid_ai/stupid_ai_systems.rs`) from
+     `PlayerCities`/`AstPosition`/`AstEpoch`. No playstyle can sit at zero cities
+     forever just because `city_income` is a low-priority knob for it; site quality
+     (capacity/pressure) still decides *which* city under urgency.
+   - **Tests**: 3 new unit tests in `city.rs` (`balanced_player_prefers_building_with_no_urgency`,
+     `urgency_forces_warlord_to_build_even_though_city_income_is_low`,
+     `urgency_does_not_override_site_quality`). Full suite still green (132/132).
+   - **Verified in a second self-play run**: the specific Warlord-frozen-at-zero
+     case from the first run is fixed (that faction reached 3 cities). Playstyles
+     do separate — Expansionist/Balanced factions reliably reach 2–5 cities by
+     round ~25.
+   - **Residual issue found, not fixed here** (follow-up, not urgent enough to
+     block this pass): in the second run, two other factions (a different Warlord,
+     a Turtle) still ended with **zero** cities despite the urgency fix. Their
+     `[CITY_CONSTRUCTION]` logs show no build ever happened — meaning they likely
+     never had a legal `CityConstruction` move to score in the first place (no area
+     with enough of their own population concentrated in one place), not a scoring
+     problem. That points at `expansion.rs`/`movement.rs` population-concentration
+     behaviour, not `city.rs`. Worth a follow-up self-play pass instrumented with
+     "why no city-construction move was offered" logging.
 2. **Test + verify calamities, starting with Barbarian Hordes.** The implementation
    exists (cascading damage, tie-breaks) but is untested against the rules text — write
    targeted tests in `tests/` before trusting it in longer self-play runs from item 1.

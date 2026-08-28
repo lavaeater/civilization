@@ -239,6 +239,7 @@ pub fn setup_players(
         let playstyle = debug_options
             .force_playstyle
             .unwrap_or(Playstyle::ALL[n % Playstyle::ALL.len()]);
+        info!("[SETUP] {ruler_name} of {faction:?} is playstyle {playstyle:?}");
         // Create Player
         let player = commands
             .spawn((

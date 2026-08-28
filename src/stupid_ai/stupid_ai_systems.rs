@@ -187,7 +187,7 @@ pub fn select_stupid_movement(
 
 pub fn select_stupid_city_building(
     mut event_reader: MessageReader<SelectStupidMove>,
-    player_moves: Query<(&Name, &AvailableMoves, &Personality)>,
+    player_moves: Query<(&Name, &AvailableMoves, &Personality, &PlayerCities, &AstPosition)>,
     area_info_query: Query<(
         Entity,
         &Population,
@@ -200,12 +200,27 @@ pub fn select_stupid_city_building(
     debug_options: Res<DebugOptions>,
 ) {
     for event in event_reader.read() {
-        if let Ok((player_name, available_moves, personality)) = player_moves.get(event.player) {
+        if let Ok((player_name, available_moves, personality, player_cities, ast_position)) =
+            player_moves.get(event.player)
+        {
             let areas = gather_area_summaries(event.player, &area_info_query);
+            // Short of the cities needed to clear the *next* A.S.T. epoch gate?
+            // Force city-building to the top of every playstyle's priorities.
+            let next_epoch = AstEpoch::for_space(ast_position.space + 1);
+            let urgency = if player_cities.number_of_cities() < next_epoch.min_cities() {
+                1.0
+            } else {
+                0.0
+            };
             let scored: Vec<(usize, f32)> = available_moves
                 .moves
                 .iter()
-                .map(|(i, m)| (*i, score_city_construction(m, &areas, &personality.weights)))
+                .map(|(i, m)| {
+                    (
+                        *i,
+                        score_city_construction(m, &areas, &personality.weights, urgency),
+                    )
+                })
                 .collect();
             let mut rng = rand::rng();
 
