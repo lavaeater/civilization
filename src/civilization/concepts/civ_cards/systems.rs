@@ -223,7 +223,21 @@ fn build_civ_cards_ui(
                         for card_def in &selected_defs {
                             let credits = cards.total_credits(credits_basis);
                             let cost = card_def.calculate_cost(&credits);
-                            summary.default_text(format!("• {} ({})", card_def.name, cost));
+                            summary.with_child(|entry| {
+                                entry.display_flex().flex_column().row_gap_px(1.0);
+                                entry.default_text(format!("• {} ({})", card_def.name, cost));
+                                if !card_def.description.is_empty() {
+                                    entry.default_text(card_def.description.clone());
+                                }
+                                if !card_def.credits.is_empty() {
+                                    let granted: Vec<String> = card_def
+                                        .credits
+                                        .iter()
+                                        .map(|c| format_credit(*c))
+                                        .collect();
+                                    entry.default_text(format!("Grants: {}", granted.join(", ")));
+                                }
+                            });
                         }
                         summary.default_text(format!("Total: {total_cost}"));
 
@@ -363,7 +377,6 @@ fn create_civ_card_panel(
     }
 }
 
-#[allow(dead_code)]
 fn format_credit(credit: Credits) -> String {
     match credit {
         Credits::ToType(card_type, amount) => format!("+{amount} to {card_type:?}"),
@@ -1063,5 +1076,25 @@ pub fn shuffle_trade_card_piles_on_exit(mut trade_cards_resource: ResMut<Civiliz
 
     for pile in trade_cards_resource.card_piles.values_mut() {
         pile.shuffle(&mut rng);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Feeds the "Selected Cards" sidebar's per-card credit line (roadmap
+    /// item: "click a civ card should show its ... credits").
+    #[test]
+    fn format_credit_describes_each_credit_kind() {
+        assert_eq!(
+            format_credit(Credits::ToType(CivCardType::Sciences, 20)),
+            "+20 to Sciences"
+        );
+        assert_eq!(format_credit(Credits::ToAll(5)), "+5 to all");
+        assert_eq!(
+            format_credit(Credits::ToSpecificCard(CivCardName::Law, 15)),
+            "+15 to Law"
+        );
     }
 }

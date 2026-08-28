@@ -245,12 +245,29 @@ corrections above) and are **not** repeated here.
    no display for the GUI binary, and the headless `adv_civ_server` doesn't
    include `AgentApiPlugin`); verified via the existing build/clippy/unit-test
    path this file's other agent-api tests use (348/348 lib tests green).
-4. **Civ-card hover/click tooltip with dynamic discount pricing.** Roadmap item 12: show
-   full card text on hover/click, and when a card is selected, re-price every other
-   unpurchased card as if that one were bought first. Self-contained UI work in
-   `civ_cards` using the existing `calculate_cost`/credits machinery — no new game logic,
-   just surfacing what already exists. High value for human players, doesn't block or
-   depend on anything else.
+4. ~~**Civ-card hover/click tooltip with dynamic discount pricing.**~~ **Partly
+   done (26-08-28), one half corrected.** The "re-price every other unpurchased
+   card as if this one were bought first" half is **not implemented — it would
+   be rules-incorrect.** Rule 31.53: "Credits may not be used in the same turn in
+   which they are acquired. A player must wait until the next turn." Verified
+   the actual purchase code (`process_civ_card_purchase`) already prices every
+   card in a multi-card purchase off the *same* pre-purchase credit snapshot —
+   cards bought together never discount each other, by design. Making the UI
+   preview show a live cross-discount would make the preview lie about what
+   `process_civ_card_purchase` actually charges. Implemented the other half
+   instead: the "Selected Cards" sidebar (`civ_cards/systems.rs`) now shows each
+   selected card's full `description` and formatted credit list (`Grants: ...`),
+   wiring up `format_credit`, which existed dead-code and unused. 1 new unit
+   test. Deferred: a hover-to-preview tooltip on *unselected* cards (the current
+   fix only shows detail once a card is clicked/selected) — that needs a new
+   hover-tracking system, which is real new UI plumbing I chose not to add
+   blind, for the reason below.
+   **Caveat**: a real `DISPLAY` exists in this environment, but launching the
+   GUI binary would pop a window on your actual desktop unannounced mid-session,
+   so this change was deliberately **not visually run** — only compiled,
+   clippy-clean, and unit-tested. Please eyeball the civ-card purchase screen
+   before trusting the layout (the headless `adv_civ_server` doesn't load this
+   UI at all, so that path can't substitute).
 5. **Phase/round summary pane — start with the cheap phases.** Build the "Game Info /
    Round Info" summary pane infrastructure once, then fill in the easy, already-logged
    phases first: Taxation, Ship construction, City construction, Card draws, Trade
