@@ -114,8 +114,8 @@ mod tests {
         assert_eq!(state.phase, BarbarianHordesPhase::FindLandingArea);
         assert!(state.landing_area.is_none());
         assert!(state.barbarian_entity.is_none());
-        assert!(state.visited_areas.is_empty());
-        assert!(state.all_tokens.is_empty());
+        assert_eq!(state.visited_areas, []);
+        assert_eq!(state.all_tokens, []);
         assert_eq!(state.cascade_iterations, 0);
     }
 
