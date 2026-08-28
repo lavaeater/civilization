@@ -516,7 +516,7 @@ fn ship_ferry_moves_tokens_and_the_ship_to_the_target_area() {
 
     // ...and the ship follows to the target area.
     let ships = app.world().get::<PlayerShips>(player_one).unwrap();
-    assert!(ships.ships_in_area(source_area).is_empty());
+    assert_eq!(ships.ships_in_area(source_area), []);
     assert_eq!(ships.ships_in_area(target_area), &[ship]);
 }
 
@@ -752,6 +752,6 @@ fn ship_ferry_moves_an_empty_ship_with_no_tokens_along() {
 
     // Assert: the ship relocated on its own, no tokens involved.
     let ships = app.world().get::<PlayerShips>(player_one).unwrap();
-    assert!(ships.ships_in_area(source_area).is_empty());
+    assert_eq!(ships.ships_in_area(source_area), []);
     assert_eq!(ships.ships_in_area(target_area), &[ship]);
 }

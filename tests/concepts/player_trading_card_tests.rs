@@ -253,7 +253,7 @@ fn buying_charges_18_tokens_per_card_and_returns_them_to_stock() {
             + hand.number_of_cards_for_trade_card(TradeCard::Ivory),
         2
     );
-    assert!(resource.card_piles.get(&9).unwrap().is_empty());
+    assert_eq!(resource.card_piles.get(&9).unwrap().as_slice(), []);
 }
 
 #[test]
