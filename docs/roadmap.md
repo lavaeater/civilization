@@ -210,10 +210,23 @@ corrections above) and are **not** repeated here.
      problem. That points at `expansion.rs`/`movement.rs` population-concentration
      behaviour, not `city.rs`. Worth a follow-up self-play pass instrumented with
      "why no city-construction move was offered" logging.
-2. **Test + verify calamities, starting with Barbarian Hordes.** The implementation
-   exists (cascading damage, tie-breaks) but is untested against the rules text — write
-   targeted tests in `tests/` before trusting it in longer self-play runs from item 1.
-   Also derisks the "game is near feature-complete" assumption generally.
+2. ~~**Test + verify calamities, starting with Barbarian Hordes.**~~ **Done
+   (26-08-28) — correction to the earlier status note.** The earlier claim that
+   Barbarian Hordes was "untested against the rules text" was wrong: it already had
+   5 pure-logic unit tests in `calamities/barbarian_hordes.rs` plus 6 full ECS-level
+   integration tests in `resolve_calamities_tests.rs` (tie-breaks, Crete immunity,
+   real conflict resolution, the cascade, no-trade-card-on-city-loss). Auditing all
+   12 calamity modules found every one already has pure-logic unit tests — but
+   **Civil Disorder and Slave Revolt had zero ECS-level wiring tests** (only their
+   pure `compute_cities_to_reduce` math was covered; `advance_civil_disorder` and
+   `advance_slave_revolt` themselves were never exercised). Added 5 tests
+   (`resolve_calamities_tests.rs`, new `civil_disorder_tests`/`slave_revolt_tests`
+   submodules): AI-victim city-reduction counts against rule 30.711 (keep-3
+   threshold) and rule 30.421/30.422 (15-token/5-per-city math, including the
+   "fewer than 15 on board" cap and the Mining+Enlightenment cancellation), plus a
+   below-threshold no-op case. Full suite green (344/344 lib tests, 132/132
+   integration tests). No implementation bugs found — this was a coverage gap, not
+   a correctness one.
 3. **Finish the Agent API's last gaps.** `AcquireCards` (batch purchase), a richer
    `GET /state` (save-game-shaped snapshot), and a `/wait` long-poll/turn token (A4 in
    `agent-api-design.md`). Small, well-scoped, and makes the API — which items 1 and 2

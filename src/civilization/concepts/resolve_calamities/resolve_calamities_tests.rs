@@ -4422,4 +4422,214 @@ mod tests {
             "the token should still be returned to its owner's stock"
         );
     }
+
+    // ========================================================================
+    // Rule 30.71: Civil Disorder — ECS-level wiring (compute_cities_to_reduce
+    // itself is unit-tested in calamities/civil_disorder.rs; nothing here
+    // previously exercised `advance_civil_disorder` end to end).
+    // ========================================================================
+
+    mod civil_disorder_tests {
+        use super::*;
+        use crate::civilization::concepts::resolve_calamities::calamities::ResolvingCalamity;
+        use crate::civilization::concepts::resolve_calamities::calamities::civil_disorder::CivilDisorderState;
+        use crate::civilization::concepts::resolve_calamities::context::{
+            ActiveCalamityResolution, CalamityContext,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            ReduceCity, advance_civil_disorder,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState;
+
+        fn victim_with_cities(world: &mut World, city_count: usize) -> (Entity, Vec<Entity>) {
+            let victim = world.spawn_empty().id();
+            let mut cities = PlayerCities::default();
+            let mut areas = Vec::new();
+            for _ in 0..city_count {
+                let area = world.spawn_empty().id();
+                let city_token = world.spawn_empty().id();
+                cities.build_city_in_area(area, city_token);
+                areas.push(area);
+            }
+            world.entity_mut(victim).insert(cities);
+            (victim, areas)
+        }
+
+        fn start_civil_disorder(world: &mut World, victim: Entity) {
+            let context = CalamityContext::new(TradeCard::CivilDisorder, victim, None);
+            world.entity_mut(victim).insert((
+                ActiveCalamityResolution::new(context),
+                ResolvingCalamity::CivilDisorder(CivilDisorderState::new()),
+            ));
+        }
+
+        /// Rule 30.711: all but 3 of the primary victim's cities are reduced.
+        /// An AI victim (no `IsHuman`) picks cities without waiting for input.
+        #[test]
+        fn ai_victim_reduces_all_but_3_cities() {
+            let mut world = World::new();
+            world.init_resource::<Messages<CalamityResolved>>();
+            world.init_resource::<CalamitySelectionState>();
+            let (victim, areas) = victim_with_cities(&mut world, 5);
+            start_civil_disorder(&mut world, victim);
+
+            // ComputeEffects (selects 2 cities, AI path) -> ApplyEffects (inserts
+            // ReduceCity) -> Complete (finishes) is three separate phase steps.
+            world.run_system_once(advance_civil_disorder).unwrap();
+            world.run_system_once(advance_civil_disorder).unwrap();
+
+            let reduced = areas
+                .iter()
+                .filter(|&&a| world.get::<ReduceCity>(a).is_some())
+                .count();
+            assert_eq!(reduced, 2, "5 cities - keep 3 = 2 must be reduced");
+
+            world.run_system_once(advance_civil_disorder).unwrap();
+            assert!(world.get::<ResolvingCalamity>(victim).is_none());
+        }
+
+        /// A victim with 3 or fewer cities is entirely below the keep threshold —
+        /// no city should ever be reduced.
+        #[test]
+        fn victim_at_or_below_keep_threshold_loses_nothing() {
+            let mut world = World::new();
+            world.init_resource::<Messages<CalamityResolved>>();
+            world.init_resource::<CalamitySelectionState>();
+            let (victim, areas) = victim_with_cities(&mut world, 2);
+            start_civil_disorder(&mut world, victim);
+
+            // ComputeEffects sees cities_to_reduce == 0 and jumps straight to
+            // Complete in the same call.
+            world.run_system_once(advance_civil_disorder).unwrap();
+            world.run_system_once(advance_civil_disorder).unwrap();
+
+            for area in areas {
+                assert!(world.get::<ReduceCity>(area).is_none());
+            }
+            assert!(world.get::<ResolvingCalamity>(victim).is_none());
+        }
+    }
+
+    // ========================================================================
+    // Rule 30.42: Slave Revolt — ECS-level wiring (the token/city-count math
+    // itself is unit-tested in calamities/slave_revolt.rs).
+    // ========================================================================
+
+    mod slave_revolt_tests {
+        use super::*;
+        use crate::civilization::concepts::resolve_calamities::calamities::ResolvingCalamity;
+        use crate::civilization::concepts::resolve_calamities::calamities::slave_revolt::SlaveRevoltState;
+        use crate::civilization::concepts::resolve_calamities::context::{
+            ActiveCalamityResolution, CalamityContext,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            ReduceCity, advance_slave_revolt,
+        };
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState;
+
+        /// Sets up a victim with `city_count` cities and `on_board_tokens` tokens
+        /// spread across a single dummy area (only the total count matters to
+        /// `advance_slave_revolt`).
+        fn victim_with_board_state(
+            world: &mut World,
+            city_count: usize,
+            on_board_tokens: usize,
+        ) -> (Entity, Vec<Entity>) {
+            let victim = world.spawn_empty().id();
+            let mut cities = PlayerCities::default();
+            let mut areas = Vec::new();
+            for _ in 0..city_count {
+                let area = world.spawn_empty().id();
+                let city_token = world.spawn_empty().id();
+                cities.build_city_in_area(area, city_token);
+                areas.push(area);
+            }
+            let mut player_areas = PlayerAreas::default();
+            let dummy_area = world.spawn_empty().id();
+            for _ in 0..on_board_tokens {
+                player_areas.add_token_to_area(dummy_area, world.spawn_empty().id());
+            }
+            world.entity_mut(victim).insert((cities, player_areas));
+            (victim, areas)
+        }
+
+        fn start_slave_revolt(world: &mut World, victim: Entity, state: SlaveRevoltState) {
+            let context = CalamityContext::new(TradeCard::SlaveRevolt, victim, None);
+            world.entity_mut(victim).insert((
+                ActiveCalamityResolution::new(context),
+                ResolvingCalamity::SlaveRevolt(state),
+            ));
+        }
+
+        /// Rule 30.421/30.422: 15 tokens can't support cities == 3 cities' worth
+        /// of support (15 / 5); an AI victim with plenty of cities loses exactly 3.
+        #[test]
+        fn ai_victim_with_full_15_tokens_reduces_3_cities() {
+            let mut world = World::new();
+            world.init_resource::<Messages<CalamityResolved>>();
+            world.init_resource::<CalamitySelectionState>();
+            let (victim, areas) = victim_with_board_state(&mut world, 5, 15);
+            start_slave_revolt(&mut world, victim, SlaveRevoltState::new());
+
+            world.run_system_once(advance_slave_revolt).unwrap();
+            world.run_system_once(advance_slave_revolt).unwrap();
+
+            let reduced = areas
+                .iter()
+                .filter(|&&a| world.get::<ReduceCity>(a).is_some())
+                .count();
+            assert_eq!(reduced, 3, "15 unsupportable tokens = 3 cities' worth");
+
+            world.run_system_once(advance_slave_revolt).unwrap();
+            assert!(world.get::<ResolvingCalamity>(victim).is_none());
+        }
+
+        /// Rule 30.422: "If the victim has fewer than 15 tokens on the board,
+        /// only those tokens are affected" — 7 on-board tokens caps the effect
+        /// at 7, i.e. 1 city (7 / 5).
+        #[test]
+        fn fewer_than_15_tokens_on_board_caps_the_effect() {
+            let mut world = World::new();
+            world.init_resource::<Messages<CalamityResolved>>();
+            world.init_resource::<CalamitySelectionState>();
+            let (victim, areas) = victim_with_board_state(&mut world, 5, 7);
+            start_slave_revolt(&mut world, victim, SlaveRevoltState::new());
+
+            world.run_system_once(advance_slave_revolt).unwrap();
+            world.run_system_once(advance_slave_revolt).unwrap();
+
+            let reduced = areas
+                .iter()
+                .filter(|&&a| world.get::<ReduceCity>(a).is_some())
+                .count();
+            assert_eq!(reduced, 1);
+        }
+
+        /// Rule 30.423: Mining (+5 unsupportable tokens) and Enlightenment
+        /// (-5) cancel out when a victim holds both, matching the pure-state
+        /// test in slave_revolt.rs but confirmed through the real system.
+        #[test]
+        fn mining_and_enlightenment_together_leave_the_base_effect_unchanged() {
+            let mut world = World::new();
+            world.init_resource::<Messages<CalamityResolved>>();
+            world.init_resource::<CalamitySelectionState>();
+            let (victim, areas) = victim_with_board_state(&mut world, 5, 15);
+            start_slave_revolt(
+                &mut world,
+                victim,
+                SlaveRevoltState::new().with_mining_and_enlightenment(),
+            );
+
+            world.run_system_once(advance_slave_revolt).unwrap();
+            world.run_system_once(advance_slave_revolt).unwrap();
+
+            let reduced = areas
+                .iter()
+                .filter(|&&a| world.get::<ReduceCity>(a).is_some())
+                .count();
+            assert_eq!(reduced, 3, "Mining and Enlightenment cancel, base 15 stands");
+        }
+    }
 }
