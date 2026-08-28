@@ -293,10 +293,23 @@ corrections above) and are **not** repeated here.
    **not visually verified** — same reasoning as item 4, launching the GUI
    would pop a window on your desktop unannounced. Please check the layout
    doesn't overflow or look cramped once a few phases have logged lines.
-6. **Extend camera-follow beyond calamities.** `focus_camera_on_selection` already
-   exists and is wired for two calamity cases; reuse it for conflict, movement, and city
-   construction so "the camera pans to where something happened" actually works
-   game-wide, not just for calamities. Natural pairing with item 5's summaries.
+6. ~~**Extend camera-follow beyond calamities.**~~ **Turned out to already be
+   done (26-08-28) — no code change needed.** This was another stale status
+   note (same pattern as items 2/3's corrections): `CameraFocusQueue` /
+   `focus_camera_on_selection` is already wired for **all three** named phases,
+   not just calamities:
+   - City Construction: `focus_camera_on_build_site` pans to whichever site the
+     player is paging through (`city_construction_ui_systems.rs`).
+   - Movement: `pan_camera_to_current_source`, gated behind
+     `camera_auto_pan_enabled` so `DebugOptions::static_map_view` can disable it
+     (`movement_plugin.rs`).
+   - Conflict: `on_add_unresolved_conflict` / `on_add_unresolved_city_conflict`
+     queue a focus on the fight's area whenever a human is involved, for both
+     the open-area and city-conflict cases (`conflict_triggers.rs`).
+   - Bonus, not even asked for: Ship construction has it too
+     (`focus_camera_on_ship_area`, `ship_plugin.rs`).
+   Nothing here needed building. Verified by reading the actual wiring in each
+   file, not just grepping for the helper's name.
 7. **Population-expansion token stacking (item 2 in the notes).** Fix/verify the
    token-offset algorithm so multiple tokens — and separately, different civs' tokens —
    visibly form independent piles instead of overlapping or losing their offsets.
