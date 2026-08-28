@@ -35,7 +35,18 @@ command = [
 need_stdout = true
 
 [jobs.clippy-all.env]
-#CARGO_PROFILE_DEV_CODEGEN_BACKEND = "cranelift"
+RUSTC_WRAPPER = "sccache"
+RUSTFLAGS = "-Z threads=8"
+
+[jobs.clippy-fix]
+command = [
+    "cargo", "+nightly", "clippy",
+    "--all-targets",
+    "--fix"
+]
+need_stdout = true
+
+[jobs.clippy-fix.env]
 RUSTC_WRAPPER = "sccache"
 RUSTFLAGS = "-Z threads=8"
 
@@ -89,4 +100,5 @@ background = true
 t = "job:tarp"
 c = "job:clippy" # comment this to have 'c' run clippy on only the default target
 a = "job:clippy-all" # clippy across lib, bins, tests and examples
+f = "job:clippy-fix" # clippy across lib, bins, tests and examples
 n = "job:nextest"
