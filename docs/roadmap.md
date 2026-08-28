@@ -268,14 +268,31 @@ corrections above) and are **not** repeated here.
    clippy-clean, and unit-tested. Please eyeball the civ-card purchase screen
    before trusting the layout (the headless `adv_civ_server` doesn't load this
    UI at all, so that path can't substitute).
-5. **Phase/round summary pane — start with the cheap phases.** Build the "Game Info /
-   Round Info" summary pane infrastructure once, then fill in the easy, already-logged
-   phases first: Taxation, Ship construction, City construction, Card draws, Trade
-   settlement, Calamity resolution, Card acquisition, AST movement (items 1, 4, 7, 9,
-   10, 11, 12, 13 in the notes above). Defer the two open-ended ones — Population
-   Expansion token-stacking visuals and a full Movement replay — to a follow-up pass;
-   they're genuinely harder ("becomes a lot of information without value quickly," per
-   your own note) and benefit from seeing the simpler summaries land first.
+5. ~~**Phase/round summary pane — start with the cheap phases.**~~ **Infrastructure
+   done + 3/8 phases wired (26-08-28).** New `round_summary` concept module:
+   `RoundSummary` resource (`Vec<String>` of this-round's events), a plugin that
+   clears it on `OnEnter(GameActivity::CollectTaxes)` (the first phase of a
+   round), and a "This round:" section appended to the existing HUD's Activity
+   Display pane (`trade_ui_plugin.rs`) — reused the pane that's already there
+   rather than inventing new panel layout, per your "we do it easy and clearly
+   first" note. Wired so far: **Taxation** (who paid what, whose city
+   revolted/was taken over), **City Construction** (who built, new city count),
+   **AST movement** (advanced/frozen/retreated/reached FINISH — item 13 in your
+   notes, the one you called "super important"). Each push sits right next to
+   the matching pre-existing `info!` log line, so nothing here is new
+   game-state tracking, just surfacing what already gets logged. 3 unit tests
+   on `RoundSummary` itself; the wiring was checked by confirming the paired
+   `info!` lines fire in a real headless self-play run (367 hits, zero panics)
+   — the push calls are unconditional siblings of those exact log calls, so if
+   one fired the other did too.
+   **Still open** (not done this pass): Ship construction, Card draws, Trade
+   settlement, Calamity resolution, Card acquisition — same pattern, just more
+   files to touch; and the two open-ended ones (Population Expansion
+   token-stacking, Movement replay) deferred as originally planned.
+   **Caveat**: the HUD change itself (the new "This round:" text block) was
+   **not visually verified** — same reasoning as item 4, launching the GUI
+   would pop a window on your desktop unannounced. Please check the layout
+   doesn't overflow or look cramped once a few phases have logged lines.
 6. **Extend camera-follow beyond calamities.** `focus_camera_on_selection` already
    exists and is wired for two calamity cases; reuse it for conflict, movement, and city
    construction so "the camera pans to where something happened" actually works

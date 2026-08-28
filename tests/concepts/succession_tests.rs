@@ -1,7 +1,7 @@
 use crate::{setup_bevy_app, setup_player};
 use adv_civ::GameActivity;
 use adv_civ::civilization::{
-    AstPosition, AstTrack, GameFaction, GameInfoAndStuff, PlayerCities, RoundLimit,
+    AstPosition, AstTrack, GameFaction, GameInfoAndStuff, PlayerCities, RoundLimit, RoundSummary,
     advance_succession_markers,
 };
 use bevy::app::Update;
@@ -13,6 +13,7 @@ fn setup_app() -> bevy::prelude::App {
         app.init_resource::<AstTrack>();
         app.init_resource::<GameInfoAndStuff>();
         app.init_resource::<RoundLimit>();
+        app.init_resource::<RoundSummary>();
         app.add_systems(Update, advance_succession_markers);
         app
     })

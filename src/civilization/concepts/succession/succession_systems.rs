@@ -6,6 +6,7 @@ use crate::civilization::concepts::census::GameInfoAndStuff;
 use crate::civilization::concepts::civ_cards::{
     AvailableCivCards, CivCardType, PlayerCivilizationCards,
 };
+use crate::civilization::concepts::round_summary::RoundSummary;
 use crate::civilization::concepts::succession::succession_components::{
     AstEpoch, AstPosition, AstTrack, GameResult, RoundLimit,
 };
@@ -40,6 +41,7 @@ pub fn advance_succession_markers(
     game_info: Res<GameInfoAndStuff>,
     round_limit: Option<Res<RoundLimit>>,
     mut next_state: ResMut<NextState<GameActivity>>,
+    mut round_summary: ResMut<RoundSummary>,
 ) {
     for (mut position, civ_cards, player_cities, faction) in &mut player_query {
         let city_count = player_cities.number_of_cities();
@@ -59,7 +61,10 @@ pub fn advance_succession_markers(
 
         if can_advance {
             position.space = target_space;
-            info!("[AST] Player advanced to space {}", position.space);
+            info!(
+                "[AST] {:?} advanced to space {}",
+                faction.faction, position.space
+            );
             if position.space >= finish {
                 // Rule 34.1A — reaching a finish square ends the game (final scoring
                 // by rule 35 is a separate feature; this is the trigger condition).
@@ -67,22 +72,40 @@ pub fn advance_succession_markers(
                     "[AST] {:?} reached FINISH ({}) — game-end condition met (rule 34.1A)",
                     faction.faction, finish
                 );
+                round_summary.push(format!("{:?} reached FINISH!", faction.faction));
+            } else {
+                round_summary.push(format!(
+                    "{:?} advanced on the A.S.T. to space {}",
+                    faction.faction, position.space
+                ));
             }
         } else if city_count == 0 && current_epoch != AstEpoch::StoneAge {
             // No cities outside the Stone Age → retreat one space (rule 33.4).
             position.space = position.space.saturating_sub(1);
             info!(
-                "[AST] Player retreated to space {} (no cities)",
-                position.space
+                "[AST] {:?} retreated to space {} (no cities)",
+                faction.faction, position.space
             );
+            round_summary.push(format!(
+                "{:?} has no cities and retreated on the A.S.T. to space {}",
+                faction.faction, position.space
+            ));
         } else {
             info!(
-                "[AST] Player frozen at space {} (entering {} needs {} cities, has {})",
+                "[AST] {:?} frozen at space {} (entering {} needs {} cities, has {})",
+                faction.faction,
                 position.space,
                 target_epoch.name(),
                 target_epoch.min_cities(),
                 city_count
             );
+            round_summary.push(format!(
+                "{:?} could not advance on the A.S.T. — entering {} needs {} cities, has {}",
+                faction.faction,
+                target_epoch.name(),
+                target_epoch.min_cities(),
+                city_count
+            ));
         }
     }
 

@@ -7,6 +7,7 @@ use crate::civilization::components::{
 use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
 use crate::civilization::concepts::map::AvailableFactions;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::ReturnCityToStock;
+use crate::civilization::concepts::round_summary::RoundSummary;
 use crate::civilization::concepts::taxation::taxation_components::{
     CityInRevolt, CoinageTaxRate, NeedsToPayTaxes,
 };
@@ -94,6 +95,7 @@ pub fn collect_taxes(
     )>,
     civ_cards_query: Query<&PlayerCivilizationCards>,
     mut commands: Commands,
+    mut round_summary: ResMut<RoundSummary>,
 ) {
     for (player_entity, name, needs_to_pay, mut stock, mut treasury, cities) in &mut player_query {
         let tokens_owed = needs_to_pay.tokens_owed;
@@ -119,6 +121,7 @@ pub fn collect_taxes(
                 "[TAXATION] {} (Democracy) pays {} tokens, no revolt possible",
                 name, to_pay
             );
+            round_summary.push(format!("{name} (Democracy) paid {to_pay} in taxes"));
             commands.entity(player_entity).remove::<NeedsToPayTaxes>();
             continue;
         }
@@ -138,6 +141,7 @@ pub fn collect_taxes(
                 }
             }
             info!("[TAXATION] {} pays {} tokens in full", name, tokens_owed);
+            round_summary.push(format!("{name} paid {tokens_owed} in taxes in full"));
             commands.entity(player_entity).remove::<NeedsToPayTaxes>();
         } else {
             // Partial payment. Each city costs `rate` tokens — normally 2, but a
@@ -168,6 +172,9 @@ pub fn collect_taxes(
                 "[TAXATION] {} can only pay for {} cities ({} tokens); {} cities revolt",
                 name, affordable_cities, to_pay, cities_in_revolt
             );
+            round_summary.push(format!(
+                "{name} paid {to_pay} in taxes; {cities_in_revolt} of their cities revolted"
+            ));
 
             // Mark excess cities as revolting (pick from the map arbitrarily — the
             // resolve-revolts system will handle beneficiary assignment).
@@ -212,6 +219,7 @@ pub fn resolve_revolts(
     game_factions: Res<AvailableFactions>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
+    mut round_summary: ResMut<RoundSummary>,
 ) {
     let revolting: Vec<(Entity, Entity)> = revolting_cities_query
         .iter()
@@ -251,6 +259,9 @@ pub fn resolve_revolts(
         .collect();
 
     for (revolting_city, area_opt, original_owner) in city_area_owner {
+        let owner_name = player_query
+            .get(original_owner)
+            .map_or("A player".to_string(), |(_, name, ..)| name.to_string());
         // 19.32: the beneficiary replaces the city with one of his own, so he
         // needs a city token in stock. Whoever is strongest without one is
         // skipped in favour of the next player down.
@@ -265,6 +276,9 @@ pub fn resolve_revolts(
 
         let (Some(area), Some(new_owner)) = (area_opt, beneficiary) else {
             info!("[TAXATION] No player can take revolting city {revolting_city:?} — eliminating");
+            round_summary.push(format!(
+                "{owner_name}'s city revolted and nobody could take it over — it was destroyed"
+            ));
             // Hands the token back to its owner's stock, drops it from their
             // PlayerCities and strips its map sprite.
             commands
@@ -303,6 +317,9 @@ pub fn resolve_revolts(
                 continue;
             };
             info!("[TAXATION] Revolting city in {area:?} taken over by {new_owner_name}");
+            round_summary.push(format!(
+                "{owner_name}'s revolting city was taken over by {new_owner_name}"
+            ));
             build_city_in_area(
                 &mut commands,
                 texture,
@@ -380,6 +397,7 @@ mod tests {
 
     fn taxation_app() -> App {
         let mut app = App::new();
+        app.init_resource::<RoundSummary>();
         app.add_systems(Update, collect_taxes);
         app
     }

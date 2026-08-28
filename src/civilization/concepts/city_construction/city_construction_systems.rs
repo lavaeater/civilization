@@ -7,6 +7,7 @@ use crate::civilization::concepts::city_construction::city_construction_componen
 use crate::civilization::concepts::city_construction::city_construction_events::*;
 use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
 use crate::civilization::concepts::map::map_plugin::AvailableFactions;
+use crate::civilization::concepts::round_summary::RoundSummary;
 use crate::civilization::concepts::save_game::LoadingFromSave;
 use crate::civilization::functions::{build_city_in_area, return_all_tokens_from_area_to_players};
 use crate::civilization::game_moves::{AvailableMoves, RecalculatePlayerMoves};
@@ -51,6 +52,7 @@ pub fn build_city(
     mut commands: Commands,
     mut recalculate_player_moves: MessageWriter<RecalculatePlayerMoves>,
     game_factions: Res<AvailableFactions>,
+    mut round_summary: ResMut<RoundSummary>,
 ) {
     for build_city in command.read() {
         let has_architecture = player_query
@@ -106,6 +108,11 @@ pub fn build_city(
                 build_city.area,
                 player_cities.number_of_cities()
             );
+            round_summary.push(format!(
+                "{:?} built a city (now has {})",
+                faction.faction,
+                player_cities.number_of_cities()
+            ));
             recalculate_player_moves.write(RecalculatePlayerMoves::new(build_city.player));
         }
     }

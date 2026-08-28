@@ -98,6 +98,7 @@ impl Plugin for CivLogicPlugins {
                 ChooseStartAreaPlugin,
                 ShedCommodityCardsPlugin,
                 ResolveCalamitiesPlugin,
+                RoundSummaryPlugin,
                 CitySupportPlugin,
                 StupidAiPlugin,
                 GameMovesPlugin,

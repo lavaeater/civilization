@@ -310,6 +310,7 @@ fn update_hud_dynamic(
     current_state: Res<State<GameState>>,
     current_activity: Option<Res<State<GameActivity>>>,
     game_info: Res<GameInfoAndStuff>,
+    round_summary: Res<RoundSummary>,
     // Human player stats
     human_query: Query<
         (
@@ -326,7 +327,8 @@ fn update_hud_dynamic(
     let state_changed = game_state_events.read().count() > 0;
     let activity_changed = game_activity_events.read().count() > 0;
     let moves_changed = recalc_move_events.read().count() > 0;
-    if !state_changed && !activity_changed && !moves_changed {
+    let summary_changed = round_summary.is_changed();
+    if !state_changed && !activity_changed && !moves_changed && !summary_changed {
         return;
     }
 
@@ -385,6 +387,22 @@ fn update_hud_dynamic(
                 ui.add_text_child(
                     "You have to manually choose areas for expansion",
                     Some(TextStyle::size_color(13.0, Color::srgb(1.0, 0.8, 0.2))),
+                );
+            }
+        }
+
+        // ── This round's summary ("Game Info / Round Info" wishlist) ────────
+        // Grows through the round (taxation, city construction, A.S.T. moves,
+        // ...) and is cleared at the next round's start; see `RoundSummary`.
+        if !round_summary.entries().is_empty() {
+            ui.add_text_child(
+                "This round:",
+                Some(TextStyle::size_color(13.0, Color::srgb(0.8, 0.8, 0.8))),
+            );
+            for entry in round_summary.entries() {
+                ui.add_text_child(
+                    format!("• {entry}"),
+                    Some(TextStyle::size_color(12.0, Color::srgb(0.75, 0.75, 0.65))),
                 );
             }
         }
