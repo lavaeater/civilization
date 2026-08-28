@@ -333,8 +333,8 @@ mod tests {
 
         state.compute_second_faction(vec![a, b], vec![]);
 
-        assert_eq!(state.second_faction_units, [] as [bevy::bevy_ecs::entity::Entity; 0]);
-        assert_eq!(state.second_faction_cities, [] as [bevy::bevy_ecs::entity::Entity; 0]);
+        assert!(state.second_faction_units.is_empty());
+        assert!(state.second_faction_cities.is_empty());
         assert!(!state.has_second_faction()); // 30.413: no second faction, no Civil War
     }
 
@@ -411,7 +411,7 @@ mod tests {
         state.beneficiary_selected_units = (0..8).map(|_| create_test_entity()).collect();
         state.apply_military_penalty_to_first_faction();
         assert_eq!(state.beneficiary_selected_units.len(), 3); // 8 - 5
-        assert_eq!(state.beneficiary_selected_cities, [] as [bevy::bevy_ecs::entity::Entity; 0]);
+        assert!(state.beneficiary_selected_cities.is_empty());
     }
 
     #[test]
@@ -422,8 +422,8 @@ mod tests {
         state.apply_military_penalty_to_first_faction();
         // 2 tokens removed (2 pts), then the city removed to cover the rest
         // (can't partially reduce a city).
-        assert_eq!(state.beneficiary_selected_units, [] as [bevy::bevy_ecs::entity::Entity; 0]);
-        assert_eq!(state.beneficiary_selected_cities, [] as [bevy::bevy_ecs::entity::Entity; 0]);
+        assert!(state.beneficiary_selected_units.is_empty());
+        assert!(state.beneficiary_selected_cities.is_empty());
     }
 
     #[test]
@@ -432,7 +432,7 @@ mod tests {
         state.beneficiary_selected_units = (0..2).map(|_| create_test_entity()).collect(); // 2 pts
         state.victim_selected_units = (0..8).map(|_| create_test_entity()).collect();
         state.apply_military_penalty_to_first_faction();
-        assert_eq!(state.beneficiary_selected_units, [] as [bevy::bevy_ecs::entity::Entity; 0]);
+        assert!(state.beneficiary_selected_units.is_empty());
         assert_eq!(state.victim_selected_units.len(), 5); // 8 - (5 - 2)
     }
 
@@ -456,7 +456,7 @@ mod tests {
     fn military_penalty_does_not_go_negative_on_an_empty_faction() {
         let mut state = CivilWarState::new().with_military_penalty();
         state.apply_military_penalty_to_first_faction();
-        assert_eq!(state.beneficiary_selected_units, [] as [bevy::bevy_ecs::entity::Entity; 0]);
-        assert_eq!(state.beneficiary_selected_cities, [] as [bevy::bevy_ecs::entity::Entity; 0]);
+        assert!(state.beneficiary_selected_units.is_empty());
+        assert!(state.beneficiary_selected_cities.is_empty());
     }
 }

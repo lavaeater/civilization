@@ -874,7 +874,7 @@ mod famine_selection_state_tests {
         let result = state.take_result();
         assert_eq!(result, vec![(e(2), 8), (e(3), 8), (e(4), 4)]);
         assert_eq!(state.acting_player, None);
-        assert_eq!(state.victims, [] as [(bevy::bevy_ecs::entity::Entity, usize, usize); 0]);
+        assert!(state.victims.is_empty());
     }
 }
 
@@ -1217,7 +1217,7 @@ mod flood_selection_state_tests {
         let result = state.take_result();
         assert_eq!(result, vec![(e(2), 4), (e(3), 6)]);
         assert_eq!(state.acting_player, None);
-        assert_eq!(state.victims, [] as [(bevy::bevy_ecs::entity::Entity, usize, usize); 0]);
+        assert!(state.victims.is_empty());
     }
 }
 
@@ -1617,7 +1617,7 @@ mod unit_loss_selection_state_tests {
 
         assert_eq!(state.take_allocation(), (vec![(e(3), 2)], Vec::new()));
         assert_eq!(state.acting_player, None);
-        assert_eq!(state.areas, [] as [(bevy::bevy_ecs::entity::Entity, usize, usize); 0]);
+        assert!(state.areas.is_empty());
     }
 
     #[test]
