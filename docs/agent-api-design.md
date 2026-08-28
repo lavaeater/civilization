@@ -55,8 +55,18 @@ game runs normally without it.
   one. A player is agent-controlled when it is `IsHuman` without `StupidAi`; the
   `AGENT_FACTIONS` env var marks which factions at game start.
 - [~] **A4 — Ergonomics.** Thin client script `scripts/agent_autoplay.py` drives a
-  full self-play game (conservative reference strategy). Still open: richer `/state`
-  (save_game snapshot) and a `/wait` long-poll / turn token.
+  full self-play game (conservative reference strategy). `GET /wait?faction=&timeout_ms=`
+  is now implemented: it holds the HTTP request open (no busy-polling) until it's
+  that player's turn or `timeout_ms` elapses (default 30s, capped at 60s), returning
+  the same shape as a player's `/state` entry plus `timed_out`. Still open: a richer
+  `/state` (save_game-shaped snapshot).
+  - Note: `AcquireCards` (a *batch* civ-card purchase) exists as a `GameMove`
+    variant and is handled on the multiplayer network path (`adv_civ_server/src/net.rs`),
+    but move-generation never produces it — `AvailableMoves` only ever offers
+    single-card `AcquireCard` moves, recalculated after each purchase. An agent
+    already buys several cards per turn by calling `POST /move` with `AcquireCard`
+    repeatedly before `DoneAcquiringCards`; wiring `AcquireCards` into the agent API
+    would be dead code with today's move generation, so it's left alone.
 
 ## Running a full self-play game
 

@@ -29,6 +29,36 @@ pub struct AgentServer {
     pub server: Server,
 }
 
+/// A `GET /wait` request being held open until it's the player's turn or its
+/// timeout elapses (A4's "long-poll" gap in `docs/agent-api-design.md`) —
+/// lets a scripted agent block on its turn instead of busy-polling `/state`.
+struct PendingWait {
+    request: tiny_http::Request,
+    faction: Option<String>,
+    deadline: std::time::Instant,
+}
+
+/// `tiny_http::Request` holds a `Box<dyn Read + Send>` (not `Sync`), so this
+/// can't be a normal `Resource` — it's a `NonSend` resource instead, which
+/// only requires `'static` and keeps it pinned to the main thread (where the
+/// single-threaded HTTP polling already runs).
+#[derive(Default)]
+pub struct PendingWaits(Vec<PendingWait>);
+
+/// Whether a held `/wait` should resolve this frame, and if so whether that
+/// resolution is a timeout (no moves ever arrived) or a real turn. `None`
+/// means keep holding the request. Pure so it's unit-testable without a live
+/// `tiny_http::Request`.
+fn wait_outcome(has_moves: bool, deadline_passed: bool) -> Option<bool> {
+    if has_moves {
+        Some(false)
+    } else if deadline_passed {
+        Some(true)
+    } else {
+        None
+    }
+}
+
 // Owned snapshot of everything the API needs for a frame — decoupled from ECS
 // queries so the HTTP handlers stay free of borrow-lifetime gymnastics.
 struct AreaInfo {
@@ -255,6 +285,7 @@ pub fn poll_agent_api(
         Option<&crate::civilization::Treasury>,
     )>,
     mut writers: MoveWriters,
+    mut pending_waits: NonSendMut<PendingWaits>,
 ) {
     let snapshot = build_snapshot(
         activity.as_ref(),
@@ -270,6 +301,32 @@ pub fn poll_agent_api(
         let url = request.url().to_string();
         let path = url.split('?').next().unwrap_or("").to_string();
         let faction_q = query_param(&url, "faction");
+
+        // `/wait` is a long-poll: reply immediately if it's already this
+        // player's turn, otherwise hold the request open (see `PendingWait`)
+        // instead of falling into the generic match+respond below.
+        if method == Method::Get && path == "/wait" {
+            match snapshot.select(faction_q.as_deref()) {
+                Ok(p) if !p.moves.is_empty() => {
+                    let body = wait_response_json(p, false);
+                    respond(request, &body);
+                }
+                Ok(_) => {
+                    let timeout_ms = query_param(&url, "timeout_ms")
+                        .and_then(|v| v.parse::<u64>().ok())
+                        .unwrap_or(30_000)
+                        .min(60_000);
+                    pending_waits.0.push(PendingWait {
+                        request,
+                        faction: faction_q,
+                        deadline: std::time::Instant::now()
+                            + std::time::Duration::from_millis(timeout_ms),
+                    });
+                }
+                Err(e) => respond(request, &e),
+            }
+            continue;
+        }
 
         let body: Value = match (&method, path.as_str()) {
             (Method::Get, "/state") => state_json(&snapshot),
@@ -507,6 +564,7 @@ pub fn poll_agent_api(
             }
             _ => json!({ "error": "unknown route", "routes": [
                 "/state", "/players", "/moves?faction=", "POST /move {faction?,index,number?}",
+                "/wait?faction=&timeout_ms= (long-poll until your turn)",
                 "/trade?faction=", "POST /trade/stop {faction?}",
                 "POST /trade/accept {faction?,id}",
                 "POST /trade/offer {faction?,offering_guaranteed,offering_hidden,wanting_guaranteed,wanting_hidden,target?}",
@@ -514,9 +572,48 @@ pub fn poll_agent_api(
             ] }),
         };
 
-        let response = Response::from_string(body.to_string()).with_header(json_header());
-        let _ = request.respond(response);
+        respond(request, &body);
     }
+
+    // Re-check every held `/wait` against this frame's snapshot: resolve the
+    // ones whose turn has arrived or whose timeout has elapsed, keep holding
+    // the rest for a later frame.
+    let now = std::time::Instant::now();
+    let mut still_waiting = Vec::new();
+    for pending in pending_waits.0.drain(..) {
+        let (has_moves, lookup_err) = match snapshot.select(pending.faction.as_deref()) {
+            Ok(p) => (!p.moves.is_empty(), None),
+            Err(e) => (false, Some(e)),
+        };
+        match wait_outcome(has_moves, now >= pending.deadline) {
+            Some(_) if lookup_err.is_some() => {
+                respond(pending.request, &lookup_err.unwrap());
+            }
+            Some(timed_out) => {
+                let p = snapshot
+                    .select(pending.faction.as_deref())
+                    .expect("checked Ok above");
+                respond(pending.request, &wait_response_json(p, timed_out));
+            }
+            None => still_waiting.push(pending),
+        }
+    }
+    pending_waits.0 = still_waiting;
+}
+
+fn respond(request: tiny_http::Request, body: &Value) {
+    let response = Response::from_string(body.to_string()).with_header(json_header());
+    let _ = request.respond(response);
+}
+
+/// `/wait`'s response: the same shape as `/state`'s per-player summary, plus
+/// whether this resolution was a timeout (no turn arrived in time).
+fn wait_response_json(p: &PlayerInfo, timed_out: bool) -> Value {
+    let mut body = player_summary(p);
+    if let Value::Object(ref mut map) = body {
+        map.insert("timed_out".to_string(), json!(timed_out));
+    }
+    body
 }
 
 /// Extracts a query-string parameter value from a request URL.
@@ -821,6 +918,29 @@ mod tests {
 
     #[derive(Resource, Default)]
     struct ResolveResult(Option<ResolvedMove>);
+
+    // ── `/wait` long-poll (A4) ───────────────────────────────────────────
+
+    #[test]
+    fn wait_resolves_immediately_once_moves_are_available() {
+        assert_eq!(wait_outcome(true, false), Some(false));
+    }
+
+    #[test]
+    fn wait_resolves_as_a_real_turn_even_if_it_lands_exactly_on_the_deadline() {
+        // Moves arriving is never a "timeout", regardless of the clock.
+        assert_eq!(wait_outcome(true, true), Some(false));
+    }
+
+    #[test]
+    fn wait_times_out_when_no_moves_arrive_before_the_deadline() {
+        assert_eq!(wait_outcome(false, true), Some(true));
+    }
+
+    #[test]
+    fn wait_keeps_holding_the_request_before_the_deadline_with_no_moves() {
+        assert_eq!(wait_outcome(false, false), None);
+    }
 
     fn spawn_controlled(
         app: &mut App,

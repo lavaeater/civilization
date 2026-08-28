@@ -1,4 +1,4 @@
-use crate::agent_api::agent_api_systems::{AgentServer, poll_agent_api};
+use crate::agent_api::agent_api_systems::{AgentServer, PendingWaits, poll_agent_api};
 use bevy::prelude::*;
 use tiny_http::Server;
 
@@ -17,6 +17,7 @@ impl Plugin for AgentApiPlugin {
                 // Always-on so an agent can poll /state to learn when a game starts;
                 // handlers simply report no human player when not in a game.
                 app.insert_resource(AgentServer { server })
+                    .init_non_send::<PendingWaits>()
                     .add_systems(Update, poll_agent_api);
             }
             Err(e) => {

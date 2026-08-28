@@ -227,10 +227,24 @@ corrections above) and are **not** repeated here.
    below-threshold no-op case. Full suite green (344/344 lib tests, 132/132
    integration tests). No implementation bugs found — this was a coverage gap, not
    a correctness one.
-3. **Finish the Agent API's last gaps.** `AcquireCards` (batch purchase), a richer
-   `GET /state` (save-game-shaped snapshot), and a `/wait` long-poll/turn token (A4 in
-   `agent-api-design.md`). Small, well-scoped, and makes the API — which items 1 and 2
-   both lean on for automated play — fully self-sufficient.
+3. ~~**Finish the Agent API's last gaps.**~~ **Partly done (26-08-28).**
+   Implemented `GET /wait?faction=&timeout_ms=`: holds the HTTP request open (a
+   real long-poll, not busy-waiting) until it's that player's turn or the timeout
+   elapses (default 30s, capped 60s) — `PendingWaits` is a `NonSend` resource
+   (`tiny_http::Request` isn't `Sync`) checked against a fresh snapshot every
+   frame in `poll_agent_api`. The turn/timeout decision is factored into a pure
+   `wait_outcome(has_moves, deadline_passed)` function with 4 unit tests.
+   `AcquireCards` (batch purchase) turned out to be a non-issue on
+   investigation: move-generation never produces that `GameMove` variant — only
+   single `AcquireCard` — so there's nothing for the agent API to "buy in batch";
+   an agent already purchases several cards per turn via repeated `AcquireCard`
+   calls. Documented in `agent-api-design.md` rather than building unreachable
+   code. **Still open**: a richer `GET /state` (save-game-shaped snapshot) — left
+   for whoever actually needs it, since "richer" wasn't scoped precisely enough
+   to implement blind. Not live-tested against a running game (this sandbox has
+   no display for the GUI binary, and the headless `adv_civ_server` doesn't
+   include `AgentApiPlugin`); verified via the existing build/clippy/unit-test
+   path this file's other agent-api tests use (348/348 lib tests green).
 4. **Civ-card hover/click tooltip with dynamic discount pricing.** Roadmap item 12: show
    full card text on hover/click, and when a card is selected, re-price every other
    unpurchased card as if that one were bought first. Self-contained UI work in
