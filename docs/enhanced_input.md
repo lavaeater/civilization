@@ -156,5 +156,12 @@ choice or dismiss a panel.
 - [x] Step 2 — `HudContext` defined and registered
 - [x] Step 3 — Lifecycle system (`spawn_hud_context`)
 - [x] Step 4 — HUD toggle observers (F1-F4)
-- [ ] Step 5 — Phase contexts (incremental, one at a time)
-- [ ] Step 6 — Universal Confirm / Cancel
+- [~] Step 5 — Phase contexts (incremental, one at a time). **`CityBuildContext`
+  done (26-08-28)**: `CityConstructionInput` spawned `OnEnter(CityConstruction)`,
+  despawned `OnExit`, Enter→Confirm builds at the currently-viewed site
+  (mirrors the existing "Build City" button), Escape→Cancel skips (mirrors
+  "Skip"). Remaining five contexts (`TradeContext`, `CalamityContext`,
+  `MovementContext`, `ShipBuildContext`, `CivCardContext`) still open — same
+  pattern, next up.
+- [~] Step 6 — Universal Confirm / Cancel. Done for the one context that
+  exists so far (`CityBuildContext`); "universal" only once all of Step 5 is.

@@ -329,10 +329,25 @@ corrections above) and are **not** repeated here.
    **Caveat**: same as items 4/5 — this is a visual/layout change not run in a
    window in this session. The logic is deterministic and tested, but please
    confirm the columns actually look right on a crowded area in-game.
-8. **Enhanced Input Steps 5–6 — phase input contexts.** Wire `Confirm`/`Cancel`/
-   `Navigate*` into each phase (Trade, Calamity, Movement, City/Ship build, Civ-card),
-   one at a time as the doc suggests. Pure UX polish, not blocking anything else — do it
-   once the phase UIs it touches (civ cards, summaries) have settled from items 4–6.
+8. **Enhanced Input Steps 5–6 — phase input contexts.** **1 of 6 contexts done
+   (26-08-28): `CityBuildContext`.** `CityConstructionInput` context spawned
+   `OnEnter(GameActivity::CityConstruction)` / despawned on exit; Enter→Confirm
+   builds at the currently-viewed site, Escape→Cancel skips — both mirror the
+   existing mouse buttons exactly (same `CityConstructionSelectionState` guard,
+   same messages written), so behaviour should match 1:1. Chose City
+   Construction first because it needed no navigation bindings (the doc's own
+   table lists only Confirm/Cancel for it) and I already knew the phase well
+   from items 1/7.
+   **Caveat, more pointed than items 4/5/7's**: this is the one change so far
+   with genuinely **no automated test coverage at all** — verifying
+   `bevy_enhanced_input` actually fires `Confirm`/`Cancel` from real key events
+   needs either an interactive run or a real input-simulation harness, neither
+   of which exists here. It compiles, clippy-clean, and the logic it calls is
+   the same tested logic the buttons call — but the key bindings themselves
+   are unverified. Please press Enter/Escape during a city-construction phase
+   before trusting this.
+   Remaining 5 contexts (Trade, Calamity, Movement, Ship build, Civ-card) still
+   open — same pattern, more navigation bindings each.
 9. **Multiplayer: close the remaining ⬜ items.** Interactive trade over the network
    (currently server-rejected), a ship-placement endpoint, real session tokens (replacing
    name-matched reseat), and AI takeover after a disconnect grace period. The MVP you

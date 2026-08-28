@@ -1,5 +1,8 @@
 use crate::GameActivity;
-use crate::civilization::{ActivityDisplay, CensusDisplay, PlayerInfoDisplay, TradeCardList};
+use crate::civilization::{
+    ActivityDisplay, BuildCityCommand, CensusDisplay, CityConstructionSelectionState,
+    EndPlayerCityConstruction, PlayerInfoDisplay, TradeCardList,
+};
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 use lava_ui_builder::{Collapsible, CollapsibleContent};
@@ -14,7 +17,19 @@ impl Plugin for CivilizationInputPlugin {
             .add_observer(toggle_player_info)
             .add_observer(toggle_trade_cards)
             .add_observer(toggle_game_state)
-            .add_observer(toggle_activity_card);
+            .add_observer(toggle_activity_card)
+            // ── City Construction phase context (enhanced_input.md Step 5/6) ──
+            .add_input_context::<CityConstructionInput>()
+            .add_systems(
+                OnEnter(GameActivity::CityConstruction),
+                spawn_city_construction_input_context,
+            )
+            .add_systems(
+                OnExit(GameActivity::CityConstruction),
+                despawn_city_construction_input_context,
+            )
+            .add_observer(confirm_city_construction)
+            .add_observer(cancel_city_construction);
     }
 }
 
@@ -157,3 +172,56 @@ pub struct PopulationSelectionInput;
 
 #[derive(Component)]
 pub struct CivilizationCardsInput;
+
+// ── City Construction phase context ────────────────────────────────────────
+//
+// First phase context wired up per enhanced_input.md Step 5/6: `CityBuildContext`
+// only needs Confirm/Cancel (no navigation — paging build sites already has its
+// own mouse-driven "current site" UI in `city_construction_ui_systems.rs`, which
+// these key presses act on rather than duplicate).
+
+fn spawn_city_construction_input_context(mut commands: Commands) {
+    commands.spawn((
+        CityConstructionInput,
+        actions!(CityConstructionInput[
+            (Action::<Confirm>::new(), bindings![KeyCode::Enter]),
+            (Action::<Cancel>::new(), bindings![KeyCode::Escape]),
+        ]),
+    ));
+}
+
+fn despawn_city_construction_input_context(
+    mut commands: Commands,
+    query: Query<Entity, With<CityConstructionInput>>,
+) {
+    for entity in &query {
+        commands.entity(entity).despawn();
+    }
+}
+
+/// Enter: build a city at whichever site the player is currently looking at
+/// (mirrors the "Build City" button in `handle_city_construction_button_clicks`).
+fn confirm_city_construction(
+    _: On<Fire<Confirm>>,
+    mut selection_state: ResMut<CityConstructionSelectionState>,
+    mut build_city_writer: MessageWriter<BuildCityCommand>,
+) {
+    if let (Some(player), Some(site)) = (selection_state.player, selection_state.current_site()) {
+        info!("Human player building city at site (Enter)");
+        build_city_writer.write(BuildCityCommand::new(player, site));
+        selection_state.clear();
+    }
+}
+
+/// Escape: skip building this turn (mirrors the "Skip" button).
+fn cancel_city_construction(
+    _: On<Fire<Cancel>>,
+    mut selection_state: ResMut<CityConstructionSelectionState>,
+    mut end_construction_writer: MessageWriter<EndPlayerCityConstruction>,
+) {
+    if let Some(player) = selection_state.player {
+        info!("Human player skipping city construction (Escape)");
+        end_construction_writer.write(EndPlayerCityConstruction::new(player));
+        selection_state.clear();
+    }
+}
