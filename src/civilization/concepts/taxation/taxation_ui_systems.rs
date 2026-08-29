@@ -146,8 +146,7 @@ mod tests {
             .query::<(Entity, &CoinageRateButton)>()
             .iter(world)
             .find(|(_, b)| b.0 == rate)
-            .map(|(e, _)| e)
-            .unwrap_or_else(|| panic!("no button found for rate {rate}"))
+            .map_or_else(|| panic!("no button found for rate {rate}"), |(e, _)| e)
     }
 
     #[test]

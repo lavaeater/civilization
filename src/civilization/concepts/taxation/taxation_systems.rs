@@ -225,6 +225,13 @@ pub fn collect_taxes(
 /// each) is the beneficiary and replaces the revolting city with one of his own;
 /// if he has no city token left in stock the next-largest stock takes it, and so
 /// on. A city nobody can take over is eliminated (19.33).
+///
+/// Does not itself decide when to leave `CollectTaxes` -- `taxation_gate` is the
+/// sole authority for that. This used to unconditionally queue a transition to
+/// `PopulationExpansion` whenever there were no revolts to resolve (the common
+/// case), which stomped on `taxation_gate`'s check for a still-pending
+/// `AwaitingCoinageRateSelection` and skipped the tax-rate picker entirely
+/// before it could ever be shown to the player.
 pub fn resolve_revolts(
     revolting_cities_query: Query<(Entity, &CityInRevolt)>,
     mut player_query: Query<
@@ -241,7 +248,6 @@ pub fn resolve_revolts(
     area_query: Query<&Transform, With<GameArea>>,
     game_factions: Res<AvailableFactions>,
     mut commands: Commands,
-    mut next_state: ResMut<NextState<GameActivity>>,
     mut round_summary: ResMut<RoundSummary>,
 ) {
     let revolting: Vec<(Entity, Entity)> = revolting_cities_query
@@ -250,8 +256,6 @@ pub fn resolve_revolts(
         .collect();
 
     if revolting.is_empty() {
-        info!("[TAXATION] No revolts to resolve — transitioning to PopulationExpansion");
-        next_state.set(GameActivity::PopulationExpansion);
         return;
     }
 
@@ -356,8 +360,6 @@ pub fn resolve_revolts(
             );
         }
     }
-
-    next_state.set(GameActivity::PopulationExpansion);
 }
 
 /// Gate: waits until all `NeedsToPayTaxes`, `CityInRevolt` and
@@ -641,6 +643,44 @@ mod tests {
     }
 
     // ── Rule 19.34: Democracy prevents revolts ────────────────────────────────
+
+    // ── Regression: the full CollectTaxes schedule must not skip the picker ──
+    //
+    // The three systems below run chained in `Update` every frame while in
+    // `CollectTaxes` (see taxation_plugin.rs): collect_taxes, resolve_revolts,
+    // taxation_gate. `taxation_gate` alone knows to wait for
+    // `AwaitingCoinageRateSelection`, but `resolve_revolts` used to
+    // unconditionally queue a transition to `PopulationExpansion` whenever
+    // there were no revolts (the common case) -- stomping on that check before
+    // it ever ran, and skipping the tax-rate picker every single time. A test
+    // that only calls `taxation_gate` directly (as the tests above do) cannot
+    // catch this: it has to run the real chain.
+    #[test]
+    fn full_collect_taxes_chain_does_not_skip_pending_coinage_choice() {
+        let mut app = App::new();
+        app.init_resource::<NextState<GameActivity>>();
+        app.init_resource::<RoundSummary>();
+        app.init_resource::<crate::civilization::concepts::map::AvailableFactions>();
+        app.add_systems(
+            Update,
+            (collect_taxes, resolve_revolts, taxation_gate).chain(),
+        );
+
+        // A human Coinage holder is mid-choice; no one else owes taxes or is
+        // revolting this frame.
+        app.world_mut()
+            .spawn((Name::new("Human"), AwaitingCoinageRateSelection));
+
+        app.update();
+        assert!(
+            matches!(
+                *app.world().resource::<NextState<GameActivity>>(),
+                NextState::Unchanged
+            ),
+            "resolve_revolts must not force a transition out of CollectTaxes \
+             while a human is still choosing a Coinage rate"
+        );
+    }
 
     // ── Rule 19.2: a human Coinage holder must be asked, not defaulted ───────
 
