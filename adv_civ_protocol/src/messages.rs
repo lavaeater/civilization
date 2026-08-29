@@ -121,6 +121,11 @@ pub enum NetPhase {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct JoinGame {
     pub player_name: String,
+    /// Reconnect secret from a previous join, if the client has one (see
+    /// `docs/multiplayer.md`'s session-token section). `None` for a client's
+    /// first-ever join, or the dev manual-auth path, which doesn't track one.
+    #[serde(default)]
+    pub reconnect_token: Option<String>,
 }
 
 /// Pick one of the moves the server offered in [`YourMoves`]. The index is

@@ -153,6 +153,7 @@ fn join_when_connected(
         println!("Connected. Joining as {} …", name.0);
         sender.send::<ControlChannel>(JoinGame {
             player_name: name.0.clone(),
+            reconnect_token: None,
         });
     }
 }

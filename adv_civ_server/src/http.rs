@@ -100,11 +100,18 @@ fn parse_hex_key(hex: &str) -> Option<Key> {
 
 struct JoinRequest {
     name: String,
+    /// Reconnect secret the client already holds from a previous join, if
+    /// any (see `docs/multiplayer.md`'s session-token section).
+    reconnect_token: Option<String>,
     reply: SyncSender<JoinReply>,
 }
 
 enum JoinReply {
-    Ok { token_b64: String, client_id: u64 },
+    Ok {
+        token_b64: String,
+        client_id: u64,
+        reconnect_token: String,
+    },
     Full,
     Error(String),
 }
@@ -112,10 +119,11 @@ enum JoinReply {
 #[derive(Resource)]
 struct HttpJoinRequests(Mutex<Receiver<JoinRequest>>);
 
-/// Names registered via HTTP, waiting for their netcode connection to show
-/// up: client_id → player name. Drained by the seat-claiming system.
+/// Names (and reconnect tokens, once assigned) registered via HTTP, waiting
+/// for their netcode connection to show up: client_id → (name, token).
+/// Drained by the seat-claiming system.
 #[derive(Resource, Default)]
-pub struct PendingJoins(pub HashMap<u64, String>);
+pub struct PendingJoins(pub HashMap<u64, (String, Option<String>)>);
 
 pub struct HttpApiPlugin;
 
@@ -194,18 +202,26 @@ fn serve(tx: Sender<JoinRequest>, port: u16) {
             ("POST", "/api/join") => {
                 let mut body = String::new();
                 let _ = request.as_reader().read_to_string(&mut body);
-                let name = serde_json::from_str::<serde_json::Value>(&body)
-                    .ok()
+                let parsed = serde_json::from_str::<serde_json::Value>(&body).ok();
+                let name = parsed
+                    .as_ref()
                     .and_then(|v| v["name"].as_str().map(str::to_string))
                     .unwrap_or_default();
                 if name.is_empty() {
                     respond(request, 400, r#"{"error":"missing name"}"#.into());
                     continue;
                 }
+                // The client's saved reconnect secret, if it has one (see
+                // docs/multiplayer.md's session-token section) — absent on a
+                // client's first-ever join.
+                let reconnect_token = parsed
+                    .as_ref()
+                    .and_then(|v| v["token"].as_str().map(str::to_string));
                 let (reply_tx, reply_rx) = std::sync::mpsc::sync_channel(1);
                 if tx
                     .send(JoinRequest {
                         name,
+                        reconnect_token,
                         reply: reply_tx,
                     })
                     .is_err()
@@ -217,12 +233,17 @@ fn serve(tx: Sender<JoinRequest>, port: u16) {
                     Ok(JoinReply::Ok {
                         token_b64,
                         client_id,
+                        reconnect_token,
                     }) => {
                         let body = serde_json::json!({
                             "connect_token": token_b64,
                             "client_id": client_id,
                             "ws_url": public_ws_url(),
                             "protocol_id": PROTOCOL_ID,
+                            // Save this and send it back on the next join — it's
+                            // what lets you reclaim this seat instead of a
+                            // namesake stealing it. See docs/multiplayer.md.
+                            "reconnect_token": reconnect_token,
                         });
                         respond(request, 200, body.to_string());
                     }
@@ -314,22 +335,40 @@ fn process_join_requests(
 
         *next_client_id += 1;
         let client_id = 1_000_000 + *next_client_id;
+        // Reuse the client's saved token if it sent one; otherwise this is
+        // (as far as we know) a first-ever join, so mint a fresh one. Either
+        // way it goes back in the response so the client's local copy stays
+        // current. See docs/multiplayer.md's session-token section.
+        let reconnect_token = request
+            .reconnect_token
+            .clone()
+            .unwrap_or_else(generate_reconnect_token);
         let reply = match mint_token(&keys, client_id) {
             Ok(token_b64) => {
                 info!(
                     "Minted ConnectToken for {} (client id {client_id})",
                     request.name
                 );
-                pending.0.insert(client_id, request.name.clone());
+                pending
+                    .0
+                    .insert(client_id, (request.name.clone(), Some(reconnect_token.clone())));
                 JoinReply::Ok {
                     token_b64,
                     client_id,
+                    reconnect_token,
                 }
             }
             Err(e) => JoinReply::Error(e),
         };
         let _ = request.reply.send(reply);
     }
+}
+
+/// A fresh, unguessable reconnect secret. Reuses `lightyear`'s key generator
+/// (already a dependency here) rather than pulling in a whole RNG crate just
+/// for this.
+fn generate_reconnect_token() -> String {
+    base64::engine::general_purpose::STANDARD.encode(generate_key())
 }
 
 fn mint_token(keys: &NetcodeKeys, client_id: u64) -> Result<String, String> {

@@ -81,6 +81,45 @@ impl Default for NetworkSettings {
 pub struct JoinInfo {
     pub token_b64: String,
     pub ws_url: String,
+    /// Reconnect secret to save and send on the next join (see
+    /// `docs/multiplayer.md`'s session-token section) — always present on a
+    /// successful join, whether freshly minted or just the client's own
+    /// token handed back.
+    pub reconnect_token: Option<String>,
+}
+
+/// `localStorage` key for the reconnect secret (web client). Native builds
+/// have no persistent storage story here and fall back to `RECONNECT_TOKEN`.
+#[cfg(target_family = "wasm")]
+const RECONNECT_TOKEN_KEY: &str = "adv_civ_reconnect_token";
+
+#[cfg(target_family = "wasm")]
+fn load_reconnect_token() -> Option<String> {
+    web_sys::window()?
+        .local_storage()
+        .ok()??
+        .get_item(RECONNECT_TOKEN_KEY)
+        .ok()?
+}
+
+#[cfg(target_family = "wasm")]
+fn save_reconnect_token(token: &str) {
+    if let Some(storage) = web_sys::window().and_then(|w| w.local_storage().ok()).flatten() {
+        let _ = storage.set_item(RECONNECT_TOKEN_KEY, token);
+    }
+}
+
+/// Native has no browser storage; a `RECONNECT_TOKEN` env var covers the
+/// dev/manual-testing case symmetrically, but there's no way to persist a
+/// freshly-minted one across runs beyond logging it for the developer to copy.
+#[cfg(not(target_family = "wasm"))]
+fn load_reconnect_token() -> Option<String> {
+    std::env::var("RECONNECT_TOKEN").ok()
+}
+
+#[cfg(not(target_family = "wasm"))]
+fn save_reconnect_token(token: &str) {
+    info!("[NET] Reconnect token for next run: RECONNECT_TOKEN={token}");
 }
 
 /// In-flight token fetch; removed once resolved.
@@ -180,7 +219,7 @@ fn start_join(mut commands: Commands, settings: Res<NetworkSettings>, mut net: R
         commands.insert_resource(JoinFetch(Mutex::new(rx)));
         commands.insert_resource(UsedTokenAuth(true));
         info!("Requesting join token from {api_url} …");
-        request_join_token(api_url, settings.player_name.clone(), tx);
+        request_join_token(api_url, settings.player_name.clone(), load_reconnect_token(), tx);
     } else {
         // Dev fallback: zero-key manual auth straight at the socket.
         commands.insert_resource(UsedTokenAuth(false));
@@ -203,11 +242,18 @@ fn start_join(mut commands: Commands, settings: Res<NetworkSettings>, mut net: R
 
 /// POST /api/join off the main thread; the result comes back via mpsc.
 #[cfg(not(target_family = "wasm"))]
-fn request_join_token(api_url: String, name: String, tx: mpsc::Sender<Result<JoinInfo, String>>) {
+fn request_join_token(
+    api_url: String,
+    name: String,
+    reconnect_token: Option<String>,
+    tx: mpsc::Sender<Result<JoinInfo, String>>,
+) {
     std::thread::spawn(move || {
         let result = (|| {
             let response = ureq::post(&format!("{api_url}/api/join"))
-                .send_string(&serde_json::json!({ "name": name }).to_string())
+                .send_string(
+                    &serde_json::json!({ "name": name, "token": reconnect_token }).to_string(),
+                )
                 .map_err(|e| format!("join request failed: {e}"))?;
             let body = response
                 .into_string()
@@ -219,11 +265,18 @@ fn request_join_token(api_url: String, name: String, tx: mpsc::Sender<Result<Joi
 }
 
 #[cfg(target_family = "wasm")]
-fn request_join_token(api_url: String, name: String, tx: mpsc::Sender<Result<JoinInfo, String>>) {
+fn request_join_token(
+    api_url: String,
+    name: String,
+    reconnect_token: Option<String>,
+    tx: mpsc::Sender<Result<JoinInfo, String>>,
+) {
     wasm_bindgen_futures::spawn_local(async move {
         let result = async {
             let response = gloo_net::http::Request::post(&format!("{api_url}/api/join"))
-                .body(serde_json::json!({ "name": name }).to_string())
+                .body(
+                    serde_json::json!({ "name": name, "token": reconnect_token }).to_string(),
+                )
                 .map_err(|e| format!("join request invalid: {e}"))?
                 .send()
                 .await
@@ -254,6 +307,7 @@ fn parse_join_response(body: &str) -> Result<JoinInfo, String> {
             .as_str()
             .ok_or("join response missing ws_url")?
             .to_string(),
+        reconnect_token: value["reconnect_token"].as_str().map(str::to_string),
     })
 }
 
@@ -275,6 +329,11 @@ fn poll_join_fetch(
 
     match result {
         Ok(info) => {
+            // Keep the local copy current whether it's brand new or just the
+            // one we already had handed back — see docs/multiplayer.md.
+            if let Some(token) = &info.reconnect_token {
+                save_reconnect_token(token);
+            }
             let token_bytes = match base64::engine::general_purpose::STANDARD
                 .decode(&info.token_b64)
                 .map_err(|e| format!("token not base64: {e}"))
@@ -713,6 +772,10 @@ fn join_when_connected(
         info!("Connected — joining as {}", settings.player_name);
         sender.send::<ControlChannel>(JoinGame {
             player_name: settings.player_name.clone(),
+            // Manual auth (this path only) has no HTTP round trip to carry
+            // one; the server accepts a plain name match here, same as
+            // before this change.
+            reconnect_token: None,
         });
     }
 }

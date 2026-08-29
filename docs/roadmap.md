@@ -348,11 +348,41 @@ corrections above) and are **not** repeated here.
    before trusting this.
    Remaining 5 contexts (Trade, Calamity, Movement, Ship build, Civ-card) still
    open — same pattern, more navigation bindings each.
-9. **Multiplayer: close the remaining ⬜ items.** Interactive trade over the network
-   (currently server-rejected), a ship-placement endpoint, real session tokens (replacing
-   name-matched reseat), and AI takeover after a disconnect grace period. The MVP you
-   described is otherwise already built — this is what's left before it's robust enough
-   for real friends-and-family play.
+9. **Multiplayer hardening.** Investigated all four ⬜ items before writing code (they
+   were bigger/more design-dependent than the note suggested) — see the decisions below.
+   - ~~**Session tokens (replacing name-matched reseat).**~~ **Done (26-08-29).**
+     `POST /api/join` mints (or echoes back) a `reconnect_token`; the web client
+     persists it in `localStorage` and resends it on every join; the server only
+     lets a plain name match claim a seat that's *never* had a token bound —
+     once one is, reclaiming that identity needs the matching token. Chose
+     `localStorage` knowing it doesn't survive a different browser/device (a
+     deliberate tradeoff, not an oversight — see `docs/multiplayer.md`'s new
+     "Session tokens" section for the reasoning and its limits). 5 unit tests
+     on the pure seat-matching function (`find_seat_for_join`); live-checked
+     the HTTP round trip against a real running server with curl (first join
+     mints a token, resending it gets the same token echoed back). Also fixed
+     a wasm build gap this surfaced: `web-sys`'s `Storage` feature wasn't
+     enabled, so `localStorage` access didn't compile until now.
+   - **AI takeover after disconnect: deliberately skipped, not deferred.**
+     Decided a disconnected seat should wait for its player to reconnect (the
+     token above makes that reliable) rather than auto-piloting them — an AI
+     stepping in should be a conscious host decision later, not a timeout.
+   - **Interactive trade over the network: real design work, not done yet.**
+     The protocol's existing `NetTradeMove` type targets the *old, dead*
+     `TradeMove`/`TradeOffer` model `agent-api-design.md` explicitly says not
+     to use — real trade is `OpenTradeOffer`. This needs new protocol messages
+     designed against the right model, mirroring the agent API's `/trade/*`
+     endpoints. See the design write-up at the end of this document for where
+     this is headed (bluffing + a counter-offer/negotiation-hijack model) —
+     worth deciding that direction before building throwaway protocol messages.
+   - **Ship-placement endpoint: needs a data-model change first, not just a
+     message.** Ship construction isn't a `GameMove` at all, and
+     `ShipConstructionState` is a *singleton* resource built for exactly one
+     interactive local human — agent/network players are explicitly routed to
+     AI auto-build today because of this (see the comment in
+     `enter_ship_construction`, `ships/ship_systems.rs`). Wiring real network
+     ship placement means making that state per-player first. Left for a
+     follow-up pass; flagging now so it isn't mistaken for a small gap.
 10. **Wire the deployment into your pingora host.** Add `adv_civ_server` to
     `pingora-docker`'s `docker-compose.yml` and `services.json` so pushing a tag rebuilds
     it — the Docker/Caddy path already exists (`running-multiplayer.md`), this is just
@@ -365,3 +395,96 @@ corrections above) and are **not** repeated here.
     `127.0.0.1`. No action needed until item 9/10 make that a real scenario.
 13. **Mobile native (Android/iOS).** Explicitly deprioritized in your own notes —
     included here only so it's not forgotten, not because it should be scheduled soon.
+
+---
+
+## Design sketch: open-negotiation trade (not scheduled — thinking out loud)
+
+You described the dream: claim "3 wine + 1 unknown," actually deliver 2 wine + 2
+calamities, and have "accept" mean a counter-offer that anyone can outbid — a real
+negotiating floor, not a fixed two-step handshake. Worth writing down while it's fresh,
+even though it's not on the numbered list above (it depends on deciding the network
+trade protocol in item 9 first, and is a genuinely bigger design than a normal roadmap
+item).
+
+### This is closer to the actual rules than today's implementation
+
+Rule 28.1: *"Offers may be suspended, altered or withdrawn in open negotiation, but
+once trade cards have changed hands, a deal is complete and cannot be revoked."* That's
+explicitly a multi-party, fluid negotiation model — the rulebook already imagines
+several players circling one offer before it closes. The current `OpenTradeOffer`
+create → accept → settle flow is a simplified *sequential* stand-in for that: one
+target, one accept, done. It's not wrong, just a narrower slice of what 28.1 allows.
+
+Rule 28.3 already gives you the bluffing primitive, and it's more precise than "3 wine
++ 1 unknown, secretly 2 wine + 2 calamities" sounds at first: a player must *honestly*
+state the **count** and **at least two actual cards** on their side; anything beyond
+those two named cards is genuinely unconstrained until settlement. So "3 wine + 1
+unknown" as a claim is only rules-legal if at least 2 of those are named truthfully as
+wine — the game already has a real, bounded lying budget, not unlimited bluffing. The
+current code's `offering_guaranteed` (≥2, locked) + `offering_hidden` (count-only,
+revealed at settle) is a faithful model of exactly this rule. What's missing is the
+open-floor, multi-party, alterable-offer part, and the "accept is provisional" part.
+
+### The core idea: accept is a bid, not a handshake
+
+Reframe an `OpenTradeOffer` as something other players can *bid on*, not just
+accept-or-not:
+- **Propose**: A opens an offer (today's shape: guaranteed + hidden counts, each
+  direction).
+- **Counter**: any other player B can respond with a counter — not just "yes," but an
+  alternative shape of the same deal (different cards, better counts, a sweetener).
+  This is structurally *the same kind of message* as the original proposal, just
+  attached to it as a child.
+- **Hijack**: while A's offer is open, a third player C can also counter it — C didn't
+  see B's specific cards (still hidden/guaranteed same as today), but C can see that a
+  negotiation is happening on "grain for iron" and jump in with a competing shape.
+  Rule 28.2's "only two players" cap applies to the *final* deal, not the *negotiation*
+  — several people can compete to be the two who close it.
+- **Close**: A picks whichever live counter they like best (including their own
+  original terms, or B's, or C's) and settles with that one specific player. Everyone
+  else's counters on that offer lapse. Settlement is exactly today's mechanism
+  (choose real cards for guaranteed/hidden slots) and rule 28.1's "cards changed hands
+  = irrevocable" still ends it.
+
+### Sketch of the shape
+
+```rust
+struct OpenTradeOffer {
+    creator: Entity,
+    // ...today's fields...
+    parent_offer: Option<Entity>,   // Some(x) if this is a counter to offer x
+    superseded: bool,               // true once the creator picks a different counter
+}
+```
+
+A "negotiation thread" is just an offer plus all live (`!superseded`, `!withdrawn`)
+entities pointing at it via `parent_offer` — no new top-level concept needed, just
+letting an `OpenTradeOffer` point at another one instead of always being a root.
+`accept` becomes "close on this specific counter, mark all its siblings superseded."
+
+### What this actually costs
+
+- **Network protocol**: this is exactly why item 9's trade design shouldn't be locked
+  in against the old `NetTradeMove`/dead-stub model — an open floor needs the server to
+  *broadcast* new counters to everyone watching that negotiation as they arrive, not
+  just answer one client's request. That's a materially different message shape
+  (push, not just request/response) than the agent API's current `/trade/*` REST calls.
+- **UI**: needs a live "trade floor" view per negotiation (who's countered, with what
+  shape — not contents), not just "an offer exists, accept y/n."
+- **Termination**: rule 28.4's 5-minute guideline suggests a real answer is needed for
+  "when does a negotiation stop accepting new counters" — otherwise a floor never
+  closes. A per-offer countdown that resets on each new counter (classic auction
+  mechanics) is the obvious fit, but is a real design decision, not a detail.
+- **AI**: `stupid_ai`'s trade personality knobs (`trade_drive`, `is_top_commodity`) would
+  need a bidding-war policy — when to counter someone else's negotiation vs. only
+  respond to offers aimed at them — which is new behavior, not a straightforward
+  extension of `ai_create_trade_offers`.
+
+None of this is required to get networked trade working at all (item 9's simpler,
+sequential accept/settle model is a legitimate first step and doesn't paint us into a
+corner — `parent_offer: Option<Entity>` slots in later without reshaping what exists).
+But if the network protocol is being designed from scratch anyway, it's worth deciding
+*now* whether it should carry "this negotiation has N live counters" from day one,
+since retrofitting a push-based multi-party protocol onto a request/response one later
+is much more expensive than including the hook up front.

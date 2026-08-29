@@ -114,7 +114,7 @@ getrandom04 = { package = "getrandom", version = "0.4.0-rc.1", features = ["wasm
 # Join-link plumbing in the browser: URL params + token fetch.
 wasm-bindgen-futures = "0.4"
 gloo-net = { version = "0.6", default-features = false, features = ["http"] }
-web-sys = { version = "0.3", features = ["Window", "Location", "UrlSearchParams"] }
+web-sys = { version = "0.3", features = ["Window", "Location", "UrlSearchParams", "Storage"] }
 
 [build-dependencies]
 embed-resource = "1"

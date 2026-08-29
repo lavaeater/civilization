@@ -44,6 +44,12 @@ pub struct Seat {
     pub client: Option<Entity>,
     pub peer: Option<lightyear::prelude::PeerId>,
     pub name: Option<String>,
+    /// Reconnect secret bound to this seat's identity, once one has been
+    /// issued (see `find_seat_for_join`). Session-token hardening, not real
+    /// security: this is a friends-and-family game, not an adversarial one —
+    /// the goal is stopping a typo'd or guessed display name from silently
+    /// stealing someone's seat, not defeating a determined attacker.
+    pub reconnect_token: Option<String>,
 }
 
 #[derive(Resource, Default)]
@@ -60,6 +66,99 @@ impl Seats {
 
     pub fn all_claimed(&self) -> bool {
         self.0.iter().all(|s| s.client.is_some())
+    }
+}
+
+/// Picks which seat a `(name, token)` join should claim.
+///
+/// A seat with no `reconnect_token` bound yet (never claimed, or claimed by
+/// an old client that predates this) accepts a plain name match — that keeps
+/// the "share a magic link, type your name" flow working for first-time
+/// joins. Once a token *is* bound, reclaiming that specific identity requires
+/// presenting the matching token; a name-only (or mismatched-token) join
+/// falls through to a genuinely unclaimed seat instead of stealing it.
+pub fn find_seat_for_join(seats: &[Seat], name: &str, token: Option<&str>) -> Option<usize> {
+    seats
+        .iter()
+        .position(|s| {
+            s.client.is_none()
+                && s.name.as_deref() == Some(name)
+                && match &s.reconnect_token {
+                    None => true,
+                    Some(bound) => Some(bound.as_str()) == token,
+                }
+        })
+        .or_else(|| {
+            seats
+                .iter()
+                .position(|s| s.client.is_none() && s.name.is_none())
+        })
+}
+
+#[cfg(test)]
+mod seat_join_tests {
+    use super::*;
+
+    fn seat(faction: GameFaction, name: Option<&str>, token: Option<&str>) -> Seat {
+        Seat {
+            faction,
+            player: None,
+            client: None,
+            peer: None,
+            name: name.map(str::to_string),
+            reconnect_token: token.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn first_join_to_an_untouched_seat_matches_by_name_alone() {
+        let seats = vec![seat(GameFaction::Egypt, Some("Alice"), None)];
+        assert_eq!(find_seat_for_join(&seats, "Alice", None), Some(0));
+    }
+
+    #[test]
+    fn reclaiming_a_token_bound_seat_requires_the_right_token() {
+        let seats = vec![seat(GameFaction::Egypt, Some("Alice"), Some("secret"))];
+        assert_eq!(
+            find_seat_for_join(&seats, "Alice", Some("secret")),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn a_stranger_typing_a_taken_name_without_the_token_does_not_steal_the_seat() {
+        let seats = vec![
+            seat(GameFaction::Egypt, Some("Alice"), Some("real-secret")),
+            seat(GameFaction::Crete, None, None),
+        ];
+        // Wrong (or absent) token on a bound seat falls through to a fresh one
+        // instead of claiming Alice's.
+        assert_eq!(
+            find_seat_for_join(&seats, "Alice", Some("guessed")),
+            Some(1)
+        );
+        assert_eq!(find_seat_for_join(&seats, "Alice", None), Some(1));
+    }
+
+    #[test]
+    fn no_seats_available_at_all_returns_none() {
+        let seats = vec![seat(
+            GameFaction::Egypt,
+            Some("Alice"),
+            Some("real-secret"),
+        )];
+        let mut taken = seats;
+        taken[0].client = Some(Entity::from_raw_u32(1).unwrap());
+        assert_eq!(find_seat_for_join(&taken, "Bob", None), None);
+    }
+
+    #[test]
+    fn a_brand_new_name_claims_a_fresh_seat_directly() {
+        let seats = vec![
+            seat(GameFaction::Egypt, Some("Alice"), Some("real-secret")),
+            seat(GameFaction::Crete, None, None),
+        ];
+        assert_eq!(find_seat_for_join(&seats, "Bob", None), Some(1));
     }
 }
 
@@ -124,6 +223,7 @@ impl Plugin for HeadlessGamePlugin {
                     client: None,
                     peer: None,
                     name: None,
+                    reconnect_token: None,
                 })
                 .collect(),
         ));

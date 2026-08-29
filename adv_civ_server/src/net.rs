@@ -3,7 +3,7 @@
 //! protocol. This is the seam described in docs/multiplayer.md: clients only
 //! ever pick from moves the server offered.
 
-use crate::game::Seats;
+use crate::game::{Seats, find_seat_for_join};
 use adv_civ::civilization::*;
 use adv_civ::player::Player;
 use adv_civ::{GameActivity, GameState};
@@ -92,32 +92,33 @@ fn handle_joins(
     let server = server.into_inner();
     let mut lobby_changed = false;
 
-    let mut joins: Vec<(Entity, PeerId, String)> = Vec::new();
+    let mut joins: Vec<(Entity, PeerId, String, Option<String>)> = Vec::new();
     for (client_entity, remote_id, mut receiver) in receivers.iter_mut() {
         for join in receiver.receive() {
-            joins.push((client_entity, remote_id.0, join.player_name));
+            joins.push((
+                client_entity,
+                remote_id.0,
+                join.player_name,
+                join.reconnect_token,
+            ));
         }
     }
     for (client_entity, remote_id) in connected.iter() {
         if let PeerId::Netcode(client_id) = remote_id.0
-            && let Some(name) = pending.0.remove(&client_id)
+            && let Some((name, token)) = pending.0.remove(&client_id)
         {
-            joins.push((client_entity, remote_id.0, name));
+            joins.push((client_entity, remote_id.0, name, token));
         }
     }
 
-    for (client_entity, peer, player_name) in joins {
+    for (client_entity, peer, player_name, token) in joins {
         if seats.by_client(client_entity).is_some() {
             continue;
         }
-        // A returning player gets their old seat back (matched by name);
-        // otherwise first free. Real session tokens can replace the name
-        // match later — for invited friends this is the right default.
-        let seat_index = seats
-            .0
-            .iter()
-            .position(|s| s.client.is_none() && s.name.as_deref() == Some(player_name.as_str()))
-            .or_else(|| seats.0.iter().position(|s| s.client.is_none()));
+        // Session-token hardening (docs/multiplayer.md): a name match alone
+        // only claims a seat that's never had a token bound; reclaiming a
+        // bound identity needs the matching token. See `find_seat_for_join`.
+        let seat_index = find_seat_for_join(&seats.0, &player_name, token.as_deref());
         let Some(seat) = seat_index.map(|i| &mut seats.0[i]) else {
             info!("Rejecting {player_name}: all seats taken");
             continue;
@@ -125,6 +126,14 @@ fn handle_joins(
         seat.client = Some(client_entity);
         seat.peer = Some(peer);
         seat.name = Some(player_name.clone());
+        // Bind a token to this identity the first time one is available —
+        // whether newly minted (HTTP join) or already on file (a genuine
+        // reconnect); a seat that already has one keeps it.
+        if seat.reconnect_token.is_none()
+            && let Some(token) = token
+        {
+            seat.reconnect_token = Some(token);
+        }
         // Mid-game (re)join: the seat's player exists, rename it now.
         // In the lobby, bind_seats applies the name at StartGame instead.
         if let Some(player) = seat.player

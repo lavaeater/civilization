@@ -20,14 +20,43 @@ Phases 1–2 done, phases 3–4 largely done — see the `web-and-mobile` branch
   on its HTTP port alongside `/api/*`, so one command hosts client + API + WebSocket — good for
   LAN play with no Caddy. See [`docs/running-multiplayer.md`](running-multiplayer.md).
 - ✅ Map view: real board image + per-area labels driven by `GameStateView`
-- ✅ Reconnection: name-matched reseat + full state sync (phase/board/hand/moves) on (re)join
+- ✅ Reconnection: session-token-hardened reseat (see below) + full state sync
+  (phase/board/hand/moves) on (re)join
 - ✅ PWA manifest — installable on mobile (phase 0)
 - ✅ Click-the-map move selection: click a highlighted area to act; movement is
   source→target two-click with green/yellow highlight dots (side-panel buttons remain
   a fallback). Decision logic is a pure `resolve_map_click`, unit-tested.
 - ⬜ Interactive trade over the network; ship placement endpoint
-- ⬜ Session tokens instead of name-matched reseat; AI takeover after disconnect grace
+- ⬜ AI takeover after disconnect grace — explicitly deferred: a disconnected
+  seat should just wait for its player to reconnect (aided by the token below),
+  not get auto-piloted. If we ever want an AI to step in, that should be a
+  conscious host decision, not an automatic timeout.
 - ⬜ Mobile native (Android via existing mobile crate, then iOS)
+
+### Session tokens (26-08-29)
+
+Reseating used to match purely on the display name a client typed, so anyone
+who knew (or guessed) a seated player's name could steal their seat by
+joining with the same name. Fixed with a per-seat reconnect secret:
+
+- `POST /api/join` accepts an optional `"token"` field and **always** returns
+  a `"reconnect_token"` in its response — freshly minted on a client's first
+  join, or simply the token it already sent back to it unchanged.
+- The web client saves this in `localStorage` (`adv_civ_reconnect_token`) and
+  sends it on every future join. The native client (dev/manual testing, no
+  browser storage) reads/logs it via a `RECONNECT_TOKEN` env var instead —
+  not the target UX, just parity for testing.
+- Server-side, a seat that has never had a token bound accepts a plain name
+  match (first-ever join to that identity, or an old client) — this keeps the
+  "share a link, type your name" flow working. Once a token *is* bound,
+  reclaiming that identity requires it; a name-only or wrong-token join falls
+  through to a genuinely free seat instead of stealing the named one. See
+  `find_seat_for_join` in `adv_civ_server/src/game.rs` (5 unit tests).
+- This is **session-token hardening for a friends-and-family game**, not
+  real security — the token travels in plaintext over the join HTTP request
+  and lives in `localStorage`, which is fine against a curious namesake but
+  not a determined attacker. Good enough for "invite friends," not for a
+  public server with strangers.
 
 Original exploration follows.
 
