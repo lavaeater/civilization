@@ -119,7 +119,9 @@ pub fn cleanup_coinage_rate_ui_on_exit(
 // between testing "what the button is supposed to do" and testing "what
 // clicking the button actually does": a wiring mistake (wrong entity, button
 // never spawned, marker never removed) would pass the former and fail the
-// latter.
+// latter. Since the handlers mutate the world via `Commands`, `world.flush()`
+// is required after `world.trigger()` to apply the deferred changes -- the
+// same as an `App::update()` tick would do for a real click.
 
 #[cfg(test)]
 mod tests {
@@ -149,68 +151,6 @@ mod tests {
     }
 
     #[test]
-    fn debug_minimal_entity_observer_trigger_works() {
-        #[derive(Resource, Default)]
-        struct Hit(bool);
-
-        let mut world = World::new();
-        world.init_resource::<Hit>();
-        let entity = world
-            .run_system_once(|mut commands: Commands| {
-                commands
-                    .spawn_empty()
-                    .observe(|_: On<Activate>, mut hit: ResMut<Hit>| {
-                        hit.0 = true;
-                    })
-                    .id()
-            })
-            .unwrap();
-
-        world.trigger(Activate { entity });
-        assert!(world.resource::<Hit>().0, "minimal entity observer should fire");
-    }
-
-    #[test]
-    fn debug_uibuilder_button_observer_fires() {
-        #[derive(Resource, Default)]
-        struct Hit(bool);
-        #[derive(Component)]
-        struct Marker;
-
-        let mut world = World::new();
-        world.init_resource::<Hit>();
-        world.init_resource::<LavaTheme>();
-
-        world
-            .run_system_once(
-                |commands: Commands, theme: Res<LavaTheme>| {
-                    let mut ui = UIBuilder::new(commands, Some(theme.clone()));
-                    ui.add_button_observe(
-                        "Click me",
-                        |btn| {
-                            btn.insert(Marker);
-                        },
-                        |_: On<Activate>, mut hit: ResMut<Hit>| {
-                            hit.0 = true;
-                        },
-                    );
-                    ui.build();
-                },
-            )
-            .unwrap();
-
-        let button = world
-            .query::<(Entity, &Marker)>()
-            .iter(&world)
-            .next()
-            .map(|(e, _)| e)
-            .expect("button with Marker should have spawned");
-
-        world.trigger(Activate { entity: button });
-        assert!(world.resource::<Hit>().0, "uibuilder button observer should fire");
-    }
-
-    #[test]
     fn clicking_a_rate_button_computes_tax_and_clears_awaiting() {
         let mut world = World::new();
         world.init_resource::<LavaTheme>();
@@ -228,6 +168,7 @@ mod tests {
 
         let button = find_rate_button(&mut world, 3);
         world.trigger(Activate { entity: button });
+        world.flush();
 
         let needs = world
             .get::<NeedsToPayTaxes>(player)
@@ -249,6 +190,7 @@ mod tests {
             world.run_system_once(spawn_coinage_rate_ui).unwrap();
             let button = find_rate_button(&mut world, rate);
             world.trigger(Activate { entity: button });
+            world.flush();
 
             let needs = world.get::<NeedsToPayTaxes>(player).unwrap();
             assert_eq!(needs.tokens_owed, expected, "rate {rate} on 2 cities");
@@ -264,6 +206,7 @@ mod tests {
         world.run_system_once(spawn_coinage_rate_ui).unwrap();
         let button = find_rate_button(&mut world, 1);
         world.trigger(Activate { entity: button });
+        world.flush();
         world.run_system_once(cleanup_coinage_rate_ui).unwrap();
 
         assert!(
