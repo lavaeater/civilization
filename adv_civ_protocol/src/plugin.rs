@@ -18,6 +18,12 @@ impl Plugin for ProtocolPlugin {
             .add_direction(NetworkDirection::ClientToServer);
         app.register_message::<SubmitMove>()
             .add_direction(NetworkDirection::ClientToServer);
+        app.register_message::<ProposeTradeOffer>()
+            .add_direction(NetworkDirection::ClientToServer);
+        app.register_message::<AcceptTradeOffer>()
+            .add_direction(NetworkDirection::ClientToServer);
+        app.register_message::<SettleTradeOffer>()
+            .add_direction(NetworkDirection::ClientToServer);
 
         // Server → Client
         app.register_message::<JoinAccepted>()
@@ -33,6 +39,8 @@ impl Plugin for ProtocolPlugin {
         app.register_message::<GameStateView>()
             .add_direction(NetworkDirection::ServerToClient);
         app.register_message::<YourHand>()
+            .add_direction(NetworkDirection::ServerToClient);
+        app.register_message::<TradeOffersView>()
             .add_direction(NetworkDirection::ServerToClient);
 
         app.add_channel::<ControlChannel>(ChannelSettings {

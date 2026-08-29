@@ -367,14 +367,24 @@ corrections above) and are **not** repeated here.
      Decided a disconnected seat should wait for its player to reconnect (the
      token above makes that reliable) rather than auto-piloting them — an AI
      stepping in should be a conscious host decision later, not a timeout.
-   - **Interactive trade over the network: real design work, not done yet.**
-     The protocol's existing `NetTradeMove` type targets the *old, dead*
-     `TradeMove`/`TradeOffer` model `agent-api-design.md` explicitly says not
-     to use — real trade is `OpenTradeOffer`. This needs new protocol messages
-     designed against the right model, mirroring the agent API's `/trade/*`
-     endpoints. See the design write-up at the end of this document for where
-     this is headed (bluffing + a counter-offer/negotiation-hijack model) —
-     worth deciding that direction before building throwaway protocol messages.
+   - ~~**Interactive trade over the network.**~~ **Done (26-08-29).** Added
+     `ProposeTradeOffer`/`AcceptTradeOffer`/`SettleTradeOffer` (dedicated
+     messages, not `SubmitMove` picks) targeting the real `OpenTradeOffer`
+     model — not the old dead `NetTradeMove`/`TradeMove` pair — mirroring the
+     agent API's `/trade/*` endpoints and reusing its exact validation/accept/
+     settle methods. Server broadcasts a `TradeOffersView` (hidden slots as
+     counts only, never identities) to everyone whenever any offer changes,
+     and to a (re)joining client alongside the existing sync. Client UI is a
+     deliberately simplified but genuinely usable trade flow: cycles through
+     commodity types instead of a full card picker, settles with your whole
+     hand instead of picking exact cards — see `docs/multiplayer.md`'s
+     "Trade over the network" section for the exact tradeoffs and the design
+     sketch below for where a richer UI could go. **Not interactively
+     verified** — no working websocket test client exists here to drive a
+     real multi-client trade (verified instead via full compile across
+     native/wasm/server, the full test suite, and a live headless run
+     confirming the new systems run without panicking); please run an actual
+     two-client trade before trusting it.
    - **Ship-placement endpoint: needs a data-model change first, not just a
      message.** Ship construction isn't a `GameMove` at all, and
      `ShipConstructionState` is a *singleton* resource built for exactly one

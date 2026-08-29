@@ -152,6 +152,39 @@ impl SubmitMove {
     }
 }
 
+/// Open a trade offer (rule 28.3: at least 2 truthfully-named guaranteed
+/// cards per side, plus a hidden count that may be anything at settlement).
+/// Mirrors the agent API's `POST /trade/offer` and the local human UI's
+/// "publish offer" flow against the one real trade model, `OpenTradeOffer` —
+/// not the dead `NetTradeMove`/`TradeMove` pair below, see
+/// `agent-api-design.md`. A dedicated message rather than a `SubmitMove`
+/// because the guaranteed card selections are free-form input, not a pick
+/// from an enumerated move list.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct ProposeTradeOffer {
+    pub offering_guaranteed: Vec<(TradeCard, usize)>,
+    pub offering_hidden_count: usize,
+    pub wanting_guaranteed: Vec<(TradeCard, usize)>,
+    pub wanting_hidden_count: usize,
+    /// `None` = open to anyone.
+    pub target: Option<GameFaction>,
+}
+
+/// Accept an open offer (rule 28.1's "open negotiation" — any eligible
+/// player, not just an explicit target, may accept an untargeted offer).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct AcceptTradeOffer {
+    pub offer: NetOfferId,
+}
+
+/// Commit the real cards for your side of an accepted offer (the hidden
+/// slots may be anything, honest bluff included — rule 28.3).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SettleTradeOffer {
+    pub offer: NetOfferId,
+    pub cards: Vec<(TradeCard, usize)>,
+}
+
 // ---------------------------------------------------------------------------
 // Server → Client
 // ---------------------------------------------------------------------------
@@ -231,4 +264,31 @@ pub struct YourHand {
 pub struct GameStateView {
     pub areas: Vec<AreaView>,
     pub players: Vec<PlayerView>,
+}
+
+/// One open trade offer, from anyone's negotiation. Public per rule 28.1
+/// ("open negotiation") — but hidden slots stay counts-only here, same as
+/// the agent API's `GET /trade`; actual hidden card identities are never
+/// broadcast, only revealed to the two parties at settlement.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct NetTradeOffer {
+    pub id: NetOfferId,
+    pub creator: GameFaction,
+    pub target: Option<GameFaction>,
+    pub accepted_by: Option<GameFaction>,
+    /// True once `accepted_by` is set and both sides still need to commit
+    /// real cards — the settlement step.
+    pub settling: bool,
+    pub offering_guaranteed: Vec<(TradeCard, usize)>,
+    pub offering_hidden_count: usize,
+    pub wanting_guaranteed: Vec<(TradeCard, usize)>,
+    pub wanting_hidden_count: usize,
+}
+
+/// Every currently-open trade offer, broadcast whenever any of them changes
+/// (created/accepted/settled/withdrawn) — mirrors `GET /trade`'s shape in
+/// the agent API.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct TradeOffersView {
+    pub offers: Vec<NetTradeOffer>,
 }

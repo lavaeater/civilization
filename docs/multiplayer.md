@@ -26,7 +26,10 @@ Phases 1–2 done, phases 3–4 largely done — see the `web-and-mobile` branch
 - ✅ Click-the-map move selection: click a highlighted area to act; movement is
   source→target two-click with green/yellow highlight dots (side-panel buttons remain
   a fallback). Decision logic is a pure `resolve_map_click`, unit-tested.
-- ⬜ Interactive trade over the network; ship placement endpoint
+- ✅ Interactive trade over the network (see below) — real `OpenTradeOffer`
+  model, not the dead `NetTradeMove`/`TradeMove` pair
+- ⬜ Ship placement endpoint — still needs `ShipConstructionState` turned from
+  a singleton into a per-player resource first, see docs/roadmap.md
 - ⬜ AI takeover after disconnect grace — explicitly deferred: a disconnected
   seat should just wait for its player to reconnect (aided by the token below),
   not get auto-piloted. If we ever want an AI to step in, that should be a
@@ -57,6 +60,48 @@ joining with the same name. Fixed with a per-seat reconnect secret:
   and lives in `localStorage`, which is fine against a curious namesake but
   not a determined attacker. Good enough for "invite friends," not for a
   public server with strangers.
+
+### Trade over the network (26-08-29)
+
+Three new dedicated messages, not `SubmitMove` picks — the guaranteed-card
+selections are free-form input, not a choice from an enumerated move list,
+same reasoning as the agent API's dedicated `/trade/*` endpoints, which this
+mirrors closely (right down to reusing the same `OpenTradeOffer` model and
+methods — `is_valid`, `accept`, `settle_creator`/`settle_acceptor`):
+
+- `ProposeTradeOffer { offering_guaranteed, offering_hidden_count,
+  wanting_guaranteed, wanting_hidden_count, target }` → spawns a validated
+  `OpenTradeOffer`, silently dropped server-side if it fails `is_valid()`
+  (rule 28.3: exactly 2 guaranteed cards, ≥3 total, per side).
+- `AcceptTradeOffer { offer }`.
+- `SettleTradeOffer { offer, cards }` — either party's actual cards; the
+  hidden slots may be anything, honest bluff included.
+- Server broadcasts `TradeOffersView` (every open offer, hidden slots as
+  counts only — never identities) to everyone whenever any offer changes,
+  and pushes it to a (re)joining client alongside the existing phase/board/
+  hand sync. Mirrors `GET /trade`'s shape in the agent API.
+
+**Client UI is deliberately simplified**, not a placeholder: both guaranteed
+slots on a side are the same card (2 of it) rather than two different named
+cards, picked by cycling through the 18 commodity types with a button rather
+than a proper picker widget; settlement always uses your entire real hand for
+both guaranteed and hidden slots rather than letting you choose exactly which
+cards to commit. This is a real, usable trade flow — not everything the rules
+allow, but everything needed to actually trade. See docs/roadmap.md's design
+sketch for where a richer UI (and the negotiation/counter-offer model) could
+go from here.
+
+**Not interactively verified**: no working websocket test client exists in
+this environment (`spike_client` has a pre-existing, unrelated
+`lightyear::link::Link::new` build break) to drive an actual multi-client
+trade round trip. Verified instead by: full compile across native, wasm, and
+the headless server; the full test suite (357 lib + 132 integration tests);
+and a live headless self-play run confirming the new systems run every frame
+with zero connected clients without panicking or erroring. The server-side
+logic reuses the exact `OpenTradeOffer` methods the agent API and local human
+UI already exercise, so its correctness rests on tests that already exist
+for those, not new ones. Please run an actual two-client trade before relying
+on this.
 
 Original exploration follows.
 

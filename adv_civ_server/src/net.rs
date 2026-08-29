@@ -37,6 +37,15 @@ impl Plugin for NetBridgePlugin {
                 broadcast_board_state,
             ),
         );
+        app.add_systems(
+            Update,
+            (
+                receive_propose_trade_offers,
+                receive_accept_trade_offers,
+                receive_settle_trade_offers,
+                broadcast_trade_offers,
+            ),
+        );
         app.add_observer(on_client_disconnected);
     }
 }
@@ -568,6 +577,7 @@ fn sync_joined_clients(
     area_ids: Query<&GameArea>,
     hands: Query<&PlayerTradeCards>,
     available: Query<&AvailableMoves>,
+    open_offers: Query<(Entity, &OpenTradeOffer)>,
     mut sender: ServerMultiMessageSender,
     server: Single<&Server>,
 ) -> Result {
@@ -576,9 +586,11 @@ fn sync_joined_clients(
     }
     let server = server.into_inner();
     let board = compose_board_view(&areas, &players, &factions);
+    let trade_offers = compose_trade_offers_view(&open_offers, &seats);
 
     for peer in needs_sync.0.drain(..) {
         let target = NetworkTarget::Single(peer);
+        sender.send::<_, ControlChannel>(&trade_offers, server, &target)?;
         if let Some(activity) = &activity {
             sender.send::<_, ControlChannel>(
                 &PhaseChanged {
@@ -645,7 +657,9 @@ fn send_hands(
 }
 
 /// Free the seat when its client disconnects so a reconnecting client can
-/// claim it again (crude stand-in for the session-token flow in the doc).
+/// claim it again — `name`/`reconnect_token` stay bound, so only the same
+/// client (or one presenting the right token) can reclaim it; see
+/// `find_seat_for_join` and docs/multiplayer.md's session-token section.
 fn on_client_disconnected(trigger: On<Remove, Connected>, mut seats: ResMut<Seats>) {
     if let Some(seat) = seats
         .0
@@ -656,4 +670,190 @@ fn on_client_disconnected(trigger: On<Remove, Connected>, mut seats: ResMut<Seat
         seat.client = None;
         seat.peer = None;
     }
+}
+
+// ── Trade over the network ───────────────────────────────────────────────
+//
+// The one real trade model is `OpenTradeOffer` (see agent-api-design.md — the
+// `NetTradeMove`/`TradeMove` pair is dead). `ProposeTradeOffer`/
+// `AcceptTradeOffer`/`SettleTradeOffer` are dedicated messages, not
+// `SubmitMove` picks, because the card selections are free-form input rather
+// than a choice from an enumerated move list — same reasoning as the agent
+// API's dedicated `/trade/*` endpoints, which this mirrors closely.
+
+fn card_map(cards: &[(TradeCard, usize)]) -> bevy::platform::collections::HashMap<TradeCard, usize> {
+    cards.iter().copied().collect()
+}
+
+fn card_vec(cards: &bevy::platform::collections::HashMap<TradeCard, usize>) -> Vec<(TradeCard, usize)> {
+    let mut v: Vec<(TradeCard, usize)> = cards.iter().map(|(c, n)| (*c, *n)).collect();
+    v.sort_by_key(|(c, _)| format!("{c}"));
+    v
+}
+
+#[allow(clippy::type_complexity)]
+fn receive_propose_trade_offers(
+    mut receivers: Query<
+        (Entity, &mut MessageReceiver<ProposeTradeOffer>),
+        With<ClientOf>,
+    >,
+    seats: Res<Seats>,
+    names: Query<&Name, With<Player>>,
+    mut commands: Commands,
+) {
+    for (client_entity, mut receiver) in receivers.iter_mut() {
+        for propose in receiver.receive() {
+            let Some(seat) = seats.by_client(client_entity) else {
+                continue;
+            };
+            let Some(player) = seat.player else { continue };
+            let creator_name = names
+                .get(player)
+                .map_or_else(|_| seat.faction.to_string(), ToString::to_string);
+            let target = propose
+                .target
+                .and_then(|f| seats.0.iter().find(|s| s.faction == f))
+                .and_then(|s| s.player);
+            let target_name = target.and_then(|p| names.get(p).ok()).map(ToString::to_string);
+
+            let mut offer = OpenTradeOffer::new(player, creator_name, target, target_name);
+            offer.offering_guaranteed = card_map(&propose.offering_guaranteed);
+            offer.offering_hidden_count = propose.offering_hidden_count;
+            offer.wanting_guaranteed = card_map(&propose.wanting_guaranteed);
+            offer.wanting_hidden_count = propose.wanting_hidden_count;
+
+            if offer.is_valid() {
+                info!("{} proposed a trade offer", seat.faction);
+                commands.spawn(offer);
+            } else {
+                warn!(
+                    "{} proposed an invalid trade offer (needs exactly 2 guaranteed cards \
+                     and >=3 total on each side) — dropped",
+                    seat.faction
+                );
+            }
+        }
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn receive_accept_trade_offers(
+    mut receivers: Query<(Entity, &mut MessageReceiver<AcceptTradeOffer>), With<ClientOf>>,
+    seats: Res<Seats>,
+    names: Query<&Name, With<Player>>,
+    mut offers: Query<&mut OpenTradeOffer>,
+) {
+    for (client_entity, mut receiver) in receivers.iter_mut() {
+        for accept in receiver.receive() {
+            let Some(seat) = seats.by_client(client_entity) else {
+                continue;
+            };
+            let Some(player) = seat.player else { continue };
+            let Some(offer_entity) = Entity::try_from_bits(accept.offer.0) else {
+                continue;
+            };
+            let Ok(mut offer) = offers.get_mut(offer_entity) else {
+                warn!("{} tried to accept a nonexistent trade offer", seat.faction);
+                continue;
+            };
+            let player_name = names
+                .get(player)
+                .map_or_else(|_| seat.faction.to_string(), ToString::to_string);
+            if offer.accept(player, player_name) {
+                info!("{} accepted a trade offer", seat.faction);
+            } else {
+                warn!(
+                    "{} could not accept that trade offer (own offer, already \
+                     accepted/withdrawn, or not the target)",
+                    seat.faction
+                );
+            }
+        }
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn receive_settle_trade_offers(
+    mut receivers: Query<(Entity, &mut MessageReceiver<SettleTradeOffer>), With<ClientOf>>,
+    seats: Res<Seats>,
+    mut offers: Query<&mut OpenTradeOffer>,
+) {
+    for (client_entity, mut receiver) in receivers.iter_mut() {
+        for settle in receiver.receive() {
+            let Some(seat) = seats.by_client(client_entity) else {
+                continue;
+            };
+            let Some(player) = seat.player else { continue };
+            let Some(offer_entity) = Entity::try_from_bits(settle.offer.0) else {
+                continue;
+            };
+            let Ok(mut offer) = offers.get_mut(offer_entity) else {
+                warn!("{} tried to settle a nonexistent trade offer", seat.faction);
+                continue;
+            };
+            let cards = card_map(&settle.cards);
+            if offer.creator == player {
+                offer.settle_creator(cards);
+                info!("{} settled their side of a trade offer", seat.faction);
+            } else if offer.accepted_by == Some(player) {
+                offer.settle_acceptor(cards);
+                info!("{} settled their side of a trade offer", seat.faction);
+            } else {
+                warn!(
+                    "{} tried to settle a trade offer they're not party to",
+                    seat.faction
+                );
+            }
+        }
+    }
+}
+
+fn to_net_trade_offer(entity: Entity, offer: &OpenTradeOffer, seats: &Seats) -> Option<NetTradeOffer> {
+    let creator = seats.by_player(offer.creator)?.faction;
+    let target = offer.target.and_then(|p| seats.by_player(p)).map(|s| s.faction);
+    let accepted_by = offer.accepted_by.and_then(|p| seats.by_player(p)).map(|s| s.faction);
+    Some(NetTradeOffer {
+        id: NetOfferId(entity.to_bits()),
+        creator,
+        target,
+        accepted_by,
+        settling: offer.is_settling(),
+        offering_guaranteed: card_vec(&offer.offering_guaranteed),
+        offering_hidden_count: offer.offering_hidden_count,
+        wanting_guaranteed: card_vec(&offer.wanting_guaranteed),
+        wanting_hidden_count: offer.wanting_hidden_count,
+    })
+}
+
+fn compose_trade_offers_view(
+    all_offers: &Query<(Entity, &OpenTradeOffer)>,
+    seats: &Seats,
+) -> TradeOffersView {
+    TradeOffersView {
+        offers: all_offers
+            .iter()
+            .filter(|(_, o)| !o.withdrawn)
+            .filter_map(|(e, o)| to_net_trade_offer(e, o, seats))
+            .collect(),
+    }
+}
+
+/// Broadcast the full open-offers list whenever any offer changes or is
+/// removed (settled offers get despawned elsewhere once both sides commit).
+fn broadcast_trade_offers(
+    changed: Query<(), Changed<OpenTradeOffer>>,
+    mut removed: RemovedComponents<OpenTradeOffer>,
+    all_offers: Query<(Entity, &OpenTradeOffer)>,
+    seats: Res<Seats>,
+    mut sender: ServerMultiMessageSender,
+    server: Single<&Server>,
+) -> Result {
+    let any_removed = !removed.is_empty();
+    removed.clear();
+    if (changed.is_empty() && !any_removed) || seats.0.iter().all(|s| s.client.is_none()) {
+        return Ok(());
+    }
+    let view = compose_trade_offers_view(&all_offers, &seats);
+    sender.send::<_, ControlChannel>(&view, server.into_inner(), &NetworkTarget::All)?;
+    Ok(())
 }

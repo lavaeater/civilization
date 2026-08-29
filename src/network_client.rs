@@ -145,6 +145,9 @@ pub struct NetGame {
     /// First click of a two-area movement move; the second click on a valid
     /// target submits it. Cleared on submit, phase change, or new moves.
     pub selected_source: Option<AreaId>,
+    /// Every currently-open trade offer, from anyone (rule 28.1's "open
+    /// negotiation" is public); see `docs/multiplayer.md`.
+    pub trade_offers: Vec<NetTradeOffer>,
     /// UI rebuild flag — set by every mutation above.
     dirty: bool,
 }
@@ -158,6 +161,69 @@ impl NetGame {
 /// Written by move buttons, drained into the lightyear sender.
 #[derive(Message)]
 pub struct SubmitNetMove(pub usize);
+
+/// Written by the "Propose Offer" button, drained into the lightyear sender.
+#[derive(Message)]
+pub struct SubmitProposeTradeOffer(pub ProposeTradeOffer);
+
+/// Written by an offer's "Accept" button.
+#[derive(Message)]
+pub struct SubmitAcceptTradeOffer(pub NetOfferId);
+
+/// Written by a "Settle" button.
+#[derive(Message)]
+pub struct SubmitSettleTradeOffer(pub SettleTradeOffer);
+
+/// The full set of commodity (non-calamity) trade cards, in a fixed order —
+/// there's no `TradeCard::ALL` in the protocol crate, and the propose-offer
+/// UI cycles through this list rather than needing a full picker widget.
+const COMMODITY_CARDS: [TradeCard; 18] = [
+    TradeCard::Ochre,
+    TradeCard::Hides,
+    TradeCard::Iron,
+    TradeCard::Papyrus,
+    TradeCard::Salt,
+    TradeCard::Timber,
+    TradeCard::Grain,
+    TradeCard::Oil,
+    TradeCard::Cloth,
+    TradeCard::Wine,
+    TradeCard::Bronze,
+    TradeCard::Silver,
+    TradeCard::Spices,
+    TradeCard::Resin,
+    TradeCard::Gems,
+    TradeCard::Dye,
+    TradeCard::Gold,
+    TradeCard::Ivory,
+];
+
+/// Client-local state for the "propose a new offer" form. Both guaranteed
+/// slots on each side are the same card (2 of it) — the simplest form that
+/// still satisfies rule 28.3's "at least 2 truthfully-named cards"; a real
+/// UI could let the two guaranteed cards differ, this doesn't need a full
+/// card-picker widget to be genuinely useful.
+#[derive(Resource)]
+struct TradeDraft {
+    offering_card: usize,
+    offering_hidden: usize,
+    wanting_card: usize,
+    wanting_hidden: usize,
+    /// Index into the *other* connected factions; `None` = open to anyone.
+    target: Option<usize>,
+}
+
+impl Default for TradeDraft {
+    fn default() -> Self {
+        TradeDraft {
+            offering_card: 0,
+            offering_hidden: 1,
+            wanting_card: 1,
+            wanting_hidden: 1,
+            target: None,
+        }
+    }
+}
 
 /// The lightyear client connection entity for this session.
 #[derive(Resource)]
@@ -177,8 +243,12 @@ impl Plugin for NetworkClientPlugin {
         app.init_resource::<NetGame>()
             .insert_resource(NetworkSettings::default())
             .add_message::<SubmitNetMove>()
+            .add_message::<SubmitProposeTradeOffer>()
+            .add_message::<SubmitAcceptTradeOffer>()
+            .add_message::<SubmitSettleTradeOffer>()
             .init_resource::<UsedTokenAuth>()
             .init_resource::<NetMapState>()
+            .init_resource::<TradeDraft>()
             .add_systems(OnEnter(GameState::Online), start_join)
             .add_systems(Update, auto_online.run_if(in_state(GameState::Menu)))
             .add_systems(OnExit(GameState::Online), disconnect_and_cleanup)
@@ -189,6 +259,7 @@ impl Plugin for NetworkClientPlugin {
                     join_when_connected,
                     receive_net_messages,
                     forward_submitted_moves,
+                    forward_trade_actions,
                     spawn_net_map,
                     handle_map_click,
                     update_net_map_labels,
@@ -789,6 +860,7 @@ fn receive_net_messages(
     mut rejected: Query<&mut MessageReceiver<MoveRejected>>,
     mut board: Query<&mut MessageReceiver<GameStateView>>,
     mut hands: Query<&mut MessageReceiver<YourHand>>,
+    mut trade_offers: Query<&mut MessageReceiver<TradeOffersView>>,
     mut net: ResMut<NetGame>,
 ) {
     for mut receiver in &mut accepted {
@@ -838,6 +910,43 @@ fn receive_net_messages(
             net.touch();
         }
     }
+    for mut receiver in &mut trade_offers {
+        for msg in receiver.receive() {
+            net.trade_offers = msg.offers;
+            net.touch();
+        }
+    }
+}
+
+/// Drains the three trade-action message types into the lightyear sender,
+/// same shape as `forward_submitted_moves`.
+fn forward_trade_actions(
+    mut propose: MessageReader<SubmitProposeTradeOffer>,
+    mut accept: MessageReader<SubmitAcceptTradeOffer>,
+    mut settle: MessageReader<SubmitSettleTradeOffer>,
+    mut propose_senders: Query<&mut MessageSender<ProposeTradeOffer>>,
+    mut accept_senders: Query<&mut MessageSender<AcceptTradeOffer>>,
+    mut settle_senders: Query<&mut MessageSender<SettleTradeOffer>>,
+    mut net: ResMut<NetGame>,
+) {
+    for SubmitProposeTradeOffer(offer) in propose.read() {
+        for mut sender in &mut propose_senders {
+            sender.send::<ControlChannel>(offer.clone());
+        }
+        net.touch();
+    }
+    for SubmitAcceptTradeOffer(offer) in accept.read() {
+        for mut sender in &mut accept_senders {
+            sender.send::<ControlChannel>(AcceptTradeOffer { offer: *offer });
+        }
+        net.touch();
+    }
+    for SubmitSettleTradeOffer(msg) in settle.read() {
+        for mut sender in &mut settle_senders {
+            sender.send::<ControlChannel>(msg.clone());
+        }
+        net.touch();
+    }
 }
 
 fn forward_submitted_moves(
@@ -862,6 +971,7 @@ fn forward_submitted_moves(
 fn rebuild_online_ui(
     mut commands: Commands,
     mut net: ResMut<NetGame>,
+    draft: Res<TradeDraft>,
     roots: Query<Entity, With<OnlineUiRoot>>,
     theme: Res<LavaTheme>,
 ) {
@@ -968,6 +1078,182 @@ fn rebuild_online_ui(
         );
     }
 
+    // ── Trade ────────────────────────────────────────────────────────────
+    // Simplified UI, deliberately: real trade lets you name any two distinct
+    // guaranteed cards per side and pick exact settlement cards. This cycles
+    // through one card type at a time (both guaranteed slots = 2 of it) and
+    // settles using your actual hand, rather than building a full card
+    // picker widget — see docs/roadmap.md's trade design sketch for where a
+    // richer UI (and the negotiation/counter-offer model) could go.
+    if matches!(net.phase, Some(NetPhase::Trade)) {
+        let my_faction = net.seated_as.as_ref().map(|(_, f)| *f);
+
+        ui.add_text_child("Trade offers:", Some(TextStyle::size(20.0)));
+        if net.trade_offers.is_empty() {
+            ui.add_text_child("(none yet)", Some(TextStyle::size(14.0)));
+        }
+        for offer in net.trade_offers.clone() {
+            let offering = describe_offer_side(&offer.offering_guaranteed, offer.offering_hidden_count);
+            let wanting = describe_offer_side(&offer.wanting_guaranteed, offer.wanting_hidden_count);
+            let target_str = offer.target.map_or("anyone".to_string(), |f| f.to_string());
+            let accepted_str = offer
+                .accepted_by
+                .map_or(String::new(), |a| format!(" — accepted by {a}"));
+            ui.add_text_child(
+                format!(
+                    "{} offers {} for {} (to {}){}",
+                    offer.creator, offering, wanting, target_str, accepted_str
+                ),
+                Some(TextStyle::size(14.0)),
+            );
+
+            let can_accept = my_faction.is_some_and(|me| {
+                me != offer.creator
+                    && offer.accepted_by.is_none()
+                    && offer.target.is_none_or(|t| t == me)
+            });
+            if can_accept {
+                let id = offer.id;
+                ui.add_button_observe(
+                    "Accept",
+                    |btn| {
+                        btn.size(px(100.0), px(28.0));
+                    },
+                    move |_: On<bevy::ui_widgets::Activate>,
+                          mut writer: MessageWriter<SubmitAcceptTradeOffer>| {
+                        writer.write(SubmitAcceptTradeOffer(id));
+                    },
+                );
+            }
+
+            let am_party =
+                my_faction.is_some_and(|me| offer.creator == me || offer.accepted_by == Some(me));
+            if offer.settling && am_party {
+                let id = offer.id;
+                ui.add_button_observe(
+                    "Settle (use my hand)",
+                    |btn| {
+                        btn.size(px(180.0), px(28.0));
+                    },
+                    move |_: On<bevy::ui_widgets::Activate>,
+                          mut writer: MessageWriter<SubmitSettleTradeOffer>,
+                          net: Res<NetGame>| {
+                        writer.write(SubmitSettleTradeOffer(SettleTradeOffer {
+                            offer: id,
+                            cards: net.hand.clone(),
+                        }));
+                    },
+                );
+            }
+        }
+
+        ui.add_text_child("Propose an offer:", Some(TextStyle::size(20.0)));
+        let offering_card = COMMODITY_CARDS[draft.offering_card % COMMODITY_CARDS.len()];
+        let wanting_card = COMMODITY_CARDS[draft.wanting_card % COMMODITY_CARDS.len()];
+        let other_factions: Vec<GameFaction> = net
+            .board
+            .as_ref()
+            .map(|b| {
+                b.players
+                    .iter()
+                    .map(|p| p.faction)
+                    .filter(|f| Some(*f) != my_faction)
+                    .collect()
+            })
+            .unwrap_or_default();
+        let target_label = draft
+            .target
+            .and_then(|i| other_factions.get(i))
+            .map_or("anyone".to_string(), ToString::to_string);
+
+        ui.add_text_child(
+            format!(
+                "Offering 2× {offering_card} + {} hidden, for 2× {wanting_card} + {} hidden, to {target_label}",
+                draft.offering_hidden, draft.wanting_hidden
+            ),
+            Some(TextStyle::size(14.0)),
+        );
+
+        ui.add_button_observe(
+            "Cycle offering card",
+            |btn| {
+                btn.size(px(200.0), px(28.0));
+            },
+            |_: On<bevy::ui_widgets::Activate>, mut draft: ResMut<TradeDraft>, mut net: ResMut<NetGame>| {
+                draft.offering_card = (draft.offering_card + 1) % COMMODITY_CARDS.len();
+                net.touch();
+            },
+        );
+        ui.add_button_observe(
+            "Cycle offering hidden count",
+            |btn| {
+                btn.size(px(240.0), px(28.0));
+            },
+            |_: On<bevy::ui_widgets::Activate>, mut draft: ResMut<TradeDraft>, mut net: ResMut<NetGame>| {
+                draft.offering_hidden = (draft.offering_hidden + 1) % 5;
+                net.touch();
+            },
+        );
+        ui.add_button_observe(
+            "Cycle wanting card",
+            |btn| {
+                btn.size(px(200.0), px(28.0));
+            },
+            |_: On<bevy::ui_widgets::Activate>, mut draft: ResMut<TradeDraft>, mut net: ResMut<NetGame>| {
+                draft.wanting_card = (draft.wanting_card + 1) % COMMODITY_CARDS.len();
+                net.touch();
+            },
+        );
+        ui.add_button_observe(
+            "Cycle wanting hidden count",
+            |btn| {
+                btn.size(px(240.0), px(28.0));
+            },
+            |_: On<bevy::ui_widgets::Activate>, mut draft: ResMut<TradeDraft>, mut net: ResMut<NetGame>| {
+                draft.wanting_hidden = (draft.wanting_hidden + 1) % 5;
+                net.touch();
+            },
+        );
+        let other_factions_for_cycle = other_factions.clone();
+        ui.add_button_observe(
+            "Cycle target",
+            |btn| {
+                btn.size(px(160.0), px(28.0));
+            },
+            move |_: On<bevy::ui_widgets::Activate>, mut draft: ResMut<TradeDraft>, mut net: ResMut<NetGame>| {
+                if other_factions_for_cycle.is_empty() {
+                    draft.target = None;
+                } else {
+                    draft.target = Some(draft.target.map_or(0, |i| (i + 1) % (other_factions_for_cycle.len() + 1)));
+                    if draft.target == Some(other_factions_for_cycle.len()) {
+                        draft.target = None;
+                    }
+                }
+                net.touch();
+            },
+        );
+        ui.add_button_observe(
+            "Publish offer",
+            |btn| {
+                btn.size(px(160.0), px(32.0));
+            },
+            move |_: On<bevy::ui_widgets::Activate>,
+                  draft: Res<TradeDraft>,
+                  mut writer: MessageWriter<SubmitProposeTradeOffer>| {
+                let offering_card = COMMODITY_CARDS[draft.offering_card % COMMODITY_CARDS.len()];
+                let wanting_card = COMMODITY_CARDS[draft.wanting_card % COMMODITY_CARDS.len()];
+                let target = draft.target.and_then(|i| other_factions.get(i)).copied();
+                writer.write(SubmitProposeTradeOffer(ProposeTradeOffer {
+                    offering_guaranteed: vec![(offering_card, 2)],
+                    offering_hidden_count: draft.offering_hidden,
+                    wanting_guaranteed: vec![(wanting_card, 2)],
+                    wanting_hidden_count: draft.wanting_hidden,
+                    target,
+                }));
+            },
+        );
+    }
+
     // ── Board summary ────────────────────────────────────────────────────
     if let Some(board) = &net.board {
         for player in &board.players {
@@ -997,6 +1283,22 @@ fn rebuild_online_ui(
     );
 
     ui.build();
+}
+
+/// "2 Wine, 1 Grain + 3 hidden" style summary of one side of a trade offer.
+fn describe_offer_side(guaranteed: &[(TradeCard, usize)], hidden_count: usize) -> String {
+    let mut parts: Vec<String> = guaranteed
+        .iter()
+        .map(|(card, count)| format!("{count} {card}"))
+        .collect();
+    if hidden_count > 0 {
+        parts.push(format!("{hidden_count} hidden"));
+    }
+    if parts.is_empty() {
+        "nothing".to_string()
+    } else {
+        parts.join(", ")
+    }
 }
 
 fn describe_net_move(game_move: &NetGameMove) -> String {
