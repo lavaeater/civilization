@@ -14,6 +14,11 @@ use crate::stupid_ai::IsHuman;
 #[derive(Component, Default)]
 pub struct CoinageRateUiRoot;
 
+/// Tags a rate-picker button with the rate it sets, so tests (and any future
+/// code) can find a specific button without depending on its label text.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CoinageRateButton(pub usize);
+
 /// Spawn the tax-rate picker when a human gets `AwaitingCoinageRateSelection`.
 pub fn spawn_coinage_rate_ui(
     human_waiting: Query<Entity, (With<IsHuman>, Added<AwaitingCoinageRateSelection>)>,
@@ -54,8 +59,8 @@ pub fn spawn_coinage_rate_ui(
         for rate in [1usize, 2, 3] {
             row.add_button_observe(
                 format!("{rate} / city"),
-                |btn| {
-                    btn.size_px(120.0, 44.0);
+                move |btn| {
+                    btn.size_px(120.0, 44.0).insert(CoinageRateButton(rate));
                 },
                 move |_: On<Activate>,
                       mut commands: Commands,
@@ -103,5 +108,171 @@ pub fn cleanup_coinage_rate_ui_on_exit(
 ) {
     for entity in &ui_root {
         commands.entity(entity).despawn();
+    }
+}
+
+// ─── Unit tests ────────────────────────────────────────────────────────────────
+//
+// These trigger the real `Activate` observer registered on the spawned button
+// entity -- the same event `bevy_ui_widgets` fires on an actual click -- rather
+// than calling the handler's closure logic by hand. That's the difference
+// between testing "what the button is supposed to do" and testing "what
+// clicking the button actually does": a wiring mistake (wrong entity, button
+// never spawned, marker never removed) would pass the former and fail the
+// latter.
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::civilization::components::PlayerCities;
+    use bevy::ecs::system::RunSystemOnce;
+
+    fn spawn_human_awaiting_with_cities(world: &mut World, city_count: usize) -> Entity {
+        let mut cities = PlayerCities::default();
+        for _ in 0..city_count {
+            let area = world.spawn_empty().id();
+            let city = world.spawn_empty().id();
+            cities.build_city_in_area(area, city);
+        }
+        world
+            .spawn((IsHuman, cities, AwaitingCoinageRateSelection))
+            .id()
+    }
+
+    fn find_rate_button(world: &mut World, rate: usize) -> Entity {
+        world
+            .query::<(Entity, &CoinageRateButton)>()
+            .iter(world)
+            .find(|(_, b)| b.0 == rate)
+            .map(|(e, _)| e)
+            .unwrap_or_else(|| panic!("no button found for rate {rate}"))
+    }
+
+    #[test]
+    fn debug_minimal_entity_observer_trigger_works() {
+        #[derive(Resource, Default)]
+        struct Hit(bool);
+
+        let mut world = World::new();
+        world.init_resource::<Hit>();
+        let entity = world
+            .run_system_once(|mut commands: Commands| {
+                commands
+                    .spawn_empty()
+                    .observe(|_: On<Activate>, mut hit: ResMut<Hit>| {
+                        hit.0 = true;
+                    })
+                    .id()
+            })
+            .unwrap();
+
+        world.trigger(Activate { entity });
+        assert!(world.resource::<Hit>().0, "minimal entity observer should fire");
+    }
+
+    #[test]
+    fn debug_uibuilder_button_observer_fires() {
+        #[derive(Resource, Default)]
+        struct Hit(bool);
+        #[derive(Component)]
+        struct Marker;
+
+        let mut world = World::new();
+        world.init_resource::<Hit>();
+        world.init_resource::<LavaTheme>();
+
+        world
+            .run_system_once(
+                |commands: Commands, theme: Res<LavaTheme>| {
+                    let mut ui = UIBuilder::new(commands, Some(theme.clone()));
+                    ui.add_button_observe(
+                        "Click me",
+                        |btn| {
+                            btn.insert(Marker);
+                        },
+                        |_: On<Activate>, mut hit: ResMut<Hit>| {
+                            hit.0 = true;
+                        },
+                    );
+                    ui.build();
+                },
+            )
+            .unwrap();
+
+        let button = world
+            .query::<(Entity, &Marker)>()
+            .iter(&world)
+            .next()
+            .map(|(e, _)| e)
+            .expect("button with Marker should have spawned");
+
+        world.trigger(Activate { entity: button });
+        assert!(world.resource::<Hit>().0, "uibuilder button observer should fire");
+    }
+
+    #[test]
+    fn clicking_a_rate_button_computes_tax_and_clears_awaiting() {
+        let mut world = World::new();
+        world.init_resource::<LavaTheme>();
+        let player = spawn_human_awaiting_with_cities(&mut world, 3);
+
+        world.run_system_once(spawn_coinage_rate_ui).unwrap();
+        assert!(
+            !world
+                .query::<&CoinageRateUiRoot>()
+                .iter(&world)
+                .collect::<Vec<_>>()
+                .is_empty(),
+            "picker should have spawned"
+        );
+
+        let button = find_rate_button(&mut world, 3);
+        world.trigger(Activate { entity: button });
+
+        let needs = world
+            .get::<NeedsToPayTaxes>(player)
+            .expect("clicking the button should insert NeedsToPayTaxes");
+        assert_eq!(needs.tokens_owed, 9, "3 cities at rate 3 = 9 tokens owed");
+        assert!(
+            world.get::<AwaitingCoinageRateSelection>(player).is_none(),
+            "clicking the button should clear the awaiting marker"
+        );
+    }
+
+    #[test]
+    fn each_rate_button_computes_its_own_rate() {
+        for (rate, expected) in [(1usize, 2usize), (2, 4), (3, 6)] {
+            let mut world = World::new();
+            world.init_resource::<LavaTheme>();
+            let player = spawn_human_awaiting_with_cities(&mut world, 2);
+
+            world.run_system_once(spawn_coinage_rate_ui).unwrap();
+            let button = find_rate_button(&mut world, rate);
+            world.trigger(Activate { entity: button });
+
+            let needs = world.get::<NeedsToPayTaxes>(player).unwrap();
+            assert_eq!(needs.tokens_owed, expected, "rate {rate} on 2 cities");
+        }
+    }
+
+    #[test]
+    fn clicking_the_button_despawns_the_picker_via_cleanup() {
+        let mut world = World::new();
+        world.init_resource::<LavaTheme>();
+        spawn_human_awaiting_with_cities(&mut world, 1);
+
+        world.run_system_once(spawn_coinage_rate_ui).unwrap();
+        let button = find_rate_button(&mut world, 1);
+        world.trigger(Activate { entity: button });
+        world.run_system_once(cleanup_coinage_rate_ui).unwrap();
+
+        assert!(
+            world
+                .query::<&CoinageRateUiRoot>()
+                .iter(&world)
+                .next()
+                .is_none(),
+            "picker should be despawned once the choice is resolved"
+        );
     }
 }
