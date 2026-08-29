@@ -1,0 +1,28 @@
+# Internal (non-TLS) path front for running behind pingora-docker
+# (civilization-deploy.md). Pingora terminates TLS for the public domain and
+# forwards plain HTTP here with the original Host header; this Caddy only
+# does path-based routing plus serving the static wasm client baked into the
+# `web` image at /srv.
+#
+# Sibling to ../Caddyfile, which does the same routing but *with* TLS/ACME
+# for the standalone (non-pingora) docker-compose.yml deployment.
+
+:80 {
+	# HTTP join API
+	handle /api/* {
+		reverse_proxy civilization-server:5112
+	}
+
+	# Game WebSocket
+	handle /ws {
+		reverse_proxy civilization-server:5111
+	}
+
+	# The wasm client (trunk build output, baked into this image at /srv).
+	# try_files keeps future /join/<id> style links landing on the app.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -2,9 +2,14 @@
 .cargo
 target
 dist
-build
 mobile
 .git
 *.log
 savegame.json
 docs
+
+# `build/` (icons, PWA manifest, platform packaging assets) is NOT excluded:
+# index.html's trunk directives copy files straight out of it
+# (build/windows/icon.ico, build/web/manifest.webmanifest, build/web/pwa/*,
+# build/web/styles.css, build/web/sound.js) — excluding it breaks `trunk
+# build` in the `web` Docker target. Only ~1MB, no reason to exclude it.

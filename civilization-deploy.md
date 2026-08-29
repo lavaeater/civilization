@@ -6,7 +6,56 @@ rebuild/redeploy. This is a planning document — civilization is still under ac
 development, so treat each phase as something to land incrementally as the
 multiplayer work matures (see `docs/multiplayer.md`).
 
-## Current state (as of 2026-06-12)
+## Status (2026-08-29): phases 1–3 done, verified locally
+
+Everything below through "Phased plan" step 3 is implemented and was verified with
+real `docker build`/`docker run` on this machine (isolated test network, not the live
+`proxy-network` — nothing here has touched the running home-server stack):
+
+- `Dockerfile` now has `server` and `web` targets (`server` stays the default target,
+  so a plain `docker build -t x .` still behaves like the old single-stage file).
+  Both build successfully; `docker build --target server` produces the same
+  `adv_civ_server` image as before, `docker build --target web` produces a `caddy:2`
+  image with the trunk-built wasm client baked in.
+- `deploy/Caddyfile.internal` added (sibling to `deploy/Caddyfile`, same path
+  routing, no TLS, upstreams point at `civilization-server` by container name).
+- Two bugs found and fixed while actually building the `web` target (the plan below
+  didn't anticipate either — both `.dockerignore` gaps that only bit the new target):
+  - `.dockerignore` excluded `build/` entirely, but `index.html`'s trunk directives
+    copy several files straight out of it (`build/windows/icon.ico`,
+    `build/web/manifest.webmanifest`, PWA icons, `styles.css`, `sound.js`) — un-excluded
+    it, it's ~1MB of tracked assets, no reason to hide it from Docker.
+  - `.dockerignore` excludes `.cargo/` (correctly, to keep the mold-linker rustflags
+    off a container that doesn't have mold) but that also dropped
+    `.cargo/config.toml`'s `[target.wasm32-unknown-unknown]` rustflags, which
+    `getrandom` needs to compile for wasm at all. Fixed by writing just that one
+    target's config back inside the `web-builder` stage rather than un-ignoring the
+    whole file.
+- End-to-end request routing verified: built both images, ran them on an isolated
+  Docker network (container named `civilization-server` to match what
+  `Caddyfile.internal` expects), confirmed `GET /api/health` and `POST /api/join`
+  both route correctly through the internal Caddy to the game server and back,
+  including the session-token response from the multiplayer-hardening work above.
+- `pingora-docker` changes (that repo's own commit): `docker-compose.yml` gained
+  `civilization-server` + `civilization-web` services; `config.json` gained the
+  `civ.kidvhs.com` domain entry; `webhooks/services.json` gained a `civilization`
+  entry with a new `compose_services` array (first repo needing more than one
+  compose service per tag push); `webhooks/rebuild.sh` and `init-services.sh` both
+  gained `git submodule update --init --recursive` after checkout (needed for
+  `lava_ui_builder`) and now loop over `compose_services` instead of assuming
+  one repo = one container. Validated with `docker compose config` (syntax only,
+  did not touch the running stack) plus `jq`/`python -m json.tool`/`bash -n` on the
+  JSON and shell changes.
+
+**Not done yet** (phased-plan steps 4–5, and the "open questions" section below is
+still fully open): the actual `docker compose up` rollout on the live host, the
+GitHub webhook registration on the `lavaeater/civilization` repo, and all of the
+production config decisions (real domain confirmation, a persisted `NETCODE_KEY`,
+the saves-volume host path, `SEATS`/`NUM_PLAYERS` defaults). Deliberately left for
+you to do — spinning up new containers or registering a webhook on your live
+infrastructure isn't something to do unprompted.
+
+## Original plan (as of 2026-06-12)
 
 - `Dockerfile` (repo root) builds **only the headless server** (`adv_civ_server`,
   `--profile dist`) into a `debian:bookworm-slim` image. Exposes 5111 (game WS) and
