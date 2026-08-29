@@ -22,6 +22,14 @@ impl NeedsToPayTaxes {
 #[reflect(Component)]
 pub struct CoinageTaxRate(pub usize);
 
+/// Marks a human Coinage-holder as currently choosing this round's tax rate
+/// (rule 19.2). Inserted by `enter_collect_taxes` instead of `NeedsToPayTaxes`
+/// when a human owns Coinage and hasn't set a rate yet; removed by the tax-rate
+/// UI's rate buttons, which also insert `NeedsToPayTaxes` directly.
+#[derive(Component, Debug, Reflect, Default)]
+#[reflect(Component)]
+pub struct AwaitingCoinageRateSelection;
+
 /// Marks a city that is revolting this turn. Carries the entity of the player
 /// that owns the revolting city, so the revolt resolution system can find the
 /// correct beneficiary.

@@ -9,25 +9,32 @@ use crate::civilization::concepts::map::AvailableFactions;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::ReturnCityToStock;
 use crate::civilization::concepts::round_summary::RoundSummary;
 use crate::civilization::concepts::taxation::taxation_components::{
-    CityInRevolt, CoinageTaxRate, NeedsToPayTaxes,
+    AwaitingCoinageRateSelection, CityInRevolt, CoinageTaxRate, NeedsToPayTaxes,
 };
 use crate::civilization::functions::build_city_in_area;
 use crate::player::Player;
-use crate::stupid_ai::StupidAi;
+use crate::stupid_ai::{IsHuman, StupidAi};
 use bevy::prelude::{
-    Commands, Entity, Name, NextState, Query, Res, ResMut, Transform, With, info, warn,
+    Commands, Entity, Has, Name, NextState, Query, Res, ResMut, Transform, With, info, warn,
 };
 
 /// Called on entering `CollectTaxes`. Skips the phase entirely if no player has any
 /// cities (this will be the case on the very first turn of the game).
+///
+/// A human who owns Coinage and hasn't set a rate yet is put into
+/// `AwaitingCoinageRateSelection` instead of getting `NeedsToPayTaxes` right
+/// away — the tax-rate UI computes and inserts `NeedsToPayTaxes` once they
+/// pick a rate (rule 19.2). `taxation_gate` waits for that marker too, so the
+/// phase doesn't advance out from under them.
 pub fn enter_collect_taxes(
-    player_query: Query<(Entity, &PlayerCities, Option<&CoinageTaxRate>)>,
+    player_query: Query<(Entity, &PlayerCities, Option<&CoinageTaxRate>, Has<IsHuman>)>,
+    civ_cards_query: Query<&PlayerCivilizationCards>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     let any_cities = player_query
         .iter()
-        .any(|(_, cities, _)| cities.has_cities());
+        .any(|(_, cities, _, _)| cities.has_cities());
 
     if !any_cities {
         info!("[TAXATION] No cities on the board — skipping taxation phase");
@@ -36,11 +43,27 @@ pub fn enter_collect_taxes(
     }
 
     info!("[TAXATION] Entering taxation phase — assigning tax obligations");
-    for (player_entity, cities, coinage_rate) in player_query.iter() {
+    for (player_entity, cities, coinage_rate, is_human) in player_query.iter() {
         let city_count = cities.number_of_cities();
         if city_count == 0 {
             continue;
         }
+
+        if is_human && coinage_rate.is_none() {
+            let has_coinage = civ_cards_query
+                .get(player_entity)
+                .is_ok_and(|c| c.owns(&CivCardName::Coinage));
+            if has_coinage {
+                info!(
+                    "[TAXATION] {player_entity:?} holds Coinage — awaiting tax rate choice"
+                );
+                commands
+                    .entity(player_entity)
+                    .insert(AwaitingCoinageRateSelection);
+                continue;
+            }
+        }
+
         // Base rate: 2 tokens/city. Coinage holders may have chosen 1 or 3 (rule 19.2).
         let rate = coinage_rate.map_or(2, |r| r.0.clamp(1, 3));
         let tokens_owed = city_count * rate;
@@ -337,14 +360,16 @@ pub fn resolve_revolts(
     next_state.set(GameActivity::PopulationExpansion);
 }
 
-/// Gate: waits until all `NeedsToPayTaxes` and `CityInRevolt` components are gone,
-/// then transitions to `PopulationExpansion`.
+/// Gate: waits until all `NeedsToPayTaxes`, `CityInRevolt` and
+/// `AwaitingCoinageRateSelection` components are gone, then transitions to
+/// `PopulationExpansion`.
 pub fn taxation_gate(
     still_paying: Query<Entity, With<NeedsToPayTaxes>>,
     revolts: Query<Entity, With<CityInRevolt>>,
+    awaiting_rate: Query<Entity, With<AwaitingCoinageRateSelection>>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
-    if still_paying.is_empty() && revolts.is_empty() {
+    if still_paying.is_empty() && revolts.is_empty() && awaiting_rate.is_empty() {
         next_state.set(GameActivity::PopulationExpansion);
     }
 }
@@ -356,6 +381,8 @@ mod tests {
     use super::*;
     use crate::civilization::components::{PlayerCities, TokenStock, Treasury};
     use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
+    use crate::stupid_ai::IsHuman;
+    use bevy::ecs::system::RunSystemOnce;
     use bevy::prelude::*;
 
     /// Helper: create a player entity with `n` city-slot entries in `PlayerCities`
@@ -614,6 +641,88 @@ mod tests {
     }
 
     // ── Rule 19.34: Democracy prevents revolts ────────────────────────────────
+
+    // ── Rule 19.2: a human Coinage holder must be asked, not defaulted ───────
+
+    #[test]
+    fn human_coinage_holder_awaits_rate_choice_instead_of_defaulting() {
+        // Regression test: a human who owns Coinage used to get NeedsToPayTaxes
+        // straight away (silently defaulting to rate 2), with no UI ever asking
+        // them to choose 1/2/3 (rule 19.2) -- only ai_set_coinage_rate (gated on
+        // StupidAi) ever set CoinageTaxRate. enter_collect_taxes must instead
+        // park them in AwaitingCoinageRateSelection until the UI resolves it.
+        let mut app = App::new();
+        app.init_resource::<NextState<GameActivity>>();
+        let player = setup_player_with_cities(app.world_mut(), 10, 2);
+        app.world_mut().entity_mut(player).insert(IsHuman);
+        let mut civ_cards = PlayerCivilizationCards::default();
+        civ_cards.add_card(CivCardName::Coinage);
+        app.world_mut().entity_mut(player).insert(civ_cards);
+
+        app.world_mut()
+            .run_system_once(enter_collect_taxes)
+            .unwrap();
+
+        assert!(
+            app.world().get::<AwaitingCoinageRateSelection>(player).is_some(),
+            "human Coinage holder should await a rate choice"
+        );
+        assert!(
+            app.world().get::<NeedsToPayTaxes>(player).is_none(),
+            "tax obligation must not be computed before the human chooses a rate"
+        );
+    }
+
+    #[test]
+    fn ai_coinage_holder_is_not_asked_and_pays_immediately() {
+        // AI players resolve their rate via ai_set_coinage_rate before this
+        // system runs, so a CoinageTaxRate is already present -- they should
+        // never be parked in AwaitingCoinageRateSelection.
+        let mut app = App::new();
+        app.init_resource::<NextState<GameActivity>>();
+        let player = setup_player_with_cities(app.world_mut(), 10, 2);
+        let mut civ_cards = PlayerCivilizationCards::default();
+        civ_cards.add_card(CivCardName::Coinage);
+        app.world_mut().entity_mut(player).insert(civ_cards);
+        app.world_mut().entity_mut(player).insert(CoinageTaxRate(3));
+
+        app.world_mut()
+            .run_system_once(enter_collect_taxes)
+            .unwrap();
+
+        assert!(
+            app.world().get::<AwaitingCoinageRateSelection>(player).is_none(),
+            "AI holders already have a rate and must not wait on UI"
+        );
+        let needs = app.world().get::<NeedsToPayTaxes>(player).unwrap();
+        assert_eq!(needs.tokens_owed, 6, "2 cities at rate 3 = 6 tokens owed");
+    }
+
+    #[test]
+    fn taxation_gate_waits_for_pending_coinage_rate_choice() {
+        let mut app = App::new();
+        app.init_resource::<NextState<GameActivity>>();
+        let player = app.world_mut().spawn(AwaitingCoinageRateSelection).id();
+
+        app.world_mut().run_system_once(taxation_gate).unwrap();
+        assert!(
+            matches!(
+                *app.world().resource::<NextState<GameActivity>>(),
+                NextState::Unchanged
+            ),
+            "must not queue leaving CollectTaxes while a human is still choosing a rate"
+        );
+
+        app.world_mut()
+            .entity_mut(player)
+            .remove::<AwaitingCoinageRateSelection>();
+        app.world_mut().run_system_once(taxation_gate).unwrap();
+
+        assert!(matches!(
+            *app.world().resource::<NextState<GameActivity>>(),
+            NextState::Pending(GameActivity::PopulationExpansion)
+        ));
+    }
 
     #[test]
     fn democracy_holder_never_revolts_even_with_shortfall() {
