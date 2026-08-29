@@ -5,7 +5,7 @@ use adv_civ::civilization::{
     apply_start_area_choice, start_game,
 };
 use adv_civ::player::Player;
-use adv_civ::stupid_ai::IsHuman;
+use adv_civ::stupid_ai::{AgentControlled, IsHuman};
 use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::{Entity, MessageReader, Messages, Name, NextState, Transform, World};
 
@@ -135,6 +135,47 @@ fn human_with_multiple_start_areas_is_gated_behind_selection() {
         world.get::<AwaitingStartAreaSelection>(player).is_some(),
         "the UI gate must open once start_game has handed off"
     );
+}
+
+/// An agent-controlled (networked) player with multiple eligible start areas
+/// must NOT get stuck waiting for a click that can never come -- there's no
+/// remote endpoint for this choice yet (see `ships/ship_systems.rs` for the
+/// same reasoning applied to ship placement). Found live: every 2-human
+/// networked game got stuck here, since seat order always assigns Egypt (6
+/// eligible start areas) first.
+#[test]
+fn agent_controlled_player_auto_picks_instead_of_waiting_forever() {
+    let mut world = base_world();
+    let areas: Vec<Entity> = (1..=6)
+        .map(|id| spawn_area(&mut world, id, Some(GameFaction::Egypt)))
+        .collect();
+    let player = spawn_player(&mut world, "Networked Egypt", GameFaction::Egypt, true);
+    world.entity_mut(player).insert(AgentControlled);
+
+    world.run_system_once(start_game).unwrap();
+    world.flush();
+    // Gated behind a choice just like a real human, per `start_game`.
+    assert!(world.get::<NeedsToChooseStartArea>(player).is_some());
+
+    world.run_system_once(apply_start_area_choice).unwrap();
+    world.flush();
+
+    // Auto-picked immediately -- no `AwaitingStartAreaSelection`, no
+    // lingering `NeedsToChooseStartArea`, a token placed in one of the
+    // eligible areas, and the phase free to advance.
+    assert!(world.get::<AwaitingStartAreaSelection>(player).is_none());
+    assert!(world.get::<NeedsToChooseStartArea>(player).is_none());
+    let placed = drain_move_commands(&mut world);
+    assert_eq!(placed.len(), 1);
+    assert!(areas.contains(&placed[0].0));
+    assert_eq!(placed[0].1, player);
+
+    world.run_system_once(apply_start_area_choice).unwrap();
+    let state = world.resource::<NextState<GameActivity>>();
+    assert!(matches!(
+        state,
+        NextState::Pending(GameActivity::PopulationExpansion)
+    ));
 }
 
 /// A human faction with exactly one eligible start area places immediately,

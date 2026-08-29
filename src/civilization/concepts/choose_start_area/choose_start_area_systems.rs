@@ -4,9 +4,10 @@ use crate::civilization::components::GameCamera;
 use crate::civilization::MoveTokensFromStockToAreaCommand;
 use crate::civilization::concepts::choose_start_area::choose_start_area_components::*;
 use crate::civilization::concepts::save_game::LoadingFromSave;
-use crate::stupid_ai::IsHuman;
+use crate::stupid_ai::{AgentControlled, IsHuman};
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use rand::seq::IndexedRandom;
 
 const CLICK_RADIUS: f32 = 30.0;
 
@@ -17,7 +18,7 @@ const CLICK_RADIUS: f32 = 30.0;
 /// marker is cleared.
 pub fn apply_start_area_choice(
     mut commands: Commands,
-    needing: Query<(Entity, &NeedsToChooseStartArea)>,
+    needing: Query<(Entity, &NeedsToChooseStartArea, Has<AgentControlled>)>,
     awaiting: Query<Entity, With<AwaitingStartAreaSelection>>,
     mut selection_state: ResMut<StartAreaSelectionState>,
     mut writer: MessageWriter<MoveTokensFromStockToAreaCommand>,
@@ -44,9 +45,32 @@ pub fn apply_start_area_choice(
         return;
     }
 
-    for (player_entity, needs) in &needing {
+    for (player_entity, needs, is_agent_controlled) in &needing {
         let is_waiting = awaiting.get(player_entity).is_ok();
         if is_waiting {
+            continue;
+        }
+        // No network endpoint for this choice yet — same reasoning as ship
+        // placement (`ships/ship_systems.rs`): a remote/agent-controlled
+        // player has no local UI to click a map area with, so auto-pick
+        // rather than leaving them stuck forever with no way to resolve it.
+        // Found live: every 2-human networked game got stuck here, since
+        // seat order always assigns Egypt (6 eligible start areas) first.
+        if is_agent_controlled {
+            if let Some(&area) = needs.eligible.choose(&mut rand::rng()) {
+                writer.write(MoveTokensFromStockToAreaCommand {
+                    area_entity: area,
+                    player_entity,
+                    number_of_tokens: 1,
+                });
+                info!(
+                    "[START AREA] Agent-controlled player {:?} auto-picked area {:?}",
+                    player_entity, area
+                );
+            }
+            commands
+                .entity(player_entity)
+                .remove::<NeedsToChooseStartArea>();
             continue;
         }
         if selection_state.player == Some(player_entity) {

@@ -373,7 +373,6 @@ fn generate_reconnect_token() -> String {
 
 fn mint_token(keys: &NetcodeKeys, client_id: u64) -> Result<String, String> {
     // lightyear's address parsing doesn't do DNS; resolve PUBLIC_ADDR here.
-    // (Over WebSocket the address is informational — the ws URL dials.)
     use std::net::ToSocketAddrs;
     let public = public_addr();
     let addr = public
@@ -381,8 +380,23 @@ fn mint_token(keys: &NetcodeKeys, client_id: u64) -> Result<String, String> {
         .ok()
         .and_then(|mut addrs| addrs.next())
         .ok_or_else(|| format!("PUBLIC_ADDR {public:?} does not resolve"))?;
+    // netcode whitelists connections by comparing the transport's *actual*
+    // bind address against the token — not just port + loopback/unspecified,
+    // it also requires matching IP *family* (see `server_addr_matches` in
+    // lightyear_netcode). `net.rs`'s `with_bind_default` binds
+    // `[::]` (IPv6 unspecified) regardless of what `PUBLIC_ADDR` (IPv4,
+    // typically) says, so without this the whitelist check always failed —
+    // confirmed live: every join was silently dropped with "server ignored
+    // connection request" until this was added. `internal_addresses` is
+    // exactly netcode's escape hatch for "server binds locally to X, but
+    // clients dial a different public Y" (our Docker/pingora deployment,
+    // and this local test setup, are both exactly that shape).
+    use std::net::{Ipv6Addr, SocketAddr};
+    let internal_addr = SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), crate::server_port());
     let token = ConnectToken::build(addr, keys.protocol_id, client_id, keys.key)
         .expire_seconds(60)
+        .internal_addresses(internal_addr)
+        .map_err(|e| format!("internal address invalid: {e}"))?
         .generate()
         .map_err(|e| format!("token generation failed: {e}"))?;
     let bytes = token

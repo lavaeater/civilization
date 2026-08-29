@@ -379,12 +379,30 @@ corrections above) and are **not** repeated here.
      commodity types instead of a full card picker, settles with your whole
      hand instead of picking exact cards — see `docs/multiplayer.md`'s
      "Trade over the network" section for the exact tradeoffs and the design
-     sketch below for where a richer UI could go. **Not interactively
-     verified** — no working websocket test client exists here to drive a
-     real multi-client trade (verified instead via full compile across
-     native/wasm/server, the full test suite, and a live headless run
-     confirming the new systems run without panicking); please run an actual
-     two-client trade before trusting it.
+     sketch below for where a richer UI could go. **Verified live (26-08-29)**
+     with a real two-client propose→accept→settle round trip — see below.
+   - **Built a real websocket test client and found two more bugs blocking
+     *any* multiplayer game, not just trade (26-08-29).** Fixed
+     `spike_client`'s pre-existing, unrelated build break (`Link::new` →
+     `Link::default()`, a lightyear API move) and added `offer`/`accept`/
+     `settle` commands, then actually ran two client processes against a real
+     server:
+     - Nobody could connect *at all*: netcode's whitelist check compares the
+       transport's real bind address against the join token's, including IP
+       **family** — `net.rs` binds `[::]` (IPv6) while `PUBLIC_ADDR` mints
+       IPv4 tokens, so every join failed silently, in this test *and* in the
+       real Docker/pingora deployment set up earlier in this session (same
+       mismatch). Fixed with netcode's `internal_addresses()` in `mint_token`.
+     - Once connected, both human seats stuck forever at `StartGame`: seat
+       order always gives Egypt first (6 eligible start areas), and
+       `NeedsToChooseStartArea` had no network path — a real GUI client hits
+       this too. Fixed the same way ship placement already handles this
+       exact gap: auto-pick for `AgentControlled` players instead of waiting
+       for a click that can't come (1 new test).
+     With both fixed, the trade round trip above actually ran over two real
+     separate connections, broadcast included. See `docs/multiplayer.md`'s
+     "Verified live" section for the full account. 357 lib + 133 integration
+     tests green throughout.
    - **Ship-placement endpoint: needs a data-model change first, not just a
      message.** Ship construction isn't a `GameMove` at all, and
      `ShipConstructionState` is a *singleton* resource built for exactly one

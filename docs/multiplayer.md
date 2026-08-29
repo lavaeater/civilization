@@ -91,17 +91,43 @@ allow, but everything needed to actually trade. See docs/roadmap.md's design
 sketch for where a richer UI (and the negotiation/counter-offer model) could
 go from here.
 
-**Not interactively verified**: no working websocket test client exists in
-this environment (`spike_client` has a pre-existing, unrelated
-`lightyear::link::Link::new` build break) to drive an actual multi-client
-trade round trip. Verified instead by: full compile across native, wasm, and
-the headless server; the full test suite (357 lib + 132 integration tests);
-and a live headless self-play run confirming the new systems run every frame
-with zero connected clients without panicking or erroring. The server-side
-logic reuses the exact `OpenTradeOffer` methods the agent API and local human
-UI already exercise, so its correctness rests on tests that already exist
-for those, not new ones. Please run an actual two-client trade before relying
-on this.
+### Verified live with a real two-client trade (26-08-29)
+
+`spike_client` (`adv_civ_server/src/bin/spike_client.rs`) had a pre-existing,
+unrelated build break (`lightyear::link::Link::new` — API moved on to
+`Link::default()` since this was written) and no trade support. Fixed the
+build and extended it with `offer`/`accept`/`settle` commands so it could
+actually drive this. Two real client processes, one server, real websocket
+connections:
+
+- **Bug found and fixed**: no client could connect *at all*. netcode
+  whitelists connections by comparing the transport's actual bind address
+  against the one baked into the join token, including IP **family**
+  (`server_addr_matches` in `lightyear_netcode`) — `net.rs` binds `[::]`
+  (IPv6 unspecified) regardless of `PUBLIC_ADDR` (IPv4), so every single join
+  was silently failing with "server ignored connection request", in this
+  local test *and* in the real Docker/pingora deployment (same mismatch,
+  same failure). Fixed in `mint_token` (`http.rs`) with netcode's
+  `internal_addresses()` — exactly its escape hatch for "server binds to X
+  locally, clients dial public Y".
+- **Bug found and fixed**: once connections worked, both human seats got
+  stuck forever at `StartGame`. Seat order always assigns Egypt first (6
+  eligible start areas on the map), and `NeedsToChooseStartArea` had no
+  network path to resolve it — a real GUI client hits this too, not just the
+  CLI test tool. Fixed the same way ship placement already handles this gap:
+  `apply_start_area_choice` auto-picks for `AgentControlled` players instead
+  of waiting for a click that can never come
+  (`choose_start_area_systems.rs`, 1 new test).
+- **With both fixed**: a full propose → accept → settle round trip verified
+  live between two separate client processes, including the broadcast
+  reaching both (Bob saw Alice's offer without being a party to it yet).
+  Card-exchange finalization only runs during the `Trade` phase (pre-existing
+  behavior, confirmed by reading `finalize_settled_open_offers`'s
+  `run_if(in_state(GameActivity::Trade))` — unrelated to this session's
+  changes) — the offer sat fully settled but unfinalized since the test
+  traded mid-`Movement`, exactly as the existing code says it should.
+
+357 lib + 133 integration tests still green throughout.
 
 Original exploration follows.
 
