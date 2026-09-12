@@ -53,6 +53,7 @@ pure AI self-play server (nothing to join).
 | `PUBLIC_WS`       | `ws://$PUBLIC_ADDR`  | WebSocket URL advertised to clients in the join response. `ws://host:5111` bare, or `wss://domain/ws` behind Caddy. |
 | `CLIENT_DIR`      | `dist`               | Directory of the web client to serve. Missing = HTTP API only.          |
 | `BEVY_ASSET_ROOT` | *(exe dir)*          | Must point at the repo root (which contains `assets/`) when running the binary directly. |
+| `AGENT_FACTIONS`  | *(unset)*            | Comma-separated faction names (or `all`) to drive over the embedded agent HTTP API on `127.0.0.1:7878` instead of the built-in AI — see [`docs/agent-api-design.md`](agent-api-design.md). Keep disjoint from the human `SEATS` factions (`SEAT_FACTION_ORDER` in `game.rs`, e.g. `SEATS=1` reserves Egypt first). |
 
 The web client also reads URL query params, which override the defaults:
 `?name=Alice`, `?api=http://host:5112` (join API base), `?ws=ws://host:5111`
@@ -156,6 +157,16 @@ cargo run --release -p adv_civ_server --bin spike_client -- Tester --auto --toke
 ```
 
 It should print `✓ Seated as … (Egypt)` and the phases scrolling by.
+
+**Human + agent-API + AI mix:** `SEATS=1` reserves the first seat (Egypt) for a
+real browser player; `AGENT_FACTIONS=Babylon` (any other faction) hands that seat
+to whatever's talking to `curl localhost:7878` instead of the built-in AI; the
+rest fill in as plain AI up to `NUM_PLAYERS`:
+
+```bash
+SEATS=1 NUM_PLAYERS=4 AGENT_FACTIONS=Babylon NETCODE_KEY=random ./run-server.sh
+curl -s localhost:7878/state    # or POST /move, GET /wait?faction=Babylon, etc.
+```
 
 ---
 

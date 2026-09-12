@@ -403,6 +403,20 @@ corrections above) and are **not** repeated here.
      separate connections, broadcast included. See `docs/multiplayer.md`'s
      "Verified live" section for the full account. 357 lib + 133 integration
      tests green throughout.
+   - **Wired the agent HTTP API into the multiplayer server (26-09-12)**, for a
+     "1 human via browser + 1 agent via HTTP + N built-in AI" table — practice
+     run for local-model agents later. `AgentApiPlugin` was previously only in
+     the local single-player `CivilizationPlugin`; added it to
+     `adv_civ_server`'s `HeadlessGamePlugin` too (its systems are pure ECS/HTTP,
+     no rendering, so it needed no changes to work headless). `AGENT_FACTIONS`
+     works the same as locally; keep it disjoint from the reserved `SEATS`
+     factions since the server's `bind_seats` already stamps every networked
+     seat `AgentControlled` for an unrelated reason (routing phases with no
+     network endpoint yet, e.g. ship placement) — the API's player list would
+     otherwise include the real human's seat too. Verified live: a 3-agent,
+     `SEATS=0` server run driven by `scripts/agent_autoplay.py` completed 160
+     full round cycles in under a minute with real `/move` calls. Documented in
+     `docs/agent-api-design.md` and `docs/running-multiplayer.md`.
    - **Ship-placement endpoint: needs a data-model change first, not just a
      message.** Ship construction isn't a `GameMove` at all, and
      `ShipConstructionState` is a *singleton* resource built for exactly one

@@ -11,6 +11,7 @@
 //! Seats reserve their factions via `DebugOptions::reserved_factions`, and
 //! `bind_seats` swaps those players from AI to human at `StartGame`.
 
+use adv_civ::agent_api::AgentApiPlugin;
 use adv_civ::civilization::*;
 use adv_civ::loading::TextureAssets;
 use adv_civ::player::Player;
@@ -184,7 +185,16 @@ impl Plugin for HeadlessGamePlugin {
             // handles for IsHuman players; the type must exist even though
             // nothing ever loads or renders text headless.
             .init_asset::<bevy::text::Font>()
-            .add_plugins(CivLogicPlugins);
+            .add_plugins(CivLogicPlugins)
+            // Same embedded HTTP server the local single-player build uses
+            // (`AGENT_FACTIONS` env var picks which factions it drives) —
+            // its systems are pure ECS/HTTP, no rendering, so it works
+            // headless unchanged. Note: `bind_seats` below also stamps
+            // `AgentControlled` on every real network seat (it means "no
+            // local UI" there, not "HTTP-API-controlled"), so the API's
+            // player list will include connected humans too — keep
+            // `AGENT_FACTIONS` disjoint from the reserved seat factions.
+            .add_plugins(AgentApiPlugin);
 
         // Override the env-derived defaults: no local human, our seat
         // factions reserved, no debug niceties.

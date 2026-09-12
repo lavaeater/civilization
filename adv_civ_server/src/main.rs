@@ -4,6 +4,12 @@
 //! no rendering, serving human seats over WebSocket. Configuration via env:
 //! `SEATS` (human seats, default 2), `NUM_PLAYERS` (total incl. AI,
 //! default 5), `PORT` (default 5111).
+//!
+//! Also embeds the same agent HTTP API the local single-player build uses
+//! (`AGENT_FACTIONS`, see `docs/agent-api-design.md`), on 127.0.0.1:7878 —
+//! so a subset of seats can be driven by an external agent instead of a
+//! browser or the built-in AI. Keep `AGENT_FACTIONS` disjoint from the
+//! reserved `SEATS` factions (see `game.rs::HeadlessGamePlugin`).
 
 mod game;
 mod http;

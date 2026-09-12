@@ -90,6 +90,27 @@ buying, and opts out of trading — enough to march a game forward. Swap in the
   - `POST /move {faction?, index, number?}` — apply for that player (or the active
     one if `faction` is omitted).
 
+### On the multiplayer server too (26-09-12)
+
+`adv_civ_server` (the headless multiplayer host, see `docs/running-multiplayer.md`)
+now also embeds this same `AgentApiPlugin`, on the same `127.0.0.1:7878` — its
+systems are pure ECS/HTTP with no rendering, so it works headless unchanged.
+`AGENT_FACTIONS` works exactly as above, letting one process serve a real browser
+player (`SEATS=1`+), an external agent (`AGENT_FACTIONS=<other faction>`), and AI
+fill-ins together. Caveat: the server's `bind_seats` also stamps every *networked*
+seat `AgentControlled` (there it means "no local UI", not "HTTP-API-controlled"),
+so the API's player list includes connected humans too if their faction happens to
+be queried — keep `AGENT_FACTIONS` disjoint from the reserved `SEATS` factions
+(`SEAT_FACTION_ORDER` in `adv_civ_server/src/game.rs`) so an external agent can't
+also read/act on the real human's seat.
+
+Verified live: `SEATS=0 NUM_PLAYERS=3 AGENT_FACTIONS=all ./target/debug/adv_civ_server`,
+then `scripts/agent_autoplay.py` against it drove all three factions through 160
+full rounds (CollectTaxes → PopulationExpansion → Census → ShipConstruction →
+Movement → Conflict → CityConstruction → RemoveSurplusPopulation →
+CheckCitySupportAfterRemoveSurplusPopulation → AcquireTradeCards → next round) in
+under a minute, with real `/move` calls applying and turns rotating correctly.
+
 ## Trade (in progress) — two trade systems
 
 The codebase has **two parallel trade models**:
