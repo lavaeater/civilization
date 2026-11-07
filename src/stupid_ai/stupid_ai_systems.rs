@@ -139,6 +139,33 @@ pub fn select_stupid_movement(
                 continue;
             };
             let selected_move = &available_moves.moves[&chosen];
+            // Opt-in trace (`RUST_LOG=info,ai_move=debug`): why did the AI pick this?
+            if bevy::log::tracing::enabled!(target: "ai_move", bevy::log::Level::DEBUG) {
+                let mut ranked = scored.clone();
+                ranked.sort_by(|a, b| b.1.total_cmp(&a.1));
+                let describe = |i: usize| match &available_moves.moves[&i] {
+                    GameMove::Movement(m) => format!("Move {:?}->{:?} x{}", m.source, m.target, m.max_tokens),
+                    GameMove::ShipFerry(m) => format!("Ferry {:?}->{:?} x{}", m.source, m.target, m.max_tokens),
+                    GameMove::AttackArea(m) => format!("AttackArea {:?}->{:?} x{}", m.source, m.target, m.max_tokens),
+                    GameMove::AttackCity(m) => format!("AttackCity {:?}->{:?} x{}", m.source, m.target, m.max_tokens),
+                    other => format!("{other:?}"),
+                };
+                let top: Vec<String> = ranked
+                    .iter()
+                    .take(3)
+                    .map(|(i, s)| format!("{} = {s:.2}", describe(*i)))
+                    .collect();
+                debug!(
+                    target: "ai_move",
+                    "{} picks {} | plan drive={:.2} {:?} | {} moves, top: {}",
+                    player_name,
+                    describe(chosen),
+                    plan.drive,
+                    plan,
+                    scored.len(),
+                    top.join("; ")
+                );
+            }
 
             // Loop guard: count consecutive selections this player has made without
             // ending movement. A no-op move (one the executor silently drops) would

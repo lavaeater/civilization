@@ -29,6 +29,14 @@ pub fn score_movement(
             if m.max_tokens == 0 {
                 return base;
             }
+            // Moving into an area already at its limit only feeds surplus removal
+            // (the extra tokens are stripped at end of turn) -- unless it's a
+            // planned city site, where going over the limit is the whole point.
+            if !plan.is_target(m.target)
+                && area(areas, m.target).is_some_and(|t| t.my_pop >= t.max_population)
+            {
+                return 0.0;
+            }
             clamp01_soft(base + city_plan_adjustment(m.source, m.target, areas, plan))
         }
         GameMove::AttackArea(m) | GameMove::AttackCity(m) => {
@@ -410,6 +418,45 @@ mod tests {
                 "{playstyle:?}: feed {feed_s} should beat grab {grab_s} and hold {hold_s}"
             );
             assert!(drain_s < hold_s, "{playstyle:?}: drain {drain_s} vs hold {hold_s}");
+        }
+    }
+
+    /// Iberia-as-Turtle spent 12 rounds piling its whole stack into one full
+    /// area each turn and losing the overflow to surplus removal. Moving into a
+    /// full, unplanned area must rank below simply ending movement.
+    #[test]
+    fn moving_into_a_full_area_never_beats_ending_movement() {
+        let player = e(1);
+        let src = e(10);
+        let full = e(20);
+        let mut areas = HashMap::default();
+        areas.insert(
+            src,
+            AreaSummary {
+                max_population: 2,
+                is_city_site: true,
+                my_pop: 4,
+                neighbours: vec![full],
+                ..Default::default()
+            },
+        );
+        areas.insert(
+            full,
+            AreaSummary {
+                max_population: 2,
+                is_city_site: true,
+                my_pop: 2,
+                neighbours: vec![src],
+                ..Default::default()
+            },
+        );
+        let pile = GameMove::Movement(MovementMove::new(src, full, player, 2));
+        for playstyle in Playstyle::ALL {
+            let w = Personality::from_playstyle(playstyle).weights;
+            let plan = CityPlan::default();
+            let pile_s = score_movement(&pile, player, &areas, &w, &plan);
+            let hold_s = score_movement(&GameMove::EndMovement, player, &areas, &w, &plan);
+            assert!(pile_s < hold_s, "{playstyle:?}: pile {pile_s} vs hold {hold_s}");
         }
     }
 

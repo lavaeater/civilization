@@ -89,10 +89,20 @@ pub fn log_round_state(
         // localises the desync to a specific area (we suspect city areas).
         let mut board_pop = 0usize;
         let mut mismatches: Vec<String> = Vec::new();
+        // Small footprints (<= 3 areas) get their areas named, so a stranded or
+        // stagnating player can be located from the log alone.
+        let mut whereabouts: Vec<String> = Vec::new();
         for (area_entity, population, area_name) in area_pop_query.iter() {
             let in_pop = population.population_for_player(entity);
             let in_pa = areas.population_in_area(area_entity);
             board_pop += in_pop;
+            if in_pop > 0 && areas.areas().len() <= 3 {
+                let label = area_name.map_or_else(
+                    || format!("{area_entity:?}"),
+                    std::string::ToString::to_string,
+                );
+                whereabouts.push(format!("{label}:{in_pop}/{}", population.max_population));
+            }
             if in_pop != in_pa {
                 let label = area_name.map_or_else(
                     || format!("{area_entity:?}"),
@@ -105,8 +115,13 @@ pub fn log_round_state(
         info!(
             "[STATE] {name}: AST sp{space} ({epoch}) | cities={n_cities} (supportable={supportable}) \
              | pa_pop={total_pop} board_pop={board_pop} areas={areas_n} | stock={stock_n} treasury={treasury_n} \
-             | tokens={real_tokens} accounted={accounted}{flag}",
+             | tokens={real_tokens} accounted={accounted}{flag}{where_}",
             areas_n = areas.areas().len(),
+            where_ = if whereabouts.is_empty() {
+                String::new()
+            } else {
+                format!(" | where=[{}]", whereabouts.join(", "))
+            },
             flag = if accounted == real_tokens {
                 ""
             } else {

@@ -227,14 +227,28 @@ corrections above) and are **not** repeated here.
      where every playstyle feeds rather than grabs).
      Self-play, 9 AIs, same 2-minute window: **12 → 40 cities, 5/9 → 8/9
      factions building**, no loop-guard trips.
-     **Still open, different cause:** Crete in that run sat at 1 token / 1
-     area from round 4 onward. Early on it spent its population levying two
-     ships (2 tokens each), couldn't maintain them, and then never grew past 1:
-     expansion adds a token and surplus removal takes it back each round,
-     and it never moved. I haven't confirmed which area it's stuck in. Likely
-     a ferry into a max-1 dead end with no ships left (the AI can't afford a
-     new ship with 0 treasury and 1 spare token). Next step: put the area name
-     in that diagnostic and look at AI ship-building and ferry targets.
+     - ~~**Stuck small factions (Crete).**~~ **Fixed (26-11-07).** Two leaks, found
+     with a new opt-in trace (`RUST_LOG=info,ai_move=debug` logs every AI
+     movement pick: score, plan, top 3) and a `where=[Area:pop/max]` suffix on
+     `[STATE]` for players with 3 areas or fewer:
+     1. **Ship upkeep ate all growth.** Upkeep (1 token, paid before movement)
+        was compulsory and the AI built ships whenever it could afford a levy.
+        A 1-token Crete kept one ship alive for 14 rounds: grow to 2, pay 1,
+        back to 1. Rule 22.3 makes upkeep optional, so the AI now
+        (`ai_should_maintain_ship` / `ai_should_build_ship`, `ship_systems.rs`)
+        levies population for ships only with at least 8 *sustainable* tokens
+        (each area capped at its limit, since this runs before surplus
+        removal). Otherwise it pays from treasury or drops/skips the ship.
+        Interactive humans are unchanged: their upkeep is still compulsory,
+        which isn't what rule 22.3 says, but fixing it needs UI.
+     2. **Piling into full areas.** A Turtle Iberia spent 12 rounds moving its
+        whole stack into one already-full area each turn, and surplus removal
+        took the overflow. Peaceful moves into an area at its limit now score
+        0 (below `EndMovement`) unless the area is a planned city site.
+     Self-play: 45 cities in 19 rounds, ships built 48 → 37; Crete went from 0
+     to 7–8 cities. Remaining zero-city case: Assyria, wiped out in round 2 on a
+     1-capacity start area next to an enemy. That's a harsh start, not a
+     scoring bug.
 2. ~~**Test + verify calamities, starting with Barbarian Hordes.**~~ **Done
    (26-08-28) — correction to the earlier status note.** The earlier claim that
    Barbarian Hordes was "untested against the rules text" was wrong: it already had
