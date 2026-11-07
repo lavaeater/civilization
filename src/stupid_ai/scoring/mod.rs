@@ -3,11 +3,13 @@
 //! pre-gathered [`AreaSummary`] map, so it can be unit-tested without an app.
 
 mod city;
+mod city_plan;
 mod civ_cards;
 mod expansion;
 mod movement;
 mod trade;
 pub use city::*;
+pub use city_plan::*;
 pub use civ_cards::*;
 pub use expansion::*;
 pub use movement::*;

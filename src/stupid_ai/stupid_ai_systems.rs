@@ -74,7 +74,15 @@ pub fn select_stupid_pop_exp(
 
 pub fn select_stupid_movement(
     mut event_reader: MessageReader<SelectStupidMove>,
-    player_moves: Query<(&Name, &AvailableMoves, &PlayerAreas, &Personality)>,
+    player_moves: Query<(
+        &Name,
+        &AvailableMoves,
+        &Personality,
+        &PlayerCities,
+        &AstPosition,
+        &CityTokenStock,
+        Option<&PlayerCivilizationCards>,
+    )>,
     mut move_tokens_writer: MessageWriter<MoveTokenFromAreaToAreaCommand>,
     mut ship_ferry_writer: MessageWriter<ShipFerryCommand>,
     mut end_movement_writer: MessageWriter<PlayerMovementEnded>,
@@ -89,10 +97,31 @@ pub fn select_stupid_movement(
     mut loop_guard: ResMut<MovementLoopGuard>,
 ) {
     for event in event_reader.read() {
-        if let Ok((player_name, available_moves, _player_areas, personality)) =
-            player_moves.get(event.player)
+        if let Ok((
+            player_name,
+            available_moves,
+            personality,
+            player_cities,
+            ast_position,
+            city_token_stock,
+            civ_cards,
+        )) = player_moves.get(event.player)
         {
             let areas = gather_area_summaries(event.player, &area_info_query);
+
+            // Movement is the only way a stack reaches the city threshold (no
+            // area's printed max is >= 6), so plan which sites to pile into.
+            let has_architecture = civ_cards.is_some_and(|c| c.owns(&CivCardName::Architecture));
+            let threshold = if has_architecture { 5 } else { 6 };
+            let drive = if city_token_stock.has_tokens() {
+                personality
+                    .weights
+                    .city_income
+                    .max(city_urgency(player_cities, ast_position))
+            } else {
+                0.0
+            };
+            let plan = CityPlan::build(&available_moves.moves, &areas, threshold, drive);
 
             let scored: Vec<(usize, f32)> = available_moves
                 .moves
@@ -100,7 +129,7 @@ pub fn select_stupid_movement(
                 .map(|(i, m)| {
                     (
                         *i,
-                        score_movement(m, event.player, &areas, &personality.weights),
+                        score_movement(m, event.player, &areas, &personality.weights, &plan),
                     )
                 })
                 .collect();
@@ -151,16 +180,32 @@ pub fn select_stupid_movement(
                 }
                 match selected_move {
                     GameMove::Movement(movement_move) => {
-                        //A little complexity here: If possible, leave two, but also, always make a move
-                        send_movement_move(&mut move_tokens_writer, event, movement_move, false);
+                        if let Some(n) =
+                            plan.tokens_to_send(movement_move.target, movement_move.max_tokens)
+                        {
+                            // Feeding a planned city site: send exactly what's missing.
+                            move_tokens_writer.write(MoveTokenFromAreaToAreaCommand::new(
+                                movement_move.source,
+                                movement_move.target,
+                                n,
+                                event.player,
+                            ));
+                        } else {
+                            //A little complexity here: If possible, leave two, but also, always make a move
+                            send_movement_move(&mut move_tokens_writer, event, movement_move, false);
+                        }
                     }
                     GameMove::ShipFerry(ferry_move) => {
-                        // Ferry up to max_tokens (≤5) tokens by ship. Keep 1 back if possible.
-                        let n = if ferry_move.max_tokens > 1 {
-                            ferry_move.max_tokens - 1
-                        } else {
-                            1
-                        };
+                        // Ferry up to max_tokens (≤5) tokens by ship. Keep 1 back if
+                        // possible -- unless feeding a planned city site, then send
+                        // exactly what's missing.
+                        let n = plan
+                            .tokens_to_send(ferry_move.target, ferry_move.max_tokens)
+                            .unwrap_or(if ferry_move.max_tokens > 1 {
+                                ferry_move.max_tokens - 1
+                            } else {
+                                1
+                            });
                         ship_ferry_writer.write(ShipFerryCommand::new(
                             ferry_move.source,
                             ferry_move.target,
@@ -206,12 +251,7 @@ pub fn select_stupid_city_building(
             let areas = gather_area_summaries(event.player, &area_info_query);
             // Short of the cities needed to clear the *next* A.S.T. epoch gate?
             // Force city-building to the top of every playstyle's priorities.
-            let next_epoch = AstEpoch::for_space(ast_position.space + 1);
-            let urgency = if player_cities.number_of_cities() < next_epoch.min_cities() {
-                1.0
-            } else {
-                0.0
-            };
+            let urgency = city_urgency(player_cities, ast_position);
             let scored: Vec<(usize, f32)> = available_moves
                 .moves
                 .iter()
@@ -613,6 +653,18 @@ pub fn compute_ai_payment(
 
     let tokens = remaining.min(treasury_available);
     (payment, tokens)
+}
+
+/// 1.0 when the player is short of the cities needed to clear their *next*
+/// A.S.T. epoch gate, else 0.0. Overrides a low `city_income` personality knob in
+/// both movement (pile tokens onto a site) and city construction (build on it).
+fn city_urgency(player_cities: &PlayerCities, ast_position: &AstPosition) -> f32 {
+    let next_epoch = AstEpoch::for_space(ast_position.space + 1);
+    if player_cities.number_of_cities() < next_epoch.min_cities() {
+        1.0
+    } else {
+        0.0
+    }
 }
 
 /// Flatten every area into an [`AreaSummary`] keyed by area entity, from `player`'s

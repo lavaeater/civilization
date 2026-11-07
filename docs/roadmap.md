@@ -210,6 +210,31 @@ corrections above) and are **not** repeated here.
      problem. That points at `expansion.rs`/`movement.rs` population-concentration
      behaviour, not `city.rs`. Worth a follow-up self-play pass instrumented with
      "why no city-construction move was offered" logging.
+   - ~~**Zero-city follow-up.**~~ **Fixed (26-11-07).** Root cause: no area
+     on the map has `max_population` >= 6 (city sites hold 1–5), so Population
+     Expansion can never produce a buildable stack. A city only happens when
+     *movement* piles tokens above an area's limit, and `score_movement` had no
+     term for that: grabbing new land always outscored reinforcing. The added
+     diagnostic (`[CITY_CONSTRUCTION] No build moves ... best city-site stack:
+     N/6`) showed it directly: one faction held 29 areas but never stacked more
+     than 4 tokens, and several sat at 5/6 on a site.
+     Fix: `src/stupid_ai/scoring/city_plan.rs`, a per-pick `CityPlan` listing the
+     city sites the player can fill to the threshold *this turn* from unmoved
+     supply (closest-to-done first, each source spent once, Architecture → 5).
+     Moves into a planned site get a bonus scaled by
+     `max(city_income, AST urgency)`, moves out of one are penalised, and the
+     AI sends exactly the missing token count. 8 new unit tests (including one
+     where every playstyle feeds rather than grabs).
+     Self-play, 9 AIs, same 2-minute window: **12 → 40 cities, 5/9 → 8/9
+     factions building**, no loop-guard trips.
+     **Still open, different cause:** Crete in that run sat at 1 token / 1
+     area from round 4 onward. Early on it spent its population levying two
+     ships (2 tokens each), couldn't maintain them, and then never grew past 1:
+     expansion adds a token and surplus removal takes it back each round,
+     and it never moved. I haven't confirmed which area it's stuck in. Likely
+     a ferry into a max-1 dead end with no ships left (the AI can't afford a
+     new ship with 0 treasury and 1 spare token). Next step: put the area name
+     in that diagnostic and look at AI ship-building and ferry targets.
 2. ~~**Test + verify calamities, starting with Barbarian Hordes.**~~ **Done
    (26-08-28) — correction to the earlier status note.** The earlier claim that
    Barbarian Hordes was "untested against the rules text" was wrong: it already had

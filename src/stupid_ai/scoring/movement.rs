@@ -1,4 +1,4 @@
-use super::{AreaSummary, enemy_pressure, saturating};
+use super::{AreaSummary, CityPlan, enemy_pressure, saturating};
 use crate::civilization::GameMove;
 use crate::stupid_ai::Weights;
 use bevy::platform::collections::HashMap;
@@ -11,18 +11,25 @@ use bevy::prelude::Entity;
 /// - don't abandon city squares we hold, and don't strip a source the enemy can hit
 ///   (`defense`),
 /// - take favourable attacks / cities (`aggression`, gated by `risk`), veto clearly
-///   losing attacks.
+///   losing attacks,
+/// - pile tokens onto a reachable city site until it can be built (`plan`), since
+///   movement is the *only* way a stack reaches the build threshold.
 pub fn score_movement(
     mv: &GameMove,
     player: Entity,
     areas: &HashMap<Entity, AreaSummary>,
     w: &Weights,
+    plan: &CityPlan,
 ) -> f32 {
     match mv {
         GameMove::EndMovement => score_end_movement(player, areas, w),
         GameMove::Movement(m) | GameMove::ShipFerry(m) => {
             let is_ferry = matches!(mv, GameMove::ShipFerry(_));
-            score_peaceful_move(m.source, m.target, m.max_tokens, is_ferry, areas, w)
+            let base = score_peaceful_move(m.source, m.target, m.max_tokens, is_ferry, areas, w);
+            if m.max_tokens == 0 {
+                return base;
+            }
+            clamp01_soft(base + city_plan_adjustment(m.source, m.target, areas, plan))
         }
         GameMove::AttackArea(m) | GameMove::AttackCity(m) => {
             let takes_city = matches!(mv, GameMove::AttackCity(_));
@@ -31,6 +38,29 @@ pub fn score_movement(
         // Not a movement-phase move; never selected here.
         _ => f32::NEG_INFINITY,
     }
+}
+
+/// Bonus for feeding a planned city site, penalty for draining one. The bonus
+/// grows as the site nears the threshold so tokens converge on one site instead
+/// of trickling into several.
+fn city_plan_adjustment(
+    source: Entity,
+    target: Entity,
+    areas: &HashMap<Entity, AreaSummary>,
+    plan: &CityPlan,
+) -> f32 {
+    if plan.drive <= 0.0 {
+        return 0.0;
+    }
+    if plan.is_target(source) {
+        return -plan.drive;
+    }
+    if plan.is_target(target) {
+        let my_pop = area(areas, target).map_or(0, |a| a.my_pop) as f32;
+        let progress = (my_pop / plan.threshold.max(1) as f32).min(1.0);
+        return plan.drive * (0.8 + 0.5 * progress);
+    }
+    0.0
 }
 
 fn area(areas: &HashMap<Entity, AreaSummary>, e: Entity) -> Option<&AreaSummary> {
@@ -233,8 +263,8 @@ mod tests {
         let attack = GameMove::AttackCity(MovementMove::new(home, enemy, player, 5));
         let hold = GameMove::EndMovement;
 
-        let attack_score = score_movement(&attack, player, &areas, &w);
-        let hold_score = score_movement(&hold, player, &areas, &w);
+        let attack_score = score_movement(&attack, player, &areas, &w, &CityPlan::default());
+        let hold_score = score_movement(&hold, player, &areas, &w, &CityPlan::default());
         assert!(
             attack_score > hold_score,
             "warlord should take the city: attack {attack_score} vs hold {hold_score}"
@@ -270,8 +300,8 @@ mod tests {
         // rank below simply ending the turn.
         let w = Personality::from_playstyle(Playstyle::Turtle).weights;
         let attack = GameMove::AttackCity(MovementMove::new(home, enemy, player, 2));
-        let attack_score = score_movement(&attack, player, &areas, &w);
-        let hold_score = score_movement(&GameMove::EndMovement, player, &areas, &w);
+        let attack_score = score_movement(&attack, player, &areas, &w, &CityPlan::default());
+        let hold_score = score_movement(&GameMove::EndMovement, player, &areas, &w, &CityPlan::default());
         assert!(
             attack_score < hold_score,
             "turtle should not throw tokens at a lost cause: attack {attack_score} vs hold {hold_score}"
@@ -314,12 +344,72 @@ mod tests {
         ] {
             let w = Personality::from_playstyle(playstyle).weights;
             let empty_ferry = GameMove::ShipFerry(MovementMove::new(home, empty_coast, player, 0));
-            let ferry_score = score_movement(&empty_ferry, player, &areas, &w);
-            let hold_score = score_movement(&GameMove::EndMovement, player, &areas, &w);
+            let ferry_score = score_movement(&empty_ferry, player, &areas, &w, &CityPlan::default());
+            let hold_score = score_movement(&GameMove::EndMovement, player, &areas, &w, &CityPlan::default());
             assert!(
                 ferry_score <= hold_score,
                 "{playstyle:?}: empty ferry ({ferry_score}) should never outscore EndMovement ({hold_score})"
             );
+        }
+    }
+
+    /// The zero-city bug: a player whose site is 3 tokens short, with 3 movable
+    /// tokens next door, used to prefer spreading into empty land every time, so
+    /// no stack ever reached 6. With a city plan (drive from AST urgency), every
+    /// playstyle must prefer feeding the site — and must not drain it.
+    #[test]
+    fn city_plan_beats_grabbing_land_for_every_playstyle() {
+        let player = e(1);
+        let site = e(10);
+        let feeder = e(20);
+        let empty = e(30);
+        let mut areas = HashMap::default();
+        areas.insert(
+            site,
+            AreaSummary {
+                max_population: 3,
+                is_city_site: true,
+                my_pop: 3,
+                neighbours: vec![feeder],
+                ..Default::default()
+            },
+        );
+        areas.insert(
+            feeder,
+            AreaSummary {
+                max_population: 3,
+                my_pop: 3,
+                neighbours: vec![site, empty],
+                ..Default::default()
+            },
+        );
+        areas.insert(
+            empty,
+            AreaSummary {
+                max_population: 4,
+                is_city_site: true,
+                neighbours: vec![feeder],
+                ..Default::default()
+            },
+        );
+        let feed = GameMove::Movement(MovementMove::new(feeder, site, player, 3));
+        let grab = GameMove::Movement(MovementMove::new(feeder, empty, player, 3));
+        let drain = GameMove::Movement(MovementMove::new(site, feeder, player, 3));
+        let moves = HashMap::from_iter([(1, feed.clone()), (2, grab.clone()), (3, drain.clone())]);
+
+        for playstyle in Playstyle::ALL {
+            let w = Personality::from_playstyle(playstyle).weights;
+            let plan = CityPlan::build(&moves, &areas, 6, w.city_income.max(1.0));
+            assert_eq!(plan.needed_at(site), Some(3), "{playstyle:?}");
+            let feed_s = score_movement(&feed, player, &areas, &w, &plan);
+            let grab_s = score_movement(&grab, player, &areas, &w, &plan);
+            let drain_s = score_movement(&drain, player, &areas, &w, &plan);
+            let hold_s = score_movement(&GameMove::EndMovement, player, &areas, &w, &plan);
+            assert!(
+                feed_s > grab_s && feed_s > hold_s,
+                "{playstyle:?}: feed {feed_s} should beat grab {grab_s} and hold {hold_s}"
+            );
+            assert!(drain_s < hold_s, "{playstyle:?}: drain {drain_s} vs hold {hold_s}");
         }
     }
 
@@ -349,8 +439,8 @@ mod tests {
         );
         let w = Personality::from_playstyle(Playstyle::Expansionist).weights;
         let grab = GameMove::Movement(MovementMove::new(home, empty, player, 2));
-        let grab_score = score_movement(&grab, player, &areas, &w);
-        let hold_score = score_movement(&GameMove::EndMovement, player, &areas, &w);
+        let grab_score = score_movement(&grab, player, &areas, &w, &CityPlan::default());
+        let hold_score = score_movement(&GameMove::EndMovement, player, &areas, &w, &CityPlan::default());
         assert!(
             grab_score > hold_score,
             "expansionist should move into the empty city site: grab {grab_score} vs hold {hold_score}"
