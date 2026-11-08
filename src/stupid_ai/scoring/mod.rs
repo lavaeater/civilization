@@ -33,6 +33,10 @@ pub struct AreaSummary {
     /// Tokens belonging to *other* players in this area.
     pub enemy_pop: usize,
     pub neighbours: Vec<Entity>,
+    /// Who owns the city here, if anyone.
+    pub city_owner: Option<Entity>,
+    /// The other player with the most tokens here, if any.
+    pub main_enemy: Option<Entity>,
 }
 
 impl AreaSummary {

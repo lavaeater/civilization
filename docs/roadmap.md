@@ -249,6 +249,17 @@ corrections above) and are **not** repeated here.
      to 7–8 cities. Remaining zero-city case: Assyria, wiped out in round 2 on a
      1-capacity start area next to an enemy. That's a harsh start, not a
      scoring bug.
+   - ~~**Half of all rounds skipped calamities, civ cards and A.S.T.**~~ **Fixed
+     (26-11-08), found while testing win strategies.** `transition_to_trade` sent
+     rounds with fewer than 2 able traders straight to `CollectTaxes`, a
+     leftover from when Trade ended the round. That skipped ResolveCalamities,
+     city-support checks, civ-card acquisition, shedding *and* the A.S.T. move
+     for that round: 9 of 18 rounds in a 9-player self-play game, and nearly
+     every early-game round. It explains why the AIs bought almost no civ cards.
+     Now it skips only Trade (→ ResolveCalamities). Regression test:
+     `too_few_traders_skips_only_the_trade_phase`.
+   - **Win strategies (M7).** Pioneer / Scholar / Conqueror / Magnate, layered
+     on playstyles. See `utility-ai-design.md` §10.
 2. ~~**Test + verify calamities, starting with Barbarian Hordes.**~~ **Done
    (26-08-28) — correction to the earlier status note.** The earlier claim that
    Barbarian Hordes was "untested against the rules text" was wrong: it already had
@@ -464,6 +475,11 @@ corrections above) and are **not** repeated here.
      `enter_ship_construction`, `ships/ship_systems.rs`). Wiring real network
      ship placement means making that state per-player first. Left for a
      follow-up pass; flagging now so it isn't mistaken for a small gap.
+9b. **Create/join online games, many at once.** Planned 26-11-08 in
+    [`online-games-plan.md`](online-games-plan.md): a `civ_lobby` supervisor that spawns
+    one `adv_civ_server` process per game, game codes and links, and a Create/Join screen.
+    Step 1 is a one-line fix: the online lobby panel has no background, so the
+    yellow text is unreadable.
 10. **Wire the deployment into your pingora host.** Add `adv_civ_server` to
     `pingora-docker`'s `docker-compose.yml` and `services.json` so pushing a tag rebuilds
     it — the Docker/Caddy path already exists (`running-multiplayer.md`), this is just

@@ -256,7 +256,10 @@ component data, assert the ranking).
   `select_stupid_civ_card_move` scores each option vs wealth + existing credits.
 - **M5 — Trade.** ✅ `scoring/trade.rs`; personality knobs injected into the live
   `ai_*` `OpenTradeOffer` systems (see the implementation note in §4).
-- **M6 — Tuning pass & self-play sanity.** ⏳ Run `AGENT_FACTIONS`/headless
+- **M6 — Tuning pass & self-play sanity.** ✅ (26-08-28 / 26-11-07: AST
+  urgency, city-site planning, ship upkeep and overflow fixes; see `roadmap.md` item 1.)
+- **M7 — Win strategies.** ✅ first pass (26-11-08), see §10. Tuning is still open.
+- *(was)* **M6 — Tuning pass & self-play sanity.** ⏳ Run `AGENT_FACTIONS`/headless
   self-play, watch that distinct playstyles emerge and games terminate; tune
   weights/curves. (Needs a live run — can't launch the GUI from the tool harness.)
 
@@ -280,3 +283,45 @@ component data, assert the ranking).
 - No lookahead/search — scoring is one-ply. Cities/attacks get crude
   expected-value terms but no game-tree search (that's the RL doc's optional R3).
 - Trade bluffing stays shallow; flagged as the prime candidate for later depth.
+
+## 10. Win strategies (M7, 26-11-08)
+
+A **playstyle** is *how* an AI plays (temperament: cautious, aggressive, …). A
+**strategy** is *what it's trying to win by*. They're independent:
+`Personality { playstyle, strategy, picker, weights }`. At setup, strategies cycle on
+their own period (4 strategies vs 6 playstyles), so a 9-player table gets varied
+pairings: a Turtle Conqueror only takes fights it's sure to win, a Warlord Scholar
+fights *and* buys big cards. Force one with `AI_STRATEGY=<name>` (env) or
+`DebugOptions.force_strategy`. Code: `src/stupid_ai/strategy.rs`.
+
+Each road targets one term of the rule-35 final score (civ-card face value +
+commodity sets + treasury + **100/A.S.T. space** + **50/city**):
+
+| Strategy | Road to the win | What it changes |
+|---|---|---|
+| **Pioneer** | Race the A.S.T. Finishing first also ends the game before rivals cash in. | Strongest A.S.T.-gate drive: cheap cards in the colour groups the *next* gate is missing, cheapness while short on card count. City floor 0.7. |
+| **Scholar** | Civ-card face value and credit chains. | Card bonus scales with face value; favours the chain cards (Mathematics, Literacy, Philosophy, Monotheism, Theology, …). |
+| **Conqueror** | Topple the leader: a captured city is +50 for us, −50 for them, and can freeze their A.S.T. at a gate. | Attack bonus scaled by how far the *target's owner* is ahead (rule-35 estimate). Only for winnable fights: never sweetens an even or losing one. Favours Metalworking, Military, Road Building, Engineering, Cloth Making, Astronomy. |
+| **Magnate** | Cities (50 each, plus tax) and commodity sets. | City floor 0.9 (always plans and builds cities), trade drive up, favours economy and calamity-insurance cards. |
+
+How it plugs in (all pure, all unit-tested):
+- `Strategy::adjust` nudges the playstyle's weights once at setup (additive, clamped).
+- `AstNeeds::compute` looks **one gate ahead** (cities, missing colour groups, card
+  count), and `strategy_card_bonus` turns that plus card affinity into a bonus added
+  to `score_civ_card`. Every strategy gets *some* gate drive (0.4–1.0), so nobody
+  freezes on the A.S.T. for want of a colour group.
+- `Rivals { conquest, standing }` feeds `score_movement`'s attack branch through
+  `conquest_bonus`. `standing` comes from `rival_standing(me, them)` over everyone's
+  `rule35_score`.
+- `Strategy::city_floor` raises the movement city-plan drive and city-construction
+  urgency. Every road has one (0.4–0.9): civ cards are bought with trade cards, which
+  come from cities. With no floor, Scholars bought nothing in self-play.
+
+Measuring it: the per-round `[STATE]` line now shows each player's
+`[Strategy] score=<rule-35 estimate> civ_cards=<n>`, so self-play logs can be compared
+per strategy without waiting for a game to end.
+
+Next: run many self-play games per strategy (fixed seeds would help) and tune the
+bonuses until each road has a real chance of winning. Then consider *switching*
+strategy mid-game, e.g. a Conqueror with no reachable rival cities turns Magnate, or
+anyone who falls far behind turns Conqueror against the leader.

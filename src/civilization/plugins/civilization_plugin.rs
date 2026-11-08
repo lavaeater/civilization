@@ -151,6 +151,8 @@ pub struct DebugOptions {
     /// If set, every AI player gets this playstyle instead of the round-robin
     /// spread over all archetypes (for isolating/testing one personality).
     pub force_playstyle: Option<Playstyle>,
+    /// Same for win strategies (`AI_STRATEGY` env var also sets this).
+    pub force_strategy: Option<crate::stupid_ai::Strategy>,
     /// Watch mode: keep the whole map framed and suppress all automatic camera
     /// panning/focusing, so you can watch the AI play without the view jumping
     /// around. Manual zoom/pan keys still work.
@@ -193,6 +195,7 @@ impl Default for DebugOptions {
             human_trade_cards: None,
             human_civ_cards: None,
             force_playstyle: None,
+            force_strategy: None,
             static_map_view: false,
             reserved_factions: Vec::new(),
         }
@@ -252,6 +255,7 @@ impl DebugOptions {
             human_trade_cards: Some(vec![(TradeCard::Wine, 4), (TradeCard::Salt, 4)]),
             human_civ_cards: Some(vec![CivCardName::ClothMaking, CivCardName::Mathematics]),
             force_playstyle: None,
+            force_strategy: None,
             static_map_view: false,
             reserved_factions: Vec::new(),
         }

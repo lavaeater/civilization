@@ -58,7 +58,11 @@ pub fn log_round_state(
         &TokenStock,
         &Treasury,
         Option<&crate::civilization::concepts::succession::AstPosition>,
+        Option<&crate::stupid_ai::Personality>,
+        Option<&crate::civilization::concepts::civ_cards::PlayerCivilizationCards>,
+        Option<&crate::civilization::concepts::acquire_trade_cards::PlayerTradeCards>,
     )>,
+    civ_card_defs: Option<Res<crate::civilization::concepts::civ_cards::AvailableCivCards>>,
     token_query: Query<&Token>,
     area_pop_query: Query<(Entity, &Population, Option<&Name>), With<GameArea>>,
 ) {
@@ -73,7 +77,9 @@ pub fn log_round_state(
     }
 
     info!("[STATE] ───── Round {} ─────", game_info.round);
-    for (entity, name, cities, areas, stock, treasury, ast) in player_query.iter() {
+    for (entity, name, cities, areas, stock, treasury, ast, personality, civ_cards, trade_cards) in
+        player_query.iter()
+    {
         let n_cities = cities.number_of_cities();
         let total_pop = areas.total_population();
         let supportable = total_pop / 2; // each city needs 2 population (rule)
@@ -112,11 +118,25 @@ pub fn log_round_state(
             }
         }
 
+        // Running rule-35 score: what this player would score if the game ended now.
+        let civ_face: u32 = match (civ_cards, civ_card_defs.as_deref()) {
+            (Some(c), Some(d)) => d.cards_for_names(&c.cards).iter().map(|x| x.cost).sum(),
+            _ => 0,
+        };
+        let score = crate::stupid_ai::rule35_score(
+            u32::try_from(space.max(0)).unwrap_or(0),
+            n_cities,
+            civ_face,
+            trade_cards.map_or(0, |t| t.total_stack_value() as u32),
+            treasury_n as u32,
+        );
+        let strategy = personality.map_or_else(String::new, |p| format!(" [{:?}]", p.strategy));
         info!(
-            "[STATE] {name}: AST sp{space} ({epoch}) | cities={n_cities} (supportable={supportable}) \
+            "[STATE] {name}{strategy}: score={score} civ_cards={n_civ} | AST sp{space} ({epoch}) | cities={n_cities} (supportable={supportable}) \
              | pa_pop={total_pop} board_pop={board_pop} areas={areas_n} | stock={stock_n} treasury={treasury_n} \
              | tokens={real_tokens} accounted={accounted}{flag}{where_}",
             areas_n = areas.areas().len(),
+            n_civ = civ_cards.map_or(0, |c| c.cards.len()),
             where_ = if whereabouts.is_empty() {
                 String::new()
             } else {

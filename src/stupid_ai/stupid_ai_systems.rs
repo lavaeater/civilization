@@ -1,9 +1,10 @@
 use crate::civilization::*;
+use crate::player::Player;
 use crate::stupid_ai::*;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{
-    Commands, Entity, Has, MessageReader, MessageWriter, Name, Query, Res, ResMut, debug, error,
-    warn,
+    Commands, Entity, Has, MessageReader, MessageWriter, Name, Query, Res, ResMut, With, debug,
+    error, warn,
 };
 use rand::prelude::SliceRandom;
 
@@ -95,7 +96,12 @@ pub fn select_stupid_movement(
     )>,
     debug_options: Res<DebugOptions>,
     mut loop_guard: ResMut<MovementLoopGuard>,
+    standings_query: Query<StandingsData, With<Player>>,
+    civ_card_defs: Option<Res<AvailableCivCards>>,
 ) {
+    // Everyone's rule-35 score estimate, once per frame (only computed when
+    // somebody is actually deciding a move this frame).
+    let mut score_table: Option<HashMap<Entity, u32>> = None;
     for event in event_reader.read() {
         if let Ok((
             player_name,
@@ -118,10 +124,29 @@ pub fn select_stupid_movement(
                     .weights
                     .city_income
                     .max(city_urgency(player_cities, ast_position))
+                    .max(personality.strategy.city_floor())
             } else {
                 0.0
             };
             let plan = CityPlan::build(&available_moves.moves, &areas, threshold, drive);
+
+            // Conqueror: how far ahead each rival is, to aim attacks at the leader.
+            let conquest = personality.strategy.conquest();
+            let rivals = if conquest > 0.0 {
+                let scores = score_table
+                    .get_or_insert_with(|| standings(&standings_query, civ_card_defs.as_deref()));
+                let me = scores.get(&event.player).copied().unwrap_or(0);
+                Rivals {
+                    conquest,
+                    standing: scores
+                        .iter()
+                        .filter(|(p, _)| **p != event.player)
+                        .map(|(p, s)| (*p, rival_standing(me, *s)))
+                        .collect(),
+                }
+            } else {
+                Rivals::default()
+            };
 
             let scored: Vec<(usize, f32)> = available_moves
                 .moves
@@ -129,7 +154,14 @@ pub fn select_stupid_movement(
                 .map(|(i, m)| {
                     (
                         *i,
-                        score_movement(m, event.player, &areas, &personality.weights, &plan),
+                        score_movement(
+                            m,
+                            event.player,
+                            &areas,
+                            &personality.weights,
+                            &plan,
+                            &rivals,
+                        ),
                     )
                 })
                 .collect();
@@ -144,10 +176,20 @@ pub fn select_stupid_movement(
                 let mut ranked = scored.clone();
                 ranked.sort_by(|a, b| b.1.total_cmp(&a.1));
                 let describe = |i: usize| match &available_moves.moves[&i] {
-                    GameMove::Movement(m) => format!("Move {:?}->{:?} x{}", m.source, m.target, m.max_tokens),
-                    GameMove::ShipFerry(m) => format!("Ferry {:?}->{:?} x{}", m.source, m.target, m.max_tokens),
-                    GameMove::AttackArea(m) => format!("AttackArea {:?}->{:?} x{}", m.source, m.target, m.max_tokens),
-                    GameMove::AttackCity(m) => format!("AttackCity {:?}->{:?} x{}", m.source, m.target, m.max_tokens),
+                    GameMove::Movement(m) => {
+                        format!("Move {:?}->{:?} x{}", m.source, m.target, m.max_tokens)
+                    }
+                    GameMove::ShipFerry(m) => {
+                        format!("Ferry {:?}->{:?} x{}", m.source, m.target, m.max_tokens)
+                    }
+                    GameMove::AttackArea(m) => format!(
+                        "AttackArea {:?}->{:?} x{}",
+                        m.source, m.target, m.max_tokens
+                    ),
+                    GameMove::AttackCity(m) => format!(
+                        "AttackCity {:?}->{:?} x{}",
+                        m.source, m.target, m.max_tokens
+                    ),
                     other => format!("{other:?}"),
                 };
                 let top: Vec<String> = ranked
@@ -219,7 +261,12 @@ pub fn select_stupid_movement(
                             ));
                         } else {
                             //A little complexity here: If possible, leave two, but also, always make a move
-                            send_movement_move(&mut move_tokens_writer, event, movement_move, false);
+                            send_movement_move(
+                                &mut move_tokens_writer,
+                                event,
+                                movement_move,
+                                false,
+                            );
                         }
                     }
                     GameMove::ShipFerry(ferry_move) => {
@@ -259,7 +306,13 @@ pub fn select_stupid_movement(
 
 pub fn select_stupid_city_building(
     mut event_reader: MessageReader<SelectStupidMove>,
-    player_moves: Query<(&Name, &AvailableMoves, &Personality, &PlayerCities, &AstPosition)>,
+    player_moves: Query<(
+        &Name,
+        &AvailableMoves,
+        &Personality,
+        &PlayerCities,
+        &AstPosition,
+    )>,
     area_info_query: Query<(
         Entity,
         &Population,
@@ -278,7 +331,8 @@ pub fn select_stupid_city_building(
             let areas = gather_area_summaries(event.player, &area_info_query);
             // Short of the cities needed to clear the *next* A.S.T. epoch gate?
             // Force city-building to the top of every playstyle's priorities.
-            let urgency = city_urgency(player_cities, ast_position);
+            let urgency =
+                city_urgency(player_cities, ast_position).max(personality.strategy.city_floor());
             let scored: Vec<(usize, f32)> = available_moves
                 .moves
                 .iter()
@@ -479,7 +533,13 @@ fn _debug_trade_move_info(trade_move: &TradeMove, trade_offer: &TradeOffer) {
 
 pub fn select_stupid_civ_card_move(
     mut event_reader: MessageReader<SelectStupidMove>,
-    player_moves: Query<(&Name, &AvailableMoves, &Personality)>,
+    player_moves: Query<(
+        &Name,
+        &AvailableMoves,
+        &Personality,
+        &AstPosition,
+        &PlayerCities,
+    )>,
     player_cards_query: Query<(
         &PlayerTradeCards,
         &PlayerCivilizationCards,
@@ -493,7 +553,26 @@ pub fn select_stupid_civ_card_move(
     debug_options: Res<DebugOptions>,
 ) {
     for event in event_reader.read() {
-        if let Ok((player_name, available_moves, personality)) = player_moves.get(event.player) {
+        if let Ok((player_name, available_moves, personality, ast_position, player_cities)) =
+            player_moves.get(event.player)
+        {
+            // What the next A.S.T. gate still needs (cities, colour groups, card
+            // count), for the strategy's card bonus.
+            let needs = match player_cards_query.get(event.player) {
+                Ok((_, civ_cards, ..)) => {
+                    let owned = cards.cards_for_names(&civ_cards.cards);
+                    let groups = owned
+                        .iter()
+                        .fold(enumflags2::BitFlags::empty(), |g, d| g | d.card_type);
+                    AstNeeds::compute(
+                        ast_position.space,
+                        player_cities.number_of_cities(),
+                        groups,
+                        civ_cards.cards.len(),
+                    )
+                }
+                Err(_) => AstNeeds::default(),
+            };
             // Player wealth + existing credits, used to score each card option.
             // Rule 31.53: credits are computed against what was held BEFORE
             // this turn's acquiring phase began, not the live hand -- see
@@ -515,9 +594,17 @@ pub fn select_stupid_civ_card_move(
                 .iter()
                 .filter_map(|(i, m)| match m {
                     GameMove::AcquireCivilizationCards(civ_move) => {
+                        let mut bonus = 0.0;
                         let option = match civ_move {
                             AcquireCivilizationCardsMove::AcquireCard(name) => {
                                 cards.cards.iter().find(|c| c.name == *name).map(|def| {
+                                    bonus = strategy_card_bonus(
+                                        personality.strategy,
+                                        def.name,
+                                        def.card_type,
+                                        def.cost,
+                                        &needs,
+                                    );
                                     CivCardOption {
                                         effective_cost: def.calculate_cost(&credits),
                                         credit_value: civ_card_credit_value(def),
@@ -527,7 +614,11 @@ pub fn select_stupid_civ_card_move(
                             }
                             _ => None,
                         };
-                        Some((*i, score_civ_card(civ_move, option, &personality.weights)))
+                        // Non-finite (unaffordable) stays non-finite.
+                        Some((
+                            *i,
+                            score_civ_card(civ_move, option, &personality.weights) + bonus,
+                        ))
                     }
                     _ => None,
                 })
@@ -682,6 +773,42 @@ pub fn compute_ai_payment(
     (payment, tokens)
 }
 
+/// Per-player inputs to the rule-35 score estimate.
+pub type StandingsData = (
+    Entity,
+    &'static AstPosition,
+    &'static PlayerCities,
+    Option<&'static PlayerCivilizationCards>,
+    Option<&'static PlayerTradeCards>,
+    Option<&'static Treasury>,
+);
+
+/// Every player's rule-35 score estimate (what they'd score if the game ended now).
+pub fn standings(
+    query: &Query<StandingsData, With<Player>>,
+    defs: Option<&AvailableCivCards>,
+) -> HashMap<Entity, u32> {
+    query
+        .iter()
+        .map(|(e, ast, cities, civ, trade, treasury)| {
+            let face = match (civ, defs) {
+                (Some(c), Some(d)) => d.cards_for_names(&c.cards).iter().map(|x| x.cost).sum(),
+                _ => 0,
+            };
+            (
+                e,
+                rule35_score(
+                    ast.space,
+                    cities.number_of_cities(),
+                    face,
+                    trade.map_or(0, |t| t.total_stack_value() as u32),
+                    treasury.map_or(0, |t| t.tokens_in_treasury() as u32),
+                ),
+            )
+        })
+        .collect()
+}
+
 /// 1.0 when the player is short of the cities needed to clear their *next*
 /// A.S.T. epoch gate, else 0.0. Overrides a low `city_income` personality knob in
 /// both movement (pile tokens onto a site) and city construction (build on it).
@@ -721,6 +848,13 @@ fn gather_area_summaries(
                 my_pop,
                 enemy_pop,
                 neighbours: land_passage.to_areas.clone(),
+                city_owner: built_city.map(|c| c.player),
+                main_enemy: population
+                    .player_tokens()
+                    .iter()
+                    .filter(|(p, _)| **p != player)
+                    .max_by_key(|(p, t)| (t.len(), **p))
+                    .map(|(p, _)| *p),
             },
         );
     }

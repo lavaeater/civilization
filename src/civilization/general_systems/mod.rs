@@ -240,7 +240,19 @@ pub fn setup_players(
         let playstyle = debug_options
             .force_playstyle
             .unwrap_or(Playstyle::ALL[n % Playstyle::ALL.len()]);
-        info!("[SETUP] {ruler_name} of {faction:?} is playstyle {playstyle:?}");
+        // Strategies cycle on their own period (4 vs 6 playstyles) so the
+        // temperament/goal pairings vary across a 9-player table.
+        let strategy = debug_options
+            .force_strategy
+            .or_else(|| {
+                std::env::var("AI_STRATEGY")
+                    .ok()
+                    .and_then(|s| Strategy::from_name(&s))
+            })
+            .unwrap_or(Strategy::ALL[n % Strategy::ALL.len()]);
+        info!(
+            "[SETUP] {ruler_name} of {faction:?} is playstyle {playstyle:?}, strategy {strategy:?}"
+        );
         // Create Player
         let player = commands
             .spawn((
@@ -252,7 +264,7 @@ pub fn setup_players(
                 PlayerAreas::default(),
                 PlayerCities::default(),
                 StupidAi,
-                Personality::from_playstyle(playstyle),
+                Personality::new(playstyle, strategy),
                 PlayerTradeCards::default(),
                 PlayerCivilizationCards::default(),
                 AstPosition::new(0),

@@ -20,6 +20,7 @@ pub fn score_movement(
     areas: &HashMap<Entity, AreaSummary>,
     w: &Weights,
     plan: &CityPlan,
+    rivals: &Rivals,
 ) -> f32 {
     match mv {
         GameMove::EndMovement => score_end_movement(player, areas, w),
@@ -41,11 +42,53 @@ pub fn score_movement(
         }
         GameMove::AttackArea(m) | GameMove::AttackCity(m) => {
             let takes_city = matches!(mv, GameMove::AttackCity(_));
-            score_attack(m.source, m.target, m.max_tokens, takes_city, areas, w)
+            let base = score_attack(m.source, m.target, m.max_tokens, takes_city, areas, w);
+            clamp01_soft(base + conquest_bonus(m.target, m.max_tokens, takes_city, areas, rivals))
         }
         // Not a movement-phase move; never selected here.
         _ => f32::NEG_INFINITY,
     }
+}
+
+/// Rival standings for a Conqueror-style "attack the leader" pressure.
+#[derive(Clone, Debug, Default)]
+pub struct Rivals {
+    /// Strategy's appetite for this (0 = ignore standings entirely).
+    pub conquest: f32,
+    /// Rival -> how far ahead of us they are (0..1, 0.5 = level); see
+    /// `rival_standing`.
+    pub standing: HashMap<Entity, f32>,
+}
+
+/// Extra value for a *winnable* attack on a rival who's ahead: more for taking
+/// a city (+50 for us, -50 for them, possibly freezing their A.S.T.).
+fn conquest_bonus(
+    target: Entity,
+    max_tokens: usize,
+    takes_city: bool,
+    areas: &HashMap<Entity, AreaSummary>,
+    rivals: &Rivals,
+) -> f32 {
+    if rivals.conquest <= 0.0 {
+        return 0.0;
+    }
+    let Some(tgt) = area(areas, target) else {
+        return 0.0;
+    };
+    let attackers = max_tokens.saturating_sub(1).max(1);
+    if attackers <= tgt.enemy_pop.max(1) {
+        return 0.0; // never sweeten a losing or even fight
+    }
+    let owner = if takes_city {
+        tgt.city_owner
+    } else {
+        tgt.main_enemy
+    };
+    let standing = owner
+        .and_then(|o| rivals.standing.get(&o).copied())
+        .unwrap_or(0.5);
+    let scale = if takes_city { 1.0 } else { 0.5 };
+    rivals.conquest * (standing - 0.3).max(0.0) * scale * 1.4
 }
 
 /// Bonus for feeding a planned city site, penalty for draining one. The bonus
@@ -223,7 +266,7 @@ fn clamp01_soft(v: f32) -> f32 {
 mod tests {
     use super::*;
     use crate::civilization::{GameMove, MovementMove};
-    use crate::stupid_ai::{Personality, Playstyle};
+    use crate::stupid_ai::{Personality, Playstyle, Strategy};
 
     fn e(i: u32) -> Entity {
         Entity::from_raw_u32(i).unwrap()
@@ -246,6 +289,7 @@ mod tests {
                 my_pop: 6,
                 enemy_pop: 0,
                 neighbours: vec![enemy],
+                ..Default::default()
             },
         );
         areas.insert(
@@ -258,6 +302,7 @@ mod tests {
                 my_pop: 0,
                 enemy_pop: 1, // poorly defended city
                 neighbours: vec![home],
+                ..Default::default()
             },
         );
         (player, home, enemy, areas)
@@ -271,8 +316,22 @@ mod tests {
         let attack = GameMove::AttackCity(MovementMove::new(home, enemy, player, 5));
         let hold = GameMove::EndMovement;
 
-        let attack_score = score_movement(&attack, player, &areas, &w, &CityPlan::default());
-        let hold_score = score_movement(&hold, player, &areas, &w, &CityPlan::default());
+        let attack_score = score_movement(
+            &attack,
+            player,
+            &areas,
+            &w,
+            &CityPlan::default(),
+            &Rivals::default(),
+        );
+        let hold_score = score_movement(
+            &hold,
+            player,
+            &areas,
+            &w,
+            &CityPlan::default(),
+            &Rivals::default(),
+        );
         assert!(
             attack_score > hold_score,
             "warlord should take the city: attack {attack_score} vs hold {hold_score}"
@@ -308,8 +367,22 @@ mod tests {
         // rank below simply ending the turn.
         let w = Personality::from_playstyle(Playstyle::Turtle).weights;
         let attack = GameMove::AttackCity(MovementMove::new(home, enemy, player, 2));
-        let attack_score = score_movement(&attack, player, &areas, &w, &CityPlan::default());
-        let hold_score = score_movement(&GameMove::EndMovement, player, &areas, &w, &CityPlan::default());
+        let attack_score = score_movement(
+            &attack,
+            player,
+            &areas,
+            &w,
+            &CityPlan::default(),
+            &Rivals::default(),
+        );
+        let hold_score = score_movement(
+            &GameMove::EndMovement,
+            player,
+            &areas,
+            &w,
+            &CityPlan::default(),
+            &Rivals::default(),
+        );
         assert!(
             attack_score < hold_score,
             "turtle should not throw tokens at a lost cause: attack {attack_score} vs hold {hold_score}"
@@ -352,8 +425,22 @@ mod tests {
         ] {
             let w = Personality::from_playstyle(playstyle).weights;
             let empty_ferry = GameMove::ShipFerry(MovementMove::new(home, empty_coast, player, 0));
-            let ferry_score = score_movement(&empty_ferry, player, &areas, &w, &CityPlan::default());
-            let hold_score = score_movement(&GameMove::EndMovement, player, &areas, &w, &CityPlan::default());
+            let ferry_score = score_movement(
+                &empty_ferry,
+                player,
+                &areas,
+                &w,
+                &CityPlan::default(),
+                &Rivals::default(),
+            );
+            let hold_score = score_movement(
+                &GameMove::EndMovement,
+                player,
+                &areas,
+                &w,
+                &CityPlan::default(),
+                &Rivals::default(),
+            );
             assert!(
                 ferry_score <= hold_score,
                 "{playstyle:?}: empty ferry ({ferry_score}) should never outscore EndMovement ({hold_score})"
@@ -409,15 +496,25 @@ mod tests {
             let w = Personality::from_playstyle(playstyle).weights;
             let plan = CityPlan::build(&moves, &areas, 6, w.city_income.max(1.0));
             assert_eq!(plan.needed_at(site), Some(3), "{playstyle:?}");
-            let feed_s = score_movement(&feed, player, &areas, &w, &plan);
-            let grab_s = score_movement(&grab, player, &areas, &w, &plan);
-            let drain_s = score_movement(&drain, player, &areas, &w, &plan);
-            let hold_s = score_movement(&GameMove::EndMovement, player, &areas, &w, &plan);
+            let feed_s = score_movement(&feed, player, &areas, &w, &plan, &Rivals::default());
+            let grab_s = score_movement(&grab, player, &areas, &w, &plan, &Rivals::default());
+            let drain_s = score_movement(&drain, player, &areas, &w, &plan, &Rivals::default());
+            let hold_s = score_movement(
+                &GameMove::EndMovement,
+                player,
+                &areas,
+                &w,
+                &plan,
+                &Rivals::default(),
+            );
             assert!(
                 feed_s > grab_s && feed_s > hold_s,
                 "{playstyle:?}: feed {feed_s} should beat grab {grab_s} and hold {hold_s}"
             );
-            assert!(drain_s < hold_s, "{playstyle:?}: drain {drain_s} vs hold {hold_s}");
+            assert!(
+                drain_s < hold_s,
+                "{playstyle:?}: drain {drain_s} vs hold {hold_s}"
+            );
         }
     }
 
@@ -454,10 +551,73 @@ mod tests {
         for playstyle in Playstyle::ALL {
             let w = Personality::from_playstyle(playstyle).weights;
             let plan = CityPlan::default();
-            let pile_s = score_movement(&pile, player, &areas, &w, &plan);
-            let hold_s = score_movement(&GameMove::EndMovement, player, &areas, &w, &plan);
-            assert!(pile_s < hold_s, "{playstyle:?}: pile {pile_s} vs hold {hold_s}");
+            let pile_s = score_movement(&pile, player, &areas, &w, &plan, &Rivals::default());
+            let hold_s = score_movement(
+                &GameMove::EndMovement,
+                player,
+                &areas,
+                &w,
+                &plan,
+                &Rivals::default(),
+            );
+            assert!(
+                pile_s < hold_s,
+                "{playstyle:?}: pile {pile_s} vs hold {hold_s}"
+            );
         }
+    }
+
+    /// Conqueror: two equally winnable enemy cities; the one owned by the
+    /// leader must score higher than the straggler's. And no strategy bonus
+    /// may turn an even fight into an attractive one.
+    #[test]
+    fn conqueror_aims_at_the_leader_but_not_at_bad_odds() {
+        let player = e(1);
+        let leader = e(2);
+        let straggler = e(3);
+        let home = e(10);
+        let leader_city = e(20);
+        let straggler_city = e(30);
+        let city = |owner: Entity, enemy_pop: usize| AreaSummary {
+            max_population: 3,
+            is_city_site: true,
+            has_city: true,
+            enemy_pop,
+            neighbours: vec![home],
+            city_owner: Some(owner),
+            main_enemy: Some(owner),
+            ..Default::default()
+        };
+        let mut areas = HashMap::default();
+        areas.insert(
+            home,
+            AreaSummary {
+                max_population: 3,
+                my_pop: 6,
+                neighbours: vec![leader_city, straggler_city],
+                ..Default::default()
+            },
+        );
+        areas.insert(leader_city, city(leader, 1));
+        areas.insert(straggler_city, city(straggler, 1));
+        let rivals = Rivals {
+            conquest: Strategy::Conqueror.conquest(),
+            standing: HashMap::from_iter([(leader, 0.95), (straggler, 0.1)]),
+        };
+        let w = Personality::new(Playstyle::Balanced, Strategy::Conqueror).weights;
+        let plan = CityPlan::default();
+        let hit_leader = GameMove::AttackCity(MovementMove::new(home, leader_city, player, 5));
+        let hit_straggler =
+            GameMove::AttackCity(MovementMove::new(home, straggler_city, player, 5));
+        let l = score_movement(&hit_leader, player, &areas, &w, &plan, &rivals);
+        let s = score_movement(&hit_straggler, player, &areas, &w, &plan, &rivals);
+        assert!(l > s, "leader {l} should beat straggler {s}");
+
+        // Even fight (1 attacker after keeping one back vs 1 defender): no bonus.
+        let even = GameMove::AttackCity(MovementMove::new(home, leader_city, player, 2));
+        let with = score_movement(&even, player, &areas, &w, &plan, &rivals);
+        let without = score_movement(&even, player, &areas, &w, &plan, &Rivals::default());
+        assert!((with - without).abs() < 1e-6, "{with} vs {without}");
     }
 
     #[test]
@@ -486,8 +646,22 @@ mod tests {
         );
         let w = Personality::from_playstyle(Playstyle::Expansionist).weights;
         let grab = GameMove::Movement(MovementMove::new(home, empty, player, 2));
-        let grab_score = score_movement(&grab, player, &areas, &w, &CityPlan::default());
-        let hold_score = score_movement(&GameMove::EndMovement, player, &areas, &w, &CityPlan::default());
+        let grab_score = score_movement(
+            &grab,
+            player,
+            &areas,
+            &w,
+            &CityPlan::default(),
+            &Rivals::default(),
+        );
+        let hold_score = score_movement(
+            &GameMove::EndMovement,
+            player,
+            &areas,
+            &w,
+            &CityPlan::default(),
+            &Rivals::default(),
+        );
         assert!(
             grab_score > hold_score,
             "expansionist should move into the empty city site: grab {grab_score} vs hold {hold_score}"
