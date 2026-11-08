@@ -233,3 +233,168 @@ mod tests {
         assert_eq!(plan.tokens_to_send(e(99), 3), None);
     }
 }
+
+/// Rule 24.31: a city only falls to **7+** attacking tokens of one nation (8 if
+/// its owner holds Engineering). Fewer are simply removed, city untouched.
+pub const CITY_ATTACK_TOKENS: usize = 7;
+
+/// Which enemy cities this player can actually take this turn.
+///
+/// Before this existed the attack scorer treated a city like any area ("4
+/// attackers vs 0 defenders, great odds!") and kept one token back, so in
+/// self-play AIs threw away 2–5 tokens on hopeless city attacks 26 times in 13
+/// rounds. A city is a siege target only when unmoved attack supply can bring
+/// the stack there to the threshold *plus* the defending tokens (which must be
+/// beaten first, rule 24.41).
+#[derive(Clone, Debug, Default)]
+pub struct SiegePlan {
+    /// Target city area -> attacking tokens still needed there.
+    targets: HashMap<Entity, usize>,
+    /// Target -> which sources send how many. A siege launches *all at once*
+    /// from this list: sending one stack per pick let later picks spend the
+    /// other sources' tokens elsewhere, so sieges arrived short of 7 and died.
+    allocations: HashMap<Entity, Vec<(Entity, usize)>>,
+}
+
+impl SiegePlan {
+    pub fn build(moves: &HashMap<usize, GameMove>, areas: &HashMap<Entity, AreaSummary>) -> Self {
+        let mut feeders: HashMap<Entity, Vec<(Entity, usize)>> = HashMap::default();
+        let mut supply: HashMap<Entity, usize> = HashMap::default();
+        for mv in moves.values() {
+            let GameMove::AttackCity(m) = mv else {
+                continue;
+            };
+            if m.max_tokens == 0 {
+                continue;
+            }
+            feeders
+                .entry(m.target)
+                .or_default()
+                .push((m.source, m.max_tokens));
+            let s = supply.entry(m.source).or_insert(0);
+            *s = (*s).max(m.max_tokens);
+        }
+        let mut candidates: Vec<(Entity, usize)> = feeders
+            .keys()
+            .filter_map(|t| {
+                let a = areas.get(t)?;
+                if !a.has_city || a.city_is_mine {
+                    return None;
+                }
+                let required = a.city_attack_tokens() + a.enemy_pop;
+                Some((*t, required.saturating_sub(a.my_pop)))
+            })
+            .collect();
+        candidates.sort_by_key(|(t, needed)| (*needed, *t));
+
+        let mut plan = SiegePlan::default();
+        for (target, needed) in candidates {
+            if needed == 0 {
+                plan.targets.insert(target, 0);
+                continue;
+            }
+            let mut sources: Vec<(Entity, usize)> = feeders[&target]
+                .iter()
+                .map(|(s, _)| (*s, supply.get(s).copied().unwrap_or(0)))
+                .filter(|(_, n)| *n > 0)
+                .collect();
+            sources.sort_by_key(|(s, n)| (std::cmp::Reverse(*n), *s));
+            sources.dedup_by_key(|(s, _)| *s);
+            if sources.iter().map(|(_, n)| n).sum::<usize>() < needed {
+                continue;
+            }
+            let mut remaining = needed;
+            let mut allocation = Vec::new();
+            for (s, n) in sources {
+                if remaining == 0 {
+                    break;
+                }
+                let take = n.min(remaining);
+                remaining -= take;
+                allocation.push((s, take));
+                if let Some(left) = supply.get_mut(&s) {
+                    *left -= take;
+                }
+            }
+            plan.targets.insert(target, needed);
+            plan.allocations.insert(target, allocation);
+        }
+        plan
+    }
+
+    pub fn is_target(&self, area: Entity) -> bool {
+        self.targets.contains_key(&area)
+    }
+
+    /// Every (source, tokens) to send *now* to complete the siege on `target`.
+    /// No "keep one back": one short is the same as not attacking at all.
+    pub fn launch(&self, target: Entity) -> &[(Entity, usize)] {
+        self.allocations.get(&target).map_or(&[], Vec::as_slice)
+    }
+
+    /// Test/setup helper: mark `area` as a siege target needing `needed` more.
+    pub fn with_target(mut self, area: Entity, needed: usize) -> Self {
+        self.targets.insert(area, needed);
+        self
+    }
+}
+
+#[cfg(test)]
+mod siege_tests {
+    use super::*;
+    use crate::civilization::MovementMove;
+
+    fn e(i: u32) -> Entity {
+        Entity::from_raw_u32(i).unwrap()
+    }
+
+    fn enemy_city(defenders: usize) -> AreaSummary {
+        AreaSummary {
+            max_population: 3,
+            is_city_site: true,
+            has_city: true,
+            enemy_pop: defenders,
+            ..Default::default()
+        }
+    }
+
+    fn attack(src: Entity, tgt: Entity, n: usize) -> GameMove {
+        GameMove::AttackCity(MovementMove::new(src, tgt, e(1), n))
+    }
+
+    #[test]
+    fn six_attackers_can_never_take_a_city() {
+        let (a, city) = (e(10), e(20));
+        let areas = HashMap::from_iter([(city, enemy_city(0))]);
+        let moves = HashMap::from_iter([(1, attack(a, city, 6))]);
+        assert!(!SiegePlan::build(&moves, &areas).is_target(city));
+    }
+
+    #[test]
+    fn seven_attackers_from_two_sources_can() {
+        let (a, b, city) = (e(10), e(11), e(20));
+        let areas = HashMap::from_iter([(city, enemy_city(0))]);
+        let moves = HashMap::from_iter([(1, attack(a, city, 4)), (2, attack(b, city, 3))]);
+        let plan = SiegePlan::build(&moves, &areas);
+        assert!(plan.is_target(city));
+        let launch: HashMap<Entity, usize> = plan.launch(city).iter().copied().collect();
+        assert_eq!(
+            launch,
+            HashMap::from_iter([(a, 4), (b, 3)]),
+            "both stacks go together"
+        );
+    }
+
+    #[test]
+    fn defenders_and_engineering_raise_the_bar() {
+        let (a, city) = (e(10), e(20));
+        let mut engineered = enemy_city(1);
+        engineered.city_defence = 8;
+        let areas = HashMap::from_iter([(city, engineered)]);
+        // 8 (Engineering) + 1 defender = 9 needed.
+        let short = HashMap::from_iter([(1, attack(a, city, 8))]);
+        assert!(!SiegePlan::build(&short, &areas).is_target(city));
+        let enough = HashMap::from_iter([(1, attack(a, city, 9))]);
+        assert!(SiegePlan::build(&enough, &areas).is_target(city));
+    }
+}

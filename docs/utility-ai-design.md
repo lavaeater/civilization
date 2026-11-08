@@ -321,6 +321,12 @@ Measuring it: the per-round `[STATE]` line now shows each player's
 `[Strategy] score=<rule-35 estimate> civ_cards=<n>`, so self-play logs can be compared
 per strategy without waiting for a game to end.
 
+**Sieges (26-11-08):** a city only falls to 7+ attackers (8 vs Engineering, rule
+24.31). `SiegePlan` lists the enemy cities this turn's unmoved supply can actually
+take, plus which stacks go. City attacks outside it are vetoed, and a planned
+siege launches every stack in the same pick. This is what makes the Conqueror's
+leader-hunting real rather than suicidal.
+
 Next: run many self-play games per strategy (fixed seeds would help) and tune the
 bonuses until each road has a real chance of winning. Then consider *switching*
 strategy mid-game, e.g. a Conqueror with no reachable rival cities turns Magnate, or

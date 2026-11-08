@@ -1,4 +1,4 @@
-use super::{AreaSummary, CityPlan, enemy_pressure, saturating};
+use super::{AreaSummary, CityPlan, SiegePlan, enemy_pressure, saturating};
 use crate::civilization::GameMove;
 use crate::stupid_ai::Weights;
 use bevy::platform::collections::HashMap;
@@ -26,6 +26,14 @@ pub fn score_movement(
         GameMove::EndMovement => score_end_movement(player, areas, w),
         GameMove::Movement(m) | GameMove::ShipFerry(m) => {
             let is_ferry = matches!(mv, GameMove::ShipFerry(_));
+            // Ferries aren't classified as attacks, so a ferry into an enemy city
+            // is really a (at most 5-token, hence always hopeless) city attack.
+            if is_ferry
+                && m.max_tokens > 0
+                && area(areas, m.target).is_some_and(|t| t.has_city && !t.city_is_mine)
+            {
+                return 0.02 * w.aggression;
+            }
             let base = score_peaceful_move(m.source, m.target, m.max_tokens, is_ferry, areas, w);
             if m.max_tokens == 0 {
                 return base;
@@ -42,8 +50,16 @@ pub fn score_movement(
         }
         GameMove::AttackArea(m) | GameMove::AttackCity(m) => {
             let takes_city = matches!(mv, GameMove::AttackCity(_));
+            // Rule 24.31: an attack on a city that can't reach 7 (8) tokens this
+            // turn just loses the attackers. Veto it like any losing fight.
+            if takes_city && !rivals.sieges.is_target(m.target) {
+                return 0.02 * w.aggression;
+            }
             let base = score_attack(m.source, m.target, m.max_tokens, takes_city, areas, w);
-            clamp01_soft(base + conquest_bonus(m.target, m.max_tokens, takes_city, areas, rivals))
+            // The conquest bonus goes on *after* the clamp: good attacks already
+            // saturate the 1.5 cap, which would hide "hit the leader, not the
+            // straggler" entirely.
+            clamp01_soft(base) + conquest_bonus(m.target, m.max_tokens, takes_city, areas, rivals)
         }
         // Not a movement-phase move; never selected here.
         _ => f32::NEG_INFINITY,
@@ -58,6 +74,9 @@ pub struct Rivals {
     /// Rival -> how far ahead of us they are (0..1, 0.5 = level); see
     /// `rival_standing`.
     pub standing: HashMap<Entity, f32>,
+    /// Enemy cities that can actually be taken this turn (rule 24.31). City
+    /// attacks outside this plan are vetoed.
+    pub sieges: SiegePlan,
 }
 
 /// Extra value for a *winnable* attack on a rival who's ahead: more for taking
@@ -286,7 +305,7 @@ mod tests {
                 is_city_site: true,
                 has_city: true,
                 city_is_mine: true,
-                my_pop: 6,
+                my_pop: 9,
                 enemy_pop: 0,
                 neighbours: vec![enemy],
                 ..Default::default()
@@ -313,8 +332,13 @@ mod tests {
         let (player, home, enemy, areas) = winnable_city_world();
         let w = Personality::from_playstyle(Playstyle::Warlord).weights;
 
-        let attack = GameMove::AttackCity(MovementMove::new(home, enemy, player, 5));
+        let attack = GameMove::AttackCity(MovementMove::new(home, enemy, player, 9));
         let hold = GameMove::EndMovement;
+        let rivals = Rivals {
+            sieges: SiegePlan::build(&HashMap::from_iter([(1, attack.clone())]), &areas),
+            ..Default::default()
+        };
+        assert!(rivals.sieges.is_target(enemy));
 
         let attack_score = score_movement(
             &attack,
@@ -322,7 +346,7 @@ mod tests {
             &areas,
             &w,
             &CityPlan::default(),
-            &Rivals::default(),
+            &rivals,
         );
         let hold_score = score_movement(
             &hold,
@@ -330,7 +354,7 @@ mod tests {
             &areas,
             &w,
             &CityPlan::default(),
-            &Rivals::default(),
+            &rivals,
         );
         assert!(
             attack_score > hold_score,
@@ -593,7 +617,7 @@ mod tests {
             home,
             AreaSummary {
                 max_population: 3,
-                my_pop: 6,
+                my_pop: 10,
                 neighbours: vec![leader_city, straggler_city],
                 ..Default::default()
             },
@@ -603,21 +627,34 @@ mod tests {
         let rivals = Rivals {
             conquest: Strategy::Conqueror.conquest(),
             standing: HashMap::from_iter([(leader, 0.95), (straggler, 0.1)]),
+            sieges: SiegePlan::default()
+                .with_target(leader_city, 8)
+                .with_target(straggler_city, 8),
         };
         let w = Personality::new(Playstyle::Balanced, Strategy::Conqueror).weights;
         let plan = CityPlan::default();
-        let hit_leader = GameMove::AttackCity(MovementMove::new(home, leader_city, player, 5));
+        let hit_leader = GameMove::AttackCity(MovementMove::new(home, leader_city, player, 10));
         let hit_straggler =
-            GameMove::AttackCity(MovementMove::new(home, straggler_city, player, 5));
+            GameMove::AttackCity(MovementMove::new(home, straggler_city, player, 10));
         let l = score_movement(&hit_leader, player, &areas, &w, &plan, &rivals);
         let s = score_movement(&hit_straggler, player, &areas, &w, &plan, &rivals);
         assert!(l > s, "leader {l} should beat straggler {s}");
 
-        // Even fight (1 attacker after keeping one back vs 1 defender): no bonus.
+        // Even fight (1 attacker after keeping one back vs 1 defender): no
+        // conquest bonus on top of the siege.
         let even = GameMove::AttackCity(MovementMove::new(home, leader_city, player, 2));
+        let no_conquest = Rivals {
+            sieges: rivals.sieges.clone(),
+            ..Default::default()
+        };
         let with = score_movement(&even, player, &areas, &w, &plan, &rivals);
-        let without = score_movement(&even, player, &areas, &w, &plan, &Rivals::default());
+        let without = score_movement(&even, player, &areas, &w, &plan, &no_conquest);
         assert!((with - without).abs() < 1e-6, "{with} vs {without}");
+
+        // And with no siege plan at all, a city attack is vetoed outright.
+        let unplanned = score_movement(&hit_leader, player, &areas, &w, &plan, &Rivals::default());
+        let hold = score_movement(&GameMove::EndMovement, player, &areas, &w, &plan, &Rivals::default());
+        assert!(unplanned < hold, "unplanned {unplanned} vs hold {hold}");
     }
 
     #[test]

@@ -37,12 +37,24 @@ pub struct AreaSummary {
     pub city_owner: Option<Entity>,
     /// The other player with the most tokens here, if any.
     pub main_enemy: Option<Entity>,
+    /// Attacking tokens needed to take the city here (0 = rule default, 7;
+    /// set to 8 when the owner holds Engineering).
+    pub city_defence: usize,
 }
 
 impl AreaSummary {
     /// Can this area host a city (and therefore generate tax/card income)?
     pub fn supports_city(&self) -> bool {
         self.is_city_site || self.max_population >= 6
+    }
+
+    /// Rule 24.31: tokens one nation needs to take the city here.
+    pub fn city_attack_tokens(&self) -> usize {
+        if self.city_defence == 0 {
+            CITY_ATTACK_TOKENS
+        } else {
+            self.city_defence
+        }
     }
 
     pub fn is_empty(&self) -> bool {

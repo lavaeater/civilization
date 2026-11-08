@@ -260,6 +260,26 @@ corrections above) and are **not** repeated here.
      `too_few_traders_skips_only_the_trade_phase`.
    - **Win strategies (M7).** Pioneer / Scholar / Conqueror / Magnate, layered
      on playstyles. See `utility-ai-design.md` §10.
+   - ~~**Suicidal city attacks.**~~ **Fixed (26-11-08).** Rule 24.31: a city only
+     falls to 7+ tokens of one nation (8 vs Engineering); fewer are just
+     removed. The attack scorer treated a city like any area ("4 vs 0, great
+     odds"), kept one token back, and sent stacks one per pick. 12–31 tokens'
+     worth of attacks per game died on city walls. Now there's a `SiegePlan`
+     (`scoring/city_plan.rs`): a city attack is allowed only if this turn's
+     unmoved supply reaches 7 (8) + defenders, every allocated stack launches in
+     the same pick, and ferries into enemy cities are vetoed. Failed city
+     attacks per game: 12–31 → 4–10. Successful captures: 5–11 per game.
+     The conquest bonus is now applied after the 1.5 score cap, which used to
+     hide "hit the leader, not the straggler".
+   - **Trade minimum 5 → 3** (rule 28.3; the 5 was a "for now" house rule).
+     Little measurable effect so far.
+   - **Still open:** in every game 2–3 factions (often Turtle/Warlord
+     temperaments on cramped starts) sit at 0–1 cities and A.S.T. 4 all game.
+     The card economy follows city count (one card per city, so hand value
+     grows roughly with its square), so they never buy a card. That's the next
+     AI target: probably early expansion on poor starts, and whether city
+     support/calamities strip cities faster than small factions can rebuild.
+     Card purchases per game: 5 → 7–15.
 2. ~~**Test + verify calamities, starting with Barbarian Hordes.**~~ **Done
    (26-08-28) — correction to the earlier status note.** The earlier claim that
    Barbarian Hordes was "untested against the rules text" was wrong: it already had

@@ -113,7 +113,17 @@ pub fn select_stupid_movement(
             civ_cards,
         )) = player_moves.get(event.player)
         {
-            let areas = gather_area_summaries(event.player, &area_info_query);
+            let mut areas = gather_area_summaries(event.player, &area_info_query);
+            // Rule 24.31: Engineering makes a city need 8 attackers, not 7.
+            for summary in areas.values_mut() {
+                if let Some(owner) = summary.city_owner
+                    && standings_query
+                        .get(owner)
+                        .is_ok_and(|(_, _, _, c, ..)| c.is_some_and(|c| c.owns(&CivCardName::Engineering)))
+                {
+                    summary.city_defence = CITY_ATTACK_TOKENS + 1;
+                }
+            }
 
             // Movement is the only way a stack reaches the city threshold (no
             // area's printed max is >= 6), so plan which sites to pile into.
@@ -132,7 +142,8 @@ pub fn select_stupid_movement(
 
             // Conqueror: how far ahead each rival is, to aim attacks at the leader.
             let conquest = personality.strategy.conquest();
-            let rivals = if conquest > 0.0 {
+            let sieges = SiegePlan::build(&available_moves.moves, &areas);
+            let mut rivals = if conquest > 0.0 {
                 let scores = score_table
                     .get_or_insert_with(|| standings(&standings_query, civ_card_defs.as_deref()));
                 let me = scores.get(&event.player).copied().unwrap_or(0);
@@ -143,10 +154,12 @@ pub fn select_stupid_movement(
                         .filter(|(p, _)| **p != event.player)
                         .map(|(p, s)| (*p, rival_standing(me, *s)))
                         .collect(),
+                    ..Default::default()
                 }
             } else {
                 Rivals::default()
             };
+            rivals.sieges = sieges;
 
             let scored: Vec<(usize, f32)> = available_moves
                 .moves
@@ -290,6 +303,21 @@ pub fn select_stupid_movement(
                     GameMove::EndMovement => {
                         loop_guard.counts.remove(&event.player);
                         end_movement_writer.write(PlayerMovementEnded::new(event.player));
+                    }
+                    GameMove::AttackCity(movement_move)
+                        if !rivals.sieges.launch(movement_move.target).is_empty() =>
+                    {
+                        // Planned siege: launch every allocated stack this pick, so
+                        // the attack lands at full strength (rule 24.31) instead of
+                        // trickling in and dying below 7.
+                        for (source, n) in rivals.sieges.launch(movement_move.target) {
+                            move_tokens_writer.write(MoveTokenFromAreaToAreaCommand::new(
+                                *source,
+                                movement_move.target,
+                                *n,
+                                event.player,
+                            ));
+                        }
                     }
                     GameMove::AttackArea(movement_move) | GameMove::AttackCity(movement_move) => {
                         //A little complexity here: If possible, leave two, but also, always make a move
@@ -643,6 +671,38 @@ pub fn select_stupid_civ_card_move(
                 else {
                     continue;
                 };
+                // Opt-in trace (`RUST_LOG=info,ai_cards=debug`): why so few purchases?
+                if bevy::log::tracing::enabled!(target: "ai_cards", bevy::log::Level::DEBUG) {
+                    let offered: Vec<u32> = available_moves
+                        .moves
+                        .values()
+                        .filter_map(|m| match m {
+                            GameMove::AcquireCivilizationCards(
+                                AcquireCivilizationCardsMove::AcquireCard(n),
+                            ) => cards
+                                .cards
+                                .iter()
+                                .find(|c| c.name == *n)
+                                .map(|d| d.calculate_cost(&credits)),
+                            _ => None,
+                        })
+                        .collect();
+                    let hand = player_cards_query
+                        .get(event.player)
+                        .map_or(0, |(t, ..)| t.number_of_trade_cards());
+                    debug!(
+                        target: "ai_cards",
+                        "{} [{:?}] wealth={} hand={} offered={} cheapest={:?} affordable={} picks {:?}",
+                        player_name,
+                        personality.strategy,
+                        wealth,
+                        hand,
+                        offered.len(),
+                        offered.iter().min(),
+                        offered.iter().filter(|c| **c <= wealth).count(),
+                        selected_move,
+                    );
+                }
                 if debug_options.print_selected_moves {
                     debug!("{} selects {:#?}", player_name, selected_move);
                 }
@@ -855,6 +915,7 @@ fn gather_area_summaries(
                     .filter(|(p, _)| **p != player)
                     .max_by_key(|(p, t)| (t.len(), **p))
                     .map(|(p, _)| *p),
+                city_defence: 0, // rule default; movement raises it for Engineering
             },
         );
     }
