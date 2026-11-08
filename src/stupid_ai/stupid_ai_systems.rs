@@ -823,6 +823,11 @@ pub fn compute_ai_payment(
             break;
         }
         let face = stack.card_type.value();
+        if face == 0 {
+            // Worthless for payment -- and `n * n * face < remaining` below
+            // would never terminate.
+            continue;
+        }
         let full_value = stack.suite_value; // count² × face
 
         if full_value <= remaining {

@@ -15,8 +15,10 @@ use crate::civilization::functions::build_city_in_area;
 use crate::player::Player;
 use crate::stupid_ai::{IsHuman, StupidAi};
 use bevy::prelude::{
-    Commands, Entity, Has, Name, NextState, Query, Res, ResMut, Transform, With, info, warn,
+    Commands, Entity, Has, Local, Name, NextState, Query, Res, ResMut, Transform, With, Without,
+    info, warn,
 };
+use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::PirateNation;
 
 /// Called on entering `CollectTaxes`. Skips the phase entirely if no player has any
 /// cities (this will be the case on the very first turn of the game).
@@ -27,7 +29,13 @@ use bevy::prelude::{
 /// pick a rate (rule 19.2). `taxation_gate` waits for that marker too, so the
 /// phase doesn't advance out from under them.
 pub fn enter_collect_taxes(
-    player_query: Query<(Entity, &PlayerCities, Option<&CoinageTaxRate>, Has<IsHuman>)>,
+    // Rule 30.913: Pirate cities are not a player's and pay no taxes. The
+    // PirateNation owns PlayerCities but has no TokenStock/Treasury, so a tax
+    // bill on it could never be paid and `taxation_gate` waited forever.
+    player_query: Query<
+        (Entity, &PlayerCities, Option<&CoinageTaxRate>, Has<IsHuman>),
+        Without<PirateNation>,
+    >,
     civ_cards_query: Query<&PlayerCivilizationCards>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameActivity>>,
@@ -369,10 +377,31 @@ pub fn taxation_gate(
     still_paying: Query<Entity, With<NeedsToPayTaxes>>,
     revolts: Query<Entity, With<CityInRevolt>>,
     awaiting_rate: Query<Entity, With<AwaitingCoinageRateSelection>>,
+    names: Query<&Name>,
+    mut waited_frames: Local<u32>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     if still_paying.is_empty() && revolts.is_empty() && awaiting_rate.is_empty() {
+        *waited_frames = 0;
         next_state.set(GameActivity::PopulationExpansion);
+        return;
+    }
+    // Stall diagnostic: self-play games have been seen to sit in CollectTaxes
+    // forever with every tax paid. Say what we're waiting on.
+    *waited_frames += 1;
+    if (*waited_frames).is_multiple_of(300) {
+        let label = |e: Entity| {
+            names
+                .get(e)
+                .map_or_else(|_| format!("{e:?}"), |n| format!("{n} ({e:?})"))
+        };
+        warn!(
+            "[TAXATION] Gate still waiting after {} frames: paying={:?} revolts={:?} awaiting_rate={:?}",
+            *waited_frames,
+            still_paying.iter().map(label).collect::<Vec<_>>(),
+            revolts.iter().map(label).collect::<Vec<_>>(),
+            awaiting_rate.iter().map(label).collect::<Vec<_>>(),
+        );
     }
 }
 
@@ -711,6 +740,26 @@ mod tests {
             app.world().get::<NeedsToPayTaxes>(player).is_none(),
             "tax obligation must not be computed before the human chooses a rate"
         );
+    }
+
+    /// Regression: Piracy hands cities to a `PirateNation` entity. It used to
+    /// get a tax bill that nothing could ever pay (it has no stock or
+    /// treasury), so `taxation_gate` waited forever: a hard stall seen in
+    /// roughly one in four 9-player self-play games.
+    #[test]
+    fn pirate_cities_are_never_taxed() {
+        let mut app = App::new();
+        app.init_resource::<NextState<GameActivity>>();
+        let pirates = setup_player_with_cities(app.world_mut(), 0, 2);
+        app.world_mut().entity_mut(pirates).insert(PirateNation);
+        let player = setup_player_with_cities(app.world_mut(), 10, 1);
+
+        app.world_mut()
+            .run_system_once(enter_collect_taxes)
+            .unwrap();
+
+        assert!(app.world().get::<NeedsToPayTaxes>(pirates).is_none());
+        assert!(app.world().get::<NeedsToPayTaxes>(player).is_some());
     }
 
     #[test]

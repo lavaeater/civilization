@@ -58,6 +58,13 @@ fn sustainable_population(
         .sum()
 }
 
+/// How many ships an AI keeps: one, plus one per 10 sustainable tokens, at
+/// most the rule-22.4 maximum of four. Without a cap a 1-2 city faction kept
+/// four ships and paid upkeep on all of them every round.
+pub fn ai_ship_cap(board_pop: usize) -> usize {
+    (1 + board_pop / 10).min(ShipStock::MAX_SHIPS)
+}
+
 /// Should an AI pay upkeep for one ship? Treasury is always fine; a population
 /// levy only once the faction is big enough to absorb it.
 pub fn ai_should_maintain_ship(treasury: usize, board_pop: usize) -> bool {
@@ -124,9 +131,12 @@ pub fn enter_ship_construction(
         let is_ai = !is_human || is_agent_controlled;
         let mut board_pop = sustainable_population(player_entity, player_areas, &area_pop_query);
         let areas_with_ships: Vec<Entity> = player_ships.all_areas_with_ships();
+        let cap = ai_ship_cap(board_pop);
+        let mut kept = 0;
         for area in areas_with_ships {
             let paid = if is_ai
-                && !ai_should_maintain_ship(treasury.tokens_in_treasury(), board_pop)
+                && (kept >= cap
+                    || !ai_should_maintain_ship(treasury.tokens_in_treasury(), board_pop))
             {
                 // Rule 22.3: choosing not to pay is legal; the ship goes back.
                 false
@@ -152,6 +162,9 @@ pub fn enter_ship_construction(
                 false
             };
 
+            if paid {
+                kept += 1;
+            }
             if !paid && let Some(ship_entity) = player_ships.remove_ship_from_area(area) {
                 ship_stock.return_ship(ship_entity);
                 info!(
@@ -265,11 +278,10 @@ pub fn enter_ship_construction(
                 .get(area)
                 .map_or(0, |pop| pop.population_for_player(player_entity));
             let spare_area_tokens = area_tokens.saturating_sub(1);
-            if !ai_should_build_ship(
-                treasury_tokens,
-                spare_area_tokens,
-                sustainable_population(player_entity, player_areas, &area_pop_query),
-            ) {
+            let sustainable = sustainable_population(player_entity, player_areas, &area_pop_query);
+            if ships_on_board >= ai_ship_cap(sustainable)
+                || !ai_should_build_ship(treasury_tokens, spare_area_tokens, sustainable)
+            {
                 continue;
             }
 
@@ -589,6 +601,15 @@ mod tests {
     fn ai_maintains_from_treasury_or_when_big_enough() {
         assert!(ai_should_maintain_ship(1, 1));
         assert!(ai_should_maintain_ship(0, AI_MIN_POP_FOR_SHIP_LEVY));
+    }
+
+    #[test]
+    fn ai_fleet_scales_with_sustainable_population() {
+        assert_eq!(ai_ship_cap(0), 1);
+        assert_eq!(ai_ship_cap(9), 1);
+        assert_eq!(ai_ship_cap(10), 2);
+        assert_eq!(ai_ship_cap(25), 3);
+        assert_eq!(ai_ship_cap(80), ShipStock::MAX_SHIPS);
     }
 
     #[test]

@@ -300,7 +300,11 @@ pub fn on_add_unresolved_city_conflict(
                 }
             }
         } else {
-            info!("[CITY CONFLICT] Small invaders (<=6 tokens each) - eliminating them");
+            // Only log an elimination when there actually were invaders (this
+            // branch also runs for a city holding nothing but its owner's tokens).
+            if !other_players.is_empty() {
+                info!("[CITY CONFLICT] Small invaders (<=6 tokens each) - eliminating them");
+            }
             for player in other_players {
                 if let Ok((_, mut token_stock, _, mut player_areas)) =
                     player_with_city.get_mut(player)
