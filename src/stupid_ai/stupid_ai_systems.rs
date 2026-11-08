@@ -265,11 +265,23 @@ pub fn select_stupid_movement(
                         if let Some(n) =
                             plan.tokens_to_send(movement_move.target, movement_move.max_tokens)
                         {
-                            // Feeding a planned city site: send exactly what's missing.
+                            // Feeding a planned city site: send exactly what's missing
+                            // (capped at a complete source's spare tokens).
+                            let n = plan
+                                .spare_at(movement_move.source)
+                                .map_or(n, |spare| n.min(spare.max(1)));
                             move_tokens_writer.write(MoveTokenFromAreaToAreaCommand::new(
                                 movement_move.source,
                                 movement_move.target,
                                 n,
+                                event.player,
+                            ));
+                        } else if let Some(spare) = plan.spare_at(movement_move.source) {
+                            // Leaving a buildable site: never drop it below the threshold.
+                            move_tokens_writer.write(MoveTokenFromAreaToAreaCommand::new(
+                                movement_move.source,
+                                movement_move.target,
+                                spare.clamp(1, movement_move.max_tokens),
                                 event.player,
                             ));
                         } else {

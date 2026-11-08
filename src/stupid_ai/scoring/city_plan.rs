@@ -23,6 +23,12 @@ pub struct CityPlan {
     pub drive: f32,
     /// Planned target area -> tokens still missing there.
     targets: HashMap<Entity, usize>,
+    /// City sites already at/over the threshold (buildable this turn) -> how
+    /// many tokens they can spare. These must not be drained: before this
+    /// existed, a site that hit 6 dropped out of the plan, the *next* pick
+    /// fed a neighbouring site from it, and two adjacent 5-token sites
+    /// ping-ponged tokens until neither had 6.
+    complete: HashMap<Entity, usize>,
 }
 
 impl CityPlan {
@@ -44,9 +50,15 @@ impl CityPlan {
             threshold,
             drive,
             targets: HashMap::default(),
+            complete: HashMap::default(),
         };
         if drive <= 0.0 || threshold == 0 {
             return plan;
+        }
+        for (area, a) in areas {
+            if a.is_city_site && !a.has_city && a.enemy_pop == 0 && a.my_pop >= threshold {
+                plan.complete.insert(*area, a.my_pop - threshold);
+            }
         }
 
         // target -> [(source, supply)]
@@ -63,8 +75,13 @@ impl CityPlan {
                 .entry(m.target)
                 .or_default()
                 .push((m.source, m.max_tokens));
+            // A complete site only offers what it can spare above the threshold.
+            let available = plan
+                .complete
+                .get(&m.source)
+                .map_or(m.max_tokens, |spare| m.max_tokens.min(*spare));
             let s = supply.entry(m.source).or_insert(0);
-            *s = (*s).max(m.max_tokens);
+            *s = (*s).max(available);
         }
 
         let mut candidates: Vec<(Entity, usize, usize)> = feeders
@@ -118,6 +135,12 @@ impl CityPlan {
 
     pub fn is_target(&self, area: Entity) -> bool {
         self.targets.contains_key(&area)
+    }
+
+    /// Tokens a buildable (already-complete) site can give away without
+    /// dropping below the threshold. `None` = not a complete site.
+    pub fn spare_at(&self, area: Entity) -> Option<usize> {
+        self.complete.get(&area).copied()
     }
 
     pub fn has_targets(&self) -> bool {
@@ -213,6 +236,23 @@ mod tests {
             1,
             "exactly one site should be planned"
         );
+    }
+
+    /// Two adjacent sites at 5 and 6: the complete one must not be counted as
+    /// supply for the other (that's how they used to ping-pong to 5/5).
+    #[test]
+    fn a_complete_site_is_protected_not_used_as_supply() {
+        let (done, other) = (e(10), e(11));
+        let areas = HashMap::from_iter([(done, site(6)), (other, site(5))]);
+        let moves = HashMap::from_iter([(1, mv(done, other, 6)), (2, mv(other, done, 5))]);
+        let plan = CityPlan::build(&moves, &areas, 6, 1.0);
+        assert_eq!(plan.spare_at(done), Some(0));
+        assert!(!plan.is_target(other), "other may only be fed with spare tokens");
+        // With one spare token, it can.
+        let areas = HashMap::from_iter([(done, site(7)), (other, site(5))]);
+        let plan = CityPlan::build(&moves, &areas, 6, 1.0);
+        assert_eq!(plan.spare_at(done), Some(1));
+        assert_eq!(plan.needed_at(other), Some(1));
     }
 
     #[test]

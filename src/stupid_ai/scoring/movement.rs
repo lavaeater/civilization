@@ -46,7 +46,10 @@ pub fn score_movement(
             {
                 return 0.0;
             }
-            clamp01_soft(base + city_plan_adjustment(m.source, m.target, areas, plan))
+            clamp01_soft(
+                base + city_plan_adjustment(m.source, m.target, areas, plan)
+                    + surplus_bonus(m.source, areas, plan),
+            )
         }
         GameMove::AttackArea(m) | GameMove::AttackCity(m) => {
             let takes_city = matches!(mv, GameMove::AttackCity(_));
@@ -63,6 +66,20 @@ pub fn score_movement(
         }
         // Not a movement-phase move; never selected here.
         _ => f32::NEG_INFINITY,
+    }
+}
+
+/// Tokens above an area's limit will be removed at end of turn (surplus
+/// removal) unless a city is built there, so moving them out is free. Without
+/// this, a cautious AI sat on 2 tokens in a capacity-1 area for rounds on end,
+/// losing the extra one every turn instead of spreading it.
+fn surplus_bonus(source: Entity, areas: &HashMap<Entity, AreaSummary>, plan: &CityPlan) -> f32 {
+    if plan.is_target(source) || plan.spare_at(source).is_some() {
+        return 0.0; // those extra tokens are for the city
+    }
+    match area(areas, source) {
+        Some(src) if src.my_pop > src.max_population => 0.3,
+        _ => 0.0,
     }
 }
 
@@ -122,7 +139,7 @@ fn city_plan_adjustment(
     if plan.drive <= 0.0 {
         return 0.0;
     }
-    if plan.is_target(source) {
+    if plan.is_target(source) || plan.spare_at(source) == Some(0) {
         return -plan.drive;
     }
     if plan.is_target(target) {
@@ -655,6 +672,40 @@ mod tests {
         let unplanned = score_movement(&hit_leader, player, &areas, &w, &plan, &Rivals::default());
         let hold = score_movement(&GameMove::EndMovement, player, &areas, &w, &plan, &Rivals::default());
         assert!(unplanned < hold, "unplanned {unplanned} vs hold {hold}");
+    }
+
+    /// Surplus tokens are free: a Turtle with 2 tokens in a capacity-1 area
+    /// should move the extra one to empty land rather than lose it.
+    #[test]
+    fn turtle_moves_surplus_out_instead_of_losing_it() {
+        let player = e(1);
+        let cramped = e(10);
+        let empty = e(20);
+        let mut areas = HashMap::default();
+        areas.insert(
+            cramped,
+            AreaSummary {
+                max_population: 1,
+                my_pop: 2,
+                neighbours: vec![empty],
+                ..Default::default()
+            },
+        );
+        areas.insert(
+            empty,
+            AreaSummary {
+                max_population: 1,
+                neighbours: vec![cramped],
+                ..Default::default()
+            },
+        );
+        let w = Personality::from_playstyle(Playstyle::Turtle).weights;
+        let out = GameMove::Movement(MovementMove::new(cramped, empty, player, 2));
+        let plan = CityPlan::default();
+        let r = Rivals::default();
+        let move_s = score_movement(&out, player, &areas, &w, &plan, &r);
+        let hold_s = score_movement(&GameMove::EndMovement, player, &areas, &w, &plan, &r);
+        assert!(move_s > hold_s + 0.2, "move {move_s} vs hold {hold_s}");
     }
 
     #[test]
