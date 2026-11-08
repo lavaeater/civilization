@@ -273,6 +273,28 @@ corrections above) and are **not** repeated here.
      hide "hit the leader, not the straggler".
    - **Trade minimum 5 → 3** (rule 28.3; the 5 was a "for now" house rule).
      Little measurable effect so far.
+   - ~~**Games stalling forever in CollectTaxes.**~~ **Fixed (26-11-08,
+     `918cea2`). Also affects live/multiplayer games.** Piracy hands cities
+     to a `PirateNation` entity, which owns `PlayerCities` but has no
+     stock/treasury. `enter_collect_taxes` gave it a tax bill that nothing could
+     pay, so `taxation_gate` waited forever: no panic, no log, about one in four
+     9-player self-play games. Found by running the server under gdb (main
+     thread idle, so a waiting gate rather than a hung system), then a gate
+     diagnostic that names what it's waiting on. Pirate cities pay no taxes
+     (rule 30.913). The gate now warns if it waits more than ~300 frames.
+   - **City-plan fixes (`7d55c33`):** buildable sites are protected from being
+     drained (adjacent 5-token sites used to ping-pong to 5/5), and tokens
+     above an area's limit get a bonus for moving out, since surplus removal
+     takes them anyway.
+   - **AI fleet cap (`918cea2`):** 1 ship + 1 per 10 sustainable tokens (max 4).
+     Ships built per game ~40 → ~17–31.
+   - **Verification (4 self-play games after `918cea2`):** no stalls and no
+     panics. Zero-city factions at the end: 0–3 per game (mean ~1.75, was 2–3).
+     The rest trace to harsh starts (capacity-1 areas next to enemies) and
+     calamity losses rather than a scoring bug found so far. Note: an AI-only
+     Trade phase can use the full 90 s real-time countdown, which makes
+     self-play slow (Trade is 60–80% of wall time) but is the intended design
+     for human negotiation.
    - **Still open:** in every game 2–3 factions (often Turtle/Warlord
      temperaments on cramped starts) sit at 0–1 cities and A.S.T. 4 all game.
      The card economy follows city count (one card per city, so hand value
