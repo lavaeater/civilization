@@ -1,9 +1,10 @@
 use crate::civilization::*;
+use crate::player::Player;
 use crate::stupid_ai::*;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{
-    Commands, Entity, Has, MessageReader, MessageWriter, Name, Query, Res, ResMut, debug, error,
-    warn,
+    Commands, Entity, Has, MessageReader, MessageWriter, Name, Query, Res, ResMut, With, debug,
+    error, warn,
 };
 use rand::prelude::SliceRandom;
 
@@ -74,7 +75,15 @@ pub fn select_stupid_pop_exp(
 
 pub fn select_stupid_movement(
     mut event_reader: MessageReader<SelectStupidMove>,
-    player_moves: Query<(&Name, &AvailableMoves, &PlayerAreas, &Personality)>,
+    player_moves: Query<(
+        &Name,
+        &AvailableMoves,
+        &Personality,
+        &PlayerCities,
+        &AstPosition,
+        &CityTokenStock,
+        Option<&PlayerCivilizationCards>,
+    )>,
     mut move_tokens_writer: MessageWriter<MoveTokenFromAreaToAreaCommand>,
     mut ship_ferry_writer: MessageWriter<ShipFerryCommand>,
     mut end_movement_writer: MessageWriter<PlayerMovementEnded>,
@@ -87,12 +96,70 @@ pub fn select_stupid_movement(
     )>,
     debug_options: Res<DebugOptions>,
     mut loop_guard: ResMut<MovementLoopGuard>,
+    standings_query: Query<StandingsData, With<Player>>,
+    civ_card_defs: Option<Res<AvailableCivCards>>,
 ) {
+    // Everyone's rule-35 score estimate, once per frame (only computed when
+    // somebody is actually deciding a move this frame).
+    let mut score_table: Option<HashMap<Entity, u32>> = None;
     for event in event_reader.read() {
-        if let Ok((player_name, available_moves, _player_areas, personality)) =
-            player_moves.get(event.player)
+        if let Ok((
+            player_name,
+            available_moves,
+            personality,
+            player_cities,
+            ast_position,
+            city_token_stock,
+            civ_cards,
+        )) = player_moves.get(event.player)
         {
-            let areas = gather_area_summaries(event.player, &area_info_query);
+            let mut areas = gather_area_summaries(event.player, &area_info_query);
+            // Rule 24.31: Engineering makes a city need 8 attackers, not 7.
+            for summary in areas.values_mut() {
+                if let Some(owner) = summary.city_owner
+                    && standings_query
+                        .get(owner)
+                        .is_ok_and(|(_, _, _, c, ..)| c.is_some_and(|c| c.owns(&CivCardName::Engineering)))
+                {
+                    summary.city_defence = CITY_ATTACK_TOKENS + 1;
+                }
+            }
+
+            // Movement is the only way a stack reaches the city threshold (no
+            // area's printed max is >= 6), so plan which sites to pile into.
+            let has_architecture = civ_cards.is_some_and(|c| c.owns(&CivCardName::Architecture));
+            let threshold = if has_architecture { 5 } else { 6 };
+            let drive = if city_token_stock.has_tokens() {
+                personality
+                    .weights
+                    .city_income
+                    .max(city_urgency(player_cities, ast_position))
+                    .max(personality.strategy.city_floor())
+            } else {
+                0.0
+            };
+            let plan = CityPlan::build(&available_moves.moves, &areas, threshold, drive);
+
+            // Conqueror: how far ahead each rival is, to aim attacks at the leader.
+            let conquest = personality.strategy.conquest();
+            let sieges = SiegePlan::build(&available_moves.moves, &areas);
+            let mut rivals = if conquest > 0.0 {
+                let scores = score_table
+                    .get_or_insert_with(|| standings(&standings_query, civ_card_defs.as_deref()));
+                let me = scores.get(&event.player).copied().unwrap_or(0);
+                Rivals {
+                    conquest,
+                    standing: scores
+                        .iter()
+                        .filter(|(p, _)| **p != event.player)
+                        .map(|(p, s)| (*p, rival_standing(me, *s)))
+                        .collect(),
+                    ..Default::default()
+                }
+            } else {
+                Rivals::default()
+            };
+            rivals.sieges = sieges;
 
             let scored: Vec<(usize, f32)> = available_moves
                 .moves
@@ -100,7 +167,14 @@ pub fn select_stupid_movement(
                 .map(|(i, m)| {
                     (
                         *i,
-                        score_movement(m, event.player, &areas, &personality.weights),
+                        score_movement(
+                            m,
+                            event.player,
+                            &areas,
+                            &personality.weights,
+                            &plan,
+                            &rivals,
+                        ),
                     )
                 })
                 .collect();
@@ -110,6 +184,43 @@ pub fn select_stupid_movement(
                 continue;
             };
             let selected_move = &available_moves.moves[&chosen];
+            // Opt-in trace (`RUST_LOG=info,ai_move=debug`): why did the AI pick this?
+            if bevy::log::tracing::enabled!(target: "ai_move", bevy::log::Level::DEBUG) {
+                let mut ranked = scored.clone();
+                ranked.sort_by(|a, b| b.1.total_cmp(&a.1));
+                let describe = |i: usize| match &available_moves.moves[&i] {
+                    GameMove::Movement(m) => {
+                        format!("Move {:?}->{:?} x{}", m.source, m.target, m.max_tokens)
+                    }
+                    GameMove::ShipFerry(m) => {
+                        format!("Ferry {:?}->{:?} x{}", m.source, m.target, m.max_tokens)
+                    }
+                    GameMove::AttackArea(m) => format!(
+                        "AttackArea {:?}->{:?} x{}",
+                        m.source, m.target, m.max_tokens
+                    ),
+                    GameMove::AttackCity(m) => format!(
+                        "AttackCity {:?}->{:?} x{}",
+                        m.source, m.target, m.max_tokens
+                    ),
+                    other => format!("{other:?}"),
+                };
+                let top: Vec<String> = ranked
+                    .iter()
+                    .take(3)
+                    .map(|(i, s)| format!("{} = {s:.2}", describe(*i)))
+                    .collect();
+                debug!(
+                    target: "ai_move",
+                    "{} picks {} | plan drive={:.2} {:?} | {} moves, top: {}",
+                    player_name,
+                    describe(chosen),
+                    plan.drive,
+                    plan,
+                    scored.len(),
+                    top.join("; ")
+                );
+            }
 
             // Loop guard: count consecutive selections this player has made without
             // ending movement. A no-op move (one the executor silently drops) would
@@ -151,16 +262,49 @@ pub fn select_stupid_movement(
                 }
                 match selected_move {
                     GameMove::Movement(movement_move) => {
-                        //A little complexity here: If possible, leave two, but also, always make a move
-                        send_movement_move(&mut move_tokens_writer, event, movement_move, false);
+                        if let Some(n) =
+                            plan.tokens_to_send(movement_move.target, movement_move.max_tokens)
+                        {
+                            // Feeding a planned city site: send exactly what's missing
+                            // (capped at a complete source's spare tokens).
+                            let n = plan
+                                .spare_at(movement_move.source)
+                                .map_or(n, |spare| n.min(spare.max(1)));
+                            move_tokens_writer.write(MoveTokenFromAreaToAreaCommand::new(
+                                movement_move.source,
+                                movement_move.target,
+                                n,
+                                event.player,
+                            ));
+                        } else if let Some(spare) = plan.spare_at(movement_move.source) {
+                            // Leaving a buildable site: never drop it below the threshold.
+                            move_tokens_writer.write(MoveTokenFromAreaToAreaCommand::new(
+                                movement_move.source,
+                                movement_move.target,
+                                spare.clamp(1, movement_move.max_tokens),
+                                event.player,
+                            ));
+                        } else {
+                            //A little complexity here: If possible, leave two, but also, always make a move
+                            send_movement_move(
+                                &mut move_tokens_writer,
+                                event,
+                                movement_move,
+                                false,
+                            );
+                        }
                     }
                     GameMove::ShipFerry(ferry_move) => {
-                        // Ferry up to max_tokens (≤5) tokens by ship. Keep 1 back if possible.
-                        let n = if ferry_move.max_tokens > 1 {
-                            ferry_move.max_tokens - 1
-                        } else {
-                            1
-                        };
+                        // Ferry up to max_tokens (≤5) tokens by ship. Keep 1 back if
+                        // possible -- unless feeding a planned city site, then send
+                        // exactly what's missing.
+                        let n = plan
+                            .tokens_to_send(ferry_move.target, ferry_move.max_tokens)
+                            .unwrap_or(if ferry_move.max_tokens > 1 {
+                                ferry_move.max_tokens - 1
+                            } else {
+                                1
+                            });
                         ship_ferry_writer.write(ShipFerryCommand::new(
                             ferry_move.source,
                             ferry_move.target,
@@ -171,6 +315,21 @@ pub fn select_stupid_movement(
                     GameMove::EndMovement => {
                         loop_guard.counts.remove(&event.player);
                         end_movement_writer.write(PlayerMovementEnded::new(event.player));
+                    }
+                    GameMove::AttackCity(movement_move)
+                        if !rivals.sieges.launch(movement_move.target).is_empty() =>
+                    {
+                        // Planned siege: launch every allocated stack this pick, so
+                        // the attack lands at full strength (rule 24.31) instead of
+                        // trickling in and dying below 7.
+                        for (source, n) in rivals.sieges.launch(movement_move.target) {
+                            move_tokens_writer.write(MoveTokenFromAreaToAreaCommand::new(
+                                *source,
+                                movement_move.target,
+                                *n,
+                                event.player,
+                            ));
+                        }
                     }
                     GameMove::AttackArea(movement_move) | GameMove::AttackCity(movement_move) => {
                         //A little complexity here: If possible, leave two, but also, always make a move
@@ -187,7 +346,13 @@ pub fn select_stupid_movement(
 
 pub fn select_stupid_city_building(
     mut event_reader: MessageReader<SelectStupidMove>,
-    player_moves: Query<(&Name, &AvailableMoves, &Personality, &PlayerCities, &AstPosition)>,
+    player_moves: Query<(
+        &Name,
+        &AvailableMoves,
+        &Personality,
+        &PlayerCities,
+        &AstPosition,
+    )>,
     area_info_query: Query<(
         Entity,
         &Population,
@@ -206,12 +371,8 @@ pub fn select_stupid_city_building(
             let areas = gather_area_summaries(event.player, &area_info_query);
             // Short of the cities needed to clear the *next* A.S.T. epoch gate?
             // Force city-building to the top of every playstyle's priorities.
-            let next_epoch = AstEpoch::for_space(ast_position.space + 1);
-            let urgency = if player_cities.number_of_cities() < next_epoch.min_cities() {
-                1.0
-            } else {
-                0.0
-            };
+            let urgency =
+                city_urgency(player_cities, ast_position).max(personality.strategy.city_floor());
             let scored: Vec<(usize, f32)> = available_moves
                 .moves
                 .iter()
@@ -412,7 +573,13 @@ fn _debug_trade_move_info(trade_move: &TradeMove, trade_offer: &TradeOffer) {
 
 pub fn select_stupid_civ_card_move(
     mut event_reader: MessageReader<SelectStupidMove>,
-    player_moves: Query<(&Name, &AvailableMoves, &Personality)>,
+    player_moves: Query<(
+        &Name,
+        &AvailableMoves,
+        &Personality,
+        &AstPosition,
+        &PlayerCities,
+    )>,
     player_cards_query: Query<(
         &PlayerTradeCards,
         &PlayerCivilizationCards,
@@ -426,7 +593,26 @@ pub fn select_stupid_civ_card_move(
     debug_options: Res<DebugOptions>,
 ) {
     for event in event_reader.read() {
-        if let Ok((player_name, available_moves, personality)) = player_moves.get(event.player) {
+        if let Ok((player_name, available_moves, personality, ast_position, player_cities)) =
+            player_moves.get(event.player)
+        {
+            // What the next A.S.T. gate still needs (cities, colour groups, card
+            // count), for the strategy's card bonus.
+            let needs = match player_cards_query.get(event.player) {
+                Ok((_, civ_cards, ..)) => {
+                    let owned = cards.cards_for_names(&civ_cards.cards);
+                    let groups = owned
+                        .iter()
+                        .fold(enumflags2::BitFlags::empty(), |g, d| g | d.card_type);
+                    AstNeeds::compute(
+                        ast_position.space,
+                        player_cities.number_of_cities(),
+                        groups,
+                        civ_cards.cards.len(),
+                    )
+                }
+                Err(_) => AstNeeds::default(),
+            };
             // Player wealth + existing credits, used to score each card option.
             // Rule 31.53: credits are computed against what was held BEFORE
             // this turn's acquiring phase began, not the live hand -- see
@@ -448,9 +634,17 @@ pub fn select_stupid_civ_card_move(
                 .iter()
                 .filter_map(|(i, m)| match m {
                     GameMove::AcquireCivilizationCards(civ_move) => {
+                        let mut bonus = 0.0;
                         let option = match civ_move {
                             AcquireCivilizationCardsMove::AcquireCard(name) => {
                                 cards.cards.iter().find(|c| c.name == *name).map(|def| {
+                                    bonus = strategy_card_bonus(
+                                        personality.strategy,
+                                        def.name,
+                                        def.card_type,
+                                        def.cost,
+                                        &needs,
+                                    );
                                     CivCardOption {
                                         effective_cost: def.calculate_cost(&credits),
                                         credit_value: civ_card_credit_value(def),
@@ -460,7 +654,11 @@ pub fn select_stupid_civ_card_move(
                             }
                             _ => None,
                         };
-                        Some((*i, score_civ_card(civ_move, option, &personality.weights)))
+                        // Non-finite (unaffordable) stays non-finite.
+                        Some((
+                            *i,
+                            score_civ_card(civ_move, option, &personality.weights) + bonus,
+                        ))
                     }
                     _ => None,
                 })
@@ -485,6 +683,38 @@ pub fn select_stupid_civ_card_move(
                 else {
                     continue;
                 };
+                // Opt-in trace (`RUST_LOG=info,ai_cards=debug`): why so few purchases?
+                if bevy::log::tracing::enabled!(target: "ai_cards", bevy::log::Level::DEBUG) {
+                    let offered: Vec<u32> = available_moves
+                        .moves
+                        .values()
+                        .filter_map(|m| match m {
+                            GameMove::AcquireCivilizationCards(
+                                AcquireCivilizationCardsMove::AcquireCard(n),
+                            ) => cards
+                                .cards
+                                .iter()
+                                .find(|c| c.name == *n)
+                                .map(|d| d.calculate_cost(&credits)),
+                            _ => None,
+                        })
+                        .collect();
+                    let hand = player_cards_query
+                        .get(event.player)
+                        .map_or(0, |(t, ..)| t.number_of_trade_cards());
+                    debug!(
+                        target: "ai_cards",
+                        "{} [{:?}] wealth={} hand={} offered={} cheapest={:?} affordable={} picks {:?}",
+                        player_name,
+                        personality.strategy,
+                        wealth,
+                        hand,
+                        offered.len(),
+                        offered.iter().min(),
+                        offered.iter().filter(|c| **c <= wealth).count(),
+                        selected_move,
+                    );
+                }
                 if debug_options.print_selected_moves {
                     debug!("{} selects {:#?}", player_name, selected_move);
                 }
@@ -593,6 +823,11 @@ pub fn compute_ai_payment(
             break;
         }
         let face = stack.card_type.value();
+        if face == 0 {
+            // Worthless for payment -- and `n * n * face < remaining` below
+            // would never terminate.
+            continue;
+        }
         let full_value = stack.suite_value; // count² × face
 
         if full_value <= remaining {
@@ -613,6 +848,54 @@ pub fn compute_ai_payment(
 
     let tokens = remaining.min(treasury_available);
     (payment, tokens)
+}
+
+/// Per-player inputs to the rule-35 score estimate.
+pub type StandingsData = (
+    Entity,
+    &'static AstPosition,
+    &'static PlayerCities,
+    Option<&'static PlayerCivilizationCards>,
+    Option<&'static PlayerTradeCards>,
+    Option<&'static Treasury>,
+);
+
+/// Every player's rule-35 score estimate (what they'd score if the game ended now).
+pub fn standings(
+    query: &Query<StandingsData, With<Player>>,
+    defs: Option<&AvailableCivCards>,
+) -> HashMap<Entity, u32> {
+    query
+        .iter()
+        .map(|(e, ast, cities, civ, trade, treasury)| {
+            let face = match (civ, defs) {
+                (Some(c), Some(d)) => d.cards_for_names(&c.cards).iter().map(|x| x.cost).sum(),
+                _ => 0,
+            };
+            (
+                e,
+                rule35_score(
+                    ast.space,
+                    cities.number_of_cities(),
+                    face,
+                    trade.map_or(0, |t| t.total_stack_value() as u32),
+                    treasury.map_or(0, |t| t.tokens_in_treasury() as u32),
+                ),
+            )
+        })
+        .collect()
+}
+
+/// 1.0 when the player is short of the cities needed to clear their *next*
+/// A.S.T. epoch gate, else 0.0. Overrides a low `city_income` personality knob in
+/// both movement (pile tokens onto a site) and city construction (build on it).
+fn city_urgency(player_cities: &PlayerCities, ast_position: &AstPosition) -> f32 {
+    let next_epoch = AstEpoch::for_space(ast_position.space + 1);
+    if player_cities.number_of_cities() < next_epoch.min_cities() {
+        1.0
+    } else {
+        0.0
+    }
 }
 
 /// Flatten every area into an [`AreaSummary`] keyed by area entity, from `player`'s
@@ -642,6 +925,14 @@ fn gather_area_summaries(
                 my_pop,
                 enemy_pop,
                 neighbours: land_passage.to_areas.clone(),
+                city_owner: built_city.map(|c| c.player),
+                main_enemy: population
+                    .player_tokens()
+                    .iter()
+                    .filter(|(p, _)| **p != player)
+                    .max_by_key(|(p, t)| (t.len(), **p))
+                    .map(|(p, _)| *p),
+                city_defence: 0, // rule default; movement raises it for Engineering
             },
         );
     }

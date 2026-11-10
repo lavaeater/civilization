@@ -7,7 +7,12 @@ use itertools::Itertools;
 use rand::RngExt;
 use rand::seq::SliceRandom;
 
-pub const MIN_CARDS_REQUIRED_TO_TRADE: usize = 5;
+/// Rule 28.3: "A player with fewer than three trade cards may not trade", and
+/// each deal moves at least three cards per side. (Was a house-rule 5, which
+/// kept most players out of trading: AI hands are 1-6 cards for much of the
+/// game, so few trades happened, sets never formed and civ cards stayed out of
+/// reach.)
+pub const MIN_CARDS_REQUIRED_TO_TRADE: usize = 3;
 
 #[derive(Resource, Debug, Default)]
 pub struct CivilizationTradeCards {
@@ -66,7 +71,7 @@ pub struct PlayerTradeCards {
 
 impl PlayerTradeCards {
     pub fn can_trade(&self) -> bool {
-        self.number_of_tradeable_cards() >= MIN_CARDS_REQUIRED_TO_TRADE // we have to trade away three cards to get one card... I say we need five to trade. For now!
+        self.number_of_tradeable_cards() >= MIN_CARDS_REQUIRED_TO_TRADE
     }
 
     pub fn wants(&self) -> Vec<TradeCard> {

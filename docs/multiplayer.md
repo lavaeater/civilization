@@ -372,6 +372,9 @@ Multi-stage build, nothing exotic:
 
 ### Multiple games per server — the honest caveat
 
+> **26-11-08:** the concrete plan for this (create/join codes, a lobby supervisor
+> running one game process per game) is in [`online-games-plan.md`](online-games-plan.md).
+
 `GameState` and `GameActivity` are **app-global Bevy states**, and the whole phase machine
 hangs off them. One Bevy `World` therefore hosts exactly one game. Options:
 

@@ -30,6 +30,55 @@ pub fn ship_build_order(
     ordered
 }
 
+/// Below this many tokens on the board, an AI never levies population for a
+/// ship (build or upkeep) -- treasury only.
+///
+/// Why: a ship's 1-token upkeep is paid *before* movement, so for a tiny
+/// faction it eats exactly its Population Expansion growth. In self-play, a
+/// 1-token Crete kept one ship alive by levy for 14 rounds: grow to 2, pay 1,
+/// back to 1, forever -- never able to build a city. Rule 22.3 lets a player
+/// simply not pay ("a player may remove a ship from the board by not paying
+/// maintenance"), so an AI that can't spare population drops the ship.
+pub const AI_MIN_POP_FOR_SHIP_LEVY: usize = 8;
+
+/// Tokens the player can actually keep: each area's count capped at its limit.
+/// Ship construction runs right after Population Expansion, when stacks are
+/// temporarily over their limits; surplus removal takes the excess later, so
+/// the raw count overstates what a ship levy can be paid from.
+fn sustainable_population(
+    player: Entity,
+    player_areas: &PlayerAreas,
+    area_pop_query: &Query<&mut Population, With<GameArea>>,
+) -> usize {
+    player_areas
+        .areas()
+        .into_iter()
+        .filter_map(|a| area_pop_query.get(a).ok())
+        .map(|pop| pop.population_for_player(player).min(pop.max_population))
+        .sum()
+}
+
+/// How many ships an AI keeps: one, plus one per 10 sustainable tokens, at
+/// most the rule-22.4 maximum of four. Without a cap a 1-2 city faction kept
+/// four ships and paid upkeep on all of them every round.
+pub fn ai_ship_cap(board_pop: usize) -> usize {
+    (1 + board_pop / 10).min(ShipStock::MAX_SHIPS)
+}
+
+/// Should an AI pay upkeep for one ship? Treasury is always fine; a population
+/// levy only once the faction is big enough to absorb it.
+pub fn ai_should_maintain_ship(treasury: usize, board_pop: usize) -> bool {
+    treasury >= 1 || board_pop >= AI_MIN_POP_FOR_SHIP_LEVY
+}
+
+/// Should an AI build a ship? Only if the treasury covers it fully, or the
+/// faction is big enough that a levy (from `spare_area_tokens`, which already
+/// leaves one token behind) won't stunt it.
+pub fn ai_should_build_ship(treasury: usize, spare_area_tokens: usize, board_pop: usize) -> bool {
+    treasury >= 2
+        || (treasury + spare_area_tokens >= 2 && board_pop >= AI_MIN_POP_FOR_SHIP_LEVY)
+}
+
 /// Called on entering `ShipConstruction`.
 ///
 /// Pass 1 — Maintenance (rule 22.3): each ship costs 1 token, paid from
@@ -68,12 +117,30 @@ pub fn enter_ship_construction(
     // ── Pass 1: Maintenance (rule 22.3) ──────────────────────────────────────
     // Each ship costs 1 token from treasury OR a levy of 1 from the area it
     // occupies. Ships that cannot be paid for are returned to stock.
-    for (player_entity, name, mut ship_stock, mut player_ships, mut treasury, _, _, _) in
-        &mut player_query
+    for (
+        player_entity,
+        name,
+        mut ship_stock,
+        mut player_ships,
+        mut treasury,
+        player_areas,
+        is_human,
+        is_agent_controlled,
+    ) in &mut player_query
     {
+        let is_ai = !is_human || is_agent_controlled;
+        let mut board_pop = sustainable_population(player_entity, player_areas, &area_pop_query);
         let areas_with_ships: Vec<Entity> = player_ships.all_areas_with_ships();
+        let cap = ai_ship_cap(board_pop);
+        let mut kept = 0;
         for area in areas_with_ships {
-            let paid = if treasury.tokens_in_treasury() >= 1 {
+            let paid = if is_ai
+                && (kept >= cap
+                    || !ai_should_maintain_ship(treasury.tokens_in_treasury(), board_pop))
+            {
+                // Rule 22.3: choosing not to pay is legal; the ship goes back.
+                false
+            } else if treasury.tokens_in_treasury() >= 1 {
                 // Treasury tokens are the same finite pool as population tokens —
                 // they must go back to stock, not be dropped, or the pool leaks.
                 if let Some(token) = treasury.remove_token_from_treasury() {
@@ -83,6 +150,7 @@ pub fn enter_ship_construction(
             } else if let Ok(mut pop) = area_pop_query.get_mut(area) {
                 // Levy 1 token from the area the ship occupies (rule 22.3).
                 if let Some(levied) = pop.remove_tokens_from_area(&player_entity, 1) {
+                    board_pop = board_pop.saturating_sub(levied.len());
                     for token in levied {
                         commands.entity(token).insert(ReturnTokenToStock);
                     }
@@ -94,6 +162,9 @@ pub fn enter_ship_construction(
                 false
             };
 
+            if paid {
+                kept += 1;
+            }
             if !paid && let Some(ship_entity) = player_ships.remove_ship_from_area(area) {
                 ship_stock.return_ship(ship_entity);
                 info!(
@@ -207,7 +278,10 @@ pub fn enter_ship_construction(
                 .get(area)
                 .map_or(0, |pop| pop.population_for_player(player_entity));
             let spare_area_tokens = area_tokens.saturating_sub(1);
-            if treasury_tokens + spare_area_tokens < 2 {
+            let sustainable = sustainable_population(player_entity, player_areas, &area_pop_query);
+            if ships_on_board >= ai_ship_cap(sustainable)
+                || !ai_should_build_ship(treasury_tokens, spare_area_tokens, sustainable)
+            {
                 continue;
             }
 
@@ -516,4 +590,38 @@ mod tests {
         assert_eq!(stock.count_in_stock(), 4);
         assert_eq!(ships.total_ships_on_board(), 0);
     }
+    #[test]
+    fn small_ai_faction_drops_a_ship_it_can_only_pay_for_by_levy() {
+        // The stuck-Crete case: 0 treasury, 2 tokens on the board.
+        assert!(!ai_should_maintain_ship(0, 2));
+        assert!(!ai_should_maintain_ship(0, AI_MIN_POP_FOR_SHIP_LEVY - 1));
+    }
+
+    #[test]
+    fn ai_maintains_from_treasury_or_when_big_enough() {
+        assert!(ai_should_maintain_ship(1, 1));
+        assert!(ai_should_maintain_ship(0, AI_MIN_POP_FOR_SHIP_LEVY));
+    }
+
+    #[test]
+    fn ai_fleet_scales_with_sustainable_population() {
+        assert_eq!(ai_ship_cap(0), 1);
+        assert_eq!(ai_ship_cap(9), 1);
+        assert_eq!(ai_ship_cap(10), 2);
+        assert_eq!(ai_ship_cap(25), 3);
+        assert_eq!(ai_ship_cap(80), ShipStock::MAX_SHIPS);
+    }
+
+    #[test]
+    fn ai_builds_only_from_treasury_or_when_big_enough_to_levy() {
+        // Treasury covers it: always fine.
+        assert!(ai_should_build_ship(2, 0, 1));
+        // Small faction with spare area tokens: no levy, no ship.
+        assert!(!ai_should_build_ship(0, 3, 4));
+        // Big enough faction: levy allowed, but only if it's affordable.
+        assert!(ai_should_build_ship(0, 2, AI_MIN_POP_FOR_SHIP_LEVY));
+        assert!(!ai_should_build_ship(0, 1, AI_MIN_POP_FOR_SHIP_LEVY));
+        assert!(ai_should_build_ship(1, 1, AI_MIN_POP_FOR_SHIP_LEVY));
+    }
+
 }

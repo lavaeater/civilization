@@ -100,6 +100,8 @@ pub enum Picker {
 #[reflect(Component)]
 pub struct Personality {
     pub playstyle: Playstyle,
+    /// What this AI is trying to win by (see `strategy.rs`).
+    pub strategy: crate::stupid_ai::Strategy,
     pub picker: Picker,
     pub weights: Weights,
 }
@@ -182,9 +184,20 @@ impl Personality {
         };
         Personality {
             playstyle,
+            strategy: crate::stupid_ai::Strategy::natural_for(playstyle),
             picker,
             weights,
         }
+    }
+
+    /// A playstyle (temperament) pursuing an explicit win strategy. Unlike
+    /// [`Personality::from_playstyle`] (raw preset weights, natural strategy),
+    /// this applies the strategy's weight nudges.
+    pub fn new(playstyle: Playstyle, strategy: crate::stupid_ai::Strategy) -> Self {
+        let mut p = Personality::from_playstyle(playstyle);
+        p.strategy = strategy;
+        p.weights = strategy.adjust(p.weights);
+        p
     }
 }
 

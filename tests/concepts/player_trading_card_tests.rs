@@ -2,6 +2,7 @@ use adv_civ::civilization::{
     CivilizationTradeCards, MIN_CARDS_REQUIRED_TO_TRADE, NINTH_STACK_COST, PlayerTradeCards,
     TokenStock, TradeCard, Treasury, buy_from_ninth_stack,
 };
+use bevy::ecs::system::RunSystemOnce;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::World;
 use pretty_assertions::assert_eq;
@@ -313,5 +314,48 @@ fn purchase_count_is_capped_by_whichever_runs_out_first_stack_or_treasury() {
         treasury.tokens_in_treasury(),
         NINTH_STACK_COST,
         "only 2 cards' worth spent"
+    );
+}
+
+/// Regression: with fewer than two players able to trade, the round must skip
+/// only the Trade phase and carry on into ResolveCalamities (then civ cards,
+/// A.S.T. ...). It used to jump straight to CollectTaxes, so calamities, civ
+/// card purchases and A.S.T. movement silently never happened in about half
+/// of all self-play rounds.
+#[test]
+fn too_few_traders_skips_only_the_trade_phase() {
+    use adv_civ::GameActivity;
+    use adv_civ::civilization::{CheckIfWeCanTrade, transition_to_trade};
+    use bevy::app::Update;
+    use bevy::prelude::NextState::Pending;
+    use bevy::prelude::{MessageWriter, NextState};
+
+    let mut app = crate::setup_bevy_app(|mut app| {
+        app.add_message::<CheckIfWeCanTrade>();
+        app.add_systems(Update, transition_to_trade);
+        app
+    });
+    // One player who could trade, one who can't: not enough for a Trade phase.
+    let mut rich = PlayerTradeCards::default();
+    for _ in 0..=MIN_CARDS_REQUIRED_TO_TRADE {
+        rich.add_trade_card(TradeCard::Ochre);
+    }
+    app.world_mut().spawn(rich);
+    app.world_mut().spawn(PlayerTradeCards::default());
+    app.world_mut()
+        .run_system_once(|mut w: MessageWriter<CheckIfWeCanTrade>| {
+            w.write(CheckIfWeCanTrade);
+        })
+        .unwrap();
+
+    app.update();
+
+    let state = app
+        .world()
+        .get_resource::<NextState<GameActivity>>()
+        .unwrap();
+    assert!(
+        matches!(state, Pending(GameActivity::ResolveCalamities)),
+        "expected ResolveCalamities, got {state:?}"
     );
 }

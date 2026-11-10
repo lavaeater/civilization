@@ -180,8 +180,13 @@ pub fn transition_to_trade(
             info!("[TRADE_CARDS] Transitioning to Trade phase");
             next_state.set(GameActivity::Trade);
         } else {
-            info!("[TRADE_CARDS] Not enough traders, transitioning to CollectTaxes");
-            next_state.set(GameActivity::CollectTaxes);
+            // Skip only the Trade phase itself. This used to jump to
+            // CollectTaxes (a leftover from when Trade ended the round), which
+            // silently skipped calamities, civ-card purchases and A.S.T.
+            // movement in every round with fewer than two traders: about half
+            // of all rounds in 9-player self-play.
+            info!("[TRADE_CARDS] Not enough traders, skipping Trade -> ResolveCalamities");
+            next_state.set(GameActivity::ResolveCalamities);
         }
     }
 }

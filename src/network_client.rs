@@ -995,7 +995,10 @@ fn rebuild_online_ui(
         .flex_column()
         .align_items_start()
         .padding_all_px(14.0)
-        .gap_px(8.0);
+        .gap_px(8.0)
+        // Without a backdrop the theme's yellow text sat straight on the map
+        // and was unreadable. Same dark panel as the in-game phase HUDs.
+        .bg_color(Color::srgba(0.05, 0.1, 0.15, 0.93));
 
     // ── Header ──────────────────────────────────────────────────────────
     let title = match (&net.seated_as, net.connected) {

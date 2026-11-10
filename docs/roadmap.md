@@ -210,6 +210,98 @@ corrections above) and are **not** repeated here.
      problem. That points at `expansion.rs`/`movement.rs` population-concentration
      behaviour, not `city.rs`. Worth a follow-up self-play pass instrumented with
      "why no city-construction move was offered" logging.
+   - ~~**Zero-city follow-up.**~~ **Fixed (26-11-07).** Root cause: no area
+     on the map has `max_population` >= 6 (city sites hold 1–5), so Population
+     Expansion can never produce a buildable stack. A city only happens when
+     *movement* piles tokens above an area's limit, and `score_movement` had no
+     term for that: grabbing new land always outscored reinforcing. The added
+     diagnostic (`[CITY_CONSTRUCTION] No build moves ... best city-site stack:
+     N/6`) showed it directly: one faction held 29 areas but never stacked more
+     than 4 tokens, and several sat at 5/6 on a site.
+     Fix: `src/stupid_ai/scoring/city_plan.rs`, a per-pick `CityPlan` listing the
+     city sites the player can fill to the threshold *this turn* from unmoved
+     supply (closest-to-done first, each source spent once, Architecture → 5).
+     Moves into a planned site get a bonus scaled by
+     `max(city_income, AST urgency)`, moves out of one are penalised, and the
+     AI sends exactly the missing token count. 8 new unit tests (including one
+     where every playstyle feeds rather than grabs).
+     Self-play, 9 AIs, same 2-minute window: **12 → 40 cities, 5/9 → 8/9
+     factions building**, no loop-guard trips.
+     - ~~**Stuck small factions (Crete).**~~ **Fixed (26-11-07).** Two leaks, found
+     with a new opt-in trace (`RUST_LOG=info,ai_move=debug` logs every AI
+     movement pick: score, plan, top 3) and a `where=[Area:pop/max]` suffix on
+     `[STATE]` for players with 3 areas or fewer:
+     1. **Ship upkeep ate all growth.** Upkeep (1 token, paid before movement)
+        was compulsory and the AI built ships whenever it could afford a levy.
+        A 1-token Crete kept one ship alive for 14 rounds: grow to 2, pay 1,
+        back to 1. Rule 22.3 makes upkeep optional, so the AI now
+        (`ai_should_maintain_ship` / `ai_should_build_ship`, `ship_systems.rs`)
+        levies population for ships only with at least 8 *sustainable* tokens
+        (each area capped at its limit, since this runs before surplus
+        removal). Otherwise it pays from treasury or drops/skips the ship.
+        Interactive humans are unchanged: their upkeep is still compulsory,
+        which isn't what rule 22.3 says, but fixing it needs UI.
+     2. **Piling into full areas.** A Turtle Iberia spent 12 rounds moving its
+        whole stack into one already-full area each turn, and surplus removal
+        took the overflow. Peaceful moves into an area at its limit now score
+        0 (below `EndMovement`) unless the area is a planned city site.
+     Self-play: 45 cities in 19 rounds, ships built 48 → 37; Crete went from 0
+     to 7–8 cities. Remaining zero-city case: Assyria, wiped out in round 2 on a
+     1-capacity start area next to an enemy. That's a harsh start, not a
+     scoring bug.
+   - ~~**Half of all rounds skipped calamities, civ cards and A.S.T.**~~ **Fixed
+     (26-11-08), found while testing win strategies.** `transition_to_trade` sent
+     rounds with fewer than 2 able traders straight to `CollectTaxes`, a
+     leftover from when Trade ended the round. That skipped ResolveCalamities,
+     city-support checks, civ-card acquisition, shedding *and* the A.S.T. move
+     for that round: 9 of 18 rounds in a 9-player self-play game, and nearly
+     every early-game round. It explains why the AIs bought almost no civ cards.
+     Now it skips only Trade (→ ResolveCalamities). Regression test:
+     `too_few_traders_skips_only_the_trade_phase`.
+   - **Win strategies (M7).** Pioneer / Scholar / Conqueror / Magnate, layered
+     on playstyles. See `utility-ai-design.md` §10.
+   - ~~**Suicidal city attacks.**~~ **Fixed (26-11-08).** Rule 24.31: a city only
+     falls to 7+ tokens of one nation (8 vs Engineering); fewer are just
+     removed. The attack scorer treated a city like any area ("4 vs 0, great
+     odds"), kept one token back, and sent stacks one per pick. 12–31 tokens'
+     worth of attacks per game died on city walls. Now there's a `SiegePlan`
+     (`scoring/city_plan.rs`): a city attack is allowed only if this turn's
+     unmoved supply reaches 7 (8) + defenders, every allocated stack launches in
+     the same pick, and ferries into enemy cities are vetoed. Failed city
+     attacks per game: 12–31 → 4–10. Successful captures: 5–11 per game.
+     The conquest bonus is now applied after the 1.5 score cap, which used to
+     hide "hit the leader, not the straggler".
+   - **Trade minimum 5 → 3** (rule 28.3; the 5 was a "for now" house rule).
+     Little measurable effect so far.
+   - ~~**Games stalling forever in CollectTaxes.**~~ **Fixed (26-11-08,
+     `918cea2`). Also affects live/multiplayer games.** Piracy hands cities
+     to a `PirateNation` entity, which owns `PlayerCities` but has no
+     stock/treasury. `enter_collect_taxes` gave it a tax bill that nothing could
+     pay, so `taxation_gate` waited forever: no panic, no log, about one in four
+     9-player self-play games. Found by running the server under gdb (main
+     thread idle, so a waiting gate rather than a hung system), then a gate
+     diagnostic that names what it's waiting on. Pirate cities pay no taxes
+     (rule 30.913). The gate now warns if it waits more than ~300 frames.
+   - **City-plan fixes (`7d55c33`):** buildable sites are protected from being
+     drained (adjacent 5-token sites used to ping-pong to 5/5), and tokens
+     above an area's limit get a bonus for moving out, since surplus removal
+     takes them anyway.
+   - **AI fleet cap (`918cea2`):** 1 ship + 1 per 10 sustainable tokens (max 4).
+     Ships built per game ~40 → ~17–31.
+   - **Verification (4 self-play games after `918cea2`):** no stalls and no
+     panics. Zero-city factions at the end: 0–3 per game (mean ~1.75, was 2–3).
+     The rest trace to harsh starts (capacity-1 areas next to enemies) and
+     calamity losses rather than a scoring bug found so far. Note: an AI-only
+     Trade phase can use the full 90 s real-time countdown, which makes
+     self-play slow (Trade is 60–80% of wall time) but is the intended design
+     for human negotiation.
+   - **Still open:** in every game 2–3 factions (often Turtle/Warlord
+     temperaments on cramped starts) sit at 0–1 cities and A.S.T. 4 all game.
+     The card economy follows city count (one card per city, so hand value
+     grows roughly with its square), so they never buy a card. That's the next
+     AI target: probably early expansion on poor starts, and whether city
+     support/calamities strip cities faster than small factions can rebuild.
+     Card purchases per game: 5 → 7–15.
 2. ~~**Test + verify calamities, starting with Barbarian Hordes.**~~ **Done
    (26-08-28) — correction to the earlier status note.** The earlier claim that
    Barbarian Hordes was "untested against the rules text" was wrong: it already had
@@ -425,6 +517,11 @@ corrections above) and are **not** repeated here.
      `enter_ship_construction`, `ships/ship_systems.rs`). Wiring real network
      ship placement means making that state per-player first. Left for a
      follow-up pass; flagging now so it isn't mistaken for a small gap.
+9b. **Create/join online games, many at once.** Planned 26-11-08 in
+    [`online-games-plan.md`](online-games-plan.md): a `civ_lobby` supervisor that spawns
+    one `adv_civ_server` process per game, game codes and links, and a Create/Join screen.
+    Step 1 is a one-line fix: the online lobby panel has no background, so the
+    yellow text is unreadable.
 10. **Wire the deployment into your pingora host.** Add `adv_civ_server` to
     `pingora-docker`'s `docker-compose.yml` and `services.json` so pushing a tag rebuilds
     it — the Docker/Caddy path already exists (`running-multiplayer.md`), this is just

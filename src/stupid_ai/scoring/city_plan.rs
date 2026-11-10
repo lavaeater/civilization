@@ -1,0 +1,440 @@
+//! Movement-phase city planning: which city sites can this player fill up to the
+//! build threshold *this turn*?
+//!
+//! Why this exists: no area on the board has `max_population` >= 6, so Population
+//! Expansion can never produce a buildable stack on its own — a city only ever
+//! happens because movement *concentrates* tokens above an area's printed limit
+//! (rule 24.1/24.2: 6 tokens on a city site, 12 elsewhere). The per-move scorer
+//! is myopic and naturally spreads tokens out (grabbing new land always beat
+//! reinforcing), so in self-play some factions held 20+ areas yet never stacked
+//! more than 4 tokens anywhere and so never got a single build move offered. The
+//! plan gives the scorer a concrete, reachable target to pile into.
+
+use super::AreaSummary;
+use crate::civilization::GameMove;
+use bevy::platform::collections::HashMap;
+use bevy::prelude::Entity;
+
+#[derive(Clone, Debug, Default)]
+pub struct CityPlan {
+    /// Tokens needed on a city site to build (6, or 5 with Architecture).
+    pub threshold: usize,
+    /// How hard to pursue the plan, `max(city_income, urgency)`. 0 = no plan.
+    pub drive: f32,
+    /// Planned target area -> tokens still missing there.
+    targets: HashMap<Entity, usize>,
+    /// City sites already at/over the threshold (buildable this turn) -> how
+    /// many tokens they can spare. These must not be drained: before this
+    /// existed, a site that hit 6 dropped out of the plan, the *next* pick
+    /// fed a neighbouring site from it, and two adjacent 5-token sites
+    /// ping-ponged tokens until neither had 6.
+    complete: HashMap<Entity, usize>,
+}
+
+impl CityPlan {
+    /// Build the plan from the player's currently legal movement moves.
+    ///
+    /// A move's `max_tokens` is the number of not-yet-moved tokens in its source,
+    /// so it doubles as that source's remaining supply. Candidates are empty-of-
+    /// enemies, city-less city sites where `my_pop + reachable supply >= threshold`.
+    /// They are claimed closest-to-done first, and each source's supply is spent
+    /// on at most one target, so two half-filled sites don't split the tokens
+    /// and both fail.
+    pub fn build(
+        moves: &HashMap<usize, GameMove>,
+        areas: &HashMap<Entity, AreaSummary>,
+        threshold: usize,
+        drive: f32,
+    ) -> Self {
+        let mut plan = CityPlan {
+            threshold,
+            drive,
+            targets: HashMap::default(),
+            complete: HashMap::default(),
+        };
+        if drive <= 0.0 || threshold == 0 {
+            return plan;
+        }
+        for (area, a) in areas {
+            if a.is_city_site && !a.has_city && a.enemy_pop == 0 && a.my_pop >= threshold {
+                plan.complete.insert(*area, a.my_pop - threshold);
+            }
+        }
+
+        // target -> [(source, supply)]
+        let mut feeders: HashMap<Entity, Vec<(Entity, usize)>> = HashMap::default();
+        let mut supply: HashMap<Entity, usize> = HashMap::default();
+        for mv in moves.values() {
+            let (GameMove::Movement(m) | GameMove::ShipFerry(m)) = mv else {
+                continue;
+            };
+            if m.max_tokens == 0 || m.source == m.target {
+                continue;
+            }
+            feeders
+                .entry(m.target)
+                .or_default()
+                .push((m.source, m.max_tokens));
+            // A complete site only offers what it can spare above the threshold.
+            let available = plan
+                .complete
+                .get(&m.source)
+                .map_or(m.max_tokens, |spare| m.max_tokens.min(*spare));
+            let s = supply.entry(m.source).or_insert(0);
+            *s = (*s).max(available);
+        }
+
+        let mut candidates: Vec<(Entity, usize, usize)> = feeders
+            .keys()
+            .filter_map(|t| {
+                let a = areas.get(t)?;
+                if !a.is_city_site || a.has_city || a.enemy_pop > 0 || a.my_pop >= threshold {
+                    return None;
+                }
+                Some((*t, threshold - a.my_pop, a.max_population))
+            })
+            .collect();
+        // Closest to done first; prefer bigger sites (they also hold more after),
+        // then entity order for determinism.
+        candidates.sort_by_key(|(t, needed, cap)| (*needed, std::cmp::Reverse(*cap), *t));
+
+        for (target, needed, _) in candidates {
+            // Tokens sitting on another planned target are already committed.
+            let mut sources: Vec<(Entity, usize)> = feeders[&target]
+                .iter()
+                .filter(|(s, _)| !plan.targets.contains_key(s))
+                .map(|(s, _)| (*s, supply.get(s).copied().unwrap_or(0)))
+                .filter(|(_, n)| *n > 0)
+                .collect();
+            sources.sort_by_key(|(s, n)| (std::cmp::Reverse(*n), *s));
+            sources.dedup_by_key(|(s, _)| *s);
+            let available: usize = sources.iter().map(|(_, n)| n).sum();
+            if available < needed {
+                continue;
+            }
+            let mut remaining = needed;
+            for (s, n) in sources {
+                if remaining == 0 {
+                    break;
+                }
+                let take = n.min(remaining);
+                remaining -= take;
+                if let Some(left) = supply.get_mut(&s) {
+                    *left -= take;
+                }
+            }
+            plan.targets.insert(target, needed);
+        }
+        plan
+    }
+
+    /// Tokens still needed at `area`, if it's a planned build target.
+    pub fn needed_at(&self, area: Entity) -> Option<usize> {
+        self.targets.get(&area).copied()
+    }
+
+    pub fn is_target(&self, area: Entity) -> bool {
+        self.targets.contains_key(&area)
+    }
+
+    /// Tokens a buildable (already-complete) site can give away without
+    /// dropping below the threshold. `None` = not a complete site.
+    pub fn spare_at(&self, area: Entity) -> Option<usize> {
+        self.complete.get(&area).copied()
+    }
+
+    pub fn has_targets(&self) -> bool {
+        !self.targets.is_empty()
+    }
+
+    /// How many tokens to send along a peaceful move into a planned target:
+    /// exactly what's missing, capped by what can move.
+    pub fn tokens_to_send(&self, target: Entity, max_tokens: usize) -> Option<usize> {
+        self.needed_at(target).map(|n| n.min(max_tokens).max(1))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::civilization::MovementMove;
+
+    fn e(i: u32) -> Entity {
+        Entity::from_raw_u32(i).unwrap()
+    }
+
+    fn site(my_pop: usize) -> AreaSummary {
+        AreaSummary {
+            max_population: 3,
+            is_city_site: true,
+            my_pop,
+            ..Default::default()
+        }
+    }
+
+    fn plain(my_pop: usize) -> AreaSummary {
+        AreaSummary {
+            max_population: 3,
+            my_pop,
+            ..Default::default()
+        }
+    }
+
+    fn mv(src: Entity, tgt: Entity, n: usize) -> GameMove {
+        GameMove::Movement(MovementMove::new(src, tgt, e(1), n))
+    }
+
+    #[test]
+    fn reachable_site_becomes_a_target() {
+        let (s, a, b) = (e(10), e(20), e(30));
+        let areas = HashMap::from_iter([(s, site(3)), (a, plain(2)), (b, plain(2))]);
+        let moves = HashMap::from_iter([(1, mv(a, s, 2)), (2, mv(b, s, 2))]);
+        let plan = CityPlan::build(&moves, &areas, 6, 1.0);
+        assert_eq!(plan.needed_at(s), Some(3));
+    }
+
+    #[test]
+    fn unreachable_site_is_not_a_target() {
+        let (s, a) = (e(10), e(20));
+        let areas = HashMap::from_iter([(s, site(2)), (a, plain(3))]);
+        let moves = HashMap::from_iter([(1, mv(a, s, 3))]);
+        let plan = CityPlan::build(&moves, &areas, 6, 1.0);
+        assert!(!plan.has_targets());
+    }
+
+    #[test]
+    fn architecture_threshold_makes_it_reachable() {
+        let (s, a) = (e(10), e(20));
+        let areas = HashMap::from_iter([(s, site(2)), (a, plain(3))]);
+        let moves = HashMap::from_iter([(1, mv(a, s, 3))]);
+        let plan = CityPlan::build(&moves, &areas, 5, 1.0);
+        assert_eq!(plan.needed_at(s), Some(3));
+    }
+
+    #[test]
+    fn enemy_occupied_or_built_sites_are_skipped() {
+        let (s1, s2, a) = (e(10), e(11), e(20));
+        let mut contested = site(4);
+        contested.enemy_pop = 1;
+        let mut built = site(4);
+        built.has_city = true;
+        let areas = HashMap::from_iter([(s1, contested), (s2, built), (a, plain(3))]);
+        let moves = HashMap::from_iter([(1, mv(a, s1, 3)), (2, mv(a, s2, 3))]);
+        assert!(!CityPlan::build(&moves, &areas, 6, 1.0).has_targets());
+    }
+
+    /// One 3-token source next to two sites at 3 each: only one can be fed, and
+    /// the shared supply must not be double-counted for both.
+    #[test]
+    fn shared_supply_is_spent_once() {
+        let (s1, s2, a) = (e(10), e(11), e(20));
+        let areas = HashMap::from_iter([(s1, site(3)), (s2, site(3)), (a, plain(3))]);
+        let moves = HashMap::from_iter([(1, mv(a, s1, 3)), (2, mv(a, s2, 3))]);
+        let plan = CityPlan::build(&moves, &areas, 6, 1.0);
+        assert_eq!(
+            [s1, s2].iter().filter(|t| plan.is_target(**t)).count(),
+            1,
+            "exactly one site should be planned"
+        );
+    }
+
+    /// Two adjacent sites at 5 and 6: the complete one must not be counted as
+    /// supply for the other (that's how they used to ping-pong to 5/5).
+    #[test]
+    fn a_complete_site_is_protected_not_used_as_supply() {
+        let (done, other) = (e(10), e(11));
+        let areas = HashMap::from_iter([(done, site(6)), (other, site(5))]);
+        let moves = HashMap::from_iter([(1, mv(done, other, 6)), (2, mv(other, done, 5))]);
+        let plan = CityPlan::build(&moves, &areas, 6, 1.0);
+        assert_eq!(plan.spare_at(done), Some(0));
+        assert!(!plan.is_target(other), "other may only be fed with spare tokens");
+        // With one spare token, it can.
+        let areas = HashMap::from_iter([(done, site(7)), (other, site(5))]);
+        let plan = CityPlan::build(&moves, &areas, 6, 1.0);
+        assert_eq!(plan.spare_at(done), Some(1));
+        assert_eq!(plan.needed_at(other), Some(1));
+    }
+
+    #[test]
+    fn zero_drive_means_no_plan() {
+        let (s, a) = (e(10), e(20));
+        let areas = HashMap::from_iter([(s, site(5)), (a, plain(3))]);
+        let moves = HashMap::from_iter([(1, mv(a, s, 3))]);
+        assert!(!CityPlan::build(&moves, &areas, 6, 0.0).has_targets());
+    }
+
+    #[test]
+    fn tokens_to_send_is_exactly_whats_missing() {
+        let (s, a) = (e(10), e(20));
+        let areas = HashMap::from_iter([(s, site(5)), (a, plain(3))]);
+        let moves = HashMap::from_iter([(1, mv(a, s, 3))]);
+        let plan = CityPlan::build(&moves, &areas, 6, 1.0);
+        assert_eq!(plan.tokens_to_send(s, 3), Some(1));
+        assert_eq!(plan.tokens_to_send(e(99), 3), None);
+    }
+}
+
+/// Rule 24.31: a city only falls to **7+** attacking tokens of one nation (8 if
+/// its owner holds Engineering). Fewer are simply removed, city untouched.
+pub const CITY_ATTACK_TOKENS: usize = 7;
+
+/// Which enemy cities this player can actually take this turn.
+///
+/// Before this existed the attack scorer treated a city like any area ("4
+/// attackers vs 0 defenders, great odds!") and kept one token back, so in
+/// self-play AIs threw away 2–5 tokens on hopeless city attacks 26 times in 13
+/// rounds. A city is a siege target only when unmoved attack supply can bring
+/// the stack there to the threshold *plus* the defending tokens (which must be
+/// beaten first, rule 24.41).
+#[derive(Clone, Debug, Default)]
+pub struct SiegePlan {
+    /// Target city area -> attacking tokens still needed there.
+    targets: HashMap<Entity, usize>,
+    /// Target -> which sources send how many. A siege launches *all at once*
+    /// from this list: sending one stack per pick let later picks spend the
+    /// other sources' tokens elsewhere, so sieges arrived short of 7 and died.
+    allocations: HashMap<Entity, Vec<(Entity, usize)>>,
+}
+
+impl SiegePlan {
+    pub fn build(moves: &HashMap<usize, GameMove>, areas: &HashMap<Entity, AreaSummary>) -> Self {
+        let mut feeders: HashMap<Entity, Vec<(Entity, usize)>> = HashMap::default();
+        let mut supply: HashMap<Entity, usize> = HashMap::default();
+        for mv in moves.values() {
+            let GameMove::AttackCity(m) = mv else {
+                continue;
+            };
+            if m.max_tokens == 0 {
+                continue;
+            }
+            feeders
+                .entry(m.target)
+                .or_default()
+                .push((m.source, m.max_tokens));
+            let s = supply.entry(m.source).or_insert(0);
+            *s = (*s).max(m.max_tokens);
+        }
+        let mut candidates: Vec<(Entity, usize)> = feeders
+            .keys()
+            .filter_map(|t| {
+                let a = areas.get(t)?;
+                if !a.has_city || a.city_is_mine {
+                    return None;
+                }
+                let required = a.city_attack_tokens() + a.enemy_pop;
+                Some((*t, required.saturating_sub(a.my_pop)))
+            })
+            .collect();
+        candidates.sort_by_key(|(t, needed)| (*needed, *t));
+
+        let mut plan = SiegePlan::default();
+        for (target, needed) in candidates {
+            if needed == 0 {
+                plan.targets.insert(target, 0);
+                continue;
+            }
+            let mut sources: Vec<(Entity, usize)> = feeders[&target]
+                .iter()
+                .map(|(s, _)| (*s, supply.get(s).copied().unwrap_or(0)))
+                .filter(|(_, n)| *n > 0)
+                .collect();
+            sources.sort_by_key(|(s, n)| (std::cmp::Reverse(*n), *s));
+            sources.dedup_by_key(|(s, _)| *s);
+            if sources.iter().map(|(_, n)| n).sum::<usize>() < needed {
+                continue;
+            }
+            let mut remaining = needed;
+            let mut allocation = Vec::new();
+            for (s, n) in sources {
+                if remaining == 0 {
+                    break;
+                }
+                let take = n.min(remaining);
+                remaining -= take;
+                allocation.push((s, take));
+                if let Some(left) = supply.get_mut(&s) {
+                    *left -= take;
+                }
+            }
+            plan.targets.insert(target, needed);
+            plan.allocations.insert(target, allocation);
+        }
+        plan
+    }
+
+    pub fn is_target(&self, area: Entity) -> bool {
+        self.targets.contains_key(&area)
+    }
+
+    /// Every (source, tokens) to send *now* to complete the siege on `target`.
+    /// No "keep one back": one short is the same as not attacking at all.
+    pub fn launch(&self, target: Entity) -> &[(Entity, usize)] {
+        self.allocations.get(&target).map_or(&[], Vec::as_slice)
+    }
+
+    /// Test/setup helper: mark `area` as a siege target needing `needed` more.
+    pub fn with_target(mut self, area: Entity, needed: usize) -> Self {
+        self.targets.insert(area, needed);
+        self
+    }
+}
+
+#[cfg(test)]
+mod siege_tests {
+    use super::*;
+    use crate::civilization::MovementMove;
+
+    fn e(i: u32) -> Entity {
+        Entity::from_raw_u32(i).unwrap()
+    }
+
+    fn enemy_city(defenders: usize) -> AreaSummary {
+        AreaSummary {
+            max_population: 3,
+            is_city_site: true,
+            has_city: true,
+            enemy_pop: defenders,
+            ..Default::default()
+        }
+    }
+
+    fn attack(src: Entity, tgt: Entity, n: usize) -> GameMove {
+        GameMove::AttackCity(MovementMove::new(src, tgt, e(1), n))
+    }
+
+    #[test]
+    fn six_attackers_can_never_take_a_city() {
+        let (a, city) = (e(10), e(20));
+        let areas = HashMap::from_iter([(city, enemy_city(0))]);
+        let moves = HashMap::from_iter([(1, attack(a, city, 6))]);
+        assert!(!SiegePlan::build(&moves, &areas).is_target(city));
+    }
+
+    #[test]
+    fn seven_attackers_from_two_sources_can() {
+        let (a, b, city) = (e(10), e(11), e(20));
+        let areas = HashMap::from_iter([(city, enemy_city(0))]);
+        let moves = HashMap::from_iter([(1, attack(a, city, 4)), (2, attack(b, city, 3))]);
+        let plan = SiegePlan::build(&moves, &areas);
+        assert!(plan.is_target(city));
+        let launch: HashMap<Entity, usize> = plan.launch(city).iter().copied().collect();
+        assert_eq!(
+            launch,
+            HashMap::from_iter([(a, 4), (b, 3)]),
+            "both stacks go together"
+        );
+    }
+
+    #[test]
+    fn defenders_and_engineering_raise_the_bar() {
+        let (a, city) = (e(10), e(20));
+        let mut engineered = enemy_city(1);
+        engineered.city_defence = 8;
+        let areas = HashMap::from_iter([(city, engineered)]);
+        // 8 (Engineering) + 1 defender = 9 needed.
+        let short = HashMap::from_iter([(1, attack(a, city, 8))]);
+        assert!(!SiegePlan::build(&short, &areas).is_target(city));
+        let enough = HashMap::from_iter([(1, attack(a, city, 9))]);
+        assert!(SiegePlan::build(&enough, &areas).is_target(city));
+    }
+}

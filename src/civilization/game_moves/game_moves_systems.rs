@@ -259,6 +259,7 @@ pub fn recalculate_city_construction_moves_for_player(
         &PlayerAreas,
         &CityTokenStock,
         Option<&PlayerCivilizationCards>,
+        Option<&Name>,
     )>,
     area_property_query: Query<(&Population, Has<CitySite>)>,
     mut commands: Commands,
@@ -267,7 +268,8 @@ pub fn recalculate_city_construction_moves_for_player(
         commands.entity(event.player).remove::<AvailableMoves>();
         let mut moves = HashMap::default();
         let mut command_index = 0;
-        if let Ok((player_areas, city_token_stock, civ_cards)) = player_move_query.get(event.player)
+        if let Ok((player_areas, city_token_stock, civ_cards, name)) =
+            player_move_query.get(event.player)
         {
             // Architecture (rule 25.3): holder can build with 1 fewer population token
             // (minimum 1); the saved token goes to treasury.
@@ -299,11 +301,28 @@ pub fn recalculate_city_construction_moves_for_player(
                 }
             }
             if moves.is_empty() {
+                // Diagnostic for "why did this player never build?": the best
+                // concentration they reached on any city site (needs
+                // `city_site_threshold`) and on any area at all.
+                let mut best_site = 0;
+                let mut best_any = 0;
+                for area in player_areas.areas() {
+                    if let Ok((population, has_city_site)) = area_property_query.get(area) {
+                        let pop_count = population.population_for_player(event.player);
+                        best_any = best_any.max(pop_count);
+                        if has_city_site {
+                            best_site = best_site.max(pop_count);
+                        }
+                    }
+                }
                 info!(
-                    "[CITY_CONSTRUCTION] No build moves for {:?} (city tokens in stock: {}, areas: {}) - removing IsBuilding",
-                    event.player,
+                    "[CITY_CONSTRUCTION] No build moves for {} (city tokens in stock: {}, areas: {}, best city-site stack: {}/{}, best stack anywhere: {}) - removing IsBuilding",
+                    name.map_or_else(|| format!("{:?}", event.player), std::string::ToString::to_string),
                     city_token_stock.city_tokens_in_stock(),
-                    player_areas.areas().len()
+                    player_areas.areas().len(),
+                    best_site,
+                    city_site_threshold,
+                    best_any
                 );
                 commands.entity(event.player).remove::<IsBuilding>();
             } else {

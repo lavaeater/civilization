@@ -1,5 +1,6 @@
 mod personality;
 mod scoring;
+mod strategy;
 mod stupid_ai_components;
 mod stupid_ai_events;
 mod stupid_ai_plugin;
@@ -8,6 +9,7 @@ mod stupid_ai_triggers;
 
 pub use personality::*;
 pub use scoring::*;
+pub use strategy::*;
 pub use stupid_ai_components::*;
 pub use stupid_ai_events::*;
 pub use stupid_ai_plugin::*;
