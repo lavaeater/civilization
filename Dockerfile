@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY . .
 # The dist profile is the opt-level-3 distribution build (the release
 # profile is tuned for wasm size instead — see the workspace Cargo.toml).
-RUN cargo build --profile dist -p adv_civ_server --bin adv_civ_server -p civ_lobby
+RUN cargo build --profile dist -p adv_civ_server --bin adv_civ_server -p civ_lobby --bin civ_lobby
 
 # ── web-builder: trunk build of the wasm client ──────────────────────────────
 # Separate stage from `builder` (not reused) so the `server` target's image

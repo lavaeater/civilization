@@ -946,7 +946,7 @@ pub fn update_civil_war_selection_ui(
             .get(city)
             .map_or("?", bevy::prelude::Name::as_str);
         let sel = if cw_selection.is_current_city_selected() {
-            " [✓]"
+            " [x]"
         } else {
             ""
         };
@@ -1238,7 +1238,7 @@ pub fn update_monotheism_selection_ui(
                 .get(area)
                 .map_or("?", bevy::prelude::Name::as_str);
             let sel = if mono_state.is_current_selected() {
-                " [✓]"
+                " [x]"
             } else {
                 ""
             };

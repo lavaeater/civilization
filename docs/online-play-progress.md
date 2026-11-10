@@ -125,8 +125,10 @@ Also fixed while testing:
 - Unit tests: stepper bounds, how lobby answers are read, code normalisation.
 
 Not done / follow-ups:
-- **Font gaps:** the online panel's "—" and "✓" render as empty boxes (missing glyphs in
-  the font). This was already there before this work.
+- ~~**Font gaps:** "—" and "✓" rendered as empty boxes.~~ Fixed: the full
+  `FiraMono-Medium.ttf` now replaces Bevy's built-in default font (a small subset of the
+  same typeface), and ✓ ◄ ► 🏆 🏁 became text ("[x]", "<", ">", "Winner:", "End").
+  Icons or images can come later.
 - **No "my games" list yet** (phase 2): the per-game tokens make it possible.
 
 ## Step 5: deploy (repo side done)

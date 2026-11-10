@@ -244,7 +244,7 @@ fn build_civ_cards_ui(
                         let can_afford = total_cost as usize <= total_value;
                         if can_afford {
                             summary.with_child(|afford| {
-                                afford.default_text("✓ Can afford");
+                                afford.default_text("Can afford");
                             });
                         } else {
                             summary.with_child(|cant| {

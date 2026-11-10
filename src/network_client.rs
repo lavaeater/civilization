@@ -1079,7 +1079,7 @@ fn rebuild_online_ui(
             );
         }
         for player in &lobby.players {
-            let status = if player.connected { "✓" } else { "…" };
+            let status = if player.connected { "[in]" } else { "[  ]" };
             ui.add_text_child(
                 format!("{status} {} — {}", player.faction, player.name),
                 Some(TextStyle::size(18.0)),

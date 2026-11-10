@@ -191,7 +191,7 @@ fn spawn_victory_screen(
 
     if let Some((winner, score, _)) = result.standings.first() {
         ui.add_text_child(
-            format!("🏆 {winner} wins with {score} points"),
+            format!("Winner: {winner} with {score} points"),
             Some(TextStyle::size(28.0)),
         );
     }

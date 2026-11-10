@@ -119,8 +119,17 @@ impl From<&GameActivity> for adv_civ_protocol::NetPhase {
 
 pub struct GamePlugin;
 
+/// The full FiraMono-Medium, replacing Bevy's built-in default font (a
+/// small subset of the same typeface that lacks —, …, →, × and friends).
+/// Every text without an explicit font, including the whole lava_ui_builder
+/// theme, uses the default font, so this one swap covers them all.
+const UI_FONT: &[u8] = include_bytes!("../assets/fonts/FiraMono-Medium.ttf");
+
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
+        if let Some(mut fonts) = app.world_mut().get_resource_mut::<Assets<Font>>() {
+            let _ = fonts.insert(AssetId::default(), Font::from_bytes(UI_FONT.to_vec()));
+        }
         app.init_state::<GameState>().add_plugins((
             LoadingPlugin,
             MenuPlugin,

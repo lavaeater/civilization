@@ -72,12 +72,12 @@ pub fn spawn_ship_construction_ui(
         );
     });
 
-    // Slot row: [◄] Ship N/N [►]
+    // Slot row: [<] Ship N/N [>]
     ui.add_row(|row| {
         row.align_items_center().gap_px(4.0);
 
         row.add_button_observe(
-            "◄",
+            "<",
             |btn| {
                 btn.size_px(20.0, 20.0).font_size(11.0);
             },
@@ -93,7 +93,7 @@ pub fn spawn_ship_construction_ui(
         });
 
         row.add_button_observe(
-            "►",
+            ">",
             |btn| {
                 btn.size_px(20.0, 20.0).font_size(11.0);
             },
