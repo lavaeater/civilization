@@ -168,6 +168,14 @@ Not done / follow-ups:
       - proxy-network
 ```
 
+**Verified (2026-11-10):**
+- `docker build --target lobby` succeeds (145 MB image).
+- In the container, with `PUBLIC_ADDR=127.0.0.1:8590` and
+  `PUBLIC_WS_BASE=ws://127.0.0.1:8590` mapped to the host, I created a game and
+  `spike_client` joined it through `/g/<code>/ws`. It played to round 12, and the save and
+  log landed in `/app/saves/games/<code>/`.
+- The `web` image (Caddy plus the wasm client) was not rebuilt here.
+
 Then rebuild **both** `civilization-server` and `civilization-web`, because the new Caddy
 routes are baked into the web image. Running games are lost on that restart (see Known
 limits).
@@ -176,4 +184,4 @@ limits).
 
 - **2026-11-10:** Steps 2 and 3 implemented and verified locally (see above).
 - **2026-11-10:** Step 4 (client) done and verified natively with two clients; step 5's
-  repo-side deploy files updated.
+  repo-side deploy files updated; lobby Docker image built and tested; UI font fixed.
