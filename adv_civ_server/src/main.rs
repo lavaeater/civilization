@@ -3,7 +3,10 @@
 //! Runs the full, real rules engine — map, all phases, AI opponents — with
 //! no rendering, serving human seats over WebSocket. Configuration via env:
 //! `SEATS` (human seats, default 2), `NUM_PLAYERS` (total incl. AI,
-//! default 5), `PORT` (default 5111).
+//! default 5), `PORT` (default 5111), `HTTP_PORT` (default 5112),
+//! `EXIT_AFTER_GAME_OVER_SECS` (unset = keep running after the game ends).
+//! Saves go to `savegame.json` in the working directory, so a supervisor
+//! gives each game its own directory.
 //!
 //! Also embeds the same agent HTTP API the local single-player build uses
 //! (`AGENT_FACTIONS`, see `docs/agent-api-design.md`), on 127.0.0.1:7878 —
@@ -14,6 +17,7 @@
 mod game;
 mod http;
 mod net;
+mod status;
 
 use adv_civ::GameState;
 use bevy::app::ScheduleRunnerPlugin;
@@ -54,6 +58,7 @@ fn main() {
         game::HeadlessGamePlugin,
         http::HttpApiPlugin,
         net::NetBridgePlugin,
+        status::StatusPlugin,
     ));
 
     app.run();

@@ -2,7 +2,7 @@
 #cargo-features = ["codegen-backend"]
 
 [workspace]
-members = ["lava_ui_builder", "adv_civ_protocol", "adv_civ_server"]
+members = ["lava_ui_builder", "adv_civ_protocol", "adv_civ_server", "civ_lobby"]
 # mobile shares this crate's bevy version (kept in sync by hand) but is
 # built standalone by cargo-apk, which needs it out of this workspace --
 # it declares its own empty [workspace] table for the same reason.

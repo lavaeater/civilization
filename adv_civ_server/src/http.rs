@@ -131,8 +131,11 @@ impl Plugin for HttpApiPlugin {
     fn build(&self, app: &mut App) {
         let (tx, rx) = std::sync::mpsc::channel::<JoinRequest>();
         let port = http_port();
-        std::thread::spawn(move || serve(tx, port));
-        app.insert_resource(NetcodeKeys::from_env())
+        let status = crate::status::SharedStatus::default();
+        let shared = status.0.clone();
+        std::thread::spawn(move || serve(tx, port, &shared));
+        app.insert_resource(status)
+            .insert_resource(NetcodeKeys::from_env())
             .insert_resource(HttpJoinRequests(Mutex::new(rx)))
             .init_resource::<PendingJoins>()
             .add_systems(Update, process_join_requests);
@@ -141,7 +144,11 @@ impl Plugin for HttpApiPlugin {
 }
 
 /// The HTTP side: parse, hand over to the ECS, wait briefly for the answer.
-fn serve(tx: Sender<JoinRequest>, port: u16) {
+fn serve(
+    tx: Sender<JoinRequest>,
+    port: u16,
+    status: &std::sync::Arc<Mutex<crate::status::StatusSnapshot>>,
+) {
     let server = match tiny_http::Server::http(("0.0.0.0", port)) {
         Ok(server) => server,
         Err(e) => {
@@ -257,6 +264,12 @@ fn serve(tx: Sender<JoinRequest>, port: u16) {
                 }
             }
             ("GET", "/api/health") => respond(request, 200, r#"{"ok":true}"#.into()),
+            ("GET", "/api/status") => {
+                let body = status
+                    .lock()
+                    .map_or_else(|_| r#"{"error":"status unavailable"}"#.into(), |s| s.to_json());
+                respond(request, 200, body);
+            }
             // Anything else that is a GET: try the static web client.
             ("GET", path) => serve_static(request, path),
             _ => respond(request, 404, r#"{"error":"not found"}"#.into()),
