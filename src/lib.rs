@@ -6,6 +6,7 @@ pub mod civilization;
 pub mod loading;
 pub mod menu;
 pub mod network_client;
+pub mod online_setup;
 pub mod player;
 pub mod stupid_ai;
 
@@ -31,6 +32,9 @@ pub enum GameState {
     Menu,
     /// Standalone map area/connection editor, reachable from the main menu.
     MapEditor,
+    /// "Play Online" → create or join a game on the lobby server
+    /// (`online_setup`), before connecting.
+    OnlineSetup,
     /// Connected to a multiplayer server: the local rules engine stays
     /// dormant; `network_client` drives everything from protocol messages.
     Online,
@@ -124,6 +128,7 @@ impl Plugin for GamePlugin {
             crate::civilization::MapEditorPlugin,
             CivilizationPlugin,
             crate::network_client::NetworkClientPlugin,
+            crate::online_setup::OnlineSetupPlugin,
         ));
 
         #[cfg(debug_assertions)]

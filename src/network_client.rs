@@ -37,6 +37,15 @@ pub struct NetworkSettings {
     /// Only used by the manual dev-auth path.
     pub server_addr: SocketAddr,
     pub player_name: String,
+    /// The `civ_lobby` base URL that creates and finds games (see
+    /// `online_setup`). Browser: the page's origin (or `?api=`); native:
+    /// `LOBBY_URL`, default `http://127.0.0.1:8080`.
+    pub lobby_url: Option<String>,
+    /// The game being joined, once known (`?game=` / `GAME_CODE`, or the
+    /// Create / Join screen). Keys the reconnect token.
+    pub game_code: Option<String>,
+    /// Link to send the other players, shown in the lobby panel.
+    pub invite_link: Option<String>,
 }
 
 impl Default for NetworkSettings {
@@ -51,6 +60,11 @@ impl Default for NetworkSettings {
             ws_override: std::env::var("SERVER_WS").ok(),
             server_addr,
             player_name: std::env::var("PLAYER_NAME").unwrap_or_else(|_| "Newcomer".into()),
+            lobby_url: Some(
+                std::env::var("LOBBY_URL").unwrap_or_else(|_| "http://127.0.0.1:8080".into()),
+            ),
+            game_code: std::env::var("GAME_CODE").ok(),
+            invite_link: None,
         }
     }
 
@@ -68,11 +82,15 @@ impl Default for NetworkSettings {
         // behind Caddy (wss://domain/ws) and against a bare server on a LAN
         // (ws://host:5111), decided entirely by server config.
         let origin = location.origin().unwrap_or_default();
+        let api = param("api").unwrap_or(origin);
         NetworkSettings {
-            api_url: Some(param("api").unwrap_or(origin)),
+            api_url: Some(api.clone()),
             ws_override: param("ws"),
             server_addr: "127.0.0.1:5111".parse().expect("valid literal"),
             player_name: param("name").unwrap_or_else(|| "Webfriend".into()),
+            lobby_url: Some(api),
+            game_code: param("game"),
+            invite_link: None,
         }
     }
 }
@@ -93,19 +111,28 @@ pub struct JoinInfo {
 #[cfg(target_family = "wasm")]
 const RECONNECT_TOKEN_KEY: &str = "adv_civ_reconnect_token";
 
+/// One token per game: playing two games must not clobber the other's seat.
 #[cfg(target_family = "wasm")]
-fn load_reconnect_token() -> Option<String> {
+fn reconnect_token_key(game_code: Option<&str>) -> String {
+    match game_code {
+        Some(code) => format!("{RECONNECT_TOKEN_KEY}:{code}"),
+        None => RECONNECT_TOKEN_KEY.to_string(),
+    }
+}
+
+#[cfg(target_family = "wasm")]
+fn load_reconnect_token(game_code: Option<&str>) -> Option<String> {
     web_sys::window()?
         .local_storage()
         .ok()??
-        .get_item(RECONNECT_TOKEN_KEY)
+        .get_item(&reconnect_token_key(game_code))
         .ok()?
 }
 
 #[cfg(target_family = "wasm")]
-fn save_reconnect_token(token: &str) {
+fn save_reconnect_token(game_code: Option<&str>, token: &str) {
     if let Some(storage) = web_sys::window().and_then(|w| w.local_storage().ok()).flatten() {
-        let _ = storage.set_item(RECONNECT_TOKEN_KEY, token);
+        let _ = storage.set_item(&reconnect_token_key(game_code), token);
     }
 }
 
@@ -113,12 +140,12 @@ fn save_reconnect_token(token: &str) {
 /// dev/manual-testing case symmetrically, but there's no way to persist a
 /// freshly-minted one across runs beyond logging it for the developer to copy.
 #[cfg(not(target_family = "wasm"))]
-fn load_reconnect_token() -> Option<String> {
+fn load_reconnect_token(_game_code: Option<&str>) -> Option<String> {
     std::env::var("RECONNECT_TOKEN").ok()
 }
 
 #[cfg(not(target_family = "wasm"))]
-fn save_reconnect_token(token: &str) {
+fn save_reconnect_token(_game_code: Option<&str>, token: &str) {
     info!("[NET] Reconnect token for next run: RECONNECT_TOKEN={token}");
 }
 
@@ -290,7 +317,12 @@ fn start_join(mut commands: Commands, settings: Res<NetworkSettings>, mut net: R
         commands.insert_resource(JoinFetch(Mutex::new(rx)));
         commands.insert_resource(UsedTokenAuth(true));
         info!("Requesting join token from {api_url} …");
-        request_join_token(api_url, settings.player_name.clone(), load_reconnect_token(), tx);
+        request_join_token(
+            api_url,
+            settings.player_name.clone(),
+            load_reconnect_token(settings.game_code.as_deref()),
+            tx,
+        );
     } else {
         // Dev fallback: zero-key manual auth straight at the socket.
         commands.insert_resource(UsedTokenAuth(false));
@@ -403,7 +435,7 @@ fn poll_join_fetch(
             // Keep the local copy current whether it's brand new or just the
             // one we already had handed back — see docs/multiplayer.md.
             if let Some(token) = &info.reconnect_token {
-                save_reconnect_token(token);
+                save_reconnect_token(settings.game_code.as_deref(), token);
             }
             let token_bytes = match base64::engine::general_purpose::STANDARD
                 .decode(&info.token_b64)
@@ -974,6 +1006,7 @@ fn rebuild_online_ui(
     draft: Res<TradeDraft>,
     roots: Query<Entity, With<OnlineUiRoot>>,
     theme: Res<LavaTheme>,
+    settings: Res<NetworkSettings>,
 ) {
     if !net.dirty {
         return;
@@ -1022,6 +1055,29 @@ fn rebuild_online_ui(
             format!("Lobby — {} seats", lobby.seats_total),
             Some(TextStyle::size(22.0)),
         );
+        if let Some(code) = &settings.game_code {
+            ui.add_text_child(format!("Game code: {code}"), Some(TextStyle::size(20.0)));
+        }
+        if let Some(link) = settings.invite_link.clone() {
+            ui.add_text_child(
+                format!("Invite the others: {link}"),
+                Some(TextStyle::size(16.0)),
+            );
+            ui.add_button_observe(
+                "Copy invite link",
+                |btn| {
+                    btn.size(px(220.0), px(36.0)).font_size(18.0);
+                },
+                move |_: On<bevy::ui_widgets::Activate>,
+                      clipboard: Option<ResMut<bevy::clipboard::Clipboard>>| {
+                    if let Some(mut clipboard) = clipboard
+                        && let Err(e) = clipboard.set_text(link.clone())
+                    {
+                        warn!("Could not copy the invite link: {e:?}");
+                    }
+                },
+            );
+        }
         for player in &lobby.players {
             let status = if player.connected { "✓" } else { "…" };
             ui.add_text_child(
@@ -1052,7 +1108,7 @@ fn rebuild_online_ui(
             ui.add_button_observe(
                 label,
                 |btn| {
-                    btn.size(px(520.0), px(36.0));
+                    btn.size(px(420.0), px(36.0)).font_size(16.0);
                 },
                 move |_: On<bevy::ui_widgets::Activate>,
                       mut writer: MessageWriter<SubmitNetMove>| {
@@ -1278,7 +1334,7 @@ fn rebuild_online_ui(
     ui.add_button_observe(
         "Leave game",
         |btn| {
-            btn.size(px(200.0), px(40.0));
+            btn.size(px(200.0), px(40.0)).font_size(20.0);
         },
         |_: On<bevy::ui_widgets::Activate>, mut next_state: ResMut<NextState<GameState>>| {
             next_state.set(GameState::Menu);

@@ -1,19 +1,21 @@
 # Headless multiplayer game server + web client (see docs/multiplayer.md and
-# civilization-deploy.md). Two build targets from one Dockerfile:
+# civilization-deploy.md). Three build targets from one Dockerfile:
 #
-#   docker build --target server -t civilization-server .
+#   docker build --target lobby -t civilization-lobby .     (many games; default)
+#   docker run -p 8080:8080 civilization-lobby
+#
+#   docker build --target server -t civilization-server .   (one fixed game)
 #   docker run -p 5111:5111 -p 5112:5112 -e SEATS=2 -e NUM_PLAYERS=5 civilization-server
 #
 #   docker build --target web -t civilization-web .
 #   docker run -p 80:80 civilization-web
 #
-# `server` is the default target (matches the previous single-target
-# Dockerfile's `docker build -t adv-civ-server .` still working unchanged).
+# `lobby` is the default target (it is the last stage).
 #
 # Production (pingora-docker, civilization-deploy.md): pingora terminates TLS
 # for the public domain and forwards plain HTTP to `web`, an internal Caddy
-# that path-routes `/api/*` and `/ws` to `server` and serves the static wasm
-# client for everything else — see deploy/Caddyfile.internal.
+# that path-routes `/api/*` and `/g/*` to the lobby and serves the static
+# wasm client for everything else — see deploy/Caddyfile.internal.
 #
 # The standalone `docker-compose.yml` in this repo runs a different Caddy
 # (deploy/Caddyfile) that *does* terminate TLS itself, for a deployment not
@@ -32,7 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY . .
 # The dist profile is the opt-level-3 distribution build (the release
 # profile is tuned for wasm size instead — see the workspace Cargo.toml).
-RUN cargo build --profile dist -p adv_civ_server --bin adv_civ_server
+RUN cargo build --profile dist -p adv_civ_server --bin adv_civ_server -p civ_lobby
 
 # ── web-builder: trunk build of the wasm client ──────────────────────────────
 # Separate stage from `builder` (not reused) so the `server` target's image
@@ -64,9 +66,8 @@ COPY --from=web-builder /build/dist /srv
 COPY deploy/Caddyfile.internal /etc/caddy/Caddyfile
 EXPOSE 80
 
-# ── server: the headless game, unchanged from the original single-stage build.
-# Last stage = Docker's default --target, matching the original file's plain
-# `docker build -t adv-civ-server .` still working unchanged.
+# ── server: the headless game (one game per process), plus the lobby binary
+# that the `lobby` stage below runs.
 FROM debian:bookworm-slim AS server
 WORKDIR /app
 
@@ -77,6 +78,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /build/target/dist/adv_civ_server /app/adv_civ_server
+COPY --from=builder /build/target/dist/civ_lobby /app/civ_lobby
 COPY assets/definitions /app/assets/definitions
 COPY assets/maps/civilization.map.ron /app/assets/maps/civilization.map.ron
 
@@ -88,3 +90,21 @@ EXPOSE 5111 5112
 VOLUME /app/saves
 
 CMD ["/app/adv_civ_server"]
+
+# ── lobby: many games at once (docs/online-games-plan.md) ───────────────────
+# Same image as `server`, but runs civ_lobby, which spawns one
+# /app/adv_civ_server per game and proxies /api/games, /g/<code>/api/* and
+# /g/<code>/ws to them. Only the lobby port is exposed; game ports stay
+# inside the container.
+#
+#   docker build --target lobby -t civilization-lobby .
+#   docker run -p 8080:8080 -e PUBLIC_WS_BASE=ws://localhost:8080 civilization-lobby
+#
+# Docker builds the last stage by default, so a plain `docker build .` now
+# gives the lobby. Use `--target server` for a single fixed game.
+FROM server AS lobby
+ENV GAMES_DIR=/app/saves/games \
+    GAME_BIN=/app/adv_civ_server \
+    LOBBY_PORT=8080
+EXPOSE 8080
+CMD ["/app/civ_lobby"]

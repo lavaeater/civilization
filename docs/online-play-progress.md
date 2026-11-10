@@ -11,8 +11,8 @@ link, many games on one host at once.
 | 1 | Lobby panel background | ✅ Done (merged earlier, b80f996) |
 | 2 | `adv_civ_server` tweaks: status endpoint, exit on game over, per-game save dir | ✅ Done |
 | 3 | `civ_lobby` supervisor: create / status / proxy / reap | ✅ Done, tested locally |
-| 4 | Client Create / Join screen, `?game=` links, per-game reconnect tokens | ⏳ Next |
-| 5 | Deploy: Docker image target, Caddyfile routes, pingora compose | ⬜ |
+| 4 | Client Create / Join screen, `?game=` links, per-game reconnect tokens | ✅ Done, tested natively |
+| 5 | Deploy: Docker image target, Caddyfile routes, pingora compose | 🟡 Repo side done; live rollout is yours |
 | 6 | Phase 2: host "Start now" / fill with AI, kick a seat, "my games" | ⬜ |
 | – | Resume running games after a lobby/container restart | ⬜ Open question |
 
@@ -84,16 +84,94 @@ Unit tests: code generation and normalisation (no path tricks), settings validat
 - **No host controls yet.** A game starts when every human seat is claimed (phase 2:
   "Start now").
 
-## Step 4: client (next)
+## Step 4: client (done)
 
-Plan: "Play Online" opens a Create / Join screen.
-- **Create:** players, humans and name → `POST /api/games` → show the code and a copyable
-  link → join.
-- **Join:** code and name. A `?game=<code>` link prefills the code.
-- After either, set `api_url = <origin>/g/<code>`; the join response already carries the
-  right `ws_url`.
-- Reconnect tokens are stored per game code.
+New module `src/online_setup.rs` and a new `GameState::OnlineSetup`. "Play Online" now
+opens a Create / Join screen instead of joining straight away:
+- **Your name:** a text field (Bevy 0.19's `EditableText`), prefilled from `?name=` or
+  `PLAYER_NAME`.
+- **Create a new game:** − / + steppers for players (2–9) and how many of them are human
+  (1..players), then "Create game" → `POST /api/games` → join.
+- **Join a game:** a code field, then "Join game" → `GET /api/games/<code>` → join, or
+  "No game with that code".
+- **Joining:** either way the client sets `api_url = <lobby>/g/<code>` and runs the
+  existing join flow unchanged. The join response already carries that game's `ws_url`.
+- **Invite links:** opening `?game=<code>` (browser) or setting `GAME_CODE` (native) skips
+  the main menu straight to this screen with the code filled in.
+- **Lobby panel:** shows the game code, the invite link and a **Copy invite link** button
+  (Bevy clipboard).
+- **Reconnect tokens:** stored per game (`adv_civ_reconnect_token:<code>` in
+  `localStorage`), so two games no longer overwrite each other's seat.
+- **Old single-game servers:** if the server isn't a lobby (a bare `adv_civ_server`: its
+  404 / HTML answer), both buttons fall back to joining its one game directly, the way
+  "Play Online" used to.
+- **Lobby address:** in the browser it's the page origin (or `?api=`); natively it's
+  `LOBBY_URL`, default `http://127.0.0.1:8080`.
+- **Dev hook** `AUTO_ONLINE_SETUP=create|join`: presses that button as soon as the screen
+  is up, like the existing `AUTO_ONLINE`. It lets the flow run without a mouse.
+
+Also fixed while testing:
+- the "Leave game" and move buttons' text overflowed its buttons; smaller font, and the
+  move buttons now fit the panel.
+
+**Verified (2026-11-10)**, native client under X11 against a local lobby:
+- The screen renders, with the code prefilled from `GAME_CODE`.
+- Client 1 pressed Create (4 players, 2 human) and got `honest-tiger-62`. It joined as
+  Egypt, and the panel showed the code, the link and the copy button.
+- Client 2 joined by code as Crete. Status showed `joined: 2, connected: 2,
+  started: true`, round 1 Movement.
+- `cargo check --target wasm32-unknown-unknown` is clean. The browser build itself wasn't
+  run.
+- Unit tests: stepper bounds, how lobby answers are read, code normalisation.
+
+Not done / follow-ups:
+- **Font gaps:** the online panel's "—" and "✓" render as empty boxes (missing glyphs in
+  the font). This was already there before this work.
+- **No "my games" list yet** (phase 2): the per-game tokens make it possible.
+
+## Step 5: deploy (repo side done)
+
+- **Dockerfile:**
+  - The builder also builds `civ_lobby`.
+  - The `server` image contains both binaries.
+  - A new last (so default) stage `lobby` runs `/app/civ_lobby` with
+    `GAMES_DIR=/app/saves/games`, `GAME_BIN=/app/adv_civ_server` and port 8080.
+  - `--target server` still gives the one-fixed-game server.
+- **`deploy/Caddyfile.internal`** (baked into the `web` image) and `deploy/Caddyfile`:
+  `/api/*` and `/g/*` go to the lobby on port 8080. The old `/ws` route is gone.
+- **Standalone `docker-compose.yml`:** the `game` service now builds the `lobby` target
+  with `PUBLIC_ADDR`, `PUBLIC_WS_BASE`, `PUBLIC_URL` and `MAX_GAMES`.
+
+**For the live pingora-docker stack** (another repo; not touched). In
+`docker-compose.yml`, change the `civilization-server` service to:
+
+```yaml
+  civilization-server:
+    build:
+      context: ./repos/civilization
+      dockerfile: Dockerfile
+      target: lobby            # was: server
+    container_name: civilization-server
+    environment:
+      - PUBLIC_ADDR=civ.kidvhs.com:443
+      - PUBLIC_WS_BASE=wss://civ.kidvhs.com
+      - PUBLIC_URL=https://civ.kidvhs.com
+      - MAX_GAMES=10
+      # SEATS / NUM_PLAYERS / NETCODE_KEY / PUBLIC_WS are no longer used:
+      # each game gets its own from the create form and a random key.
+    volumes:
+      - <host saves dir, unchanged>:/app/saves
+    restart: unless-stopped
+    networks:
+      - proxy-network
+```
+
+Then rebuild **both** `civilization-server` and `civilization-web`, because the new Caddy
+routes are baked into the web image. Running games are lost on that restart (see Known
+limits).
 
 ## Log
 
 - **2026-11-10:** Steps 2 and 3 implemented and verified locally (see above).
+- **2026-11-10:** Step 4 (client) done and verified natively with two clients; step 5's
+  repo-side deploy files updated.

@@ -10,20 +10,22 @@
 
 services:
   game:
-    build: .
+    # civ_lobby: players create games (2-9 players, any number human) and
+    # share a code; one game server process per game.
+    build:
+      context: .
+      target: lobby
     environment:
-      SEATS: ${SEATS:-2}
-      NUM_PLAYERS: ${NUM_PLAYERS:-5}
-      NETCODE_KEY: ${NETCODE_KEY:-random}
       # The address tokens are minted for = the address clients dial.
       PUBLIC_ADDR: ${CIV_DOMAIN:-localhost}:443
-      # The WebSocket URL the join API hands out (through the Caddy front).
-      PUBLIC_WS: wss://${CIV_DOMAIN:-localhost}/ws
+      # Each game's WebSocket is <PUBLIC_WS_BASE>/g/<code>/ws (through Caddy).
+      PUBLIC_WS_BASE: wss://${CIV_DOMAIN:-localhost}
+      PUBLIC_URL: https://${CIV_DOMAIN:-localhost}
+      MAX_GAMES: ${MAX_GAMES:-10}
     volumes:
       - saves:/app/saves
     expose:
-      - "5111"
-      - "5112"
+      - "8080"
 
   caddy:
     image: caddy:2

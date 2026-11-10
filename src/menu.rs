@@ -87,7 +87,7 @@ fn setup_menu(
             btn.size(px(300.0), px(60.0));
         },
         |_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
-            next_state.set(GameState::Online);
+            next_state.set(GameState::OnlineSetup);
         },
     );
 
