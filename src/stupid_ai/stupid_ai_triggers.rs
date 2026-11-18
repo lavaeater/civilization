@@ -4,7 +4,7 @@ use crate::stupid_ai::{AiMoveQueue, SelectStupidMove, StupidAi};
 use bevy::prelude::*;
 
 pub fn on_add_available_moves(
-    trigger: On<Add, AvailableMoves>,
+    trigger: On<Add<AvailableMoves>>,
     is_stupid_ai: Query<&StupidAi>,
     mut queue: ResMut<AiMoveQueue>,
     debug_options: Res<DebugOptions>,

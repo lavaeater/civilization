@@ -14,7 +14,7 @@ use lava_ui_builder::{TextStyle, UIBuilder};
 
 #[allow(unused_assignments)]
 pub fn offer_published(
-    trigger: On<Add, PublishedOffer>,
+    trigger: On<Add<PublishedOffer>>,
     published_offers_list: Query<Entity, With<PublishedOffersList>>,
     published_offer_query: Query<(Entity, &TradeOffer), With<PublishedOffer>>,
     ui_theme: Res<LavaTheme>,
@@ -136,7 +136,7 @@ pub fn offer_published(
 }
 
 pub fn can_trade_removed(
-    _trigger: On<Remove, CanTrade>,
+    _trigger: On<Remove<CanTrade>>,
     players_can_trade: Query<(Entity, &CanTrade)>,
     trade_offers: Query<(Entity, &TradeOffer)>,
     mut commands: Commands,

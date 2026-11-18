@@ -8,7 +8,7 @@ use crate::civilization::{HasJustMoved, PerformingMovement};
 use bevy::prelude::{Add, Commands, MessageWriter, On};
 
 pub fn on_add_manual_expansion(
-    trigger: On<Add, ExpandManually>,
+    trigger: On<Add<ExpandManually>>,
     mut event_writer: MessageWriter<RecalculatePlayerMoves>,
 ) {
     // //debug!("on_add_manual_expansion");
@@ -16,14 +16,14 @@ pub fn on_add_manual_expansion(
 }
 
 pub fn on_add_perform_movement(
-    trigger: On<Add, PerformingMovement>,
+    trigger: On<Add<PerformingMovement>>,
     mut event_writer: MessageWriter<RecalculatePlayerMoves>,
 ) {
     event_writer.write(RecalculatePlayerMoves::new(trigger.event().entity));
 }
 
 pub fn on_add_has_just_moved(
-    trigger: On<Add, HasJustMoved>,
+    trigger: On<Add<HasJustMoved>>,
     mut event_writer: MessageWriter<RecalculatePlayerMoves>,
     mut commands: Commands,
 ) {
@@ -34,28 +34,28 @@ pub fn on_add_has_just_moved(
 }
 
 pub fn on_add_has_too_many_cities(
-    trigger: On<Add, HasTooManyCities>,
+    trigger: On<Add<HasTooManyCities>>,
     mut event_writer: MessageWriter<RecalculatePlayerMoves>,
 ) {
     event_writer.write(RecalculatePlayerMoves::new(trigger.event().entity));
 }
 
 pub fn on_add_is_building(
-    trigger: On<Add, IsBuilding>,
+    trigger: On<Add<IsBuilding>>,
     mut event_writer: MessageWriter<RecalculatePlayerMoves>,
 ) {
     event_writer.write(RecalculatePlayerMoves::new(trigger.event().entity));
 }
 
 pub fn on_add_needs_trade_move(
-    trigger: On<Add, NeedsTradeMove>,
+    trigger: On<Add<NeedsTradeMove>>,
     mut event_writer: MessageWriter<RecalculatePlayerMoves>,
 ) {
     event_writer.write(RecalculatePlayerMoves::new(trigger.event().entity));
 }
 
 pub fn on_add_player_acquiring_civ_cards(
-    trigger: On<Add, PlayerAcquiringCivilizationCards>,
+    trigger: On<Add<PlayerAcquiringCivilizationCards>>,
     mut event_writer: MessageWriter<RecalculatePlayerMoves>,
 ) {
     event_writer.write(RecalculatePlayerMoves::new(trigger.event().entity));

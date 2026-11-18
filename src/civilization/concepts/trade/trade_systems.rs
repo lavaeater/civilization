@@ -1,3 +1,4 @@
+use crate::civilization::ui::interaction_button;
 use crate::GameActivity;
 use crate::civilization::concepts::acquire_trade_cards::PlayerTradeCards;
 use crate::civilization::concepts::acquire_trade_cards::TradeCard;
@@ -681,7 +682,7 @@ pub fn setup_trade_phase_ui(
                     // Create Offer button
                     buttons
                         .spawn((
-                            Button,
+                            interaction_button(),
                             CreateOfferButton,
                             Node {
                                 padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
@@ -702,7 +703,7 @@ pub fn setup_trade_phase_ui(
                     // Done Trading button
                     buttons
                         .spawn((
-                            Button,
+                            interaction_button(),
                             DoneTradingButton,
                             Node {
                                 padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
@@ -1047,7 +1048,7 @@ pub fn update_open_offers_display(
                         .with_children(|buttons| {
                             buttons
                                 .spawn((
-                                    Button,
+                                    interaction_button(),
                                     AcceptOfferButton {
                                         offer: *offer_entity,
                                     },
@@ -2164,7 +2165,7 @@ pub fn spawn_settlement_modal(
                     // Close button (cancels settlement)
                     header
                         .spawn((
-                            Button,
+                            interaction_button(),
                             CloseSettlementModalButton,
                             Node {
                                 padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
@@ -2278,7 +2279,7 @@ pub fn spawn_settlement_modal(
                                     let color = commodity_color(card);
                                     cards_row
                                         .spawn((
-                                            Button,
+                                            interaction_button(),
                                             SettlementCardButton {
                                                 card,
                                                 selected: false,
@@ -2313,7 +2314,7 @@ pub fn spawn_settlement_modal(
                                 for _ in 0..player_cards.number_of_cards_for_trade_card(card) {
                                     cards_row
                                         .spawn((
-                                            Button,
+                                            interaction_button(),
                                             SettlementCardButton {
                                                 card,
                                                 selected: false,
@@ -2387,7 +2388,7 @@ pub fn spawn_settlement_modal(
                     // Cancel button (prominent, on the left)
                     btn_row
                         .spawn((
-                            Button,
+                            interaction_button(),
                             CloseSettlementModalButton,
                             Node {
                                 padding: UiRect::axes(Val::Px(30.0), Val::Px(14.0)),
@@ -2407,7 +2408,7 @@ pub fn spawn_settlement_modal(
                     // Confirm button (on the right)
                     btn_row
                         .spawn((
-                            Button,
+                            interaction_button(),
                             ConfirmSettlementButton,
                             Node {
                                 padding: UiRect::axes(Val::Px(30.0), Val::Px(14.0)),

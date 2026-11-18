@@ -16,7 +16,7 @@ use bevy::prelude::{Add, Commands, Entity, Name, NextState, On, Query, ResMut, T
 use std::cmp::Ordering;
 
 pub fn on_add_unresolved_conflict(
-    trigger: On<Add, UnresolvedConflict>,
+    trigger: On<Add<UnresolvedConflict>>,
     mut areas: Query<(Entity, &Name, &mut Population, &Transform)>,
     mut commands: Commands,
     mut conflict_counter_resource: ResMut<ConflictCounterResource>,
@@ -121,7 +121,7 @@ pub fn on_add_unresolved_conflict(
 }
 
 pub fn on_add_unresolved_city_conflict(
-    trigger: On<Add, UnresolvedCityConflict>,
+    trigger: On<Add<UnresolvedCityConflict>>,
     mut areas: Query<(Entity, &Name, &mut Population, &BuiltCity, &Transform)>,
     mut player_with_city: Query<(
         &mut CityTokenStock,

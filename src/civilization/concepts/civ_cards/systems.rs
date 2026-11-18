@@ -1,3 +1,4 @@
+use crate::civilization::ui::interaction_button;
 use crate::GameActivity;
 use crate::civilization::Z_DIALOG;
 use crate::civilization::components::{TokenStock, Treasury};
@@ -22,11 +23,10 @@ use bevy::asset::{AssetServer, Assets};
 use bevy::color::Color;
 use bevy::platform::collections::HashSet;
 use bevy::prelude::{
-    Add, Button, Changed, Commands, Entity, Has, Interaction, Local, MessageReader, MessageWriter,
+    Add, Changed, Commands, Entity, Has, Interaction, Local, MessageReader, MessageWriter,
     NextState, On, Query, Res, ResMut, Time, Val, With, percent, warn,
 };
 use bevy::ui_widgets::Activate;
-use bevy::ui_widgets::Button as WidgetsButton;
 use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
 
 pub fn load_civ_cards(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -48,7 +48,7 @@ pub fn init_civ_cards(
 }
 
 pub fn on_add_player_acquiring_civilization_cards(
-    trigger: On<Add, PlayerAcquiringCivilizationCards>,
+    trigger: On<Add<PlayerAcquiringCivilizationCards>>,
     human_player_query: Query<(
         &Player,
         &IsHuman,
@@ -346,8 +346,7 @@ fn create_civ_card_panel(
 
     let card_name = card.name;
     if is_purchasable {
-        card_builder.insert(Button);
-        card_builder.insert(WidgetsButton);
+        card_builder.insert_bundle(interaction_button());
         card_builder.observe(
             move |_: On<Activate>, mut toggle_writer: MessageWriter<ToggleCivCardSelection>| {
                 toggle_writer.write(ToggleCivCardSelection(card_name));

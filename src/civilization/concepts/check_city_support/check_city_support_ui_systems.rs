@@ -1,3 +1,5 @@
+use bevy::ui_widgets::Button;
+use crate::civilization::ui::interaction_button;
 use crate::civilization::Z_ACTION_UI;
 use crate::civilization::components::GameArea;
 use crate::civilization::concepts::check_city_support::check_city_support_components::HasTooManyCities;
@@ -164,7 +166,7 @@ pub fn spawn_city_support_controls_ui(
                     .with_children(|row| {
                         // Prev site button
                         row.spawn((
-                            Button,
+                            interaction_button(),
                             CitySupportButtonAction::PrevSite,
                             Node {
                                 width: Val::Px(36.0),
@@ -203,7 +205,7 @@ pub fn spawn_city_support_controls_ui(
 
                         // Next site button
                         row.spawn((
-                            Button,
+                            interaction_button(),
                             CitySupportButtonAction::NextSite,
                             Node {
                                 width: Val::Px(36.0),
@@ -234,7 +236,7 @@ pub fn spawn_city_support_controls_ui(
                     },))
                     .with_children(|row| {
                         row.spawn((
-                            Button,
+                            interaction_button(),
                             CitySupportButtonAction::EliminateCity,
                             Node {
                                 width: Val::Px(160.0),

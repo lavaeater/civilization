@@ -1,3 +1,5 @@
+use bevy::ui_widgets::Button;
+use crate::civilization::ui::interaction_button;
 use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
 use lava_ui_builder::{InteractionPalette, LavaTheme, TextStyle, UIBuilder};
@@ -78,7 +80,7 @@ pub fn spawn_calamity_selection_ui(
                 .with_children(|row| {
                     // Prev button
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         CalamitySelectionButtonAction::PrevCity,
                         Node {
                             width: Val::Px(32.0),
@@ -117,7 +119,7 @@ pub fn spawn_calamity_selection_ui(
 
                     // Next button
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         CalamitySelectionButtonAction::NextCity,
                         Node {
                             width: Val::Px(32.0),
@@ -150,7 +152,7 @@ pub fn spawn_calamity_selection_ui(
                 .with_children(|row| {
                     // Toggle select/deselect button
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         CalamitySelectionButtonAction::ToggleCity,
                         CalamitySelectionToggleButton,
                         Node {
@@ -188,7 +190,7 @@ pub fn spawn_calamity_selection_ui(
             // Confirm button (greyed out until selection complete)
             parent
                 .spawn((
-                    Button,
+                    interaction_button(),
                     CalamitySelectionButtonAction::Confirm,
                     CalamitySelectionConfirmButton,
                     Node {
@@ -524,7 +526,7 @@ pub fn spawn_civil_war_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         CivilWarButtonAction::TokensTab,
                         Node {
                             width: Val::Px(90.0),
@@ -545,7 +547,7 @@ pub fn spawn_civil_war_selection_ui(
                         TextColor(Color::WHITE),
                     ));
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         CivilWarButtonAction::CitiesTab,
                         Node {
                             width: Val::Px(90.0),
@@ -577,7 +579,7 @@ pub fn spawn_civil_war_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         CivilWarButtonAction::DecrementTokens,
                         Node {
                             width: Val::Px(32.0),
@@ -617,7 +619,7 @@ pub fn spawn_civil_war_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         CivilWarButtonAction::IncrementTokens,
                         Node {
                             width: Val::Px(32.0),
@@ -650,7 +652,7 @@ pub fn spawn_civil_war_selection_ui(
                     })
                     .with_children(|row| {
                         row.spawn((
-                            Button,
+                            interaction_button(),
                             CivilWarButtonAction::PrevCity,
                             Node {
                                 width: Val::Px(28.0),
@@ -687,7 +689,7 @@ pub fn spawn_civil_war_selection_ui(
                         ));
 
                         row.spawn((
-                            Button,
+                            interaction_button(),
                             CivilWarButtonAction::NextCity,
                             Node {
                                 width: Val::Px(28.0),
@@ -709,7 +711,7 @@ pub fn spawn_civil_war_selection_ui(
                         ));
 
                         row.spawn((
-                            Button,
+                            interaction_button(),
                             CivilWarButtonAction::ToggleCity,
                             CivilWarToggleCityButton,
                             Node {
@@ -736,7 +738,7 @@ pub fn spawn_civil_war_selection_ui(
             // Confirm button
             parent
                 .spawn((
-                    Button,
+                    interaction_button(),
                     CivilWarButtonAction::Confirm,
                     CivilWarConfirmButton,
                     Node {
@@ -813,7 +815,7 @@ fn spawn_civil_war_faction_choice_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         CivilWarButtonAction::KeepFirstFaction,
                         CivilWarKeepFirstButton,
                         Node {
@@ -839,7 +841,7 @@ fn spawn_civil_war_faction_choice_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         CivilWarButtonAction::KeepSecondFaction,
                         CivilWarKeepSecondButton,
                         Node {
@@ -1374,7 +1376,7 @@ pub fn spawn_flood_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         FloodButtonAction::PrevVictim,
                         Node {
                             width: Val::Px(28.0),
@@ -1411,7 +1413,7 @@ pub fn spawn_flood_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         FloodButtonAction::NextVictim,
                         Node {
                             width: Val::Px(28.0),
@@ -1433,7 +1435,7 @@ pub fn spawn_flood_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         FloodButtonAction::Decrement,
                         Node {
                             width: Val::Px(32.0),
@@ -1455,7 +1457,7 @@ pub fn spawn_flood_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         FloodButtonAction::Increment,
                         Node {
                             width: Val::Px(32.0),
@@ -1479,7 +1481,7 @@ pub fn spawn_flood_selection_ui(
 
             parent
                 .spawn((
-                    Button,
+                    interaction_button(),
                     FloodButtonAction::Confirm,
                     FloodConfirmButton,
                     Node {
@@ -1684,7 +1686,7 @@ pub fn spawn_famine_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         FamineButtonAction::PrevVictim,
                         Node {
                             width: Val::Px(28.0),
@@ -1721,7 +1723,7 @@ pub fn spawn_famine_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         FamineButtonAction::NextVictim,
                         Node {
                             width: Val::Px(28.0),
@@ -1743,7 +1745,7 @@ pub fn spawn_famine_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         FamineButtonAction::Decrement,
                         Node {
                             width: Val::Px(32.0),
@@ -1765,7 +1767,7 @@ pub fn spawn_famine_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         FamineButtonAction::Increment,
                         Node {
                             width: Val::Px(32.0),
@@ -1789,7 +1791,7 @@ pub fn spawn_famine_selection_ui(
 
             parent
                 .spawn((
-                    Button,
+                    interaction_button(),
                     FamineButtonAction::Confirm,
                     FamineConfirmButton,
                     Node {
@@ -1994,7 +1996,7 @@ pub fn spawn_epidemic_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         EpidemicButtonAction::PrevVictim,
                         Node {
                             width: Val::Px(28.0),
@@ -2031,7 +2033,7 @@ pub fn spawn_epidemic_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         EpidemicButtonAction::NextVictim,
                         Node {
                             width: Val::Px(28.0),
@@ -2053,7 +2055,7 @@ pub fn spawn_epidemic_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         EpidemicButtonAction::Decrement,
                         Node {
                             width: Val::Px(32.0),
@@ -2075,7 +2077,7 @@ pub fn spawn_epidemic_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         EpidemicButtonAction::Increment,
                         Node {
                             width: Val::Px(32.0),
@@ -2099,7 +2101,7 @@ pub fn spawn_epidemic_selection_ui(
 
             parent
                 .spawn((
-                    Button,
+                    interaction_button(),
                     EpidemicButtonAction::Confirm,
                     EpidemicConfirmButton,
                     Node {
@@ -2306,7 +2308,7 @@ pub fn spawn_unit_loss_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         UnitLossButtonAction::PrevArea,
                         Node {
                             width: Val::Px(28.0),
@@ -2343,7 +2345,7 @@ pub fn spawn_unit_loss_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         UnitLossButtonAction::NextArea,
                         Node {
                             width: Val::Px(28.0),
@@ -2365,7 +2367,7 @@ pub fn spawn_unit_loss_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         UnitLossButtonAction::Decrement,
                         Node {
                             width: Val::Px(32.0),
@@ -2387,7 +2389,7 @@ pub fn spawn_unit_loss_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         UnitLossButtonAction::Increment,
                         Node {
                             width: Val::Px(32.0),
@@ -2421,7 +2423,7 @@ pub fn spawn_unit_loss_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         UnitLossButtonAction::PrevCity,
                         Node {
                             width: Val::Px(28.0),
@@ -2458,7 +2460,7 @@ pub fn spawn_unit_loss_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         UnitLossButtonAction::NextCity,
                         Node {
                             width: Val::Px(28.0),
@@ -2480,7 +2482,7 @@ pub fn spawn_unit_loss_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        interaction_button(),
                         UnitLossButtonAction::ToggleCity,
                         Node {
                             width: Val::Px(90.0),
@@ -2504,7 +2506,7 @@ pub fn spawn_unit_loss_selection_ui(
 
             parent
                 .spawn((
-                    Button,
+                    interaction_button(),
                     UnitLossButtonAction::Confirm,
                     UnitLossConfirmButton,
                     Node {

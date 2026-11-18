@@ -1,3 +1,5 @@
+use bevy::ui_widgets::Button;
+use crate::civilization::ui::interaction_button;
 use crate::civilization::Z_ACTION_UI;
 use crate::civilization::components::GameArea;
 use crate::civilization::concepts::city_construction::city_construction_components::IsBuilding;
@@ -158,7 +160,7 @@ pub fn spawn_city_construction_controls_ui(
                     .with_children(|row| {
                         // Prev site button
                         row.spawn((
-                            Button,
+                            interaction_button(),
                             CityConstructionButtonAction::PrevSite,
                             Node {
                                 width: Val::Px(36.0),
@@ -197,7 +199,7 @@ pub fn spawn_city_construction_controls_ui(
 
                         // Next site button
                         row.spawn((
-                            Button,
+                            interaction_button(),
                             CityConstructionButtonAction::NextSite,
                             Node {
                                 width: Val::Px(36.0),
@@ -229,7 +231,7 @@ pub fn spawn_city_construction_controls_ui(
                     .with_children(|row| {
                         // Build button
                         row.spawn((
-                            Button,
+                            interaction_button(),
                             CityConstructionButtonAction::BuildCity,
                             Node {
                                 width: Val::Px(100.0),
@@ -252,7 +254,7 @@ pub fn spawn_city_construction_controls_ui(
 
                         // Skip / End Construction button
                         row.spawn((
-                            Button,
+                            interaction_button(),
                             CityConstructionButtonAction::SkipCity,
                             Node {
                                 width: Val::Px(100.0),
