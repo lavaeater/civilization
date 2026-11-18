@@ -1,11 +1,10 @@
-use crate::civilization::ui::interaction_button;
 use crate::GameActivity;
 use crate::civilization::concepts::acquire_trade_cards::PlayerTradeCards;
 use crate::civilization::concepts::acquire_trade_cards::TradeCard;
 use crate::civilization::concepts::trade::trade_components::{
     AvailableTradeOfferActions, CanTrade, CreateOfferButton, CreateOfferModal, DoneTradingButton,
     InSettlement, NeedsTradeMove, OpenOffersListContainer, OpenTradeOffer, PlayerSettlements,
-    PlayerTradeInterests, PublishedOffer, SettlementModal, TradeButtonAction, TradeOffer,
+    PlayerTradeInterests, PublishedOffer, SettlementModal, TradeOffer,
 };
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::trade_functions::{
@@ -18,6 +17,7 @@ use crate::civilization::game_moves::RecalculatePlayerMoves;
 use crate::civilization::game_moves::{
     AcquireCivilizationCardsMove, AvailableMoves, GameMove, TradeMove,
 };
+use crate::civilization::ui::{ButtonActivated, game_button};
 use crate::civilization::{
     AvailableCivCards, CivCardName, PlayerCivilizationCards, TradeCardTrait, TradePhaseUiRoot,
 };
@@ -27,12 +27,8 @@ use crate::stupid_ai::{
 };
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
+use lava_ui_builder::{InteractionPalette, LavaTheme, TextStyle, UIBuilder};
 use rand::RngExt;
-
-const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
-const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
-const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
 
 pub fn check_trade_gate(
     players_can_trade: Query<(Entity, &CanTrade)>,
@@ -77,40 +73,23 @@ pub fn settle_trades(
     }
 }
 
-pub fn button_action(
-    mut interaction_query: Query<
-        (&Interaction, &TradeButtonAction, &mut BackgroundColor),
-        Changed<Interaction>,
-    >,
-) {
-    for (interaction, menu_button_action, mut bg_color) in &mut interaction_query {
-        match interaction {
-            Interaction::Pressed => {
-                *bg_color = PRESSED_BUTTON.into();
-                // Arms are deliberately listed out (not merged or wildcarded) so that
-                // adding a new action or trade move is a compile error here.
-                #[allow(clippy::match_same_arms)]
-                match menu_button_action {
-                    TradeButtonAction::Ok => {}
-                    TradeButtonAction::Cancel => {}
-                    TradeButtonAction::TradeAction(trade_move) => match trade_move {
-                        TradeMove::AcceptOrDeclineTrade(_trade_offer) => {}
-                        TradeMove::AutoDeclineTrade(_trade_offer) => {}
-                        TradeMove::StopTrading => {}
-                        TradeMove::SettleTrade(_trade_offer) => {}
-                        TradeMove::ProposeTrade(_, _) => {}
-                    },
-                }
-            }
-            Interaction::Hovered => {
-                *bg_color = HOVERED_BUTTON.into();
-            }
-            Interaction::None => {
-                *bg_color = NORMAL_BUTTON.into();
-            }
-        }
-    }
-}
+/// Hover and press colours for the trade panel's buttons. The palette system owns
+/// their `BackgroundColor`, so recolour them by changing these, not the colour.
+const CREATE_OFFER_PALETTE: InteractionPalette = InteractionPalette {
+    none: Color::srgb(0.2, 0.5, 0.3),
+    hovered: Color::srgb(0.3, 0.6, 0.4),
+    pressed: Color::srgb(0.3, 0.6, 0.4),
+};
+const DONE_TRADING_PALETTE: InteractionPalette = InteractionPalette {
+    none: Color::srgb(0.5, 0.3, 0.2),
+    hovered: Color::srgb(0.6, 0.4, 0.3),
+    pressed: Color::srgb(0.3, 0.6, 0.3),
+};
+const ACCEPT_OFFER_PALETTE: InteractionPalette = InteractionPalette {
+    none: Color::srgb(0.2, 0.5, 0.3),
+    hovered: Color::srgb(0.25, 0.55, 0.35),
+    pressed: Color::srgb(0.3, 0.7, 0.4),
+};
 
 pub fn setup_trade(
     mut commands: Commands,
@@ -682,14 +661,15 @@ pub fn setup_trade_phase_ui(
                     // Create Offer button
                     buttons
                         .spawn((
-                            interaction_button(),
+                            game_button(),
                             CreateOfferButton,
                             Node {
                                 padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
                                 justify_content: JustifyContent::Center,
                                 ..Default::default()
                             },
-                            BackgroundColor(Color::srgb(0.2, 0.5, 0.3)),
+                            BackgroundColor(CREATE_OFFER_PALETTE.none),
+                            CREATE_OFFER_PALETTE,
                         ))
                         .with_child((
                             Text::new("➕ Create Offer"),
@@ -703,14 +683,15 @@ pub fn setup_trade_phase_ui(
                     // Done Trading button
                     buttons
                         .spawn((
-                            interaction_button(),
+                            game_button(),
                             DoneTradingButton,
                             Node {
                                 padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
                                 justify_content: JustifyContent::Center,
                                 ..Default::default()
                             },
-                            BackgroundColor(Color::srgb(0.5, 0.3, 0.2)),
+                            BackgroundColor(DONE_TRADING_PALETTE.none),
+                            DONE_TRADING_PALETTE,
                         ))
                         .with_child((
                             Text::new("Done Trading"),
@@ -1048,7 +1029,7 @@ pub fn update_open_offers_display(
                         .with_children(|buttons| {
                             buttons
                                 .spawn((
-                                    interaction_button(),
+                                    game_button(),
                                     AcceptOfferButton {
                                         offer: *offer_entity,
                                     },
@@ -1056,7 +1037,8 @@ pub fn update_open_offers_display(
                                         padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
                                         ..Default::default()
                                     },
-                                    BackgroundColor(Color::srgb(0.2, 0.5, 0.3)),
+                                    BackgroundColor(ACCEPT_OFFER_PALETTE.none),
+                                    ACCEPT_OFFER_PALETTE,
                                 ))
                                 .with_child((
                                     Text::new("Accept"),
@@ -1075,10 +1057,8 @@ pub fn update_open_offers_display(
 
 /// Handle "Done Trading" button click - ends trade phase for human player
 pub fn handle_done_trading_button(
-    mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<DoneTradingButton>),
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<(), With<DoneTradingButton>>,
     mut trade_phase_state: ResMut<TradePhaseState>,
     trade_ui_state: Res<TradeUiState>,
     mut commands: Commands,
@@ -1086,62 +1066,40 @@ pub fn handle_done_trading_button(
     if trade_phase_state.human_done {
         return;
     }
-    for (interaction, mut bg_color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                *bg_color = BackgroundColor(Color::srgb(0.3, 0.6, 0.3));
-                trade_phase_state.human_done = true;
+    if activated.read().any(|a| buttons.contains(a.0)) {
+        trade_phase_state.human_done = true;
 
-                // Remove CanTrade from human player to signal they're done
-                if let Some(human) = trade_ui_state.human_player {
-                    commands.entity(human).remove::<CanTrade>();
-                }
-                debug!("Human player finished trading");
-            }
-            Interaction::Hovered => {
-                *bg_color = BackgroundColor(Color::srgb(0.6, 0.4, 0.3));
-            }
-            Interaction::None => {
-                *bg_color = BackgroundColor(Color::srgb(0.5, 0.3, 0.2));
-            }
+        // Remove CanTrade from human player to signal they're done
+        if let Some(human) = trade_ui_state.human_player {
+            commands.entity(human).remove::<CanTrade>();
         }
+        debug!("Human player finished trading");
     }
 }
 
 /// Handle "Create Offer" button click - opens the offer creation modal
 pub fn handle_create_offer_button(
-    mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<CreateOfferButton>),
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<(), With<CreateOfferButton>>,
     mut trade_phase_state: ResMut<TradePhaseState>,
 ) {
     if trade_phase_state.human_done {
         return;
     }
-    for (interaction, mut bg_color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                *bg_color = BackgroundColor(Color::srgb(0.3, 0.6, 0.4));
-                trade_phase_state.create_offer_modal_open = true;
-                debug!("Opening Create Offer modal");
-            }
-            Interaction::Hovered => {
-                *bg_color = BackgroundColor(Color::srgb(0.3, 0.6, 0.4));
-            }
-            Interaction::None => {
-                *bg_color = BackgroundColor(Color::srgb(0.2, 0.5, 0.3));
-            }
-        }
+    if activated.read().any(|a| buttons.contains(a.0)) {
+        trade_phase_state.create_offer_modal_open = true;
+        debug!("Opening Create Offer modal");
     }
 }
 
 /// Visually disable buttons and show feedback when human is done trading
 pub fn update_human_done_ui(
     trade_phase_state: Res<TradePhaseState>,
-    mut done_btn_query: Query<(&mut BackgroundColor, &Children), With<DoneTradingButton>>,
+    // The palette system owns BackgroundColor on these buttons, so grey them out
+    // through their palettes.
+    mut done_btn_query: Query<(&mut InteractionPalette, &Children), With<DoneTradingButton>>,
     mut create_btn_query: Query<
-        &mut BackgroundColor,
+        &mut InteractionPalette,
         (With<CreateOfferButton>, Without<DoneTradingButton>),
     >,
     mut text_query: Query<&mut Text>,
@@ -1150,16 +1108,21 @@ pub fn update_human_done_ui(
         return;
     }
     let grayed = Color::srgb(0.3, 0.3, 0.3);
-    for (mut bg, children) in &mut done_btn_query {
-        *bg = BackgroundColor(grayed);
+    let grayed = InteractionPalette {
+        none: grayed,
+        hovered: grayed,
+        pressed: grayed,
+    };
+    for (mut palette, children) in &mut done_btn_query {
+        *palette = grayed.clone();
         for child in children.iter() {
             if let Ok(mut text) = text_query.get_mut(child) {
                 **text = "Waiting for AI players...".to_string();
             }
         }
     }
-    for mut bg in &mut create_btn_query {
-        *bg = BackgroundColor(grayed);
+    for mut palette in &mut create_btn_query {
+        *palette = grayed.clone();
     }
 }
 
@@ -1614,17 +1577,13 @@ pub struct OfferHiddenCountDisplay {
 
 /// Handle close button on create offer modal
 pub fn handle_close_create_offer_modal(
-    mut interaction_query: Query<
-        &Interaction,
-        (Changed<Interaction>, With<CloseCreateOfferModalButton>),
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<(), With<CloseCreateOfferModalButton>>,
     mut trade_phase_state: ResMut<TradePhaseState>,
 ) {
-    for interaction in &mut interaction_query {
-        if *interaction == Interaction::Pressed {
-            trade_phase_state.create_offer_modal_open = false;
-            debug!("Closing Create Offer modal");
-        }
+    if activated.read().any(|a| buttons.contains(a.0)) {
+        trade_phase_state.create_offer_modal_open = false;
+        debug!("Closing Create Offer modal");
     }
 }
 
@@ -1645,14 +1604,11 @@ pub fn despawn_create_offer_modal(
 
 /// Handle < - > and < + > buttons for card counts in the create offer modal
 pub fn handle_card_count_adjust(
-    mut interaction_query: Query<(&Interaction, &CardCountAdjustButton), Changed<Interaction>>,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&CardCountAdjustButton>,
     mut create_offer_state: ResMut<CreateOfferState>,
 ) {
-    for (interaction, btn) in &mut interaction_query {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-
+    for btn in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
         if btn.is_offering {
             let current = create_offer_state
                 .offering_guaranteed
@@ -1728,21 +1684,20 @@ pub fn update_card_count_displays(
 
 /// Handle hidden count +/- buttons
 pub fn handle_hidden_count_buttons(
-    mut interaction_query: Query<(&Interaction, &HiddenCountButton), Changed<Interaction>>,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&HiddenCountButton>,
     mut create_offer_state: ResMut<CreateOfferState>,
 ) {
-    for (interaction, btn) in &mut interaction_query {
-        if *interaction == Interaction::Pressed {
-            if btn.is_offering {
-                let new_val = create_offer_state.offering_hidden_count as i32 + btn.delta;
-                if new_val >= 0 {
-                    create_offer_state.offering_hidden_count = new_val as usize;
-                }
-            } else {
-                let new_val = create_offer_state.wanting_hidden_count as i32 + btn.delta;
-                if new_val >= 0 {
-                    create_offer_state.wanting_hidden_count = new_val as usize;
-                }
+    for btn in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
+        if btn.is_offering {
+            let new_val = create_offer_state.offering_hidden_count as i32 + btn.delta;
+            if new_val >= 0 {
+                create_offer_state.offering_hidden_count = new_val as usize;
+            }
+        } else {
+            let new_val = create_offer_state.wanting_hidden_count as i32 + btn.delta;
+            if new_val >= 0 {
+                create_offer_state.wanting_hidden_count = new_val as usize;
             }
         }
     }
@@ -1765,74 +1720,58 @@ pub fn update_hidden_count_displays(
 
 /// Handle clicking the Accept button on an offer
 pub fn handle_accept_offer_button(
-    mut interaction_query: Query<
-        (&Interaction, &AcceptOfferButton, &mut BackgroundColor),
-        Changed<Interaction>,
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&AcceptOfferButton>,
     mut offers_query: Query<&mut OpenTradeOffer>,
     trade_ui_state: Res<TradeUiState>,
     player_names: Query<&Name>,
     player_cards_query: Query<&PlayerTradeCards>,
 ) {
-    for (interaction, accept_btn, mut bg_color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                *bg_color = BackgroundColor(Color::srgb(0.3, 0.7, 0.4));
+    for accept_btn in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
+        if let Some(human) = trade_ui_state.human_player
+            && let Ok(mut offer) = offers_query.get_mut(accept_btn.offer)
+            && offer.can_accept(human)
+        {
+            // Validate that human can fulfill the trade requirements
+            if let Ok(player_cards) = player_cards_query.get(human) {
+                let player_commodities: HashMap<TradeCard, usize> =
+                    player_cards.commodity_cards().into_iter().collect();
 
-                if let Some(human) = trade_ui_state.human_player
-                    && let Ok(mut offer) = offers_query.get_mut(accept_btn.offer)
-                    && offer.can_accept(human)
-                {
-                    // Validate that human can fulfill the trade requirements
-                    if let Ok(player_cards) = player_cards_query.get(human) {
-                        let player_commodities: HashMap<TradeCard, usize> =
-                            player_cards.commodity_cards().into_iter().collect();
-
-                        // Check if player has the required guaranteed cards
-                        let mut can_fulfill = true;
-                        for (card, count) in &offer.wanting_guaranteed {
-                            let player_has = player_commodities.get(card).copied().unwrap_or(0);
-                            if player_has < *count {
-                                can_fulfill = false;
-                                debug!(
-                                    "Cannot accept: need {} {:?} but only have {}",
-                                    count, card, player_has
-                                );
-                                break;
-                            }
-                        }
-
-                        // Check total card count
-                        let total_needed = offer.wanting_guaranteed.values().sum::<usize>()
-                            + offer.wanting_hidden_count;
-                        let total_have = player_cards.number_of_trade_cards();
-                        if total_have < total_needed {
-                            can_fulfill = false;
-                            debug!(
-                                "Cannot accept: need {} total cards but only have {}",
-                                total_needed, total_have
-                            );
-                        }
-
-                        if can_fulfill {
-                            let human_name = player_names.get(human).map_or_else(
-                                |_| "Human".to_string(),
-                                std::string::ToString::to_string,
-                            );
-                            offer.accept(human, human_name);
-                            debug!("Human accepted offer from {}", offer.creator_name);
-                        } else {
-                            debug!("Human cannot fulfill trade requirements");
-                        }
+                // Check if player has the required guaranteed cards
+                let mut can_fulfill = true;
+                for (card, count) in &offer.wanting_guaranteed {
+                    let player_has = player_commodities.get(card).copied().unwrap_or(0);
+                    if player_has < *count {
+                        can_fulfill = false;
+                        debug!(
+                            "Cannot accept: need {} {:?} but only have {}",
+                            count, card, player_has
+                        );
+                        break;
                     }
                 }
-            }
 
-            Interaction::Hovered => {
-                *bg_color = BackgroundColor(Color::srgb(0.25, 0.55, 0.35));
-            }
-            Interaction::None => {
-                *bg_color = BackgroundColor(Color::srgb(0.2, 0.5, 0.3));
+                // Check total card count
+                let total_needed =
+                    offer.wanting_guaranteed.values().sum::<usize>() + offer.wanting_hidden_count;
+                let total_have = player_cards.number_of_trade_cards();
+                if total_have < total_needed {
+                    can_fulfill = false;
+                    debug!(
+                        "Cannot accept: need {} total cards but only have {}",
+                        total_needed, total_have
+                    );
+                }
+
+                if can_fulfill {
+                    let human_name = player_names
+                        .get(human)
+                        .map_or_else(|_| "Human".to_string(), std::string::ToString::to_string);
+                    offer.accept(human, human_name);
+                    debug!("Human accepted offer from {}", offer.creator_name);
+                } else {
+                    debug!("Human cannot fulfill trade requirements");
+                }
             }
         }
     }
@@ -1961,17 +1900,14 @@ pub fn update_offer_summary_display(
 /// Handle publish offer button - creates the OpenTradeOffer entity
 pub fn handle_publish_offer(
     mut commands: Commands,
-    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<PublishOfferButton>)>,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<(), With<PublishOfferButton>>,
     create_offer_state: Res<CreateOfferState>,
     mut trade_phase_state: ResMut<TradePhaseState>,
     trade_ui_state: Res<TradeUiState>,
     human_query: Query<&Name, With<IsHuman>>,
 ) {
-    for interaction in &mut interaction_query {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-
+    for _ in activated.read().filter(|a| buttons.contains(a.0)) {
         if !create_offer_state.is_valid() {
             debug!("Cannot publish invalid offer");
             continue;
@@ -2165,7 +2101,7 @@ pub fn spawn_settlement_modal(
                     // Close button (cancels settlement)
                     header
                         .spawn((
-                            interaction_button(),
+                            game_button(),
                             CloseSettlementModalButton,
                             Node {
                                 padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
@@ -2279,7 +2215,7 @@ pub fn spawn_settlement_modal(
                                     let color = commodity_color(card);
                                     cards_row
                                         .spawn((
-                                            interaction_button(),
+                                            game_button(),
                                             SettlementCardButton {
                                                 card,
                                                 selected: false,
@@ -2314,7 +2250,7 @@ pub fn spawn_settlement_modal(
                                 for _ in 0..player_cards.number_of_cards_for_trade_card(card) {
                                     cards_row
                                         .spawn((
-                                            interaction_button(),
+                                            game_button(),
                                             SettlementCardButton {
                                                 card,
                                                 selected: false,
@@ -2388,7 +2324,7 @@ pub fn spawn_settlement_modal(
                     // Cancel button (prominent, on the left)
                     btn_row
                         .spawn((
-                            interaction_button(),
+                            game_button(),
                             CloseSettlementModalButton,
                             Node {
                                 padding: UiRect::axes(Val::Px(30.0), Val::Px(14.0)),
@@ -2408,7 +2344,7 @@ pub fn spawn_settlement_modal(
                     // Confirm button (on the right)
                     btn_row
                         .spawn((
-                            interaction_button(),
+                            game_button(),
                             ConfirmSettlementButton,
                             Node {
                                 padding: UiRect::axes(Val::Px(30.0), Val::Px(14.0)),
@@ -2430,31 +2366,30 @@ pub fn spawn_settlement_modal(
 
 /// Handle card selection in settlement modal
 pub fn handle_settlement_card_selection(
-    mut interaction_query: Query<
-        (&Interaction, &mut SettlementCardButton, &mut BorderColor),
-        Changed<Interaction>,
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    mut buttons: Query<(&mut SettlementCardButton, &mut BorderColor)>,
     mut settlement_selection: Option<ResMut<SettlementSelection>>,
 ) {
     let Some(ref mut selection) = settlement_selection else {
         return;
     };
 
-    for (interaction, mut card_btn, mut border) in &mut interaction_query {
-        if *interaction == Interaction::Pressed {
-            card_btn.selected = !card_btn.selected;
+    for activation in activated.read() {
+        let Ok((mut card_btn, mut border)) = buttons.get_mut(activation.0) else {
+            continue;
+        };
+        card_btn.selected = !card_btn.selected;
 
-            if card_btn.selected {
-                *border = BorderColor::all(Color::srgb(0.3, 0.9, 0.4));
-                *selection.selected_cards.entry(card_btn.card).or_insert(0) += 1;
-            } else {
-                *border = BorderColor::all(Color::NONE);
-                if let Some(count) = selection.selected_cards.get_mut(&card_btn.card) {
-                    if *count > 1 {
-                        *count -= 1;
-                    } else {
-                        selection.selected_cards.remove(&card_btn.card);
-                    }
+        if card_btn.selected {
+            *border = BorderColor::all(Color::srgb(0.3, 0.9, 0.4));
+            *selection.selected_cards.entry(card_btn.card).or_insert(0) += 1;
+        } else {
+            *border = BorderColor::all(Color::NONE);
+            if let Some(count) = selection.selected_cards.get_mut(&card_btn.card) {
+                if *count > 1 {
+                    *count -= 1;
+                } else {
+                    selection.selected_cards.remove(&card_btn.card);
                 }
             }
         }
@@ -2547,10 +2482,8 @@ pub fn update_settlement_display(
 
 /// Handle confirm settlement button
 pub fn handle_confirm_settlement(
-    mut interaction_query: Query<
-        &Interaction,
-        (Changed<Interaction>, With<ConfirmSettlementButton>),
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<(), With<ConfirmSettlementButton>>,
     settlement_selection: Option<Res<SettlementSelection>>,
     mut trade_phase_state: ResMut<TradePhaseState>,
     trade_ui_state: Res<TradeUiState>,
@@ -2560,11 +2493,7 @@ pub fn handle_confirm_settlement(
         return;
     };
 
-    for interaction in &mut interaction_query {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-
+    for _ in activated.read().filter(|a| buttons.contains(a.0)) {
         let Some(offer_entity) = trade_phase_state.settling_offer_entity else {
             continue;
         };
@@ -2631,27 +2560,23 @@ pub fn handle_confirm_settlement(
 
 /// Handle close button on settlement modal
 pub fn handle_close_settlement_modal(
-    mut interaction_query: Query<
-        &Interaction,
-        (Changed<Interaction>, With<CloseSettlementModalButton>),
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<(), With<CloseSettlementModalButton>>,
     mut trade_phase_state: ResMut<TradePhaseState>,
     mut offers_query: Query<&mut OpenTradeOffer>,
 ) {
-    for interaction in &mut interaction_query {
-        if *interaction == Interaction::Pressed {
-            // Cancel the trade by withdrawing the offer
-            if let Some(offer_entity) = trade_phase_state.settling_offer_entity
-                && let Ok(mut offer) = offers_query.get_mut(offer_entity)
-            {
-                offer.withdrawn = true;
-                debug!("Trade cancelled during settlement");
-            }
-
-            trade_phase_state.settlement_modal_open = false;
-            trade_phase_state.settling_offer_entity = None;
-            debug!("Closing Settlement modal");
+    if activated.read().any(|a| buttons.contains(a.0)) {
+        // Cancel the trade by withdrawing the offer
+        if let Some(offer_entity) = trade_phase_state.settling_offer_entity
+            && let Ok(mut offer) = offers_query.get_mut(offer_entity)
+        {
+            offer.withdrawn = true;
+            debug!("Trade cancelled during settlement");
         }
+
+        trade_phase_state.settlement_modal_open = false;
+        trade_phase_state.settling_offer_entity = None;
+        debug!("Closing Settlement modal");
     }
 }
 

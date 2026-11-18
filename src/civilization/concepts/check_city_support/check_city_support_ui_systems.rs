@@ -1,5 +1,3 @@
-use bevy::ui_widgets::Button;
-use crate::civilization::ui::interaction_button;
 use crate::civilization::Z_ACTION_UI;
 use crate::civilization::components::GameArea;
 use crate::civilization::concepts::check_city_support::check_city_support_components::HasTooManyCities;
@@ -9,6 +7,7 @@ use crate::civilization::concepts::map::camera_focus::{
     CameraFocusQueue, focus_camera_on_selection,
 };
 use crate::civilization::game_moves::{AvailableMoves, GameMove};
+use crate::civilization::ui::{ButtonActivated, game_button};
 use crate::stupid_ai::IsHuman;
 use bevy::prelude::*;
 
@@ -71,18 +70,12 @@ pub fn draw_city_support_highlight(
 
 /// System to handle city support button interactions
 pub fn handle_city_support_button_clicks(
-    interaction_query: Query<
-        (&Interaction, &CitySupportButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&CitySupportButtonAction>,
     mut selection_state: ResMut<CitySupportSelectionState>,
     mut eliminate_city_writer: MessageWriter<EliminateCity>,
 ) {
-    for (interaction, action) in interaction_query.iter() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-
+    for action in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
         match action {
             CitySupportButtonAction::EliminateCity => {
                 if let (Some(player), Some(choice)) =
@@ -166,7 +159,7 @@ pub fn spawn_city_support_controls_ui(
                     .with_children(|row| {
                         // Prev site button
                         row.spawn((
-                            interaction_button(),
+                            game_button(),
                             CitySupportButtonAction::PrevSite,
                             Node {
                                 width: Val::Px(36.0),
@@ -205,7 +198,7 @@ pub fn spawn_city_support_controls_ui(
 
                         // Next site button
                         row.spawn((
-                            interaction_button(),
+                            game_button(),
                             CitySupportButtonAction::NextSite,
                             Node {
                                 width: Val::Px(36.0),
@@ -236,7 +229,7 @@ pub fn spawn_city_support_controls_ui(
                     },))
                     .with_children(|row| {
                         row.spawn((
-                            interaction_button(),
+                            game_button(),
                             CitySupportButtonAction::EliminateCity,
                             Node {
                                 width: Val::Px(160.0),

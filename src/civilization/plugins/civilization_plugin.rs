@@ -11,6 +11,7 @@ use crate::civilization::general_systems::{
 };
 use crate::civilization::resolve_calamities::resolve_calamities_plugin::ResolveCalamitiesPlugin;
 use crate::civilization::triggers::{on_add_return_city_to_stock, on_add_return_token_to_stock};
+use crate::civilization::ui::ButtonActivationPlugin;
 use crate::player::Player;
 use crate::stupid_ai::*;
 use crate::{GameActivity, GameState};
@@ -77,6 +78,7 @@ impl Plugin for CivLogicPlugins {
             .register_type::<IsHuman>()
             .add_message::<MoveTokensFromStockToAreaCommand>()
             .add_sub_state::<GameActivity>()
+            .add_plugins(ButtonActivationPlugin)
             .add_systems(
                 Update,
                 (print_names_of_phases.run_if(in_state(GameState::Playing)),),

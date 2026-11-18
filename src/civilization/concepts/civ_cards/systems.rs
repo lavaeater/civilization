@@ -1,4 +1,3 @@
-use crate::civilization::ui::interaction_button;
 use crate::GameActivity;
 use crate::civilization::Z_DIALOG;
 use crate::civilization::components::{TokenStock, Treasury};
@@ -9,6 +8,7 @@ use crate::civilization::concepts::resolve_calamities::resolve_calamities_compon
     GrainLockedForPurchase, usable_grain_count,
 };
 use crate::civilization::game_moves::RecalculatePlayerMoves;
+use crate::civilization::ui::{ButtonActivated, game_button};
 use crate::civilization::{
     AvailableCivCards, BackToCardSelection, CardHandle, CardsHeldBeforePurchasing,
     CivCardDefinition, CivCardName, CivCardPurchasePhase, CivCardSelectionState, CivCardType,
@@ -23,8 +23,8 @@ use bevy::asset::{AssetServer, Assets};
 use bevy::color::Color;
 use bevy::platform::collections::HashSet;
 use bevy::prelude::{
-    Add, Changed, Commands, Entity, Has, Interaction, Local, MessageReader, MessageWriter,
-    NextState, On, Query, Res, ResMut, Time, Val, With, percent, warn,
+    Add, Commands, Entity, Has, Local, MessageReader, MessageWriter, NextState, On, Query, Res,
+    ResMut, Time, Val, With, percent, warn,
 };
 use bevy::ui_widgets::Activate;
 use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
@@ -346,7 +346,7 @@ fn create_civ_card_panel(
 
     let card_name = card.name;
     if is_purchasable {
-        card_builder.insert_bundle(interaction_button());
+        card_builder.insert_bundle(game_button());
         card_builder.observe(
             move |_: On<Activate>, mut toggle_writer: MessageWriter<ToggleCivCardSelection>| {
                 toggle_writer.write(ToggleCivCardSelection(card_name));
@@ -727,7 +727,8 @@ fn build_payment_ui(
 /// applied where the purchase commits, so over-selecting here simply doesn't
 /// cost extra.
 pub fn handle_treasury_adjust(
-    mut interaction_query: Query<(&Interaction, &TreasuryAdjustButton), Changed<Interaction>>,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&TreasuryAdjustButton>,
     mut payment_state: ResMut<PaymentState>,
     human_player_query: Query<&Treasury, With<IsHuman>>,
     mut refresh_writer: MessageWriter<RefreshCivCardsUi>,
@@ -738,10 +739,7 @@ pub fn handle_treasury_adjust(
     let available = treasury.tokens_in_treasury();
 
     let mut changed = false;
-    for (interaction, btn) in &mut interaction_query {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    for btn in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
         if btn.delta > 0 {
             if payment_state.treasury_tokens < available {
                 payment_state.treasury_tokens += 1;
@@ -759,7 +757,8 @@ pub fn handle_treasury_adjust(
 }
 
 pub fn handle_payment_adjust(
-    mut interaction_query: Query<(&Interaction, &PaymentAdjustButton), Changed<Interaction>>,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&PaymentAdjustButton>,
     mut payment_state: ResMut<PaymentState>,
     human_player_query: Query<(&PlayerTradeCards, Option<&GrainLockedForPurchase>), With<IsHuman>>,
     mut refresh_writer: MessageWriter<RefreshCivCardsUi>,
@@ -769,11 +768,7 @@ pub fn handle_payment_adjust(
     };
 
     let mut changed = false;
-    for (interaction, btn) in &mut interaction_query {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-
+    for btn in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
         let held = player_trade_cards.number_of_cards_for_trade_card(btn.card);
         // Rule 30.312: Grain locked by a Famine reduction this turn can't be
         // selected as payment, even though it's still physically held.

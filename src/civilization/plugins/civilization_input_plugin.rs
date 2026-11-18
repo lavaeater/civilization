@@ -37,19 +37,22 @@ impl Plugin for CivilizationInputPlugin {
 
 /// Always-active input context for HUD keyboard shortcuts (F1-F4).
 /// Spawned once at `StartGame` and never despawned.
-#[derive(Component)]
+#[derive(Component, Clone, Default)]
 pub struct HudContext;
 
 fn spawn_hud_context(mut commands: Commands) {
-    commands.spawn((
-        HudContext,
-        actions!(HudContext[
-            (Action::<TogglePlayerInfoCard>::new(), bindings![KeyCode::F1]),
-            (Action::<ToggleTradeCardsCard>::new(),  bindings![KeyCode::F2]),
-            (Action::<ToggleGameStateCard>::new(),   bindings![KeyCode::F3]),
-            (Action::<ToggleActivityCard>::new(),    bindings![KeyCode::F4]),
-        ]),
-    ));
+    commands.spawn_scene(bsn! {
+        HudContext
+        Actions<HudContext> [
+            Action::<TogglePlayerInfoCard>::new() Bindings [ Binding(KeyCode::F1) ]
+            --
+            Action::<ToggleTradeCardsCard>::new() Bindings [ Binding(KeyCode::F2) ]
+            --
+            Action::<ToggleGameStateCard>::new() Bindings [ Binding(KeyCode::F3) ]
+            --
+            Action::<ToggleActivityCard>::new() Bindings [ Binding(KeyCode::F4) ]
+        ]
+    });
 }
 
 // ── HUD toggle observers ──────────────────────────────────────────────────────
@@ -152,13 +155,13 @@ pub struct ToggleSelected;
 
 // ── Phase context stubs (wired up incrementally in Step 5) ────────────────────
 
-#[derive(Component)]
+#[derive(Component, Clone, Default)]
 pub struct MovementInput;
 
 #[derive(Component)]
 pub struct AreaNavigationInput;
 
-#[derive(Component)]
+#[derive(Component, Clone, Default)]
 pub struct CityConstructionInput;
 
 #[derive(Component)]
@@ -181,13 +184,14 @@ pub struct CivilizationCardsInput;
 // these key presses act on rather than duplicate).
 
 fn spawn_city_construction_input_context(mut commands: Commands) {
-    commands.spawn((
-        CityConstructionInput,
-        actions!(CityConstructionInput[
-            (Action::<Confirm>::new(), bindings![KeyCode::Enter]),
-            (Action::<Cancel>::new(), bindings![KeyCode::Escape]),
-        ]),
-    ));
+    commands.spawn_scene(bsn! {
+        CityConstructionInput
+        Actions<CityConstructionInput> [
+            Action::<Confirm>::new() Bindings [ Binding(KeyCode::Enter) ]
+            --
+            Action::<Cancel>::new() Bindings [ Binding(KeyCode::Escape) ]
+        ]
+    });
 }
 
 fn despawn_city_construction_input_context(

@@ -5,11 +5,10 @@ use crate::stupid_ai::*;
 use bevy::math::{Vec2, Vec3, vec3};
 use bevy::platform::collections::HashSet;
 use bevy::prelude::{
-    Bundle, Commands, Entity, KeyCode, MessageReader, MessageWriter, Name, NextState, Query, Res,
-    ResMut, SpawnRelated, Sprite, StateTransitionEvent, Transform, With, Without, debug, default,
-    info,
+    Commands, Entity, EntityCommandsSceneExt, KeyCode, MessageReader, MessageWriter, Name,
+    NextState, Query, Res, ResMut, Scene, Sprite, StateTransitionEvent, Transform, With, Without,
+    bsn, debug, default, info,
 };
-use bevy_enhanced_input::actions;
 use bevy_enhanced_input::prelude::*;
 use rand::seq::{IndexedRandom, SliceRandom};
 
@@ -358,7 +357,7 @@ pub fn setup_human_player(
             }
         });
         commands.entity(player).insert(player_trade_cards);
-        commands.entity(player).insert(player_input_bundle());
+        commands.entity(player).apply_scene(player_input_scene());
     }
     info!("Added human player");
 }
@@ -379,27 +378,32 @@ struct OkAction;
 #[action_output(bool)]
 struct CancelAction;
 
-pub fn player_input_bundle() -> impl Bundle {
-    (
-        MovementInput,
-        actions!(MovementInput[
-            (
-                Action::<CardinalInput>::new(),
-                Bindings::spawn(Cardinal::wasd_keys()),
-            ),(
-                Action::<MapInput>::new(),
-                Bindings::spawn(Spatial::new(KeyCode::KeyX, KeyCode::KeyZ, KeyCode::ArrowLeft, KeyCode::ArrowRight, KeyCode::ArrowUp, KeyCode::ArrowDown)),
-            ),
-            (
-                Action::<OkAction>::new(),
-                bindings![KeyCode::Enter],
-            ),
-                        (
-                Action::<CancelAction>::new(),
-                bindings![KeyCode::Escape],
-            ),
-        ]),
-    )
+pub fn player_input_scene() -> impl Scene {
+    bsn! {
+        MovementInput
+        Actions<MovementInput> [
+            Action::<CardinalInput>::new()
+            Bindings [ {preset::cardinal::wasd_keys()} ]
+            --
+            Action::<MapInput>::new()
+            Bindings [
+                {preset::spatial::new(
+                    KeyCode::KeyX,
+                    KeyCode::KeyZ,
+                    KeyCode::ArrowLeft,
+                    KeyCode::ArrowRight,
+                    KeyCode::ArrowUp,
+                    KeyCode::ArrowDown,
+                )}
+            ]
+            --
+            Action::<OkAction>::new()
+            Bindings [ Binding(KeyCode::Enter) ]
+            --
+            Action::<CancelAction>::new()
+            Bindings [ Binding(KeyCode::Escape) ]
+        ]
+    }
 }
 
 pub fn connect_areas(
@@ -561,8 +565,9 @@ mod fix_token_positions_tests {
 
         // Exact-integer offsets (index * a small constant): comparing as i64
         // sidesteps clippy's float_cmp lint without weakening the assertion.
-        let x_of =
-            |world: &World, token: Entity| world.get::<Transform>(token).unwrap().translation.x as i64;
+        let x_of = |world: &World, token: Entity| {
+            world.get::<Transform>(token).unwrap().translation.x as i64
+        };
 
         // Every token of a given player shares that player's column (x).
         let a_x = x_of(&world, a_tokens[0]);
@@ -583,8 +588,16 @@ mod fix_token_positions_tests {
         // must reproduce the exact same layout, not reshuffle it.
         world.entity_mut(area).insert(FixTokenPositions);
         world.run_system_once(fix_token_positions).unwrap();
-        assert_eq!(x_of(&world, a_tokens[0]), a_x, "layout must be stable across re-runs");
-        assert_eq!(x_of(&world, b_tokens[0]), b_x, "layout must be stable across re-runs");
+        assert_eq!(
+            x_of(&world, a_tokens[0]),
+            a_x,
+            "layout must be stable across re-runs"
+        );
+        assert_eq!(
+            x_of(&world, b_tokens[0]),
+            b_x,
+            "layout must be stable across re-runs"
+        );
     }
 
     /// Within one player's stack, tokens get distinct y offsets — no two
@@ -595,11 +608,7 @@ mod fix_token_positions_tests {
         let player = world.spawn_empty().id();
         let mut population = Population::new(20);
         let tokens: Vec<Entity> = (0..4)
-            .map(|_| {
-                world
-                    .spawn((Token::new(player), Transform::default()))
-                    .id()
-            })
+            .map(|_| world.spawn((Token::new(player), Transform::default())).id())
             .collect();
         for &t in &tokens {
             population.add_token_to_area(player, t);
