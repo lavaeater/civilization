@@ -140,7 +140,7 @@ pub fn spawn_ast_ui(
 
         for space in &spaces {
             let label = if space.is_finish {
-                "🏁".to_string()
+                "End".to_string()
             } else {
                 space.index.to_string()
             };

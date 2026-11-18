@@ -41,6 +41,9 @@ const SERVER_ADDR: SocketAddr =
 struct PlayerName(String);
 
 #[derive(Resource)]
+struct WsUrl(String);
+
+#[derive(Resource)]
 struct StdinLines(Mutex<Receiver<String>>);
 
 /// `--auto`: play unattended — prefer the phase-ending move when one is
@@ -69,12 +72,16 @@ fn main() {
         .nth(1)
         .unwrap_or_else(|| "Anonymous".into());
     let auto = std::env::args().any(|a| a == "--auto");
-    let token = {
+    let flag = |name: &str| {
         let args: Vec<String> = std::env::args().collect();
         args.iter()
-            .position(|a| a == "--token")
+            .position(|a| a == name)
             .and_then(|i| args.get(i + 1).cloned())
     };
+    let token = flag("--token");
+    // `--ws <url>`: the WebSocket URL from the join response, e.g. a game
+    // behind civ_lobby (`ws://127.0.0.1:8080/g/<code>/ws`).
+    let ws_url = flag("--ws").unwrap_or_else(|| format!("ws://127.0.0.1:{SERVER_PORT}"));
 
     let (tx, rx): (Sender<String>, Receiver<String>) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
@@ -116,6 +123,7 @@ fn main() {
     app.insert_resource(StdinLines(Mutex::new(rx)));
     app.insert_resource(AutoPlay(auto));
     app.insert_resource(JoinToken(token));
+    app.insert_resource(WsUrl(ws_url));
     app.init_resource::<MyHand>();
     app.init_resource::<CurrentPhase>();
 
@@ -128,7 +136,7 @@ fn main() {
     app.run();
 }
 
-fn connect(mut commands: Commands, token: Res<JoinToken>) -> Result {
+fn connect(mut commands: Commands, token: Res<JoinToken>, ws_url: Res<WsUrl>) -> Result {
     let auth = if let Some(token_b64) = &token.0 {
         // Real flow: short-lived ConnectToken from the HTTP join endpoint.
         use base64::Engine;
@@ -159,11 +167,11 @@ fn connect(mut commands: Commands, token: Res<JoinToken>) -> Result {
             PeerAddr(SERVER_ADDR),
             Link::default(),
             NetcodeClient::new(auth, NetcodeConfig::default())?,
-            WebSocketClientIo::from_url(config, format!("ws://127.0.0.1:{SERVER_PORT}")),
+            WebSocketClientIo::from_url(config, ws_url.0.clone()),
         ))
         .id();
     commands.trigger(Connect { entity: client });
-    println!("Connecting to {SERVER_ADDR} …");
+    println!("Connecting to {} …", ws_url.0);
     Ok(())
 }
 

@@ -712,7 +712,7 @@ pub fn setup_trade_phase_ui(
                             BackgroundColor(Color::srgb(0.5, 0.3, 0.2)),
                         ))
                         .with_child((
-                            Text::new("✓ Done Trading"),
+                            Text::new("Done Trading"),
                             TextFont {
                                 font_size: FontSize::Px(16.0),
                                 ..Default::default()
@@ -2416,7 +2416,7 @@ pub fn spawn_settlement_modal(
                             BackgroundColor(Color::srgb(0.3, 0.3, 0.3)),
                         ))
                         .with_child((
-                            Text::new("✓ Confirm Settlement"),
+                            Text::new("Confirm Settlement"),
                             TextFont {
                                 font_size: FontSize::Px(16.0),
                                 ..Default::default()

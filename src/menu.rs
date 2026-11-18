@@ -87,7 +87,7 @@ fn setup_menu(
             btn.size(px(300.0), px(60.0));
         },
         |_activate: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
-            next_state.set(GameState::Online);
+            next_state.set(GameState::OnlineSetup);
         },
     );
 
@@ -191,7 +191,7 @@ fn spawn_victory_screen(
 
     if let Some((winner, score, _)) = result.standings.first() {
         ui.add_text_child(
-            format!("🏆 {winner} wins with {score} points"),
+            format!("Winner: {winner} with {score} points"),
             Some(TextStyle::size(28.0)),
         );
     }

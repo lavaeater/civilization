@@ -2,14 +2,13 @@
 # internal CA; a real domain gives automatic Let's Encrypt.
 
 {$CIV_DOMAIN} {
-	# HTTP join API
+	# civ_lobby: /api/games* creates and finds games, /g/<code>/api/* and
+	# /g/<code>/ws reach one game (docs/online-games-plan.md).
 	handle /api/* {
-		reverse_proxy game:5112
+		reverse_proxy game:8080
 	}
-
-	# Game WebSocket
-	handle /ws {
-		reverse_proxy game:5111
+	handle /g/* {
+		reverse_proxy game:8080
 	}
 
 	# The wasm client (trunk build output, mounted at /srv).

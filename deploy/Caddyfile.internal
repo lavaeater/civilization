@@ -8,14 +8,15 @@
 # for the standalone (non-pingora) docker-compose.yml deployment.
 
 :80 {
-	# HTTP join API
+	# civ_lobby (Dockerfile `lobby` target, container civilization-server):
+	# /api/games* creates and finds games, /g/<code>/api/* and /g/<code>/ws
+	# reach one game (docs/online-games-plan.md). WebSocket upgrades pass
+	# through reverse_proxy as is.
 	handle /api/* {
-		reverse_proxy civilization-server:5112
+		reverse_proxy civilization-server:8080
 	}
-
-	# Game WebSocket
-	handle /ws {
-		reverse_proxy civilization-server:5111
+	handle /g/* {
+		reverse_proxy civilization-server:8080
 	}
 
 	# The wasm client (trunk build output, baked into this image at /srv).

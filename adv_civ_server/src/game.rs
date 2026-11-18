@@ -178,6 +178,7 @@ impl Plugin for HeadlessGamePlugin {
             .take(human_seats)
             .collect();
         info!("Hosting {total_players} players, {human_seats} human seat(s): {seat_factions:?}");
+        app.insert_resource(crate::status::TotalPlayers(total_players));
 
         app.add_plugins(AssetPlugin::default())
             .init_asset::<Image>()

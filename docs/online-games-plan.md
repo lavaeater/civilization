@@ -1,6 +1,6 @@
 # Online games: create / join, many games at once
 
-_Plan, 26-11-08. Nothing here is implemented yet._
+_Plan, 26-11-08. Progress is tracked in [online-play-progress.md](online-play-progress.md)._
 
 ## Goal
 
