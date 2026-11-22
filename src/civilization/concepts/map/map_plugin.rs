@@ -1,5 +1,5 @@
 use crate::civilization::components::{
-    CityFlood, CitySite, FloodPlain, GameArea, GameCamera, LandPassage, NeedsConnections,
+    CityFlood, CitySite, FloodPlain, GameArea, GameCamera, LandPassage, NeedsConnections, OpenSea,
     Population, SeaPassage, StartArea, Volcano,
 };
 use crate::civilization::concepts::map::camera_focus::{CameraFocusQueue, process_camera_focus};
@@ -181,6 +181,11 @@ pub struct Area {
     pub flood_plain: bool,
     pub city_flood: bool,
     pub volcano: bool,
+    /// Open sea (rule 23.52): a sea area with no land and no population.
+    /// Its sea connections are the coasts around it; ships cross it from one
+    /// coast to another in a single move, and only with Astronomy.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub open_sea: bool,
 }
 
 fn load_map(
@@ -377,6 +382,23 @@ fn load_map(
         ));
 
         for area in level.areas.clone() {
+            if area.open_sea {
+                // No Population and no LandPassage: nothing can stand here
+                // and nothing walks in. Ships only pass through (see
+                // `recalculate_movement_moves_for_player`).
+                commands.spawn((
+                    Name::new(format!("{}:Open Sea", area.id)),
+                    GameArea::new(area.id),
+                    SeaPassage::default(),
+                    OpenSea,
+                    NeedsConnections {
+                        land_connections: Vec::new(),
+                        sea_connections: area.sea_connections,
+                    },
+                    Transform::from_xyz(area.x, area.y, 1.),
+                ));
+                continue;
+            }
             let n = remove_random_place(&mut ancient_places).unwrap_or("STANDARD_NAME".to_string());
 
             let entity = commands

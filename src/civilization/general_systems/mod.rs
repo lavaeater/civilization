@@ -3,7 +3,7 @@ use crate::civilization::*;
 use crate::player::Player;
 use crate::stupid_ai::*;
 use bevy::math::{Vec2, Vec3, vec3};
-use bevy::platform::collections::HashSet;
+use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{
     Commands, Entity, EntityCommandsSceneExt, KeyCode, MessageReader, MessageWriter, Name,
     NextState, Query, Res, ResMut, Scene, Sprite, StateTransitionEvent, Transform, With, Without,
@@ -19,7 +19,7 @@ pub fn start_game(
     player_query: Query<(Entity, &Name, &Faction), With<Player>>,
     human_query: Query<Entity, With<IsHuman>>,
     start_area_query: Query<(Entity, &Name, &StartArea)>,
-    all_areas_query: Query<Entity, With<GameArea>>,
+    all_areas_query: Query<Entity, (With<GameArea>, Without<OpenSea>)>,
     mut writer: MessageWriter<MoveTokensFromStockToAreaCommand>,
     mut next_state: ResMut<NextState<GameActivity>>,
     debug_options: Res<DebugOptions>,
@@ -406,28 +406,84 @@ pub fn player_input_scene() -> impl Scene {
     }
 }
 
+/// Resolves the map file's area ids into passages. Connections are made
+/// two-way here: if area A lists B, B gets A too, so a link missing from one
+/// end of the hand-written map can't make movement one-way. Open-sea areas
+/// have no `LandPassage`.
 pub fn connect_areas(
-    mut area_query: Query<(Entity, &mut LandPassage, &mut SeaPassage, &NeedsConnections)>,
+    mut area_query: Query<(
+        Entity,
+        Option<&mut LandPassage>,
+        &mut SeaPassage,
+        &NeedsConnections,
+    )>,
     named_areas: Query<(Entity, &GameArea)>,
     mut commands: Commands,
 ) {
-    for (area_entity, mut land_passages, mut sea_passages, needed_connections) in &mut area_query {
-        for named_area in &needed_connections.land_connections {
-            for (target_area_entity, target_area) in named_areas.iter() {
-                if target_area.id == *named_area {
-                    land_passages.to_areas.push(target_area_entity);
+    let id_of: HashMap<Entity, i32> = named_areas.iter().map(|(e, a)| (e, a.id)).collect();
+    let entity_of: HashMap<i32, Entity> = named_areas.iter().map(|(e, a)| (a.id, e)).collect();
+    let mut land: Vec<(i32, Vec<i32>)> = Vec::new();
+    let mut sea: Vec<(i32, Vec<i32>)> = Vec::new();
+    for (entity, _, _, needed) in &area_query {
+        let Some(&id) = id_of.get(&entity) else {
+            continue;
+        };
+        land.push((id, needed.land_connections.clone()));
+        sea.push((id, needed.sea_connections.clone()));
+    }
+    let land = symmetric_links(&land);
+    let sea = symmetric_links(&sea);
+
+    for (area_entity, land_passages, mut sea_passages, _) in &mut area_query {
+        let Some(id) = id_of.get(&area_entity) else {
+            continue;
+        };
+        if let Some(mut land_passages) = land_passages {
+            for target in land.get(id).into_iter().flatten() {
+                if let Some(&e) = entity_of.get(target) {
+                    land_passages.add_passage(e);
                 }
             }
         }
-        for named_area in &needed_connections.sea_connections {
-            for (target_area_entity, target_area) in named_areas.iter() {
-                if target_area.id == *named_area {
-                    sea_passages.add_passage(target_area_entity);
-                }
+        for target in sea.get(id).into_iter().flatten() {
+            if let Some(&e) = entity_of.get(target) {
+                sea_passages.add_passage(e);
             }
         }
         commands.entity(area_entity).remove::<NeedsConnections>();
     }
+}
+
+/// Every link in `links` (area id, ids it connects to), plus its reverse,
+/// deduplicated. Links to areas not in the list are dropped.
+pub fn symmetric_links(links: &[(i32, Vec<i32>)]) -> HashMap<i32, Vec<i32>> {
+    let known: HashSet<i32> = links.iter().map(|(id, _)| *id).collect();
+    let mut out: HashMap<i32, Vec<i32>> = HashMap::default();
+    let mut add = |from: i32, to: i32| {
+        let list = out.entry(from).or_default();
+        if !list.contains(&to) {
+            list.push(to);
+        }
+    };
+    for (from, targets) in links {
+        for &to in targets {
+            if to != *from && known.contains(&to) {
+                add(*from, to);
+                add(to, *from);
+            }
+        }
+    }
+    out
+}
+
+/// Links listed by only one of their two areas, as (from, to).
+pub fn one_way_links(links: &[(i32, Vec<i32>)]) -> Vec<(i32, i32)> {
+    let by_id: HashMap<i32, &Vec<i32>> = links.iter().map(|(id, l)| (*id, l)).collect();
+    links
+        .iter()
+        .flat_map(|(from, targets)| targets.iter().map(move |to| (*from, *to)))
+        .filter(|(from, to)| by_id.get(to).is_none_or(|back| !back.contains(from)))
+        .collect()
 }
 
 /// Lays each player's tokens out in their own column (`player_index * 15` on
@@ -622,5 +678,57 @@ mod fix_token_positions_tests {
             .map(|&t| world.get::<Transform>(t).unwrap().translation.y as i64)
             .collect();
         assert_eq!(ys.len(), tokens.len(), "no two tokens in a stack overlap");
+    }
+}
+
+#[cfg(test)]
+mod connection_tests {
+    use super::*;
+    use crate::civilization::concepts::Map;
+
+    #[test]
+    fn links_are_made_two_way_and_deduplicated() {
+        let links = vec![(1, vec![2, 3]), (2, vec![]), (3, vec![1, 99])];
+        let out = symmetric_links(&links);
+        assert_eq!(out[&1], vec![2, 3]);
+        assert_eq!(out[&2], vec![1]);
+        // 99 is not an area: dropped, not mirrored.
+        assert_eq!(out[&3], vec![1]);
+        assert_eq!(one_way_links(&links), vec![(1, 2), (3, 99)]);
+    }
+
+    /// The hand-made map lists every connection at both ends, and no link
+    /// spans half the board (a typo'd id, like the old "23" links).
+    #[test]
+    fn map_file_connections_are_two_way_and_local() {
+        let text = std::fs::read_to_string("assets/maps/civilization.map.ron").unwrap();
+        let map: Map = ron::from_str(&text).unwrap();
+        let land: Vec<(i32, Vec<i32>)> =
+            map.areas.iter().map(|a| (a.id, a.land_connections.clone())).collect();
+        let sea: Vec<(i32, Vec<i32>)> =
+            map.areas.iter().map(|a| (a.id, a.sea_connections.clone())).collect();
+        assert_eq!(one_way_links(&land), vec![], "one-way land links");
+        assert_eq!(one_way_links(&sea), vec![], "one-way sea links");
+
+        let pos: HashMap<i32, Vec2> =
+            map.areas.iter().map(|a| (a.id, Vec2::new(a.x, a.y))).collect();
+        for area in &map.areas {
+            assert!(
+                !area.open_sea || area.land_connections.is_empty(),
+                "open sea {} has land links",
+                area.id
+            );
+            // Open seas are big; only coast-to-coast links are checked.
+            if area.open_sea {
+                continue;
+            }
+            for &to in area.land_connections.iter().chain(&area.sea_connections) {
+                if map.areas.iter().any(|a| a.id == to && a.open_sea) {
+                    continue;
+                }
+                let d = pos[&area.id].distance(pos[&to]);
+                assert!(d < 450.0, "link {} -> {to} spans {d:.0} px", area.id);
+            }
+        }
     }
 }

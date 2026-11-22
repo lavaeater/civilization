@@ -150,6 +150,7 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
         for (flag, label) in [
             (AreaFlag::CityFlood, "City Flood"),
             (AreaFlag::CitySite, "City Site"),
+            (AreaFlag::OpenSea, "Open Sea"),
         ] {
             row.add_button_observe(
                 label,
@@ -163,6 +164,33 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
                 },
             );
         }
+    });
+
+    ui.add_row(|row| {
+        row.align_items_center().gap_px(6.0);
+        row.add_button_observe(
+            "+ New Area",
+            |btn| {
+                btn.size_px(100.0, 24.0).font_size(11.0);
+            },
+            |_: On<Activate>, mut state: ResMut<MapEditorState>| {
+                state.placing_new_area = true;
+                state.pending_connection = None;
+                state.status = Some("Click the map where the new area goes.".to_string());
+            },
+        );
+        row.add_button_observe(
+            "Delete Area",
+            |btn| {
+                btn.size_px(100.0, 24.0).font_size(11.0);
+            },
+            |_: On<Activate>,
+             mut commands: Commands,
+             mut state: ResMut<MapEditorState>,
+             mut areas: Query<(Entity, &mut EditableArea)>| {
+                delete_current_area(&mut commands, &mut state, &mut areas);
+            },
+        );
     });
 
     ui.with_child(|c| {
@@ -223,6 +251,7 @@ pub fn spawn_map_editor_ui(commands: Commands, theme: Res<LavaTheme>) {
             },
             |_: On<Activate>, mut state: ResMut<MapEditorState>| {
                 state.pending_connection = None;
+                state.placing_new_area = false;
             },
         );
     });
@@ -344,7 +373,8 @@ fn adjust_population(state: &Res<MapEditorState>, areas: &mut Query<&mut Editabl
         return;
     };
     if let Ok(mut area) = areas.get_mut(entity) {
-        area.max_population = (area.max_population as i32 + delta).max(1) as usize;
+        let min = i32::from(!area.open_sea);
+        area.max_population = (area.max_population as i32 + delta).max(min) as usize;
     }
 }
 
@@ -360,7 +390,52 @@ fn toggle_flag(state: &Res<MapEditorState>, areas: &mut Query<&mut EditableArea>
         AreaFlag::FloodPlain => area.flood_plain = !area.flood_plain,
         AreaFlag::CityFlood => area.city_flood = !area.city_flood,
         AreaFlag::CitySite => area.city_site = !area.city_site,
+        AreaFlag::OpenSea => {
+            area.open_sea = !area.open_sea;
+            if !area.open_sea {
+                area.max_population = area.max_population.max(1);
+                return;
+            }
+            // Open sea holds nobody and has no land neighbours: drop its land
+            // links, at both ends, and everything that only makes sense on land.
+            area.max_population = 0;
+            area.city_site = false;
+            area.flood_plain = false;
+            area.city_flood = false;
+            area.volcano = false;
+            area.start_area = None;
+            let id = area.id;
+            area.land_connections.clear();
+            for mut other in areas.iter_mut() {
+                other.land_connections.retain(|&l| l != id);
+            }
+        }
     }
+}
+
+/// Removes the selected area and every link to it.
+fn delete_current_area(
+    commands: &mut Commands,
+    state: &mut MapEditorState,
+    areas: &mut Query<(Entity, &mut EditableArea)>,
+) {
+    let Some(entity) = state.current_area else {
+        return;
+    };
+    let Ok((_, area)) = areas.get(entity) else {
+        return;
+    };
+    let id = area.id;
+    for (_, mut other) in areas.iter_mut() {
+        other.land_connections.retain(|&l| l != id);
+        other.sea_connections.retain(|&l| l != id);
+    }
+    commands.entity(entity).despawn();
+    state.current_area = None;
+    state.pending_connection = None;
+    state.dragging = None;
+    state.dirty = true;
+    state.status = Some(format!("Deleted area {id}"));
 }
 
 #[allow(clippy::type_complexity)]
@@ -431,7 +506,8 @@ pub fn update_map_editor_ui(
                     .pending_connection
                     .map(|k| format!(" [picking {k:?} target...]"))
                     .unwrap_or_default();
-                format!("Area: {}{}", a.id, pending)
+                let kind = if a.open_sea { " (open sea)" } else { "" };
+                format!("Area: {}{kind}{pending}", a.id)
             }
             None => "Area: -".to_string(),
         };
@@ -463,6 +539,7 @@ pub fn update_map_editor_ui(
             AreaFlag::FloodPlain => a.flood_plain,
             AreaFlag::CityFlood => a.city_flood,
             AreaFlag::CitySite => a.city_site,
+            AreaFlag::OpenSea => a.open_sea,
         });
         palette.none = if active {
             Color::srgb(0.2, 0.55, 0.2)

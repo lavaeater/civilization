@@ -17,6 +17,9 @@ pub struct EditableArea {
     pub flood_plain: bool,
     pub city_flood: bool,
     pub volcano: bool,
+    /// Open sea (rule 23.52): no land, no population; ships need Astronomy
+    /// to cross it.
+    pub open_sea: bool,
 }
 
 /// Marks every entity the editor spawns (background sprite, UI panel) that
@@ -36,9 +39,11 @@ pub enum AreaFlag {
     FloodPlain,
     CityFlood,
     CitySite,
+    OpenSea,
 }
 
 #[derive(Resource, Default)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct MapEditorState {
     pub current_area: Option<Entity>,
     /// Set while waiting for the player to click a target area to connect to.
@@ -47,6 +52,11 @@ pub struct MapEditorState {
     pub status: Option<String>,
     /// Set by the Save button; consumed (and cleared) by `save_map_editor`.
     pub save_requested: bool,
+    /// Set by "+ New Area": the next click on the map drops a new area there.
+    pub placing_new_area: bool,
+    /// The area being dragged with the mouse, and whether it has moved yet.
+    pub dragging: Option<Entity>,
+    pub drag_moved: bool,
 }
 
 /// The 9 playable factions, in a fixed order, for the start-area cycle button.

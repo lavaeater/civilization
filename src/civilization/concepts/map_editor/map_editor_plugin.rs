@@ -22,6 +22,7 @@ impl Plugin for MapEditorPlugin {
                 (
                     spawn_map_editor_areas,
                     handle_map_editor_click,
+                    drag_map_editor_area.after(handle_map_editor_click),
                     handle_map_editor_camera_controls,
                     process_camera_focus,
                     draw_map_editor_gizmos,

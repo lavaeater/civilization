@@ -1,10 +1,12 @@
 use crate::civilization::components::GameCamera;
-use crate::civilization::concepts::map::{Area, CameraFocusQueue, Map};
+use crate::civilization::concepts::map::{Area, Map};
 use crate::civilization::concepts::map_editor::map_editor_components::*;
 use crate::loading::TextureAssets;
 use bevy::asset::AssetServer;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use crate::civilization::general_systems::one_way_links;
+use crate::civilization::concepts::map_editor::map_editor_ui_systems::MapEditorUiRoot;
 
 const CLICK_RADIUS: f32 = 30.0;
 const REMOVE_CLICK_RADIUS: f32 = 12.0;
@@ -87,6 +89,7 @@ pub fn spawn_map_editor_areas(
                     flood_plain: area.flood_plain,
                     city_flood: area.city_flood,
                     volcano: area.volcano,
+                    open_sea: area.open_sea,
                 },
             ))
             .id();
@@ -96,8 +99,24 @@ pub fn spawn_map_editor_areas(
     }
     state.current_area = first;
     state.dirty = false;
-    state.status = None;
+    let links: Vec<(i32, Vec<i32>, Vec<i32>)> = level
+        .areas
+        .iter()
+        .map(|a| (a.id, a.land_connections.clone(), a.sea_connections.clone()))
+        .collect();
+    let one_way = one_way_link_count(&links);
+    state.status = (one_way > 0).then(|| {
+        format!("{one_way} one-way links in the file (the game adds the missing ends). Save to write them both ways.")
+    });
 }
+
+/// Links that only one end lists, land and sea together.
+fn one_way_link_count(links: &[(i32, Vec<i32>, Vec<i32>)]) -> usize {
+    let land: Vec<(i32, Vec<i32>)> = links.iter().map(|(id, l, _)| (*id, l.clone())).collect();
+    let sea: Vec<(i32, Vec<i32>)> = links.iter().map(|(id, _, s)| (*id, s.clone())).collect();
+    one_way_links(&land).len() + one_way_links(&sea).len()
+}
+
 
 pub fn draw_map_editor_gizmos(
     mut gizmos: Gizmos,
@@ -111,6 +130,7 @@ pub fn draw_map_editor_gizmos(
 
     let land_color = Color::srgb(0.85, 0.55, 0.15);
     let sea_color = Color::srgb(0.2, 0.55, 0.95);
+    let open_sea_color = Color::srgb(0.1, 0.9, 0.9);
     let dim_alpha = 0.25;
 
     let current = state
@@ -121,6 +141,10 @@ pub fn draw_map_editor_gizmos(
     for (_, area, transform) in &areas {
         let from = transform.translation.truncate();
         let is_current = current.is_some_and(|(a, _)| a.id == area.id);
+        if area.open_sea {
+            gizmos.circle_2d(from, 24.0, open_sea_color);
+            gizmos.circle_2d(from, 28.0, open_sea_color);
+        }
         for &target_id in &area.land_connections {
             let Some(&to) = by_id.get(&target_id) else {
                 continue;
@@ -223,32 +247,89 @@ fn draw_remove_marker(gizmos: &mut Gizmos, at: Vec2) {
     gizmos.circle_2d(at, REMOVE_CLICK_RADIUS, color);
 }
 
-/// Left click handling, in priority order: remove a connection whose "x"
-/// marker was clicked, else complete a pending add-connection onto the
-/// clicked area, else just select the clicked area for navigation.
+/// Is the cursor over the editor's side panel? Clicks there belong to the
+/// panel's buttons, not to the map underneath.
+fn cursor_over_panel(
+    window: &Window,
+    panel: &Query<(&ComputedNode, &UiGlobalTransform), With<MapEditorUiRoot>>,
+) -> bool {
+    let Some(physical) = window.physical_cursor_position() else {
+        return false;
+    };
+    panel
+        .iter()
+        .any(|(node, transform)| node.contains_point(*transform, physical))
+}
+
+fn cursor_world_pos(
+    windows: &Query<&Window, With<PrimaryWindow>>,
+    camera_query: &Query<(&Camera, &GlobalTransform), With<GameCamera>>,
+) -> Option<Vec2> {
+    let window = windows.single().ok()?;
+    let cursor = window.cursor_position()?;
+    let (camera, camera_transform) = camera_query.single().ok()?;
+    camera.viewport_to_world_2d(camera_transform, cursor).ok()
+}
+
+/// Left click handling, in priority order: place a new area (after
+/// "+ New Area"), remove a connection whose "x" marker was clicked, complete
+/// a pending add-connection onto the clicked area, else select the clicked
+/// area and start dragging it.
+#[allow(clippy::too_many_arguments)]
 pub fn handle_map_editor_click(
+    mut commands: Commands,
     mouse_button: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
+    panel: Query<(&ComputedNode, &UiGlobalTransform), With<MapEditorUiRoot>>,
     mut areas: Query<(Entity, &mut EditableArea, &Transform)>,
     mut state: ResMut<MapEditorState>,
-    mut focus: ResMut<CameraFocusQueue>,
+    textures: Res<TextureAssets>,
 ) {
     if !mouse_button.just_pressed(MouseButton::Left) {
         return;
     }
-    let Ok(window) = windows.single() else { return };
-    let Some(cursor_pos) = window.cursor_position() else {
+    if windows.single().is_ok_and(|w| cursor_over_panel(w, &panel)) {
         return;
-    };
-    let Ok((camera, camera_transform)) = camera_query.single() else {
-        return;
-    };
-    let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) else {
+    }
+    let Some(world_pos) = cursor_world_pos(&windows, &camera_query) else {
         return;
     };
 
-    // 1) Removing a connection from the current area.
+    // 0) Dropping a new area.
+    if state.placing_new_area {
+        state.placing_new_area = false;
+        let id = areas.iter().map(|(_, a, _)| a.id).max().unwrap_or(0) + 1;
+        let entity = commands
+            .spawn((
+                Name::new(format!("MapEditorArea:{id}")),
+                Sprite {
+                    image: textures.dot.clone(),
+                    ..default()
+                },
+                Transform::from_xyz(world_pos.x, world_pos.y, 1.0),
+                EditableArea {
+                    id,
+                    max_population: 1,
+                    land_connections: Vec::new(),
+                    sea_connections: Vec::new(),
+                    start_area: None,
+                    city_site: false,
+                    flood_plain: false,
+                    city_flood: false,
+                    volcano: false,
+                    open_sea: false,
+                },
+            ))
+            .id();
+        state.current_area = Some(entity);
+        state.pending_connection = None;
+        state.dirty = true;
+        state.status = Some(format!("Added area {id}. Drag its dot to move it."));
+        return;
+    }
+
+    // 1) Removing a connection from the current area (and its other end).
     if let Some(current_entity) = state.current_area {
         let current_data = areas
             .get(current_entity)
@@ -268,15 +349,24 @@ pub fn handle_map_editor_click(
                     let Some(&to) = by_id.get(&target_id) else {
                         continue;
                     };
-                    if world_pos.distance(connection_midpoint(current_pos, to, kind)) <= REMOVE_CLICK_RADIUS {
-                        if let Ok((_, mut area, _)) = areas.get_mut(current_entity) {
-                            match kind {
-                                ConnectionKind::Land => area.land_connections.retain(|&id| id != target_id),
-                                ConnectionKind::Sea => area.sea_connections.retain(|&id| id != target_id),
-                            }
-                            state.dirty = true;
-                            state.status = Some(format!("Removed connection to area {target_id}"));
+                    if world_pos.distance(connection_midpoint(current_pos, to, kind))
+                        <= REMOVE_CLICK_RADIUS
+                    {
+                        for (_, mut area, _) in &mut areas {
+                            let other = if area.id == current_area.id {
+                                target_id
+                            } else if area.id == target_id {
+                                current_area.id
+                            } else {
+                                continue;
+                            };
+                            connections_mut(&mut area, kind).retain(|&id| id != other);
                         }
+                        state.dirty = true;
+                        state.status = Some(format!(
+                            "Removed {kind:?} connection: {} <-> {target_id}",
+                            current_area.id
+                        ));
                         return;
                     }
                 }
@@ -302,37 +392,25 @@ pub fn handle_map_editor_click(
         if clicked_entity == current_entity {
             return;
         }
-        let Ok((_, current_area, _)) = areas.get(current_entity) else {
+        let Ok([(_, mut current_area, _), (_, mut target_area, _)]) =
+            areas.get_many_mut([current_entity, clicked_entity])
+        else {
             return;
         };
-        let already_connected = match kind {
-            ConnectionKind::Land => current_area.land_connections.contains(&clicked_id),
-            ConnectionKind::Sea => current_area.sea_connections.contains(&clicked_id),
-        };
-        if let Ok((_, mut current_area, _)) = areas.get_mut(current_entity)
-            && !already_connected
-        {
-            match kind {
-                ConnectionKind::Land => current_area.land_connections.push(clicked_id),
-                ConnectionKind::Sea => current_area.sea_connections.push(clicked_id),
-            }
+        if kind == ConnectionKind::Land && (current_area.open_sea || target_area.open_sea) {
+            state.pending_connection = None;
+            state.status = Some("Open sea has no land connections; use + Sea.".to_string());
+            return;
         }
-        let current_id = areas
-            .get(current_entity)
-            .map(|(_, a, _)| a.id)
-            .unwrap_or_default();
-        // Connections are stored symmetrically in the map file -- mirror it
-        // on the target area too so both areas agree they're connected.
-        if let Ok((_, mut target_area, _)) = areas.get_mut(clicked_entity) {
-            let already = match kind {
-                ConnectionKind::Land => target_area.land_connections.contains(&current_id),
-                ConnectionKind::Sea => target_area.sea_connections.contains(&current_id),
-            };
-            if !already {
-                match kind {
-                    ConnectionKind::Land => target_area.land_connections.push(current_id),
-                    ConnectionKind::Sea => target_area.sea_connections.push(current_id),
-                }
+        let current_id = current_area.id;
+        // Connections are stored both ways in the map file -- add both ends.
+        for (area, other) in [
+            (&mut current_area, clicked_id),
+            (&mut target_area, current_id),
+        ] {
+            let list = connections_mut(area, kind);
+            if !list.contains(&other) {
+                list.push(other);
             }
         }
         state.pending_connection = None;
@@ -344,9 +422,54 @@ pub fn handle_map_editor_click(
     }
 
     state.current_area = Some(clicked_entity);
-    if let Ok((_, _, transform)) = areas.get(clicked_entity) {
-        focus.add_focus(transform.translation, 0.0, "Map editor: selected area");
+    state.dragging = Some(clicked_entity);
+    state.drag_moved = false;
+}
+
+fn connections_mut(area: &mut EditableArea, kind: ConnectionKind) -> &mut Vec<i32> {
+    match kind {
+        ConnectionKind::Land => &mut area.land_connections,
+        ConnectionKind::Sea => &mut area.sea_connections,
     }
+}
+
+/// While the mouse is held on an area, it follows the cursor. A press without
+/// movement is just a selection.
+pub fn drag_map_editor_area(
+    mouse_button: Res<ButtonInput<MouseButton>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
+    mut areas: Query<(&EditableArea, &mut Transform)>,
+    mut state: ResMut<MapEditorState>,
+) {
+    let Some(entity) = state.dragging else {
+        return;
+    };
+    if !mouse_button.pressed(MouseButton::Left) {
+        state.dragging = None;
+        if state.drag_moved
+            && let Ok((area, _)) = areas.get(entity)
+        {
+            state.status = Some(format!("Moved area {}", area.id));
+        }
+        state.drag_moved = false;
+        return;
+    }
+    let Some(world_pos) = cursor_world_pos(&windows, &camera_query) else {
+        return;
+    };
+    let Ok((_, mut transform)) = areas.get_mut(entity) else {
+        state.dragging = None;
+        return;
+    };
+    // A few pixels of slack, so a plain click doesn't nudge the area.
+    if !state.drag_moved && world_pos.distance(transform.translation.truncate()) < 4.0 {
+        return;
+    }
+    transform.translation.x = world_pos.x;
+    transform.translation.y = world_pos.y;
+    state.drag_moved = true;
+    state.dirty = true;
 }
 
 /// Writes the current editor state back to `Assets<Map>` (so re-entering the
@@ -377,6 +500,7 @@ pub fn save_map_editor(
             flood_plain: a.flood_plain,
             city_flood: a.city_flood,
             volcano: a.volcano,
+            open_sea: a.open_sea,
         })
         .collect();
     area_list.sort_by_key(|a| a.id);

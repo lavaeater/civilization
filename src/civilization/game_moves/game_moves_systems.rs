@@ -6,7 +6,7 @@ use crate::civilization::{
     RecalculatePlayerMoves, SeaPassage, TokenHasMoved, TokenStock,
 };
 use bevy::platform::collections::HashMap;
-use bevy::prelude::{Commands, Has, MessageReader, MessageWriter, Name, Query, info};
+use bevy::prelude::{Commands, Entity, Has, MessageReader, MessageWriter, Name, Query, info};
 
 pub fn recalculate_pop_exp_moves_for_player(
     mut recalc_player_reader: MessageReader<RecalculatePlayerMoves>,
@@ -158,9 +158,6 @@ pub fn recalculate_movement_moves_for_player(
             // Astronomy (rule 28.23): allows entering Open Sea areas.
             // Cloth Making (rule 28.18): extends sea range by 1 hop.
             for area in player_ships.all_areas_with_ships() {
-                let Ok(sea) = sea_connections_query.get(area) else {
-                    continue;
-                };
                 let ferry_tokens = areas_and_population
                     .get(&area)
                     .map_or(0, |tokens| {
@@ -170,11 +167,13 @@ pub fn recalculate_movement_moves_for_player(
                             .count()
                     })
                     .min(5);
-                for &target_area in &sea.to_areas {
-                    // Without Astronomy, skip Open Sea destinations
-                    if !has_astronomy && open_sea_query.get(target_area).unwrap_or(false) {
-                        continue;
-                    }
+                for target_area in ship_destinations(
+                    area,
+                    has_astronomy,
+                    has_cloth_making,
+                    &sea_connections_query,
+                    &open_sea_query,
+                ) {
                     command_index += 1;
                     moves.insert(
                         command_index,
@@ -185,29 +184,6 @@ pub fn recalculate_movement_moves_for_player(
                             ferry_tokens,
                         )),
                     );
-
-                    // Cloth Making: generate one additional hop through this target
-                    // (rule 28.18: +1 sea movement range, cannot use open sea without Astronomy)
-                    if has_cloth_making && let Ok(sea2) = sea_connections_query.get(target_area) {
-                        for &final_area in &sea2.to_areas {
-                            if final_area == area {
-                                continue;
-                            } // no backtrack
-                            if !has_astronomy && open_sea_query.get(final_area).unwrap_or(false) {
-                                continue;
-                            }
-                            command_index += 1;
-                            moves.insert(
-                                command_index,
-                                GameMove::ShipFerry(MovementMove::new(
-                                    area,
-                                    final_area,
-                                    event.player,
-                                    ferry_tokens,
-                                )),
-                            );
-                        }
-                    }
                 }
             }
         }
@@ -370,5 +346,98 @@ pub fn recalculate_city_support_moves_for_player(
                     .insert(AvailableMoves::new(moves));
             }
         }
+    }
+}
+
+/// Coastal areas a ship in `from` can reach this move.
+///
+/// - One sea hop along the coast.
+/// - Cloth Making (rule 28.18): one more coastal hop, no backtracking.
+/// - Open sea (rule 23.52) needs Astronomy. A ship never stops in it: entering
+///   an open sea means crossing it, so its destinations are the other coasts
+///   of that sea, in the same move.
+pub fn ship_destinations(
+    from: Entity,
+    has_astronomy: bool,
+    has_cloth_making: bool,
+    sea: &Query<&SeaPassage>,
+    open_sea: &Query<Has<OpenSea>>,
+) -> Vec<Entity> {
+    let is_open = |e: Entity| open_sea.get(e).unwrap_or(false);
+    // Coasts reachable by one hop: direct coastal links, plus (with
+    // Astronomy) every far shore of an adjacent open sea.
+    let one_hop = |at: Entity| -> Vec<Entity> {
+        let mut out = Vec::new();
+        let Ok(passage) = sea.get(at) else {
+            return out;
+        };
+        for &next in &passage.to_areas {
+            if !is_open(next) {
+                out.push(next);
+            } else if has_astronomy && let Ok(open) = sea.get(next) {
+                out.extend(open.to_areas.iter().copied().filter(|&c| !is_open(c)));
+            }
+        }
+        out
+    };
+
+    let mut destinations: Vec<Entity> = Vec::new();
+    let push = |e: Entity, list: &mut Vec<Entity>| {
+        if e != from && !list.contains(&e) {
+            list.push(e);
+        }
+    };
+    for first in one_hop(from) {
+        push(first, &mut destinations);
+        if has_cloth_making {
+            for second in one_hop(first) {
+                push(second, &mut destinations);
+            }
+        }
+    }
+    destinations
+}
+
+#[cfg(test)]
+mod open_sea_tests {
+    use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::prelude::World;
+
+    /// Coast A - coast B along the shore; A and C both border open sea S;
+    /// C - D along the shore.
+    fn world() -> (World, [Entity; 5]) {
+        let mut world = World::new();
+        let [a, b, c, d, s] = [(); 5].map(|()| world.spawn(SeaPassage::default()).id());
+        world.entity_mut(s).insert(OpenSea);
+        for (from, to) in [(a, b), (a, s), (c, s), (c, d)] {
+            world.get_mut::<SeaPassage>(from).unwrap().add_passage(to);
+            world.get_mut::<SeaPassage>(to).unwrap().add_passage(from);
+        }
+        (world, [a, b, c, d, s])
+    }
+
+    fn destinations(world: &mut World, from: Entity, astronomy: bool, cloth: bool) -> Vec<Entity> {
+        world
+            .run_system_once(
+                move |sea: Query<&SeaPassage>, open: Query<Has<OpenSea>>| {
+                    ship_destinations(from, astronomy, cloth, &sea, &open)
+                },
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn open_sea_needs_astronomy_and_is_crossed_in_one_move() {
+        let (mut world, [a, b, c, d, s]) = world();
+        // Without Astronomy: coast only.
+        assert_eq!(destinations(&mut world, a, false, false), vec![b]);
+        // With it: straight across to the far shore, never stopping in S.
+        let with = destinations(&mut world, a, true, false);
+        assert_eq!(with, vec![b, c]);
+        assert!(!with.contains(&s));
+        // Cloth Making adds one coastal hop after the crossing.
+        assert_eq!(destinations(&mut world, a, true, true), vec![b, c, d]);
+        assert_eq!(destinations(&mut world, a, false, true), vec![b]);
     }
 }
