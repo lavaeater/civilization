@@ -137,6 +137,16 @@ pub fn pick<R: Rng>(scored: &[(usize, f32)], picker: Picker, rng: &mut R) -> Opt
                 .iter()
                 .map(|(_, s)| *s)
                 .fold(f32::NEG_INFINITY, f32::max);
+            // Variety only among moves close to the best. Over the whole list,
+            // dozens of near-zero moves outweighed one good one (with 70
+            // movement options the best was drawn ~13% of the time), so the
+            // AI mostly played noise.
+            let near_best: Vec<(usize, f32)> = scored
+                .iter()
+                .copied()
+                .filter(|(_, s)| *s >= max - NEAR_BEST)
+                .collect();
+            let scored = &near_best[..];
             let weights: Vec<f64> = scored
                 .iter()
                 .map(|(_, s)| f64::from((*s - max) / t).exp())
@@ -156,6 +166,9 @@ pub fn pick<R: Rng>(scored: &[(usize, f32)], picker: Picker, rng: &mut R) -> Opt
         }
     }
 }
+
+/// A soft picker only draws among moves scoring within this of the best.
+pub const NEAR_BEST: f32 = 0.15;
 
 /// Convenience: score every move with `score_fn`, then pick per personality.
 pub fn score_and_pick<R, F>(
@@ -198,6 +211,19 @@ mod tests {
     }
 
     /// When some scores are finite and some aren't, the finite ones win.
+    #[test]
+    fn softmax_never_picks_a_clearly_worse_move() {
+        let mut rng = rand::rng();
+        // One good move among many near-zero ones.
+        let mut scored: Vec<(usize, f32)> = (0..70).map(|i| (i, 0.0)).collect();
+        scored.push((99, 0.7));
+        scored.push((98, 0.6));
+        for _ in 0..200 {
+            let picked = pick(&scored, Picker::Softmax { temperature: 0.35 }, &mut rng);
+            assert!(matches!(picked, Some(98 | 99)), "picked {picked:?}");
+        }
+    }
+
     #[test]
     fn pick_ignores_non_finite_scores_when_finite_exist() {
         let mut rng = rand::rng();

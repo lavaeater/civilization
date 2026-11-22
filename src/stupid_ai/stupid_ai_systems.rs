@@ -138,7 +138,13 @@ pub fn select_stupid_movement(
             } else {
                 0.0
             };
-            let plan = CityPlan::build(&available_moves.moves, &areas, threshold, drive);
+            let plan = CityPlan::build(
+                &available_moves.moves,
+                &areas,
+                threshold,
+                drive,
+                Some(player_cities.number_of_cities()),
+            );
 
             // Conqueror: how far ahead each rival is, to aim attacks at the leader.
             let conquest = personality.strategy.conquest();
@@ -179,8 +185,16 @@ pub fn select_stupid_movement(
                 })
                 .collect();
 
+            // Ending movement ends the whole turn's movement, not just this
+            // pick. A soft picker draws again for every token stack moved, so
+            // leaving `EndMovement` in the draw almost guaranteed an early
+            // stop: growth went unspread and was lost to surplus removal
+            // (~30 tokens a round in 9-player self-play). It's only a
+            // candidate when no real move beats it.
+            let candidates = without_premature_end(&scored, &available_moves.moves);
+
             let mut rng = rand::rng();
-            let Some(chosen) = pick(&scored, personality.picker, &mut rng) else {
+            let Some(chosen) = pick(&candidates, personality.picker, &mut rng) else {
                 continue;
             };
             let selected_move = &available_moves.moves[&chosen];
@@ -210,6 +224,40 @@ pub fn select_stupid_movement(
                     .take(3)
                     .map(|(i, s)| format!("{} = {s:.2}", describe(*i)))
                     .collect();
+                if matches!(selected_move, GameMove::EndMovement) {
+                    // Overfull areas left behind lose tokens to surplus removal:
+                    // what could still have moved out of them?
+                    for (area, a) in &areas {
+                        if a.my_pop <= a.max_population || plan.is_target(*area) {
+                            continue;
+                        }
+                        let outs: Vec<String> = scored
+                            .iter()
+                            .filter_map(|(i, sc)| match &available_moves.moves[i] {
+                                GameMove::Movement(m) | GameMove::ShipFerry(m)
+                                | GameMove::AttackArea(m)
+                                    if m.source == *area =>
+                                {
+                                    let room = areas.get(&m.target).map_or(-1, |t| {
+                                        t.max_population as i64 - (t.my_pop + t.enemy_pop) as i64
+                                    });
+                                    Some(format!("->{:?} x{} room {room} = {sc:.2}", m.target, m.max_tokens))
+                                }
+                                _ => None,
+                            })
+                            .collect();
+                        debug!(
+                            target: "ai_move",
+                            "{} OVERFULL {:?} {}/{} neighbours {} outs [{}]",
+                            player_name,
+                            area,
+                            a.my_pop,
+                            a.max_population,
+                            a.neighbours.len(),
+                            outs.join("; ")
+                        );
+                    }
+                }
                 debug!(
                     target: "ai_move",
                     "{} picks {} | plan drive={:.2} {:?} | {} moves, top: {}",
@@ -285,13 +333,15 @@ pub fn select_stupid_movement(
                                 event.player,
                             ));
                         } else {
-                            //A little complexity here: If possible, leave two, but also, always make a move
-                            send_movement_move(
-                                &mut move_tokens_writer,
-                                event,
-                                movement_move,
-                                false,
-                            );
+                            // Send 1-2 tokens, but no more than the target can
+                            // hold: the rest would only be removed as surplus.
+                            let wanted = if movement_move.max_tokens <= 2 { 1 } else { 2 };
+                            move_tokens_writer.write(MoveTokenFromAreaToAreaCommand::new(
+                                movement_move.source,
+                                movement_move.target,
+                                fit_to_room(wanted, movement_move.target, &areas),
+                                event.player,
+                            ));
                         }
                     }
                     GameMove::ShipFerry(ferry_move) => {
@@ -300,10 +350,9 @@ pub fn select_stupid_movement(
                         // exactly what's missing.
                         let n = plan
                             .tokens_to_send(ferry_move.target, ferry_move.max_tokens)
-                            .unwrap_or(if ferry_move.max_tokens > 1 {
-                                ferry_move.max_tokens - 1
-                            } else {
-                                1
+                            .unwrap_or_else(|| {
+                                let wanted = ferry_move.max_tokens.saturating_sub(1).max(1);
+                                fit_to_room(wanted, ferry_move.target, &areas)
                             });
                         ship_ferry_writer.write(ShipFerryCommand::new(
                             ferry_move.source,
@@ -379,7 +428,13 @@ pub fn select_stupid_city_building(
                 .map(|(i, m)| {
                     (
                         *i,
-                        score_city_construction(m, &areas, &personality.weights, urgency),
+                        score_city_construction(
+                            m,
+                            &areas,
+                            &personality.weights,
+                            urgency,
+                            player_cities.number_of_cities(),
+                        ),
                     )
                 })
                 .collect();
@@ -939,6 +994,40 @@ fn gather_area_summaries(
     areas
 }
 
+/// Drops `EndMovement` from the scored moves if any other move scores higher.
+fn without_premature_end(
+    scored: &[(usize, f32)],
+    moves: &HashMap<usize, GameMove>,
+) -> Vec<(usize, f32)> {
+    let is_end = |i: &usize| matches!(moves.get(i), Some(GameMove::EndMovement));
+    let end_score = scored
+        .iter()
+        .find(|(i, _)| is_end(i))
+        .map(|(_, s)| *s);
+    let Some(end_score) = end_score else {
+        return scored.to_vec();
+    };
+    let beaten = scored
+        .iter()
+        .any(|(i, s)| !is_end(i) && s.is_finite() && *s > end_score);
+    scored
+        .iter()
+        .copied()
+        .filter(|(i, _)| !(beaten && is_end(i)))
+        .collect()
+}
+
+/// How many of `wanted` tokens to move into `target` on an ordinary
+/// (unplanned) move: never more than the free room there, since anything over
+/// the area's limit is removed as surplus at the end of the turn. Always at
+/// least 1, so a chosen move is never a no-op.
+fn fit_to_room(wanted: usize, target: Entity, areas: &HashMap<Entity, AreaSummary>) -> usize {
+    let room = areas
+        .get(&target)
+        .map_or(wanted, |a| a.max_population.saturating_sub(a.my_pop + a.enemy_pop));
+    wanted.min(room).max(1)
+}
+
 fn send_movement_move(
     move_tokens_writer: &mut MessageWriter<MoveTokenFromAreaToAreaCommand>,
     event: &SelectStupidMove,
@@ -974,6 +1063,22 @@ fn send_movement_move(
                 ));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod end_movement_tests {
+    use super::*;
+
+    #[test]
+    fn end_movement_only_competes_when_nothing_beats_it() {
+        let moves = HashMap::from_iter([
+            (1, GameMove::EndMovement),
+            (2, GameMove::EndCityConstruction), // any non-End stand-in
+        ]);
+        let ids = |v: Vec<(usize, f32)>| v.into_iter().map(|(i, _)| i).collect::<Vec<_>>();
+        assert_eq!(ids(without_premature_end(&[(1, 0.15), (2, 0.6)], &moves)), vec![2]);
+        assert_eq!(ids(without_premature_end(&[(1, 0.15), (2, 0.1)], &moves)), vec![1, 2]);
     }
 }
 

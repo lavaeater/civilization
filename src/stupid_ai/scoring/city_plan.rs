@@ -40,11 +40,20 @@ impl CityPlan {
     /// They are claimed closest-to-done first, and each source's supply is spent
     /// on at most one target, so two half-filled sites don't split the tokens
     /// and both fail.
+    ///
+    /// `existing_cities` (None = skip this check) adds city support (rule 32):
+    /// building uses up every token on the site, and each city needs 2 tokens
+    /// left on the board. A site is only planned while the player's whole
+    /// board population covers every planned stack plus 2 per city, the new
+    /// ones included. Below that, piling tokens onto a site just loses them
+    /// (to surplus removal, or to the city being reduced again), so the player
+    /// should grow first.
     pub fn build(
         moves: &HashMap<usize, GameMove>,
         areas: &HashMap<Entity, AreaSummary>,
         threshold: usize,
         drive: f32,
+        existing_cities: Option<usize>,
     ) -> Self {
         let mut plan = CityPlan {
             threshold,
@@ -84,6 +93,14 @@ impl CityPlan {
             *s = (*s).max(available);
         }
 
+        let board_pop: usize = areas.values().map(|a| a.my_pop).sum();
+        // Can the board support `planned` new cities (each a full stack)?
+        let supportable = |planned: usize| {
+            existing_cities.is_none_or(|cities| {
+                board_pop >= planned * threshold + 2 * (cities + planned)
+            })
+        };
+
         let mut candidates: Vec<(Entity, usize, usize)> = feeders
             .keys()
             .filter_map(|t| {
@@ -99,6 +116,9 @@ impl CityPlan {
         candidates.sort_by_key(|(t, needed, cap)| (*needed, std::cmp::Reverse(*cap), *t));
 
         for (target, needed, _) in candidates {
+            if !supportable(plan.complete.len() + plan.targets.len() + 1) {
+                break;
+            }
             // Tokens sitting on another planned target are already committed.
             let mut sources: Vec<(Entity, usize)> = feeders[&target]
                 .iter()
@@ -184,12 +204,28 @@ mod tests {
         GameMove::Movement(MovementMove::new(src, tgt, e(1), n))
     }
 
+    /// 7 tokens can't fill a 6-stack *and* leave 2 to support the city; 8 can.
+    #[test]
+    fn no_plan_until_the_board_can_support_the_city() {
+        let (s, a, b) = (e(10), e(20), e(30));
+        let moves = HashMap::from_iter([(1, mv(a, s, 2)), (2, mv(b, s, 2))]);
+        let areas = HashMap::from_iter([(s, site(3)), (a, plain(2)), (b, plain(2))]);
+        assert!(!CityPlan::build(&moves, &areas, 6, 1.0, Some(0)).has_targets());
+        let areas = HashMap::from_iter([(s, site(3)), (a, plain(2)), (b, plain(3))]);
+        assert_eq!(
+            CityPlan::build(&moves, &areas, 6, 1.0, Some(0)).needed_at(s),
+            Some(3)
+        );
+        // A second city needs 2 more tokens on top.
+        assert!(!CityPlan::build(&moves, &areas, 6, 1.0, Some(1)).has_targets());
+    }
+
     #[test]
     fn reachable_site_becomes_a_target() {
         let (s, a, b) = (e(10), e(20), e(30));
         let areas = HashMap::from_iter([(s, site(3)), (a, plain(2)), (b, plain(2))]);
         let moves = HashMap::from_iter([(1, mv(a, s, 2)), (2, mv(b, s, 2))]);
-        let plan = CityPlan::build(&moves, &areas, 6, 1.0);
+        let plan = CityPlan::build(&moves, &areas, 6, 1.0, None);
         assert_eq!(plan.needed_at(s), Some(3));
     }
 
@@ -198,7 +234,7 @@ mod tests {
         let (s, a) = (e(10), e(20));
         let areas = HashMap::from_iter([(s, site(2)), (a, plain(3))]);
         let moves = HashMap::from_iter([(1, mv(a, s, 3))]);
-        let plan = CityPlan::build(&moves, &areas, 6, 1.0);
+        let plan = CityPlan::build(&moves, &areas, 6, 1.0, None);
         assert!(!plan.has_targets());
     }
 
@@ -207,7 +243,7 @@ mod tests {
         let (s, a) = (e(10), e(20));
         let areas = HashMap::from_iter([(s, site(2)), (a, plain(3))]);
         let moves = HashMap::from_iter([(1, mv(a, s, 3))]);
-        let plan = CityPlan::build(&moves, &areas, 5, 1.0);
+        let plan = CityPlan::build(&moves, &areas, 5, 1.0, None);
         assert_eq!(plan.needed_at(s), Some(3));
     }
 
@@ -220,7 +256,7 @@ mod tests {
         built.has_city = true;
         let areas = HashMap::from_iter([(s1, contested), (s2, built), (a, plain(3))]);
         let moves = HashMap::from_iter([(1, mv(a, s1, 3)), (2, mv(a, s2, 3))]);
-        assert!(!CityPlan::build(&moves, &areas, 6, 1.0).has_targets());
+        assert!(!CityPlan::build(&moves, &areas, 6, 1.0, None).has_targets());
     }
 
     /// One 3-token source next to two sites at 3 each: only one can be fed, and
@@ -230,7 +266,7 @@ mod tests {
         let (s1, s2, a) = (e(10), e(11), e(20));
         let areas = HashMap::from_iter([(s1, site(3)), (s2, site(3)), (a, plain(3))]);
         let moves = HashMap::from_iter([(1, mv(a, s1, 3)), (2, mv(a, s2, 3))]);
-        let plan = CityPlan::build(&moves, &areas, 6, 1.0);
+        let plan = CityPlan::build(&moves, &areas, 6, 1.0, None);
         assert_eq!(
             [s1, s2].iter().filter(|t| plan.is_target(**t)).count(),
             1,
@@ -245,12 +281,12 @@ mod tests {
         let (done, other) = (e(10), e(11));
         let areas = HashMap::from_iter([(done, site(6)), (other, site(5))]);
         let moves = HashMap::from_iter([(1, mv(done, other, 6)), (2, mv(other, done, 5))]);
-        let plan = CityPlan::build(&moves, &areas, 6, 1.0);
+        let plan = CityPlan::build(&moves, &areas, 6, 1.0, None);
         assert_eq!(plan.spare_at(done), Some(0));
         assert!(!plan.is_target(other), "other may only be fed with spare tokens");
         // With one spare token, it can.
         let areas = HashMap::from_iter([(done, site(7)), (other, site(5))]);
-        let plan = CityPlan::build(&moves, &areas, 6, 1.0);
+        let plan = CityPlan::build(&moves, &areas, 6, 1.0, None);
         assert_eq!(plan.spare_at(done), Some(1));
         assert_eq!(plan.needed_at(other), Some(1));
     }
@@ -260,7 +296,7 @@ mod tests {
         let (s, a) = (e(10), e(20));
         let areas = HashMap::from_iter([(s, site(5)), (a, plain(3))]);
         let moves = HashMap::from_iter([(1, mv(a, s, 3))]);
-        assert!(!CityPlan::build(&moves, &areas, 6, 0.0).has_targets());
+        assert!(!CityPlan::build(&moves, &areas, 6, 0.0, None).has_targets());
     }
 
     #[test]
@@ -268,7 +304,7 @@ mod tests {
         let (s, a) = (e(10), e(20));
         let areas = HashMap::from_iter([(s, site(5)), (a, plain(3))]);
         let moves = HashMap::from_iter([(1, mv(a, s, 3))]);
-        let plan = CityPlan::build(&moves, &areas, 6, 1.0);
+        let plan = CityPlan::build(&moves, &areas, 6, 1.0, None);
         assert_eq!(plan.tokens_to_send(s, 3), Some(1));
         assert_eq!(plan.tokens_to_send(e(99), 3), None);
     }

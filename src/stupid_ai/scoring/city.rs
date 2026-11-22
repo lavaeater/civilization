@@ -13,11 +13,17 @@ use bevy::prelude::Entity;
 /// playstyle is allowed to sit at zero cities forever just because `city_income`
 /// is a low-priority knob for it — see the M6 tuning note in
 /// `docs/utility-ai-design.md`.
+///
+/// `my_cities` is how many cities the player has now. A city the player
+/// couldn't support is never built: it would only be lost again at the next
+/// city-support check, taking a city or tokens with it (Egypt used to build
+/// and lose the same city every round).
 pub fn score_city_construction(
     mv: &GameMove,
     areas: &HashMap<Entity, AreaSummary>,
     w: &Weights,
     urgency: f32,
+    my_cities: usize,
 ) -> f32 {
     let effective_city_income = w.city_income.max(urgency);
     match mv {
@@ -25,6 +31,9 @@ pub fn score_city_construction(
             let Some(tgt) = areas.get(&m.target) else {
                 return 0.0;
             };
+            if !can_support_one_more_city(areas, m.target, my_cities) {
+                return f32::NEG_INFINITY;
+            }
             let capacity = saturating(tgt.max_population as f32, 4.0);
             let mut score = effective_city_income * (0.6 + 0.4 * capacity);
             // A defensible site (little enemy pressure) is worth more; an exposed
@@ -42,6 +51,22 @@ pub fn score_city_construction(
         }
         _ => f32::NEG_INFINITY,
     }
+}
+
+/// Rule 32 (city support): each city needs 2 of its owner's tokens on the
+/// board. Building in `target` uses up every token there, so what's left
+/// elsewhere has to cover all cities, the new one included.
+pub fn can_support_one_more_city(
+    areas: &HashMap<Entity, AreaSummary>,
+    target: Entity,
+    my_cities: usize,
+) -> bool {
+    let left_on_board: usize = areas
+        .iter()
+        .filter(|(e, _)| **e != target)
+        .map(|(_, a)| a.my_pop)
+        .sum();
+    left_on_board >= 2 * (my_cities + 1)
 }
 
 /// Score a forced city-elimination choice. The game makes us give up a city; a
@@ -75,6 +100,8 @@ mod tests {
         Entity::from_raw_u32(i).unwrap()
     }
 
+    /// The build site, plus a second area holding enough tokens to support
+    /// the new city.
     fn one_area_world(max_population: usize) -> (Entity, HashMap<Entity, AreaSummary>) {
         let target = e(10);
         let mut areas = HashMap::default();
@@ -86,7 +113,32 @@ mod tests {
                 ..Default::default()
             },
         );
+        areas.insert(
+            e(99),
+            AreaSummary {
+                max_population: 2,
+                my_pop: 2,
+                ..Default::default()
+            },
+        );
         (target, areas)
+    }
+
+    #[test]
+    fn never_builds_a_city_it_cannot_support() {
+        let (target, mut areas) = one_area_world(4);
+        let w = Personality::from_playstyle(Playstyle::Balanced).weights;
+        let build = GameMove::CityConstruction(BuildCityMove::new(target, e(1)));
+        // 2 tokens elsewhere support a first city...
+        assert!(score_city_construction(&build, &areas, &w, 1.0, 0).is_finite());
+        // ...but not a second one, however urgent.
+        assert_eq!(
+            score_city_construction(&build, &areas, &w, 1.0, 1),
+            f32::NEG_INFINITY
+        );
+        // With 4 tokens left on the board, the second city is fine.
+        areas.get_mut(&e(99)).unwrap().my_pop = 4;
+        assert!(score_city_construction(&build, &areas, &w, 1.0, 1).is_finite());
     }
 
     #[test]
@@ -96,8 +148,8 @@ mod tests {
         let build = GameMove::CityConstruction(BuildCityMove::new(target, e(1)));
         let end = GameMove::EndCityConstruction;
 
-        let build_score = score_city_construction(&build, &areas, &w, 0.0);
-        let end_score = score_city_construction(&end, &areas, &w, 0.0);
+        let build_score = score_city_construction(&build, &areas, &w, 0.0, 0);
+        let end_score = score_city_construction(&end, &areas, &w, 0.0, 0);
         assert!(
             build_score > end_score,
             "build {build_score} vs end {end_score}"
@@ -117,8 +169,8 @@ mod tests {
 
         // Without urgency a Warlord may still prefer building here, but the
         // margin is thin; with urgency it must not lose.
-        let build_score = score_city_construction(&build, &areas, &w, 1.0);
-        let end_score = score_city_construction(&end, &areas, &w, 1.0);
+        let build_score = score_city_construction(&build, &areas, &w, 1.0, 0);
+        let end_score = score_city_construction(&end, &areas, &w, 1.0, 0);
         assert!(
             build_score > end_score,
             "urgent build {build_score} vs end {end_score}"
@@ -158,12 +210,20 @@ mod tests {
                 ..Default::default()
             },
         );
+        areas.insert(
+            e(99),
+            AreaSummary {
+                max_population: 2,
+                my_pop: 2,
+                ..Default::default()
+            },
+        );
         let w = Personality::from_playstyle(Playstyle::Turtle).weights;
         let good = GameMove::CityConstruction(BuildCityMove::new(good_target, e(1)));
         let bad = GameMove::CityConstruction(BuildCityMove::new(bad_target, e(1)));
 
-        let good_score = score_city_construction(&good, &areas, &w, 1.0);
-        let bad_score = score_city_construction(&bad, &areas, &w, 1.0);
+        let good_score = score_city_construction(&good, &areas, &w, 1.0, 0);
+        let bad_score = score_city_construction(&bad, &areas, &w, 1.0, 0);
         assert!(
             good_score > bad_score,
             "good site {good_score} vs bad site {bad_score}"

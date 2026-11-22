@@ -535,7 +535,7 @@ mod tests {
 
         for playstyle in Playstyle::ALL {
             let w = Personality::from_playstyle(playstyle).weights;
-            let plan = CityPlan::build(&moves, &areas, 6, w.city_income.max(1.0));
+            let plan = CityPlan::build(&moves, &areas, 6, w.city_income.max(1.0), None);
             assert_eq!(plan.needed_at(site), Some(3), "{playstyle:?}");
             let feed_s = score_movement(&feed, player, &areas, &w, &plan, &Rivals::default());
             let grab_s = score_movement(&grab, player, &areas, &w, &plan, &Rivals::default());

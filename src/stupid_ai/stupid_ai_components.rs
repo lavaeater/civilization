@@ -21,8 +21,15 @@ pub struct AiMoveQueue {
 }
 
 impl AiMoveQueue {
+    /// Queue `player` to pick a move. A player already waiting stays queued
+    /// once: their move list can be rebuilt twice in one frame, and two
+    /// queued picks then both acted on the same list -- e.g. sending the same
+    /// 2 tokens' worth into an area twice, overfilling it (about 7% of AI
+    /// movement picks were such duplicates).
     pub fn push(&mut self, player: Entity, delay: f32) {
-        self.pending.push((player, delay));
+        if !self.pending.iter().any(|(p, _)| *p == player) {
+            self.pending.push((player, delay));
+        }
     }
 }
 
@@ -42,4 +49,18 @@ impl MovementLoopGuard {
     /// Force the player to end movement past this many — a real phase never needs
     /// anywhere near this many selections (≤ token count + a few ferry hops).
     pub const FORCE_END_AT: u32 = 120;
+}
+
+#[cfg(test)]
+mod queue_tests {
+    use super::*;
+
+    #[test]
+    fn a_player_is_queued_once() {
+        let mut q = AiMoveQueue::default();
+        let p = Entity::from_raw_u32(7).unwrap();
+        q.push(p, 0.0);
+        q.push(p, 0.0);
+        assert_eq!(q.pending.len(), 1);
+    }
 }
