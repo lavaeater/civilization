@@ -4,7 +4,7 @@ use crate::civilization::functions::return_token_to_stock;
 use bevy::prelude::{Add, Commands, Entity, On, Query, Sprite, Transform, Visibility, warn};
 
 pub fn on_add_return_token_to_stock(
-    trigger: On<Add, ReturnTokenToStock>,
+    trigger: On<Add<ReturnTokenToStock>>,
     token_query: Query<&Token>,
     mut player_query: Query<(&mut TokenStock, &mut PlayerAreas)>,
     mut commands: Commands,
@@ -41,7 +41,7 @@ pub fn on_add_return_token_to_stock(
 /// were placed underneath it and the whole calamity read, to the player, as
 /// having done nothing at all.
 pub fn on_add_return_city_to_stock(
-    trigger: On<Add, ReturnCityToStock>,
+    trigger: On<Add<ReturnCityToStock>>,
     city_token_query: Query<&CityToken>,
     mut owner_query: Query<(&mut CityTokenStock, &mut PlayerCities)>,
     mut commands: Commands,

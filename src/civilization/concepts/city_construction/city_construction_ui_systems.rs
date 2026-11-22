@@ -9,6 +9,7 @@ use crate::civilization::concepts::map::camera_focus::{
     CameraFocusQueue, focus_camera_on_selection,
 };
 use crate::civilization::game_moves::{AvailableMoves, GameMove};
+use crate::civilization::ui::{ButtonActivated, game_button};
 use crate::stupid_ai::IsHuman;
 use bevy::prelude::*;
 
@@ -61,19 +62,13 @@ pub fn draw_city_construction_highlight(
 
 /// System to handle city construction button interactions
 pub fn handle_city_construction_button_clicks(
-    interaction_query: Query<
-        (&Interaction, &CityConstructionButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&CityConstructionButtonAction>,
     mut selection_state: ResMut<CityConstructionSelectionState>,
     mut build_city_writer: MessageWriter<BuildCityCommand>,
     mut end_construction_writer: MessageWriter<EndPlayerCityConstruction>,
 ) {
-    for (interaction, action) in interaction_query.iter() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-
+    for action in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
         match action {
             CityConstructionButtonAction::BuildCity => {
                 if let (Some(player), Some(site)) =
@@ -158,7 +153,7 @@ pub fn spawn_city_construction_controls_ui(
                     .with_children(|row| {
                         // Prev site button
                         row.spawn((
-                            Button,
+                            game_button(),
                             CityConstructionButtonAction::PrevSite,
                             Node {
                                 width: Val::Px(36.0),
@@ -197,7 +192,7 @@ pub fn spawn_city_construction_controls_ui(
 
                         // Next site button
                         row.spawn((
-                            Button,
+                            game_button(),
                             CityConstructionButtonAction::NextSite,
                             Node {
                                 width: Val::Px(36.0),
@@ -229,7 +224,7 @@ pub fn spawn_city_construction_controls_ui(
                     .with_children(|row| {
                         // Build button
                         row.spawn((
-                            Button,
+                            game_button(),
                             CityConstructionButtonAction::BuildCity,
                             Node {
                                 width: Val::Px(100.0),
@@ -252,7 +247,7 @@ pub fn spawn_city_construction_controls_ui(
 
                         // Skip / End Construction button
                         row.spawn((
-                            Button,
+                            game_button(),
                             CityConstructionButtonAction::SkipCity,
                             Node {
                                 width: Val::Px(100.0),

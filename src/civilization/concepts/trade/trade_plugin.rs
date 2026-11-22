@@ -25,7 +25,6 @@ impl Plugin for TradePlugin {
             .add_systems(
                 Update,
                 (
-                    button_action,
                     trigger_trade_moves,
                     remove_rejected_trades,
                     delay_trade_moves_if_offers_are_accepted,
@@ -82,7 +81,6 @@ impl Plugin for TradePlugin {
                 )
                     .run_if(in_state(GameActivity::Trade)),
             )
-            .add_systems(Update, button_action)
             .add_observer(offer_published)
             .add_observer(can_trade_removed);
     }

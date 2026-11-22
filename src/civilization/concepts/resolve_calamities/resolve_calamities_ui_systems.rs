@@ -1,3 +1,4 @@
+use crate::civilization::ui::{ButtonActivated, game_button};
 use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
 use lava_ui_builder::{InteractionPalette, LavaTheme, TextStyle, UIBuilder};
@@ -78,7 +79,7 @@ pub fn spawn_calamity_selection_ui(
                 .with_children(|row| {
                     // Prev button
                     row.spawn((
-                        Button,
+                        game_button(),
                         CalamitySelectionButtonAction::PrevCity,
                         Node {
                             width: Val::Px(32.0),
@@ -117,7 +118,7 @@ pub fn spawn_calamity_selection_ui(
 
                     // Next button
                     row.spawn((
-                        Button,
+                        game_button(),
                         CalamitySelectionButtonAction::NextCity,
                         Node {
                             width: Val::Px(32.0),
@@ -150,7 +151,7 @@ pub fn spawn_calamity_selection_ui(
                 .with_children(|row| {
                     // Toggle select/deselect button
                     row.spawn((
-                        Button,
+                        game_button(),
                         CalamitySelectionButtonAction::ToggleCity,
                         CalamitySelectionToggleButton,
                         Node {
@@ -188,7 +189,7 @@ pub fn spawn_calamity_selection_ui(
             // Confirm button (greyed out until selection complete)
             parent
                 .spawn((
-                    Button,
+                    game_button(),
                     CalamitySelectionButtonAction::Confirm,
                     CalamitySelectionConfirmButton,
                     Node {
@@ -342,19 +343,13 @@ pub fn update_calamity_selection_ui(
 
 /// Handle button clicks in the calamity selection UI.
 pub fn handle_calamity_selection_buttons(
-    interaction_query: Query<
-        (&Interaction, &CalamitySelectionButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&CalamitySelectionButtonAction>,
     mut calamity_selection: ResMut<CalamitySelectionState>,
     mut commands: Commands,
     human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
 ) {
-    for (interaction, action) in interaction_query.iter() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-
+    for action in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
         match action {
             CalamitySelectionButtonAction::PrevCity => {
                 calamity_selection.prev();
@@ -524,7 +519,7 @@ pub fn spawn_civil_war_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        game_button(),
                         CivilWarButtonAction::TokensTab,
                         Node {
                             width: Val::Px(90.0),
@@ -545,7 +540,7 @@ pub fn spawn_civil_war_selection_ui(
                         TextColor(Color::WHITE),
                     ));
                     row.spawn((
-                        Button,
+                        game_button(),
                         CivilWarButtonAction::CitiesTab,
                         Node {
                             width: Val::Px(90.0),
@@ -577,7 +572,7 @@ pub fn spawn_civil_war_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        game_button(),
                         CivilWarButtonAction::DecrementTokens,
                         Node {
                             width: Val::Px(32.0),
@@ -617,7 +612,7 @@ pub fn spawn_civil_war_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         CivilWarButtonAction::IncrementTokens,
                         Node {
                             width: Val::Px(32.0),
@@ -650,7 +645,7 @@ pub fn spawn_civil_war_selection_ui(
                     })
                     .with_children(|row| {
                         row.spawn((
-                            Button,
+                            game_button(),
                             CivilWarButtonAction::PrevCity,
                             Node {
                                 width: Val::Px(28.0),
@@ -687,7 +682,7 @@ pub fn spawn_civil_war_selection_ui(
                         ));
 
                         row.spawn((
-                            Button,
+                            game_button(),
                             CivilWarButtonAction::NextCity,
                             Node {
                                 width: Val::Px(28.0),
@@ -709,7 +704,7 @@ pub fn spawn_civil_war_selection_ui(
                         ));
 
                         row.spawn((
-                            Button,
+                            game_button(),
                             CivilWarButtonAction::ToggleCity,
                             CivilWarToggleCityButton,
                             Node {
@@ -736,7 +731,7 @@ pub fn spawn_civil_war_selection_ui(
             // Confirm button
             parent
                 .spawn((
-                    Button,
+                    game_button(),
                     CivilWarButtonAction::Confirm,
                     CivilWarConfirmButton,
                     Node {
@@ -813,7 +808,7 @@ fn spawn_civil_war_faction_choice_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        game_button(),
                         CivilWarButtonAction::KeepFirstFaction,
                         CivilWarKeepFirstButton,
                         Node {
@@ -839,7 +834,7 @@ fn spawn_civil_war_faction_choice_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         CivilWarButtonAction::KeepSecondFaction,
                         CivilWarKeepSecondButton,
                         Node {
@@ -989,18 +984,13 @@ pub fn update_civil_war_selection_ui(
 
 /// Handle Civil War UI button presses.
 pub fn handle_civil_war_selection_buttons(
-    interaction_query: Query<
-        (&Interaction, &CivilWarButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&CivilWarButtonAction>,
     mut cw_selection: ResMut<CivilWarSelectionState>,
     mut commands: Commands,
     human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
 ) {
-    for (interaction, action) in interaction_query.iter() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    for action in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
         match action {
             CivilWarButtonAction::TokensTab => {
                 cw_selection.showing_cities = false;
@@ -1374,7 +1364,7 @@ pub fn spawn_flood_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        game_button(),
                         FloodButtonAction::PrevVictim,
                         Node {
                             width: Val::Px(28.0),
@@ -1411,7 +1401,7 @@ pub fn spawn_flood_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         FloodButtonAction::NextVictim,
                         Node {
                             width: Val::Px(28.0),
@@ -1433,7 +1423,7 @@ pub fn spawn_flood_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         FloodButtonAction::Decrement,
                         Node {
                             width: Val::Px(32.0),
@@ -1455,7 +1445,7 @@ pub fn spawn_flood_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         FloodButtonAction::Increment,
                         Node {
                             width: Val::Px(32.0),
@@ -1479,7 +1469,7 @@ pub fn spawn_flood_selection_ui(
 
             parent
                 .spawn((
-                    Button,
+                    game_button(),
                     FloodButtonAction::Confirm,
                     FloodConfirmButton,
                     Node {
@@ -1549,18 +1539,13 @@ pub fn update_flood_selection_ui(
 
 /// Handle Flood allocation UI button presses.
 pub fn handle_flood_selection_buttons(
-    interaction_query: Query<
-        (&Interaction, &FloodButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&FloodButtonAction>,
     mut flood_selection: ResMut<FloodSelectionState>,
     mut commands: Commands,
     human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
 ) {
-    for (interaction, action) in interaction_query.iter() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    for action in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
         match action {
             FloodButtonAction::PrevVictim => {
                 flood_selection.prev_victim();
@@ -1684,7 +1669,7 @@ pub fn spawn_famine_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        game_button(),
                         FamineButtonAction::PrevVictim,
                         Node {
                             width: Val::Px(28.0),
@@ -1721,7 +1706,7 @@ pub fn spawn_famine_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         FamineButtonAction::NextVictim,
                         Node {
                             width: Val::Px(28.0),
@@ -1743,7 +1728,7 @@ pub fn spawn_famine_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         FamineButtonAction::Decrement,
                         Node {
                             width: Val::Px(32.0),
@@ -1765,7 +1750,7 @@ pub fn spawn_famine_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         FamineButtonAction::Increment,
                         Node {
                             width: Val::Px(32.0),
@@ -1789,7 +1774,7 @@ pub fn spawn_famine_selection_ui(
 
             parent
                 .spawn((
-                    Button,
+                    game_button(),
                     FamineButtonAction::Confirm,
                     FamineConfirmButton,
                     Node {
@@ -1859,18 +1844,13 @@ pub fn update_famine_selection_ui(
 
 /// Handle Famine allocation UI button presses.
 pub fn handle_famine_selection_buttons(
-    interaction_query: Query<
-        (&Interaction, &FamineButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&FamineButtonAction>,
     mut famine_selection: ResMut<FamineSelectionState>,
     mut commands: Commands,
     human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
 ) {
-    for (interaction, action) in interaction_query.iter() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    for action in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
         match action {
             FamineButtonAction::PrevVictim => {
                 famine_selection.prev_victim();
@@ -1994,7 +1974,7 @@ pub fn spawn_epidemic_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        game_button(),
                         EpidemicButtonAction::PrevVictim,
                         Node {
                             width: Val::Px(28.0),
@@ -2031,7 +2011,7 @@ pub fn spawn_epidemic_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         EpidemicButtonAction::NextVictim,
                         Node {
                             width: Val::Px(28.0),
@@ -2053,7 +2033,7 @@ pub fn spawn_epidemic_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         EpidemicButtonAction::Decrement,
                         Node {
                             width: Val::Px(32.0),
@@ -2075,7 +2055,7 @@ pub fn spawn_epidemic_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         EpidemicButtonAction::Increment,
                         Node {
                             width: Val::Px(32.0),
@@ -2099,7 +2079,7 @@ pub fn spawn_epidemic_selection_ui(
 
             parent
                 .spawn((
-                    Button,
+                    game_button(),
                     EpidemicButtonAction::Confirm,
                     EpidemicConfirmButton,
                     Node {
@@ -2169,18 +2149,13 @@ pub fn update_epidemic_selection_ui(
 
 /// Handle Epidemic allocation UI button presses.
 pub fn handle_epidemic_selection_buttons(
-    interaction_query: Query<
-        (&Interaction, &EpidemicButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&EpidemicButtonAction>,
     mut epidemic_selection: ResMut<EpidemicSelectionState>,
     mut commands: Commands,
     human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
 ) {
-    for (interaction, action) in interaction_query.iter() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    for action in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
         match action {
             EpidemicButtonAction::PrevVictim => {
                 epidemic_selection.prev_victim();
@@ -2306,7 +2281,7 @@ pub fn spawn_unit_loss_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        game_button(),
                         UnitLossButtonAction::PrevArea,
                         Node {
                             width: Val::Px(28.0),
@@ -2343,7 +2318,7 @@ pub fn spawn_unit_loss_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         UnitLossButtonAction::NextArea,
                         Node {
                             width: Val::Px(28.0),
@@ -2365,7 +2340,7 @@ pub fn spawn_unit_loss_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         UnitLossButtonAction::Decrement,
                         Node {
                             width: Val::Px(32.0),
@@ -2387,7 +2362,7 @@ pub fn spawn_unit_loss_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         UnitLossButtonAction::Increment,
                         Node {
                             width: Val::Px(32.0),
@@ -2421,7 +2396,7 @@ pub fn spawn_unit_loss_selection_ui(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        Button,
+                        game_button(),
                         UnitLossButtonAction::PrevCity,
                         Node {
                             width: Val::Px(28.0),
@@ -2458,7 +2433,7 @@ pub fn spawn_unit_loss_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         UnitLossButtonAction::NextCity,
                         Node {
                             width: Val::Px(28.0),
@@ -2480,7 +2455,7 @@ pub fn spawn_unit_loss_selection_ui(
                     ));
 
                     row.spawn((
-                        Button,
+                        game_button(),
                         UnitLossButtonAction::ToggleCity,
                         Node {
                             width: Val::Px(90.0),
@@ -2504,7 +2479,7 @@ pub fn spawn_unit_loss_selection_ui(
 
             parent
                 .spawn((
-                    Button,
+                    game_button(),
                     UnitLossButtonAction::Confirm,
                     UnitLossConfirmButton,
                     Node {
@@ -2629,18 +2604,13 @@ pub fn update_unit_loss_selection_ui(
 
 /// Handle unit-loss panel button presses.
 pub fn handle_unit_loss_selection_buttons(
-    interaction_query: Query<
-        (&Interaction, &UnitLossButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&UnitLossButtonAction>,
     mut unit_loss: ResMut<UnitLossSelectionState>,
     mut commands: Commands,
     human_waiting: Query<Entity, (With<IsHuman>, With<AwaitingHumanCalamitySelection>)>,
 ) {
-    for (interaction, action) in interaction_query.iter() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    for action in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
         match action {
             UnitLossButtonAction::PrevArea => {
                 unit_loss.prev_area();

@@ -65,7 +65,7 @@ fn start_server(mut commands: Commands, keys: Res<crate::http::NetcodeKeys>) {
                     .with_key(keys.key),
             ),
             LocalAddr(addr),
-            WebSocketServerIo { config },
+            WebSocketEndpoint { config },
         ))
         .id();
     commands.trigger(Start { entity: server });
@@ -93,7 +93,7 @@ fn handle_joins(
     mut seats: ResMut<Seats>,
     mut player_names: Query<&mut Name, With<Player>>,
     mut sender: ServerMultiMessageSender,
-    server: Single<&Server>,
+    server: Single<&Endpoint, With<Server>>,
     game_state: Res<State<GameState>>,
     mut next_state: ResMut<NextState<GameState>>,
     mut needs_sync: ResMut<NeedsFullSync>,
@@ -196,7 +196,7 @@ fn send_available_moves(
     areas: Query<&GameArea>,
     factions: Query<&Faction>,
     mut sender: ServerMultiMessageSender,
-    server: Single<&Server>,
+    server: Single<&Endpoint, With<Server>>,
 ) -> Result {
     let server = server.into_inner();
     for (player, available) in changed.iter() {
@@ -319,7 +319,7 @@ fn receive_moves(
     mut writers: MoveCommandWriters,
     mut commands: Commands,
     mut sender: ServerMultiMessageSender,
-    server: Single<&Server>,
+    server: Single<&Endpoint, With<Server>>,
 ) -> Result {
     let server = server.into_inner();
     for (client_entity, mut receiver) in receivers.iter_mut() {
@@ -452,7 +452,7 @@ fn broadcast_phase_changes(
     activity: Option<Res<State<GameActivity>>>,
     mut last_seen: Local<Option<GameActivity>>,
     mut sender: ServerMultiMessageSender,
-    server: Single<&Server>,
+    server: Single<&Endpoint, With<Server>>,
 ) -> Result {
     let current = activity.map(|s| s.get().clone());
     if current != *last_seen {
@@ -550,7 +550,7 @@ fn broadcast_board_state(
     factions: Query<&Faction>,
     seats: Res<Seats>,
     mut sender: ServerMultiMessageSender,
-    server: Single<&Server>,
+    server: Single<&Endpoint, With<Server>>,
 ) -> Result {
     if changed.is_empty() || seats.0.iter().all(|s| s.client.is_none()) {
         return Ok(());
@@ -579,7 +579,7 @@ fn sync_joined_clients(
     available: Query<&AvailableMoves>,
     open_offers: Query<(Entity, &OpenTradeOffer)>,
     mut sender: ServerMultiMessageSender,
-    server: Single<&Server>,
+    server: Single<&Endpoint, With<Server>>,
 ) -> Result {
     if needs_sync.0.is_empty() {
         return Ok(());
@@ -637,7 +637,7 @@ fn send_hands(
     changed: Query<(Entity, &PlayerTradeCards), Changed<PlayerTradeCards>>,
     seats: Res<Seats>,
     mut sender: ServerMultiMessageSender,
-    server: Single<&Server>,
+    server: Single<&Endpoint, With<Server>>,
 ) -> Result {
     let server = server.into_inner();
     for (player, hand) in changed.iter() {
@@ -660,7 +660,7 @@ fn send_hands(
 /// claim it again — `name`/`reconnect_token` stay bound, so only the same
 /// client (or one presenting the right token) can reclaim it; see
 /// `find_seat_for_join` and docs/multiplayer.md's session-token section.
-fn on_client_disconnected(trigger: On<Remove, Connected>, mut seats: ResMut<Seats>) {
+fn on_client_disconnected(trigger: On<Remove<Connected>>, mut seats: ResMut<Seats>) {
     if let Some(seat) = seats
         .0
         .iter_mut()
@@ -846,7 +846,7 @@ fn broadcast_trade_offers(
     all_offers: Query<(Entity, &OpenTradeOffer)>,
     seats: Res<Seats>,
     mut sender: ServerMultiMessageSender,
-    server: Single<&Server>,
+    server: Single<&Endpoint, With<Server>>,
 ) -> Result {
     let any_removed = !removed.is_empty();
     removed.clear();

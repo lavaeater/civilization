@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
-use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
+use lava_ui_builder::{InteractionPalette, LavaTheme, TextStyle, UIBuilder};
 
 use crate::GameState;
 use crate::civilization::components::GameCamera;
@@ -417,8 +417,10 @@ pub fn update_map_editor_ui(
             Without<ConnectionsText>,
         ),
     >,
-    mut flag_buttons: Query<(&FlagButton, &mut BackgroundColor)>,
-    mut save_button: Query<&mut BackgroundColor, (With<SaveButtonMarker>, Without<FlagButton>)>,
+    // The palette system owns BackgroundColor on these buttons, so recolour
+    // them through `InteractionPalette::none` rather than BackgroundColor.
+    mut flag_buttons: Query<(&FlagButton, &mut InteractionPalette)>,
+    mut save_button: Query<&mut InteractionPalette, (With<SaveButtonMarker>, Without<FlagButton>)>,
 ) {
     let current = state.current_area.and_then(|e| areas.get(e).ok());
 
@@ -455,26 +457,26 @@ pub fn update_map_editor_ui(
         **t = state.status.clone().unwrap_or_default();
     }
 
-    for (flag_button, mut bg) in &mut flag_buttons {
+    for (flag_button, mut palette) in &mut flag_buttons {
         let active = current.is_some_and(|a| match flag_button.0 {
             AreaFlag::Volcano => a.volcano,
             AreaFlag::FloodPlain => a.flood_plain,
             AreaFlag::CityFlood => a.city_flood,
             AreaFlag::CitySite => a.city_site,
         });
-        *bg = BackgroundColor(if active {
+        palette.none = if active {
             Color::srgb(0.2, 0.55, 0.2)
         } else {
             Color::srgb(0.3, 0.3, 0.3)
-        });
+        };
     }
 
-    if let Ok(mut bg) = save_button.single_mut() {
-        *bg = BackgroundColor(if state.dirty {
+    if let Ok(mut palette) = save_button.single_mut() {
+        palette.none = if state.dirty {
             Color::srgb(0.7, 0.5, 0.1)
         } else {
             Color::srgb(0.2, 0.5, 0.2)
-        });
+        };
     }
 }
 

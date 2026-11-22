@@ -1,4 +1,6 @@
-use lava_ui_builder::{LavaTheme, UIBuilder};
+use lava_ui_builder::{InteractionPalette, LavaTheme, UIBuilder};
+
+use crate::civilization::ui::ButtonActivated;
 
 use crate::GameState;
 use crate::civilization::{AvailableFactions, GameFaction, setup_players};
@@ -43,6 +45,7 @@ enum LayoutProperty {
 }
 
 #[derive(Component)]
+#[require(InteractionPalette = CONTROL_BTN_PALETTE)]
 struct LayoutControlButton {
     property: LayoutProperty,
     delta: f32,
@@ -75,6 +78,11 @@ const SAMPLE_BOX_COLOR: Color = Color::srgba(0.3, 0.5, 0.8, 0.9);
 const CONTROL_PANEL_COLOR: Color = Color::srgba(0.2, 0.2, 0.2, 0.95);
 const CONTROL_BTN_COLOR: Color = Color::srgba(0.4, 0.4, 0.4, 1.0);
 const CONTROL_BTN_HOVER: Color = Color::srgba(0.5, 0.5, 0.5, 1.0);
+const CONTROL_BTN_PALETTE: InteractionPalette = InteractionPalette {
+    none: CONTROL_BTN_COLOR,
+    hovered: CONTROL_BTN_HOVER,
+    pressed: CONTROL_BTN_HOVER,
+};
 
 fn setup_factions(mut available_factions: ResMut<AvailableFactions>) {
     for faction in [
@@ -272,32 +280,20 @@ fn build_control_row(
 }
 
 fn handle_layout_controls(
-    mut interaction_query: Query<
-        (&Interaction, &LayoutControlButton, &mut BackgroundColor),
-        Changed<Interaction>,
-    >,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&LayoutControlButton>,
     mut layout_state: ResMut<SandboxLayoutState>,
 ) {
-    for (interaction, control, mut bg_color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                let value = match control.property {
-                    LayoutProperty::Width => &mut layout_state.width,
-                    LayoutProperty::Height => &mut layout_state.height,
-                    LayoutProperty::PaddingAll => &mut layout_state.padding,
-                    LayoutProperty::MarginAll => &mut layout_state.margin,
-                    LayoutProperty::BorderWidth => &mut layout_state.border_width,
-                    LayoutProperty::BorderRadius => &mut layout_state.border_radius,
-                };
-                *value = (*value + control.delta).max(0.0);
-            }
-            Interaction::Hovered => {
-                *bg_color = BackgroundColor(CONTROL_BTN_HOVER);
-            }
-            Interaction::None => {
-                *bg_color = BackgroundColor(CONTROL_BTN_COLOR);
-            }
-        }
+    for control in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
+        let value = match control.property {
+            LayoutProperty::Width => &mut layout_state.width,
+            LayoutProperty::Height => &mut layout_state.height,
+            LayoutProperty::PaddingAll => &mut layout_state.padding,
+            LayoutProperty::MarginAll => &mut layout_state.margin,
+            LayoutProperty::BorderWidth => &mut layout_state.border_width,
+            LayoutProperty::BorderRadius => &mut layout_state.border_radius,
+        };
+        *value = (*value + control.delta).max(0.0);
     }
 }
 
