@@ -89,6 +89,8 @@ struct OfferInfo {
     settling: bool,
     offering_guaranteed: Vec<(String, usize)>,
     offering_hidden: usize,
+    /// What the creator says the hidden cards are; may be a bluff.
+    offering_claimed: Vec<(String, usize)>,
     wanting_guaranteed: Vec<(String, usize)>,
     wanting_hidden: usize,
 }
@@ -403,6 +405,7 @@ pub fn poll_agent_api(
                             .and_then(serde_json::Value::as_u64)
                             .unwrap_or(0)
                             as usize;
+                        offer.claim_hidden(parse_card_map(payload.get("offering_claimed")));
                         offer.wanting_guaranteed =
                             parse_card_map(payload.get("wanting_guaranteed"));
                         offer.wanting_hidden_count = payload
@@ -567,7 +570,7 @@ pub fn poll_agent_api(
                 "/wait?faction=&timeout_ms= (long-poll until your turn)",
                 "/trade?faction=", "POST /trade/stop {faction?}",
                 "POST /trade/accept {faction?,id}",
-                "POST /trade/offer {faction?,offering_guaranteed,offering_hidden,wanting_guaranteed,wanting_hidden,target?}",
+                "POST /trade/offer {faction?,offering_guaranteed,offering_hidden,offering_claimed?,wanting_guaranteed,wanting_hidden,target?}",
                 "POST /trade/settle {faction?,id,cards}",
             ] }),
         };
@@ -653,6 +656,7 @@ fn build_snapshot(
             settling: o.is_settling(),
             offering_guaranteed: card_counts(&o.offering_guaranteed),
             offering_hidden: o.offering_hidden_count,
+            offering_claimed: card_counts(&o.offering_claimed),
             wanting_guaranteed: card_counts(&o.wanting_guaranteed),
             wanting_hidden: o.wanting_hidden_count,
         })
@@ -784,6 +788,7 @@ fn trade_json(snapshot: &Snapshot, faction: Option<&str>) -> Value {
                 "withdrawn": o.withdrawn,
                 "offering_guaranteed": map_json(&o.offering_guaranteed),
                 "offering_hidden": o.offering_hidden,
+                "offering_claimed": map_json(&o.offering_claimed),
                 "wanting_guaranteed": map_json(&o.wanting_guaranteed),
                 "wanting_hidden": o.wanting_hidden,
                 "can_accept": o.can_accept(player.player),
@@ -1038,6 +1043,7 @@ mod tests {
             settling: false,
             offering_guaranteed: vec![],
             offering_hidden: 0,
+            offering_claimed: vec![],
             wanting_guaranteed: vec![],
             wanting_hidden: 0,
         };

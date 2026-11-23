@@ -131,7 +131,10 @@ fn load_reconnect_token(game_code: Option<&str>) -> Option<String> {
 
 #[cfg(target_family = "wasm")]
 fn save_reconnect_token(game_code: Option<&str>, token: &str) {
-    if let Some(storage) = web_sys::window().and_then(|w| w.local_storage().ok()).flatten() {
+    if let Some(storage) = web_sys::window()
+        .and_then(|w| w.local_storage().ok())
+        .flatten()
+    {
         let _ = storage.set_item(&reconnect_token_key(game_code), token);
     }
 }
@@ -236,6 +239,9 @@ struct TradeDraft {
     offering_hidden: usize,
     wanting_card: usize,
     wanting_hidden: usize,
+    /// Index into `COMMODITY_CARDS` for what the hidden cards are said to
+    /// be; `None` = say nothing. Hidden cards may be anything (rule 28.3).
+    claim: Option<usize>,
     /// Index into the *other* connected factions; `None` = open to anyone.
     target: Option<usize>,
 }
@@ -247,6 +253,7 @@ impl Default for TradeDraft {
             offering_hidden: 1,
             wanting_card: 1,
             wanting_hidden: 1,
+            claim: None,
             target: None,
         }
     }
@@ -377,9 +384,7 @@ fn request_join_token(
     wasm_bindgen_futures::spawn_local(async move {
         let result = async {
             let response = gloo_net::http::Request::post(&format!("{api_url}/api/join"))
-                .body(
-                    serde_json::json!({ "name": name, "token": reconnect_token }).to_string(),
-                )
+                .body(serde_json::json!({ "name": name, "token": reconnect_token }).to_string())
                 .map_err(|e| format!("join request invalid: {e}"))?
                 .send()
                 .await
@@ -1152,8 +1157,11 @@ fn rebuild_online_ui(
             ui.add_text_child("(none yet)", Some(TextStyle::size(14.0)));
         }
         for offer in net.trade_offers.clone() {
-            let offering = describe_offer_side(&offer.offering_guaranteed, offer.offering_hidden_count);
-            let wanting = describe_offer_side(&offer.wanting_guaranteed, offer.wanting_hidden_count);
+            let offering =
+                describe_offer_side(&offer.offering_guaranteed, offer.offering_hidden_count);
+            let offering = describe_claim(offering, &offer.offering_claimed);
+            let wanting =
+                describe_offer_side(&offer.wanting_guaranteed, offer.wanting_hidden_count);
             let target_str = offer.target.map_or("anyone".to_string(), |f| f.to_string());
             let accepted_str = offer
                 .accepted_by
@@ -1225,9 +1233,15 @@ fn rebuild_online_ui(
             .and_then(|i| other_factions.get(i))
             .map_or("anyone".to_string(), ToString::to_string);
 
+        let claim_label = draft.claim.map_or(String::new(), |i| {
+            format!(
+                " (said to be {})",
+                COMMODITY_CARDS[i % COMMODITY_CARDS.len()]
+            )
+        });
         ui.add_text_child(
             format!(
-                "Offering 2× {offering_card} + {} hidden, for 2× {wanting_card} + {} hidden, to {target_label}",
+                "Offering 2× {offering_card} + {} hidden{claim_label}, for 2× {wanting_card} + {} hidden, to {target_label}",
                 draft.offering_hidden, draft.wanting_hidden
             ),
             Some(TextStyle::size(14.0)),
@@ -1238,7 +1252,9 @@ fn rebuild_online_ui(
             |btn| {
                 btn.size(px(200.0), px(28.0));
             },
-            |_: On<bevy::ui_widgets::Activate>, mut draft: ResMut<TradeDraft>, mut net: ResMut<NetGame>| {
+            |_: On<bevy::ui_widgets::Activate>,
+             mut draft: ResMut<TradeDraft>,
+             mut net: ResMut<NetGame>| {
                 draft.offering_card = (draft.offering_card + 1) % COMMODITY_CARDS.len();
                 net.touch();
             },
@@ -1248,8 +1264,26 @@ fn rebuild_online_ui(
             |btn| {
                 btn.size(px(240.0), px(28.0));
             },
-            |_: On<bevy::ui_widgets::Activate>, mut draft: ResMut<TradeDraft>, mut net: ResMut<NetGame>| {
+            |_: On<bevy::ui_widgets::Activate>,
+             mut draft: ResMut<TradeDraft>,
+             mut net: ResMut<NetGame>| {
                 draft.offering_hidden = (draft.offering_hidden + 1) % 5;
+                net.touch();
+            },
+        );
+        ui.add_button_observe(
+            "Cycle what you say they are",
+            |btn| {
+                btn.size(px(260.0), px(28.0));
+            },
+            |_: On<bevy::ui_widgets::Activate>,
+             mut draft: ResMut<TradeDraft>,
+             mut net: ResMut<NetGame>| {
+                draft.claim = match draft.claim {
+                    None => Some(0),
+                    Some(i) if i + 1 < COMMODITY_CARDS.len() => Some(i + 1),
+                    Some(_) => None,
+                };
                 net.touch();
             },
         );
@@ -1258,7 +1292,9 @@ fn rebuild_online_ui(
             |btn| {
                 btn.size(px(200.0), px(28.0));
             },
-            |_: On<bevy::ui_widgets::Activate>, mut draft: ResMut<TradeDraft>, mut net: ResMut<NetGame>| {
+            |_: On<bevy::ui_widgets::Activate>,
+             mut draft: ResMut<TradeDraft>,
+             mut net: ResMut<NetGame>| {
                 draft.wanting_card = (draft.wanting_card + 1) % COMMODITY_CARDS.len();
                 net.touch();
             },
@@ -1268,7 +1304,9 @@ fn rebuild_online_ui(
             |btn| {
                 btn.size(px(240.0), px(28.0));
             },
-            |_: On<bevy::ui_widgets::Activate>, mut draft: ResMut<TradeDraft>, mut net: ResMut<NetGame>| {
+            |_: On<bevy::ui_widgets::Activate>,
+             mut draft: ResMut<TradeDraft>,
+             mut net: ResMut<NetGame>| {
                 draft.wanting_hidden = (draft.wanting_hidden + 1) % 5;
                 net.touch();
             },
@@ -1279,11 +1317,17 @@ fn rebuild_online_ui(
             |btn| {
                 btn.size(px(160.0), px(28.0));
             },
-            move |_: On<bevy::ui_widgets::Activate>, mut draft: ResMut<TradeDraft>, mut net: ResMut<NetGame>| {
+            move |_: On<bevy::ui_widgets::Activate>,
+                  mut draft: ResMut<TradeDraft>,
+                  mut net: ResMut<NetGame>| {
                 if other_factions_for_cycle.is_empty() {
                     draft.target = None;
                 } else {
-                    draft.target = Some(draft.target.map_or(0, |i| (i + 1) % (other_factions_for_cycle.len() + 1)));
+                    draft.target = Some(
+                        draft
+                            .target
+                            .map_or(0, |i| (i + 1) % (other_factions_for_cycle.len() + 1)),
+                    );
                     if draft.target == Some(other_factions_for_cycle.len()) {
                         draft.target = None;
                     }
@@ -1305,6 +1349,16 @@ fn rebuild_online_ui(
                 writer.write(SubmitProposeTradeOffer(ProposeTradeOffer {
                     offering_guaranteed: vec![(offering_card, 2)],
                     offering_hidden_count: draft.offering_hidden,
+                    offering_claimed: draft
+                        .claim
+                        .filter(|_| draft.offering_hidden > 0)
+                        .map(|i| {
+                            vec![(
+                                COMMODITY_CARDS[i % COMMODITY_CARDS.len()],
+                                draft.offering_hidden,
+                            )]
+                        })
+                        .unwrap_or_default(),
                     wanting_guaranteed: vec![(wanting_card, 2)],
                     wanting_hidden_count: draft.wanting_hidden,
                     target,
@@ -1358,6 +1412,18 @@ fn describe_offer_side(guaranteed: &[(TradeCard, usize)], hidden_count: usize) -
     } else {
         parts.join(", ")
     }
+}
+
+/// Appends what the hidden cards are said to be, if anything.
+fn describe_claim(side: String, claimed: &[(TradeCard, usize)]) -> String {
+    if claimed.is_empty() {
+        return side;
+    }
+    let said: Vec<String> = claimed
+        .iter()
+        .map(|(card, n)| format!("{n} {card}"))
+        .collect();
+    format!("{side} (said to be {})", said.join(", "))
 }
 
 fn describe_net_move(game_move: &NetGameMove) -> String {

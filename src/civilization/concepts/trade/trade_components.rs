@@ -306,6 +306,20 @@ impl TradeOffer {
     }
 }
 
+/// " +n hidden", plus what was said about them if anything was.
+pub fn hidden_text(hidden: usize, claimed: &HashMap<TradeCard, usize>) -> String {
+    if hidden == 0 {
+        return String::new();
+    }
+    if claimed.is_empty() {
+        return format!(" +{hidden} hidden");
+    }
+    let mut said: Vec<(TradeCard, usize)> = claimed.iter().map(|(c, n)| (*c, *n)).collect();
+    said.sort_by_key(|(c, _)| c.to_string());
+    let said: Vec<String> = said.iter().map(|(c, n)| format!("{n}x {c}")).collect();
+    format!(" +{hidden} hidden (said to be {})", said.join(", "))
+}
+
 /// A simplified trade offer for the new trade UI system.
 /// Offers can be open (target = None) or directed at a specific player.
 #[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]
@@ -367,6 +381,26 @@ impl OpenTradeOffer {
             creator_actual_cards: None,
             acceptor_actual_cards: None,
         }
+    }
+
+    /// Say what the hidden cards are (rule 28.3: talk, not a promise). Set
+    /// the hidden count first: claims beyond it are dropped.
+    pub fn claim_hidden(&mut self, claimed: impl IntoIterator<Item = (TradeCard, usize)>) {
+        let mut left = self.offering_hidden_count;
+        self.offering_claimed.clear();
+        for (card, count) in claimed {
+            let n = count.min(left);
+            if n > 0 {
+                *self.offering_claimed.entry(card).or_insert(0) += n;
+                left -= n;
+            }
+        }
+    }
+
+    /// " +2 hidden (said to be 2x Salt)" for an offer list; empty when
+    /// nothing is hidden.
+    pub fn offering_hidden_text(&self) -> String {
+        hidden_text(self.offering_hidden_count, &self.offering_claimed)
     }
 
     /// Total cards being offered
@@ -459,3 +493,29 @@ pub struct CreateOfferButton;
 /// Marker for the "Done Trading" button
 #[derive(Component, Default)]
 pub struct DoneTradingButton;
+
+#[cfg(test)]
+mod claim_tests {
+    use super::*;
+
+    #[test]
+    fn a_claim_never_covers_more_than_the_hidden_cards() {
+        let mut offer = OpenTradeOffer::new(Entity::PLACEHOLDER, "A", None, None);
+        offer.offering_hidden_count = 2;
+        offer.claim_hidden([(TradeCard::Salt, 3), (TradeCard::Hides, 1)]);
+        assert_eq!(offer.offering_claimed.get(&TradeCard::Salt), Some(&2));
+        assert_eq!(offer.offering_claimed.get(&TradeCard::Hides), None);
+        assert_eq!(
+            offer.offering_hidden_text(),
+            " +2 hidden (said to be 2x Salt)"
+        );
+    }
+
+    #[test]
+    fn no_claim_just_counts_hidden_cards() {
+        let mut offer = OpenTradeOffer::new(Entity::PLACEHOLDER, "A", None, None);
+        assert_eq!(offer.offering_hidden_text(), "");
+        offer.offering_hidden_count = 1;
+        assert_eq!(offer.offering_hidden_text(), " +1 hidden");
+    }
+}

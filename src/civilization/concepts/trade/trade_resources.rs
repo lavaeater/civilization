@@ -52,6 +52,8 @@ pub struct CreateOfferState {
     pub offering_guaranteed: HashMap<TradeCard, usize>,
     /// Number of hidden cards to offer
     pub offering_hidden_count: usize,
+    /// What the player says every hidden card is, if anything.
+    pub offering_claim: Option<TradeCard>,
     /// Cards the player wants (guaranteed - what they request)
     pub wanting_guaranteed: HashMap<TradeCard, usize>,
     /// Number of hidden cards wanted
@@ -62,8 +64,20 @@ impl CreateOfferState {
     pub fn reset(&mut self) {
         self.offering_guaranteed.clear();
         self.offering_hidden_count = 0;
+        self.offering_claim = None;
         self.wanting_guaranteed.clear();
         self.wanting_hidden_count = 0;
+    }
+
+    /// The claim as stated on the offer: every hidden card is the
+    /// chosen commodity.
+    pub fn claimed(&self) -> HashMap<TradeCard, usize> {
+        match self.offering_claim {
+            Some(card) if self.offering_hidden_count > 0 => {
+                HashMap::from_iter([(card, self.offering_hidden_count)])
+            }
+            _ => HashMap::default(),
+        }
     }
 
     pub fn total_offering(&self) -> usize {

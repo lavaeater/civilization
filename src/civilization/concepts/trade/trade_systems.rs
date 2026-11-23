@@ -958,11 +958,7 @@ pub fn update_open_offers_display(
                                 }
                             })
                             .collect();
-                        let hidden_text = if offer.offering_hidden_count > 0 {
-                            format!(" +{} hidden", offer.offering_hidden_count)
-                        } else {
-                            String::new()
-                        };
+                        let hidden_text = offer.offering_hidden_text();
 
                         row.spawn((
                             Text::new(format!("{}{}", offering_text.join(", "), hidden_text)),
@@ -1308,6 +1304,66 @@ fn spawn_hidden_count_row(ui: &mut UIBuilder, label_text: &str, is_offering: boo
     });
 }
 
+/// Cycles what the player says its hidden cards are: nothing, or every
+/// hidden card being one commodity. Rule 28.3 lets the hidden cards be
+/// anything, so the claim may be a bluff.
+#[derive(Component)]
+pub struct ClaimCycleButton {
+    pub delta: i32,
+}
+
+/// Shows the current claim in the create offer modal.
+#[derive(Component, Default)]
+pub struct OfferClaimDisplay;
+
+/// Helper to spawn the claim row: `Say they are: < claim >`
+fn spawn_claim_row(ui: &mut UIBuilder) {
+    ui.add_row(|row| {
+        row.width_percent(100.0)
+            .align_items_center()
+            .margin(UiRect::top(Val::Px(4.0)));
+
+        row.add_text_child(
+            "Say they are: ",
+            Some(TextStyle::size_color(14.0, Color::srgb(0.7, 0.7, 0.7))),
+        );
+        row.add_button(
+            "<",
+            36.0,
+            26.0,
+            Color::srgb(0.4, 0.3, 0.3),
+            16.0,
+            4.0,
+            ClaimCycleButton { delta: -1 },
+        );
+        row.with_child(|claim| {
+            claim.set_node(Node {
+                min_width: Val::Px(140.0),
+                justify_content: JustifyContent::Center,
+                ..Default::default()
+            });
+            claim.insert(OfferClaimDisplay);
+            claim.with_text(
+                "say nothing",
+                Some(TextStyle::size_color(14.0, Color::WHITE)),
+            );
+        });
+        row.add_button(
+            ">",
+            36.0,
+            26.0,
+            Color::srgb(0.3, 0.4, 0.3),
+            16.0,
+            4.0,
+            ClaimCycleButton { delta: 1 },
+        );
+    });
+    ui.add_text_child(
+        "(Hidden cards may be anything, whatever you say.)",
+        Some(TextStyle::size_color(12.0, Color::srgb(0.5, 0.5, 0.5))),
+    );
+}
+
 /// Spawn the create offer modal when the flag is set
 pub fn spawn_create_offer_modal(
     commands: Commands,
@@ -1477,6 +1533,7 @@ pub fn spawn_create_offer_modal(
 
                     // Hidden cards count for offering
                     spawn_hidden_count_row(section, "Hidden cards to offer: ", true);
+                    spawn_claim_row(section);
                 });
             });
 
@@ -1704,6 +1761,46 @@ pub fn handle_hidden_count_buttons(
     }
 }
 
+/// Handle the claim `<` `>` buttons: cycle through "say nothing" and each
+/// commodity type, cheapest first.
+pub fn handle_claim_buttons(
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&ClaimCycleButton>,
+    mut create_offer_state: ResMut<CreateOfferState>,
+) {
+    for btn in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
+        let mut choices: Vec<Option<TradeCard>> = vec![None];
+        let mut commodities: Vec<TradeCard> = TradeCard::iter()
+            .filter(adv_civ_protocol::TradeCardTrait::is_commodity)
+            .collect();
+        commodities.sort_by_key(adv_civ_protocol::TradeCardTrait::value);
+        choices.extend(commodities.into_iter().map(Some));
+        let current = choices
+            .iter()
+            .position(|c| *c == create_offer_state.offering_claim)
+            .unwrap_or(0) as i32;
+        let next = (current + btn.delta).rem_euclid(choices.len() as i32) as usize;
+        create_offer_state.offering_claim = choices[next];
+    }
+}
+
+/// Update the claim display
+pub fn update_claim_display(
+    create_offer_state: Res<CreateOfferState>,
+    mut displays: Query<&mut Text, With<OfferClaimDisplay>>,
+) {
+    if !create_offer_state.is_changed() {
+        return;
+    }
+    let text = match create_offer_state.offering_claim {
+        Some(card) => format!("all {card}"),
+        None => "say nothing".to_string(),
+    };
+    for mut display in &mut displays {
+        **display = text.clone();
+    }
+}
+
 /// Update hidden count displays
 pub fn update_hidden_count_displays(
     create_offer_state: Res<CreateOfferState>,
@@ -1808,13 +1905,12 @@ pub fn update_offer_summary_display(
         for (card, count) in &create_offer_state.offering_guaranteed {
             parts.push(format!("{count}x {card}"));
         }
-        if create_offer_state.offering_hidden_count > 0 {
-            parts.push(format!(
-                "+{} hidden",
-                create_offer_state.offering_hidden_count
-            ));
-        }
-        parts.join(", ")
+        let mut text = parts.join(", ");
+        text.push_str(&crate::civilization::hidden_text(
+            create_offer_state.offering_hidden_count,
+            &create_offer_state.claimed(),
+        ));
+        text
     };
 
     // Build wanting text
@@ -1929,6 +2025,7 @@ pub fn handle_publish_offer(
             .offering_guaranteed
             .clone_from(&create_offer_state.offering_guaranteed);
         offer.offering_hidden_count = create_offer_state.offering_hidden_count;
+        offer.claim_hidden(create_offer_state.claimed());
         offer
             .wanting_guaranteed
             .clone_from(&create_offer_state.wanting_guaranteed);
@@ -2643,10 +2740,9 @@ pub fn ai_create_trade_offers(
         if rng.random::<f32>() > offer_creation_chance(&personality.weights) {
             continue;
         }
-        if existing_offers
-            .iter()
-            .any(|o| o.is_settling() && (o.creator == ai_entity || o.accepted_by == Some(ai_entity)))
-        {
+        if existing_offers.iter().any(|o| {
+            o.is_settling() && (o.creator == ai_entity || o.accepted_by == Some(ai_entity))
+        }) {
             continue;
         }
         let open: Vec<HashMap<TradeCard, usize>> = existing_offers
@@ -2711,7 +2807,10 @@ pub fn ai_create_trade_offers(
 
         if offer.is_valid() {
             commands.spawn(offer);
-            debug!("{} created a trade offer (expects +{}, bluffing: {lies})", ai_name, plan.gain);
+            debug!(
+                "{} created a trade offer (expects +{}, bluffing: {lies})",
+                ai_name, plan.gain
+            );
         }
     }
 }
@@ -2753,7 +2852,10 @@ pub fn acceptor_trade_gain(
         * (1.0 - trust)
         * HIDDEN_CALAMITY_COST
         * calamity_aversion;
-    Some((after - before + trust * claims - calamity_risk, dumps_calamity))
+    Some((
+        after - before + trust * claims - calamity_risk,
+        dumps_calamity,
+    ))
 }
 
 /// AI accepts trade offers that benefit them.
@@ -2788,7 +2890,11 @@ pub fn ai_accept_trade_offers(
         // A poor hand has little to lose: the risk-takers gamble on it.
         let weak_hand = ai_cards.total_stack_value() < 15;
         let margin = trade_accept_margin(&personality.weights)
-            - if weak_hand { 2.0 * personality.weights.risk } else { 0.0 };
+            - if weak_hand {
+                2.0 * personality.weights.risk
+            } else {
+                0.0
+            };
         let aversion = personality.weights.calamity_aversion;
 
         // Take the best offer on the table, not the first acceptable one.
@@ -2862,8 +2968,11 @@ pub fn finalize_settled_open_offers(
             &offer.offering_guaranteed,
             creator_cards,
         );
-        let creator_saw =
-            honesty_of_delivery(&HashMap::default(), &offer.wanting_guaranteed, acceptor_cards);
+        let creator_saw = honesty_of_delivery(
+            &HashMap::default(),
+            &offer.wanting_guaranteed,
+            acceptor_cards,
+        );
         if let Ok(mut t) = trust.get_mut(acceptor) {
             t.observe(offer.creator, acceptor_saw);
         }
@@ -2871,7 +2980,11 @@ pub fn finalize_settled_open_offers(
             t.observe(acceptor, creator_saw);
         }
         let calamities = |cards: &HashMap<TradeCard, usize>| -> usize {
-            cards.iter().filter(|(c, _)| c.is_calamity()).map(|(_, n)| n).sum()
+            cards
+                .iter()
+                .filter(|(c, _)| c.is_calamity())
+                .map(|(_, n)| n)
+                .sum()
         };
         let claimed: usize = offer.offering_claimed.values().sum();
         let lied = claimed > 0 && acceptor_saw < 1.0;
@@ -3018,4 +3131,39 @@ fn ai_select_settlement_cards(
     }
 
     Some(selected)
+}
+
+#[cfg(test)]
+mod trust_tests {
+    use super::*;
+
+    /// A human (no `TradeTrust` of their own) who says "2 Salt" and hands
+    /// over a calamity loses the AI's trust, the same as an AI liar would.
+    #[test]
+    fn an_ai_trusts_a_lying_human_less() {
+        let mut app = App::new();
+        app.add_message::<SendTradingCardsCommand>()
+            .add_systems(Update, finalize_settled_open_offers);
+        let human = app.world_mut().spawn(IsHuman).id();
+        let ai = app.world_mut().spawn(TradeTrust::default()).id();
+
+        let mut offer = OpenTradeOffer::new(human, "Human", None, None);
+        offer.offering_guaranteed = HashMap::from_iter([(TradeCard::Salt, 2)]);
+        offer.offering_hidden_count = 2;
+        offer.claim_hidden([(TradeCard::Salt, 2)]);
+        offer.wanting_guaranteed = HashMap::from_iter([(TradeCard::Ochre, 2)]);
+        offer.wanting_hidden_count = 1;
+        offer.accept(ai, "AI");
+        offer.settle_creator(HashMap::from_iter([
+            (TradeCard::Salt, 3),
+            (TradeCard::Treachery, 1),
+        ]));
+        offer.settle_acceptor(HashMap::from_iter([(TradeCard::Ochre, 3)]));
+        app.world_mut().spawn(offer);
+
+        app.update();
+
+        let trust = app.world().get::<TradeTrust>(ai).unwrap();
+        assert!(trust.of(human) < DEFAULT_TRUST, "trust {}", trust.of(human));
+    }
 }

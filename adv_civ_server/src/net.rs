@@ -681,11 +681,15 @@ fn on_client_disconnected(trigger: On<Remove<Connected>>, mut seats: ResMut<Seat
 // than a choice from an enumerated move list — same reasoning as the agent
 // API's dedicated `/trade/*` endpoints, which this mirrors closely.
 
-fn card_map(cards: &[(TradeCard, usize)]) -> bevy::platform::collections::HashMap<TradeCard, usize> {
+fn card_map(
+    cards: &[(TradeCard, usize)],
+) -> bevy::platform::collections::HashMap<TradeCard, usize> {
     cards.iter().copied().collect()
 }
 
-fn card_vec(cards: &bevy::platform::collections::HashMap<TradeCard, usize>) -> Vec<(TradeCard, usize)> {
+fn card_vec(
+    cards: &bevy::platform::collections::HashMap<TradeCard, usize>,
+) -> Vec<(TradeCard, usize)> {
     let mut v: Vec<(TradeCard, usize)> = cards.iter().map(|(c, n)| (*c, *n)).collect();
     v.sort_by_key(|(c, _)| format!("{c}"));
     v
@@ -693,10 +697,7 @@ fn card_vec(cards: &bevy::platform::collections::HashMap<TradeCard, usize>) -> V
 
 #[allow(clippy::type_complexity)]
 fn receive_propose_trade_offers(
-    mut receivers: Query<
-        (Entity, &mut MessageReceiver<ProposeTradeOffer>),
-        With<ClientOf>,
-    >,
+    mut receivers: Query<(Entity, &mut MessageReceiver<ProposeTradeOffer>), With<ClientOf>>,
     seats: Res<Seats>,
     names: Query<&Name, With<Player>>,
     mut commands: Commands,
@@ -714,11 +715,14 @@ fn receive_propose_trade_offers(
                 .target
                 .and_then(|f| seats.0.iter().find(|s| s.faction == f))
                 .and_then(|s| s.player);
-            let target_name = target.and_then(|p| names.get(p).ok()).map(ToString::to_string);
+            let target_name = target
+                .and_then(|p| names.get(p).ok())
+                .map(ToString::to_string);
 
             let mut offer = OpenTradeOffer::new(player, creator_name, target, target_name);
             offer.offering_guaranteed = card_map(&propose.offering_guaranteed);
             offer.offering_hidden_count = propose.offering_hidden_count;
+            offer.claim_hidden(propose.offering_claimed.iter().copied());
             offer.wanting_guaranteed = card_map(&propose.wanting_guaranteed);
             offer.wanting_hidden_count = propose.wanting_hidden_count;
 
@@ -808,10 +812,20 @@ fn receive_settle_trade_offers(
     }
 }
 
-fn to_net_trade_offer(entity: Entity, offer: &OpenTradeOffer, seats: &Seats) -> Option<NetTradeOffer> {
+fn to_net_trade_offer(
+    entity: Entity,
+    offer: &OpenTradeOffer,
+    seats: &Seats,
+) -> Option<NetTradeOffer> {
     let creator = seats.by_player(offer.creator)?.faction;
-    let target = offer.target.and_then(|p| seats.by_player(p)).map(|s| s.faction);
-    let accepted_by = offer.accepted_by.and_then(|p| seats.by_player(p)).map(|s| s.faction);
+    let target = offer
+        .target
+        .and_then(|p| seats.by_player(p))
+        .map(|s| s.faction);
+    let accepted_by = offer
+        .accepted_by
+        .and_then(|p| seats.by_player(p))
+        .map(|s| s.faction);
     Some(NetTradeOffer {
         id: NetOfferId(entity.to_bits()),
         creator,
@@ -820,6 +834,7 @@ fn to_net_trade_offer(entity: Entity, offer: &OpenTradeOffer, seats: &Seats) -> 
         settling: offer.is_settling(),
         offering_guaranteed: card_vec(&offer.offering_guaranteed),
         offering_hidden_count: offer.offering_hidden_count,
+        offering_claimed: card_vec(&offer.offering_claimed),
         wanting_guaranteed: card_vec(&offer.wanting_guaranteed),
         wanting_hidden_count: offer.wanting_hidden_count,
     })

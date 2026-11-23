@@ -229,8 +229,10 @@ fn receive_messages(
             }
             println!("Trade offers:");
             for offer in &msg.offers {
-                let offering = describe_offer_side(&offer.offering_guaranteed, offer.offering_hidden_count);
-                let wanting = describe_offer_side(&offer.wanting_guaranteed, offer.wanting_hidden_count);
+                let offering =
+                    describe_offer_side(&offer.offering_guaranteed, offer.offering_hidden_count);
+                let wanting =
+                    describe_offer_side(&offer.wanting_guaranteed, offer.wanting_hidden_count);
                 let target = offer.target.map_or("anyone".to_string(), |f| f.to_string());
                 let accepted = offer
                     .accepted_by
@@ -412,7 +414,9 @@ fn describe_offer_side(guaranteed: &[(TradeCard, usize)], hidden_count: usize) -
 fn parse_card_token(token: &str) -> Option<(TradeCard, usize)> {
     let (name, count) = token.split_once(':').unwrap_or((token, "1"));
     let count: usize = count.parse().ok()?;
-    let card = COMMODITY_CARDS.iter().find(|c| c.to_string().eq_ignore_ascii_case(name))?;
+    let card = COMMODITY_CARDS
+        .iter()
+        .find(|c| c.to_string().eq_ignore_ascii_case(name))?;
     Some((*card, count))
 }
 
@@ -488,6 +492,7 @@ fn submit_typed_input(
                     sender.send::<ControlChannel>(ProposeTradeOffer {
                         offering_guaranteed: vec![give],
                         offering_hidden_count: give_hidden,
+                        offering_claimed: vec![],
                         wanting_guaranteed: vec![want],
                         wanting_hidden_count: want_hidden,
                         target,

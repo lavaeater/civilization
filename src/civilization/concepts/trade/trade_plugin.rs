@@ -52,6 +52,8 @@ impl Plugin for TradePlugin {
                     update_card_count_displays,
                     handle_hidden_count_buttons,
                     update_hidden_count_displays,
+                    handle_claim_buttons,
+                    update_claim_display,
                     update_offer_summary_display,
                     handle_publish_offer,
                 )

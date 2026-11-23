@@ -164,6 +164,11 @@ impl SubmitMove {
 pub struct ProposeTradeOffer {
     pub offering_guaranteed: Vec<(TradeCard, usize)>,
     pub offering_hidden_count: usize,
+    /// What the proposer *says* the hidden cards are. Talk, not a promise
+    /// (rule 28.3: hidden cards may be anything, whatever was said), so
+    /// this is how a player bluffs. At most `offering_hidden_count` cards.
+    #[serde(default)]
+    pub offering_claimed: Vec<(TradeCard, usize)>,
     pub wanting_guaranteed: Vec<(TradeCard, usize)>,
     pub wanting_hidden_count: usize,
     /// `None` = open to anyone.
@@ -281,6 +286,9 @@ pub struct NetTradeOffer {
     pub settling: bool,
     pub offering_guaranteed: Vec<(TradeCard, usize)>,
     pub offering_hidden_count: usize,
+    /// What the creator says its hidden cards are; may be a lie.
+    #[serde(default)]
+    pub offering_claimed: Vec<(TradeCard, usize)>,
     pub wanting_guaranteed: Vec<(TradeCard, usize)>,
     pub wanting_hidden_count: usize,
 }
