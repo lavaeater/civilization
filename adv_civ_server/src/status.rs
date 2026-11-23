@@ -7,6 +7,9 @@
 //!   seconds after the game reaches `GameOver`, so the supervisor can reap
 //!   it. The delay gives clients time to see the final scores. Unset = run
 //!   forever (the old behaviour).
+//! - `EXIT_AFTER_ROUND`: when set to N, the process exits as soon as round
+//!   N+1 starts (its `[STATE]`/`[LOSS]` log lines are the last ones written).
+//!   For headless self-play (`scripts/selfplay.py`), where games rarely end.
 
 use crate::game::Seats;
 use adv_civ::civilization::GameInfoAndStuff;
@@ -106,9 +109,25 @@ fn schedule_exit(mut commands: Commands) {
     }
 }
 
-fn exit_when_due(exit_at: Option<Res<ExitAt>>, mut exit: MessageWriter<AppExit>) {
+pub fn exit_after_round() -> Option<usize> {
+    std::env::var("EXIT_AFTER_ROUND")
+        .ok()
+        .and_then(|v| v.trim().parse::<usize>().ok())
+}
+
+fn exit_when_due(
+    exit_at: Option<Res<ExitAt>>,
+    game_info: Option<Res<GameInfoAndStuff>>,
+    mut exit: MessageWriter<AppExit>,
+) {
     if exit_at.is_some_and(|at| Instant::now() >= at.0) {
         info!("Exiting after game over");
+        exit.write(AppExit::Success);
+    }
+    if let (Some(last), Some(info)) = (exit_after_round(), game_info)
+        && info.round > last
+    {
+        info!("Exiting after round {last} (EXIT_AFTER_ROUND)");
         exit.write(AppExit::Success);
     }
 }

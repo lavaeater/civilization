@@ -65,6 +65,7 @@ pub fn log_round_state(
     civ_card_defs: Option<Res<crate::civilization::concepts::civ_cards::AvailableCivCards>>,
     token_query: Query<&Token>,
     area_pop_query: Query<(Entity, &Population, Option<&Name>), With<GameArea>>,
+    mut ledger: Option<ResMut<crate::civilization::components::LossLedger>>,
 ) {
     // Ground-truth token count per owner, straight from the Token entities. This is
     // the conservation check: stock + on-board + treasury *should* equal this, and
@@ -148,12 +149,28 @@ pub fn log_round_state(
                 " ⚠DESYNC"
             },
         );
+        if let Some(ledger) = ledger.as_deref() {
+            use crate::civilization::components::LossLedger;
+            // Since the previous round's [STATE]: board tokens and cities that
+            // left the board, and treasury spent, by the phase it happened in.
+            // CityConstruction tokens became cities; they are not a loss.
+            info!(
+                "[LOSS] {name}: tokens[{}] cities[{}] treasury[{}] gained[{}]",
+                LossLedger::summary(&ledger.tokens, entity),
+                LossLedger::summary(&ledger.cities, entity),
+                LossLedger::summary(&ledger.treasury, entity),
+                LossLedger::summary(&ledger.cities_gained, entity),
+            );
+        }
         if !mismatches.is_empty() {
             info!(
                 "[STATE]   ↳ area desync for {name}: {}",
                 mismatches.join(", ")
             );
         }
+    }
+    if let Some(ledger) = ledger.as_deref_mut() {
+        ledger.clear();
     }
 }
 

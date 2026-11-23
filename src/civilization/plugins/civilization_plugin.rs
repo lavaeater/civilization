@@ -110,6 +110,7 @@ impl Plugin for CivLogicPlugins {
             ))
             .add_systems(OnEnter(GameActivity::StartGame), start_game)
             .insert_resource(GameInfoAndStuff::default())
+            .init_resource::<crate::civilization::components::LossLedger>()
             .add_systems(
                 Update,
                 (

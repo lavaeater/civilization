@@ -220,6 +220,7 @@ pub fn on_add_unresolved_city_conflict(
                     )) = player_with_city.get_mut(built_city.player)
                     {
                         commands.entity(area_entity).remove::<BuiltCity>();
+                        record_city_loss(&mut commands, built_city.player);
                         replace_city_with_tokens_for_conflict(
                             &mut commands,
                             area_entity,

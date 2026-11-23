@@ -2,7 +2,9 @@ use crate::civilization::enums::GameFaction;
 use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{Component, Entity, Reflect, ReflectComponent};
 
+mod ledger;
 mod population;
+pub use ledger::*;
 pub use population::*;
 
 #[derive(Component)]
@@ -321,6 +323,11 @@ impl PlayerAreas {
                 self.remove_area(area);
             }
         }
+    }
+
+    /// Whether `token` is on the board in one of this player's areas.
+    pub fn holds_token(&self, token: Entity) -> bool {
+        self.area_population.values().any(|tokens| tokens.contains(&token))
     }
 
     pub fn remove_token(&mut self, token: Entity) {

@@ -352,6 +352,7 @@ pub fn resolve_revolts(
                 continue;
             };
             info!("[TAXATION] Revolting city in {area:?} taken over by {new_owner_name}");
+            crate::civilization::components::record_city_gain(&mut commands, new_owner);
             round_summary.push(format!(
                 "{owner_name}'s revolting city was taken over by {new_owner_name}"
             ));

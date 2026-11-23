@@ -53,6 +53,9 @@ pub fn eliminate_city(
             });
             commands.entity(eliminate.area_entity).remove::<BuiltCity>();
             let removed = player_cities.remove_city_from_area(eliminate.area_entity);
+            if removed.is_some() {
+                record_city_loss(&mut commands, city_token.player);
+            }
             city_stock.return_token_to_stock(eliminate.city);
             retire_city_token_visuals(&mut commands, eliminate.city);
 

@@ -3645,7 +3645,9 @@ pub fn destroy_city_in_area(
 
         if let Ok((mut city_stock, mut player_cities)) = city_stock_query.get_mut(built_city.player)
         {
-            player_cities.remove_city_from_area(area_entity);
+            if player_cities.remove_city_from_area(area_entity).is_some() {
+                record_city_loss(&mut commands, built_city.player);
+            }
             city_stock.return_token_to_stock(built_city.city);
         }
         retire_city_token_visuals(&mut commands, built_city.city);
@@ -3673,7 +3675,9 @@ pub fn reduce_city_in_area(
         if let Ok((mut city_stock, mut player_cities, _, _)) =
             city_stock_query.get_mut(built_city.player)
         {
-            player_cities.remove_city_from_area(area_entity);
+            if player_cities.remove_city_from_area(area_entity).is_some() {
+                record_city_loss(&mut commands, built_city.player);
+            }
             city_stock.return_token_to_stock(built_city.city);
 
             // Rule 26.11/26.6: calamity-driven reductions follow "the same
@@ -3732,11 +3736,13 @@ pub fn transfer_city_to_new_owner(
                 player_data.get_many_mut([victim_player, new_owner])
         {
             if let Some(old_city) = v_cities.remove_city_from_area(area_entity) {
+                record_city_loss(&mut commands, victim_player);
                 v_stock.return_token_to_stock(old_city);
                 retire_city_token_visuals(&mut commands, old_city);
             }
             if let Some(new_city) = b_stock.get_token_from_stock() {
                 b_cities.build_city_in_area(area_entity, new_city);
+                record_city_gain(&mut commands, new_owner);
                 commands
                     .entity(area_entity)
                     .insert(BuiltCity::new(new_city, new_owner));

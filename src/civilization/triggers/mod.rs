@@ -16,6 +16,12 @@ pub fn on_add_return_token_to_stock(
 
     if let Ok(token) = token_query.get(entity) {
         if let Ok((mut token_stock, mut player_areas)) = player_query.get_mut(token.player()) {
+            let player = token.player();
+            if player_areas.holds_token(entity) {
+                record_loss(&mut commands, player, |l| &mut l.tokens);
+            } else {
+                record_loss(&mut commands, player, |l| &mut l.treasury);
+            }
             return_token_to_stock(entity, &mut token_stock, &mut player_areas);
         } else {
             warn!(
@@ -61,7 +67,9 @@ pub fn on_add_return_city_to_stock(
         );
         return;
     };
-    player_cities.remove_city_by_token(entity);
+    if player_cities.remove_city_by_token(entity).is_some() {
+        record_loss(&mut commands, city_token.player, |l| &mut l.cities);
+    }
     city_stock.return_token_to_stock(entity);
 }
 
