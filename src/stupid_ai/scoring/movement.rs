@@ -46,6 +46,9 @@ pub fn score_movement(
             {
                 return 0.0;
             }
+            if starves_city_support(m.source, m.target, m.max_tokens, areas, plan.support_needed) {
+                return 0.0;
+            }
             clamp01_soft(
                 base + city_plan_adjustment(m.source, m.target, areas, plan)
                     + surplus_bonus(m.source, areas, plan),
@@ -67,6 +70,44 @@ pub fn score_movement(
         // Not a movement-phase move; never selected here.
         _ => f32::NEG_INFINITY,
     }
+}
+
+/// Whether moving `k` tokens from `source` to `target` leaves fewer tokens
+/// than the player's cities need once surplus removal has run, assuming no
+/// city gets built: a pile on a city site above the area's limit is cut back
+/// to the limit if the city doesn't happen (e.g. conflict took some of it).
+/// Self-play lost ~5 cities a game that way, at the city-support check right
+/// after surplus removal. A move that doesn't make the shortfall worse
+/// (spreading out of an overfull area) is always fine.
+fn starves_city_support(
+    source: Entity,
+    target: Entity,
+    k: usize,
+    areas: &HashMap<Entity, AreaSummary>,
+    support_needed: usize,
+) -> bool {
+    if support_needed == 0 {
+        return false;
+    }
+    let survivors = |a: &AreaSummary, pop: usize| {
+        if a.has_city {
+            0
+        } else {
+            pop.min(a.max_population)
+        }
+    };
+    let (Some(src), Some(tgt)) = (area(areas, source), area(areas, target)) else {
+        return false;
+    };
+    let total: usize = areas
+        .values()
+        .map(super::tokens_after_surplus_removal)
+        .sum();
+    let k = k.min(src.my_pop);
+    let before = survivors(src, src.my_pop) + survivors(tgt, tgt.my_pop);
+    let after = survivors(src, src.my_pop - k) + survivors(tgt, tgt.my_pop + k);
+    let total_after = (total + after).saturating_sub(before);
+    total_after < support_needed && total_after < total
 }
 
 /// Tokens above an area's limit will be removed at end of turn (surplus
@@ -357,22 +398,9 @@ mod tests {
         };
         assert!(rivals.sieges.is_target(enemy));
 
-        let attack_score = score_movement(
-            &attack,
-            player,
-            &areas,
-            &w,
-            &CityPlan::default(),
-            &rivals,
-        );
-        let hold_score = score_movement(
-            &hold,
-            player,
-            &areas,
-            &w,
-            &CityPlan::default(),
-            &rivals,
-        );
+        let attack_score =
+            score_movement(&attack, player, &areas, &w, &CityPlan::default(), &rivals);
+        let hold_score = score_movement(&hold, player, &areas, &w, &CityPlan::default(), &rivals);
         assert!(
             attack_score > hold_score,
             "warlord should take the city: attack {attack_score} vs hold {hold_score}"
@@ -670,7 +698,14 @@ mod tests {
 
         // And with no siege plan at all, a city attack is vetoed outright.
         let unplanned = score_movement(&hit_leader, player, &areas, &w, &plan, &Rivals::default());
-        let hold = score_movement(&GameMove::EndMovement, player, &areas, &w, &plan, &Rivals::default());
+        let hold = score_movement(
+            &GameMove::EndMovement,
+            player,
+            &areas,
+            &w,
+            &plan,
+            &Rivals::default(),
+        );
         assert!(unplanned < hold, "unplanned {unplanned} vs hold {hold}");
     }
 
@@ -754,5 +789,39 @@ mod tests {
             grab_score > hold_score,
             "expansionist should move into the empty city site: grab {grab_score} vs hold {hold_score}"
         );
+    }
+
+    #[test]
+    fn never_piles_up_tokens_the_cities_need() {
+        // Two cities need 4 tokens. 4 sit safely in two areas of 2; moving
+        // both of one area onto a capacity-1 site would leave 3 after surplus
+        // removal if the city doesn't get built.
+        let (a, b, site) = (e(1), e(2), e(3));
+        let mut areas = HashMap::default();
+        for x in [a, b] {
+            areas.insert(
+                x,
+                AreaSummary {
+                    max_population: 2,
+                    my_pop: 2,
+                    ..Default::default()
+                },
+            );
+        }
+        areas.insert(
+            site,
+            AreaSummary {
+                max_population: 1,
+                is_city_site: true,
+                ..Default::default()
+            },
+        );
+        assert!(starves_city_support(a, site, 2, &areas, 4));
+        // With no cities to keep, or room to spare, the move is fine.
+        assert!(!starves_city_support(a, site, 2, &areas, 0));
+        assert!(!starves_city_support(a, site, 2, &areas, 3));
+        // Spreading out of an overfull area never counts against it.
+        areas.get_mut(&a).unwrap().my_pop = 4;
+        assert!(!starves_city_support(a, b, 1, &areas, 10));
     }
 }

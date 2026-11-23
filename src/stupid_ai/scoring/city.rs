@@ -55,7 +55,11 @@ pub fn score_city_construction(
 
 /// Rule 32 (city support): each city needs 2 of its owner's tokens on the
 /// board. Building in `target` uses up every token there, so what's left
-/// elsewhere has to cover all cities, the new one included.
+/// elsewhere has to cover all cities, the new one included -- counting only
+/// what survives the surplus removal that follows city construction: tokens
+/// in an area with a city are all removed, elsewhere anything above the
+/// area's limit goes. (Counting every token here cost ~9 cities a game in
+/// self-play: built, then lost straight after surplus removal.)
 pub fn can_support_one_more_city(
     areas: &HashMap<Entity, AreaSummary>,
     target: Entity,
@@ -64,9 +68,18 @@ pub fn can_support_one_more_city(
     let left_on_board: usize = areas
         .iter()
         .filter(|(e, _)| **e != target)
-        .map(|(_, a)| a.my_pop)
+        .map(|(_, a)| tokens_after_surplus_removal(a))
         .sum();
     left_on_board >= 2 * (my_cities + 1)
+}
+
+/// The deciding player's tokens in `area` that rule 25 surplus removal leaves.
+pub fn tokens_after_surplus_removal(area: &AreaSummary) -> usize {
+    if area.has_city {
+        0
+    } else {
+        area.my_pop.min(area.max_population)
+    }
 }
 
 /// Score a forced city-elimination choice. The game makes us give up a city; a
@@ -137,8 +150,31 @@ mod tests {
             f32::NEG_INFINITY
         );
         // With 4 tokens left on the board, the second city is fine.
-        areas.get_mut(&e(99)).unwrap().my_pop = 4;
+        let support = areas.get_mut(&e(99)).unwrap();
+        support.my_pop = 4;
+        support.max_population = 4;
         assert!(score_city_construction(&build, &areas, &w, 1.0, 1).is_finite());
+    }
+
+    #[test]
+    fn tokens_surplus_removal_will_take_do_not_support_a_city() {
+        let (target, mut areas) = one_area_world(4);
+        let w = Personality::from_playstyle(Playstyle::Balanced).weights;
+        let build = GameMove::CityConstruction(BuildCityMove::new(target, e(1)));
+        // 4 tokens in an area that holds 2: only 2 stay, not enough for two cities.
+        areas.get_mut(&e(99)).unwrap().my_pop = 4;
+        assert_eq!(
+            score_city_construction(&build, &areas, &w, 1.0, 1),
+            f32::NEG_INFINITY
+        );
+        // Tokens left standing in a city area are all removed.
+        let support = areas.get_mut(&e(99)).unwrap();
+        support.max_population = 4;
+        support.has_city = true;
+        assert_eq!(
+            score_city_construction(&build, &areas, &w, 1.0, 0),
+            f32::NEG_INFINITY
+        );
     }
 
     #[test]

@@ -29,6 +29,9 @@ pub struct CityPlan {
     /// fed a neighbouring site from it, and two adjacent 5-token sites
     /// ping-ponged tokens until neither had 6.
     complete: HashMap<Entity, usize>,
+    /// Tokens the player must still have on the board after surplus removal
+    /// to keep the cities it already has (2 per city, rule 32). 0 = unknown.
+    pub support_needed: usize,
 }
 
 impl CityPlan {
@@ -60,6 +63,7 @@ impl CityPlan {
             drive,
             targets: HashMap::default(),
             complete: HashMap::default(),
+            support_needed: existing_cities.map_or(0, |c| 2 * c),
         };
         if drive <= 0.0 || threshold == 0 {
             return plan;
@@ -96,9 +100,8 @@ impl CityPlan {
         let board_pop: usize = areas.values().map(|a| a.my_pop).sum();
         // Can the board support `planned` new cities (each a full stack)?
         let supportable = |planned: usize| {
-            existing_cities.is_none_or(|cities| {
-                board_pop >= planned * threshold + 2 * (cities + planned)
-            })
+            existing_cities
+                .is_none_or(|cities| board_pop >= planned * threshold + 2 * (cities + planned))
         };
 
         let mut candidates: Vec<(Entity, usize, usize)> = feeders
@@ -283,7 +286,10 @@ mod tests {
         let moves = HashMap::from_iter([(1, mv(done, other, 6)), (2, mv(other, done, 5))]);
         let plan = CityPlan::build(&moves, &areas, 6, 1.0, None);
         assert_eq!(plan.spare_at(done), Some(0));
-        assert!(!plan.is_target(other), "other may only be fed with spare tokens");
+        assert!(
+            !plan.is_target(other),
+            "other may only be fed with spare tokens"
+        );
         // With one spare token, it can.
         let areas = HashMap::from_iter([(done, site(7)), (other, site(5))]);
         let plan = CityPlan::build(&moves, &areas, 6, 1.0, None);
