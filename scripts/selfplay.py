@@ -50,6 +50,7 @@ CIV_BOUGHT = re.compile(r"\[CIV_CARDS\] (\w+) bought \[([\w, ]+)\]")
 TRADED = re.compile(
     r"\[TRADE\] .* of (\w+) <-> .* of (\w+):(?:.*lied=(true|false) calamities (\d+)/(\d+))?"
 )
+TREACHERY = re.compile(r"Treachery: (\d+)")
 STACKS = re.compile(r"\[TRADE_CARDS\] stack sizes: (.*)")
 
 # Phases grouped into the causes worth telling apart. Tokens spent on
@@ -80,7 +81,7 @@ def parse_game(log: Path) -> dict:
             "cities": [], "board": [], "ast": [], "score": [], "strategy": None,
             "tokens_lost": defaultdict(int), "cities_lost": defaultdict(int),
             "treasury_spent": 0, "built": 0, "gained": 0, "civ_bought": 0, "trades": 0,
-            "lies": 0, "calamities_passed": 0,
+            "lies": 0, "calamities_passed": 0, "treachery_passed": 0,
         }
     )
     rounds = 0
@@ -120,6 +121,12 @@ def parse_game(log: Path) -> dict:
                 factions[m[2]]["trades"] += 1
                 if m[3] == "true":
                     factions[m[1]]["lies"] += 1
+                # "{creator cards} for {acceptor cards} | ..."
+                deal = line.split("[TRADE] ", 1)[-1].split(": ", 1)[-1].split(" | ")[0]
+                given, _, got = deal.partition(" for ")
+                for who, cards in ((m[1], given), (m[2], got)):
+                    if t := TREACHERY.search(cards):
+                        factions[who]["treachery_passed"] += int(t[1])
                 if m[4]:
                     factions[m[1]]["calamities_passed"] += int(m[4])
                     factions[m[2]]["calamities_passed"] += int(m[5])
@@ -151,6 +158,8 @@ def summarize(games: list[dict]) -> dict:
             "trades_per_game": mean([r["trades"] for r in rows]),
             "lies_per_game": mean([r["lies"] for r in rows]),
             "calamities_passed_per_game": mean([r["calamities_passed"] for r in rows]),
+            "treachery_passed_per_game": mean([r["treachery_passed"] for r in rows]),
+            "gained_per_game": mean([r["gained"] for r in rows]),
             "cities_lost_per_game": {
                 c: mean([r["cities_lost"].get(c, 0) for r in rows]) for c in CAUSE_ORDER
             },
@@ -248,6 +257,11 @@ def print_report(s: dict, base: dict | None) -> None:
     if any(lies.values()) or any(passed.values()):
         print("  per game, lies told / calamities traded away: "
               + ", ".join(f"{n} {lies[n]:.1f}/{passed[n]:.1f}" for n in s["factions"]))
+    tr = {n: f.get("treachery_passed_per_game", 0) for n, f in s["factions"].items()}
+    gained = {n: f.get("gained_per_game", 0) for n, f in s["factions"].items()}
+    if any(tr.values()):
+        print("  per game, Treachery traded away / cities taken from others: "
+              + ", ".join(f"{n} {tr[n]:.1f}/{gained[n]:.1f}" for n in s["factions"]))
     if s.get("stack_sizes"):
         print("  trade stack sizes before drawing (piles 1-9): "
               + " ".join(f"{x:.1f}" for x in s["stack_sizes"]))

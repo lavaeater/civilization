@@ -1352,13 +1352,12 @@ fn rebuild_online_ui(
                     offering_claimed: draft
                         .claim
                         .filter(|_| draft.offering_hidden > 0)
-                        .map(|i| {
+                        .map_or_default(|i| {
                             vec![(
                                 COMMODITY_CARDS[i % COMMODITY_CARDS.len()],
                                 draft.offering_hidden,
                             )]
-                        })
-                        .unwrap_or_default(),
+                        }),
                     wanting_guaranteed: vec![(wanting_card, 2)],
                     wanting_hidden_count: draft.wanting_hidden,
                     target,

@@ -19,12 +19,14 @@ use crate::civilization::game_moves::{
 };
 use crate::civilization::ui::{ButtonActivated, game_button};
 use crate::civilization::{
-    AvailableCivCards, CivCardName, PlayerCivilizationCards, TradeCardTrait, TradePhaseUiRoot,
+    AvailableCivCards, CivCardName, PlayerCities, PlayerCivilizationCards, TradeCardTrait,
+    TradePhaseUiRoot,
 };
 use crate::stupid_ai::{
     DEFAULT_TRUST, HIDDEN_CALAMITY_COST, IsHuman, Personality, TradeTrust,
-    accepts_calamity_offload, deceit, hidden_cards_to_trade, honesty_of_delivery,
-    offer_creation_chance, stop_trading_threshold, trade_accept_margin,
+    accepts_calamity_offload, best_treachery_victim, deceit, hidden_cards_to_trade,
+    honesty_of_delivery, offer_creation_chance, stop_trading_threshold, trade_accept_margin,
+    treachery_victim_value,
 };
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
@@ -2707,9 +2709,17 @@ pub const AI_MAX_OPEN_OFFERS: usize = 3;
 pub fn ai_create_trade_offers(
     mut commands: Commands,
     ai_players: Query<
-        (Entity, &Name, &PlayerTradeCards, &CanTrade, &Personality),
+        (
+            Entity,
+            &Name,
+            &PlayerTradeCards,
+            &CanTrade,
+            &Personality,
+            Option<&TradeTrust>,
+        ),
         Without<IsHuman>,
     >,
+    traders: Query<(Entity, &Name, &PlayerCities), With<CanTrade>>,
     mut existing_offers: Query<&mut OpenTradeOffer>,
     time: Res<Time>,
     mut ai_offer_timer: Local<f32>,
@@ -2734,7 +2744,7 @@ pub fn ai_create_trade_offers(
     *ai_offer_timer = 0.0;
 
     let mut rng = rand::rng();
-    for (ai_entity, ai_name, ai_cards, _, personality) in ai_players.iter() {
+    for (ai_entity, ai_name, ai_cards, _, personality, trust) in ai_players.iter() {
         // Personality gate: eager traders flood the table with offers, reluctant
         // ones post less often.
         if rng.random::<f32>() > offer_creation_chance(&personality.weights) {
@@ -2783,8 +2793,7 @@ pub fn ai_create_trade_offers(
             plan.give
                 .keys()
                 .next()
-                .map(|card| HashMap::from([(*card, hidden)]))
-                .unwrap_or_default()
+                .map_or_default(|card| HashMap::from([(*card, hidden)]))
         } else {
             // Honest: name the hidden commodities, keep quiet about calamities.
             delivered
@@ -2798,7 +2807,27 @@ pub fn ai_create_trade_offers(
                 .collect()
         };
 
-        let mut offer = OpenTradeOffer::new(ai_entity, ai_name.to_string(), None, None);
+        // Holding Treachery: aim one offer at the player whose city we'd
+        // most like to take (rule 30.221), keep the rest open to anyone.
+        let aiming = ai_cards.number_of_cards_for_trade_card(TradeCard::Treachery) > 0
+            && !existing_offers
+                .iter()
+                .any(|o| o.creator == ai_entity && o.target.is_some() && !o.withdrawn);
+        let target = if aiming {
+            let others: Vec<(Entity, usize)> = traders
+                .iter()
+                .filter(|(p, _, _)| *p != ai_entity)
+                .map(|(p, _, cities)| (p, cities.number_of_cities()))
+                .collect();
+            best_treachery_victim(&others, trust, &personality.weights)
+        } else {
+            None
+        };
+        let target_name = target
+            .and_then(|t| traders.get(t).ok())
+            .map(|(_, name, _)| name.to_string());
+
+        let mut offer = OpenTradeOffer::new(ai_entity, ai_name.to_string(), target, target_name);
         offer.offering_guaranteed = plan.give;
         offer.offering_hidden_count = hidden;
         offer.offering_claimed = claimed;
@@ -2874,7 +2903,13 @@ pub fn ai_accept_trade_offers(
         Without<IsHuman>,
     >,
     mut offers: Query<(Entity, &mut OpenTradeOffer)>,
+    cities: Query<&PlayerCities>,
 ) {
+    let most_cities = cities
+        .iter()
+        .map(PlayerCities::number_of_cities)
+        .max()
+        .unwrap_or(0);
     for (ai_entity, ai_name, ai_cards, _, personality, ai_civ_cards, trust) in ai_players.iter() {
         // One trade at a time: the cards it would hand over are only known
         // to be free while no other deal of ours is waiting to settle.
@@ -2896,6 +2931,7 @@ pub fn ai_accept_trade_offers(
                 0.0
             };
         let aversion = personality.weights.calamity_aversion;
+        let holds_treachery = ai_cards.number_of_cards_for_trade_card(TradeCard::Treachery) > 0;
 
         // Take the best offer on the table, not the first acceptable one.
         let best = offers
@@ -2903,8 +2939,21 @@ pub fn ai_accept_trade_offers(
             .filter(|(_, o)| o.can_accept(ai_entity) && !busy(o.creator, &offers))
             .filter_map(|(e, o)| {
                 let partner_trust = trust.map_or(DEFAULT_TRUST, |t| t.of(o.creator));
-                let (gain, dumps_calamity) =
+                let (mut gain, dumps_calamity) =
                     acceptor_trade_gain(ai_cards, o, has_mining, partner_trust, aversion)?;
+                // Our Treachery goes out with the hidden cards: a creator
+                // with cities to take makes the deal worth more.
+                if holds_treachery && o.wanting_hidden_count > 0 {
+                    let victim_cities = cities
+                        .get(o.creator)
+                        .map_or(0, PlayerCities::number_of_cities);
+                    gain += treachery_victim_value(
+                        victim_cities,
+                        most_cities,
+                        partner_trust,
+                        &personality.weights,
+                    );
+                }
                 let profitable = gain > margin;
                 // Passing on a calamity is worth a small loss to the wary.
                 let dump = dumps_calamity

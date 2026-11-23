@@ -128,6 +128,79 @@ pub fn honesty_of_delivery(
     kept as f32 / claimed as f32
 }
 
+/// What slipping a traded Treachery to `victim` is worth to the trader.
+/// Rule 30.221: the trader takes one of the victim's cities, so a victim
+/// without cities is worth nothing. Taking a city from the player with the
+/// most cities also holds the leader back, and a partner who burnt us
+/// before is the one to pay back. Aggressive players value it most.
+pub fn treachery_victim_value(
+    victim_cities: usize,
+    most_cities: usize,
+    trust_in_victim: f32,
+    w: &Weights,
+) -> f32 {
+    if victim_cities == 0 {
+        return 0.0;
+    }
+    let city = 6.0 * (0.6 + 0.4 * w.aggression.clamp(0.0, 1.0));
+    let leader = if victim_cities >= most_cities {
+        2.0
+    } else {
+        0.0
+    };
+    let payback = 3.0 * ((DEFAULT_TRUST - trust_in_victim) / DEFAULT_TRUST).clamp(0.0, 1.0);
+    city + leader + payback
+}
+
+/// The best player to aim a Treachery at among `others` (player, cities).
+pub fn best_treachery_victim(
+    others: &[(bevy::prelude::Entity, usize)],
+    trust: Option<&TradeTrust>,
+    w: &Weights,
+) -> Option<bevy::prelude::Entity> {
+    let most = others.iter().map(|(_, c)| *c).max().unwrap_or(0);
+    others
+        .iter()
+        .map(|(p, cities)| {
+            let t = trust.map_or(DEFAULT_TRUST, |t| t.of(*p));
+            (*p, treachery_victim_value(*cities, most, t, w))
+        })
+        .filter(|(_, v)| *v > 0.0)
+        .max_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(p, _)| p)
+}
+
+#[cfg(test)]
+mod treachery_tests {
+    use super::*;
+    use crate::stupid_ai::{Personality, Playstyle};
+    use bevy::prelude::Entity;
+
+    fn e(i: u32) -> Entity {
+        Entity::from_raw_u32(i).unwrap()
+    }
+
+    #[test]
+    fn treachery_goes_to_the_leader_not_the_cityless() {
+        let w = Personality::from_playstyle(Playstyle::Balanced).weights;
+        let others = [(e(1), 0), (e(2), 2), (e(3), 5)];
+        assert_eq!(best_treachery_victim(&others, None, &w), Some(e(3)));
+        assert_eq!(best_treachery_victim(&[(e(1), 0)], None, &w), None);
+    }
+
+    #[test]
+    fn a_liar_gets_paid_back() {
+        let w = Personality::from_playstyle(Playstyle::Balanced).weights;
+        let mut trust = TradeTrust::default();
+        for _ in 0..5 {
+            trust.observe(e(2), 0.0);
+        }
+        // Equal cities: the one who burnt us gets it.
+        let others = [(e(1), 3), (e(2), 3)];
+        assert_eq!(best_treachery_victim(&others, Some(&trust), &w), Some(e(2)));
+    }
+}
+
 #[cfg(test)]
 mod bluff_tests {
     use super::*;
