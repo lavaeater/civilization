@@ -241,6 +241,7 @@ fn buying_charges_18_tokens_per_card_and_returns_them_to_stock() {
     let mut token_stock = TokenStock::new(0, vec![]);
     let mut resource = CivilizationTradeCards {
         card_piles: HashMap::from([(9, vec![TradeCard::Gold, TradeCard::Ivory])]),
+        ..Default::default()
     };
     let mut hand = PlayerTradeCards::default();
 
@@ -264,6 +265,7 @@ fn insufficient_treasury_blocks_the_purchase() {
     let mut token_stock = TokenStock::new(0, vec![]);
     let mut resource = CivilizationTradeCards {
         card_piles: HashMap::from([(9, vec![TradeCard::Piracy])]),
+        ..Default::default()
     };
     let mut hand = PlayerTradeCards::default();
 
@@ -284,6 +286,7 @@ fn an_empty_ninth_stack_blocks_the_purchase_even_with_plenty_of_treasury() {
     let mut token_stock = TokenStock::new(0, vec![]);
     let mut resource = CivilizationTradeCards {
         card_piles: HashMap::from([(9, vec![])]),
+        ..Default::default()
     };
     let mut hand = PlayerTradeCards::default();
 
@@ -301,6 +304,7 @@ fn purchase_count_is_capped_by_whichever_runs_out_first_stack_or_treasury() {
     let mut token_stock = TokenStock::new(0, vec![]);
     let mut resource = CivilizationTradeCards {
         card_piles: HashMap::from([(9, vec![TradeCard::Gold, TradeCard::Ivory])]),
+        ..Default::default()
     };
     let mut hand = PlayerTradeCards::default();
 

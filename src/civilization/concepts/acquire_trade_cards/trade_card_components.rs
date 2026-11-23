@@ -14,9 +14,14 @@ use rand::seq::SliceRandom;
 /// reach.)
 pub const MIN_CARDS_REQUIRED_TO_TRADE: usize = 3;
 
+/// The trade card stacks, keyed by face value. The top of a stack is the end
+/// of its `Vec` (`pull_card_from` pops), the bottom is index 0.
 #[derive(Resource, Debug, Default)]
 pub struct CivilizationTradeCards {
     pub card_piles: HashMap<usize, Vec<TradeCard>>,
+    /// Cards handed back this turn (spent on civ cards, shed, resolved or
+    /// excess calamities), per stack, waiting for `put_returned_cards_at_bottom`.
+    pub returned: HashMap<usize, Vec<TradeCard>>,
 }
 
 impl CivilizationTradeCards {
@@ -33,7 +38,51 @@ impl CivilizationTradeCards {
         for pile in cards.values_mut() {
             pile.shuffle(&mut rng);
         }
-        Self { card_piles: cards }
+        Self {
+            card_piles: cards,
+            returned: HashMap::new(),
+        }
+    }
+
+    /// Hands `count` copies of `card` back to its stack. They stay out of play
+    /// until the end of the turn, when `put_returned_cards_at_bottom` puts them
+    /// under the stack (rules 29.7, 31.71, 31.81-31.82).
+    pub fn return_cards(&mut self, card: TradeCard, count: usize) {
+        self.returned
+            .entry(card.value())
+            .or_default()
+            .extend(std::iter::repeat_n(card, count));
+    }
+
+    pub fn return_card(&mut self, card: TradeCard) {
+        self.return_cards(card, 1);
+    }
+
+    /// Whether `card` is in its stack or waiting to go back under it.
+    pub fn stack_holds(&self, card: TradeCard) -> bool {
+        let value = card.value();
+        self.card_piles.get(&value).is_some_and(|p| p.contains(&card))
+            || self.returned.get(&value).is_some_and(|p| p.contains(&card))
+    }
+
+    /// End of turn (rules 31.81-31.82, 29.7): each stack's returned commodity
+    /// and tradable calamity cards are shuffled together and placed face-down
+    /// at the bottom of the stack; non-tradable calamities go under those.
+    /// The stacks themselves are never reshuffled, so a card just used cannot
+    /// come straight back up.
+    pub fn put_returned_cards_at_bottom(&mut self) {
+        let mut rng = rand::rng();
+        for (value, cards) in self.returned.drain() {
+            let (mut shuffled, untradeable): (Vec<TradeCard>, Vec<TradeCard>) = cards
+                .into_iter()
+                .partition(|c| c.is_tradeable() || !c.is_calamity());
+            shuffled.shuffle(&mut rng);
+            let pile = self.card_piles.entry(value).or_default();
+            let mut new_pile = untradeable;
+            new_pile.append(&mut shuffled);
+            new_pile.append(pile);
+            *pile = new_pile;
+        }
     }
     pub fn pull_card_from(&mut self, pile: usize) -> Option<TradeCard> {
         if let Some(p) = self.card_piles.get_mut(&pile) {
@@ -432,6 +481,28 @@ pub fn hex(hex_str: &str) -> Color {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Rules 31.81-31.82: returned cards wait out the turn, then go under the
+    /// stack (non-tradable calamities lowest); what was on top stays on top.
+    #[test]
+    fn returned_cards_go_under_the_stack_at_end_of_turn() {
+        let mut piles = CivilizationTradeCards {
+            card_piles: HashMap::from([(3, vec![TradeCard::Salt, TradeCard::Timber])]),
+            ..Default::default()
+        };
+        piles.return_card(TradeCard::Famine);
+        piles.return_cards(TradeCard::Salt, 2);
+        assert_eq!(piles.card_piles[&3].len(), 2, "not back in play mid-turn");
+        assert!(piles.stack_holds(TradeCard::Famine));
+
+        piles.put_returned_cards_at_bottom();
+        let pile = &piles.card_piles[&3];
+        assert_eq!(pile.len(), 5);
+        assert_eq!(pile[0], TradeCard::Famine, "non-tradable calamity lowest");
+        assert_eq!(pile[3..], [TradeCard::Salt, TradeCard::Timber], "old top unchanged");
+        assert_eq!(piles.pull_card_from(3), Some(TradeCard::Timber));
+        assert!(piles.returned.is_empty());
+    }
 
     #[test]
     fn remove_random_card_on_empty_hand_returns_none() {

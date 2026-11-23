@@ -552,10 +552,7 @@ mod tests {
             .expect("exactly one of the three calamities was discarded");
         let piles = world.resource::<CivilizationTradeCards>();
         assert!(
-            piles
-                .card_piles
-                .get(&discarded.value())
-                .is_some_and(|p| p.contains(&discarded)),
+            piles.stack_holds(discarded),
             "the excess calamity must go back to its trade card stack, not vanish (29.5)"
         );
     }

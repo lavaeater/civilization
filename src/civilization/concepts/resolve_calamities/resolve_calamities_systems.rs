@@ -131,11 +131,7 @@ pub fn start_calamity_resolution(
         for discarded in calamity_cards.iter().filter(|c| !selected.contains(c)) {
             let removed = trade_cards.remove_n_trade_cards(1, *discarded);
             if removed.is_some() {
-                trade_cards_resource
-                    .card_piles
-                    .entry(discarded.value())
-                    .or_default()
-                    .push(*discarded);
+                trade_cards_resource.return_card(*discarded);
             }
             info!(
                 "[CALAMITIES] {} exceeds the two-calamity limit (29.5): {:?} discarded{}",
@@ -266,11 +262,7 @@ pub fn process_pending_calamities(
                 // and leaving it out of circulation here was silently
                 // shrinking the pile every time a calamity resolved, which
                 // over a long game empties the piles and starves later draws.
-                trade_cards_resource
-                    .card_piles
-                    .entry(calamity.value())
-                    .or_default()
-                    .push(*calamity);
+                trade_cards_resource.return_card(*calamity);
             }
 
             let context = CalamityContext::new(*calamity, *player_entity, *traded_by);

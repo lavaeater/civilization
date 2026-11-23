@@ -66,6 +66,18 @@ pub fn acquire_trade_cards(
     debug_options: Res<DebugOptions>,
 ) {
     info!("[TRADE_CARDS] Starting acquire trade cards phase");
+    // Stack sizes before anyone draws: near-empty stacks mean calamities come
+    // up almost every turn (they are a larger share of what is left).
+    info!(
+        "[TRADE_CARDS] stack sizes: {}",
+        (1..=9)
+            .map(|v| format!(
+                "{v}:{}",
+                trade_card_resource.card_piles.get(&v).map_or(0, Vec::len)
+            ))
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
     let mut total_players = 0;
     let mut players_with_cities = 0;
 

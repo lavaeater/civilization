@@ -87,10 +87,7 @@ fn ai_over_limit_breaks_a_singleton_before_touching_a_series() {
 
     let piles = world.get_resource::<CivilizationTradeCards>().unwrap();
     assert!(
-        piles
-            .card_piles
-            .get(&TradeCard::Hides.value())
-            .is_some_and(|p| p.contains(&TradeCard::Hides)),
+        piles.stack_holds(TradeCard::Hides),
         "the discarded card must return to its value pile"
     );
 }

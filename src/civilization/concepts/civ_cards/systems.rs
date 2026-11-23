@@ -809,6 +809,7 @@ pub fn process_civ_card_purchase(
         Has<IsHuman>,
         Option<&GrainLockedForPurchase>,
         Option<&CardsHeldBeforePurchasing>,
+        Option<&crate::civilization::components::Faction>,
     )>,
     mut trade_cards_resource: ResMut<CivilizationTradeCards>,
     mut selection_state: ResMut<CivCardSelectionState>,
@@ -828,6 +829,7 @@ pub fn process_civ_card_purchase(
             is_human,
             grain_locked,
             cards_held_before,
+            faction,
         )) = player_query.get_mut(purchase.player)
         {
             // What this purchase actually costs, so treasury spending can be
@@ -841,6 +843,12 @@ pub fn process_civ_card_purchase(
                 .map(|def| def.calculate_cost(&credits) as usize)
                 .sum();
 
+            // Self-play (scripts/selfplay.py) reads this to see what the AI buys.
+            bevy::log::info!(
+                "[CIV_CARDS] {} bought {:?} for {total_cost}",
+                faction.map_or_else(|| format!("{:?}", purchase.player), |f| format!("{:?}", f.faction)),
+                purchase.cards_to_buy
+            );
             // Add civilization cards to player
             for card_name in &purchase.cards_to_buy {
                 player_cards.add_card(*card_name);
@@ -871,13 +879,8 @@ pub fn process_civ_card_purchase(
                 {
                     // Rule 28.51: a set of n cards is worth face_value x n².
                     commodity_value += count * count * trade_card.value();
-                    // Return cards to the appropriate pile
-                    let pile = trade_card.value();
-                    if let Some(pile_vec) = trade_cards_resource.card_piles.get_mut(&pile) {
-                        for _ in 0..count {
-                            pile_vec.push(*trade_card);
-                        }
-                    }
+                    // Back to their stack, under it at the end of the turn.
+                    trade_cards_resource.return_cards(*trade_card, count);
                 }
             }
 
@@ -1064,13 +1067,10 @@ pub fn begin_acquire_civ_cards(
     }
 }
 
-pub fn shuffle_trade_card_piles_on_exit(mut trade_cards_resource: ResMut<CivilizationTradeCards>) {
-    use rand::seq::SliceRandom;
-    let mut rng = rand::rng();
-
-    for pile in trade_cards_resource.card_piles.values_mut() {
-        pile.shuffle(&mut rng);
-    }
+/// End of turn: cards returned this turn go under their stacks (31.81-31.82).
+/// Runs when commodity shedding (31.71) is over, so shed cards join the batch.
+pub fn put_returned_trade_cards_at_bottom(mut trade_cards_resource: ResMut<CivilizationTradeCards>) {
+    trade_cards_resource.put_returned_cards_at_bottom();
 }
 
 #[cfg(test)]

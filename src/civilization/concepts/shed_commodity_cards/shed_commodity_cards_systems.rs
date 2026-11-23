@@ -121,11 +121,7 @@ fn discard_commodity_cards(
             continue;
         }
         if hand.remove_n_trade_cards(count, card).is_some() {
-            piles
-                .card_piles
-                .entry(card.value())
-                .or_default()
-                .extend(std::iter::repeat_n(card, count));
+            piles.return_cards(card, count);
         }
     }
 }
