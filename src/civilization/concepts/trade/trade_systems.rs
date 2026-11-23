@@ -8,7 +8,7 @@ use crate::civilization::concepts::trade::trade_components::{
 };
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::trade_functions::{
-    cheapest_cards_to_give, most_valuable_cards_to_request,
+    cheapest_cards_to_give, plan_ai_offers,
 };
 use crate::civilization::concepts::trade::trade_resources::{
     CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState,
@@ -2603,19 +2603,34 @@ pub fn despawn_settlement_modal(
 // ============================================================================
 
 /// AI creates trade offers based on their cards and needs
+/// Open offers one AI keeps on the table at a time.
+pub const AI_MAX_OPEN_OFFERS: usize = 3;
+
 pub fn ai_create_trade_offers(
     mut commands: Commands,
     ai_players: Query<
         (Entity, &Name, &PlayerTradeCards, &CanTrade, &Personality),
         Without<IsHuman>,
     >,
-    existing_offers: Query<&OpenTradeOffer>,
+    mut existing_offers: Query<&mut OpenTradeOffer>,
     time: Res<Time>,
     mut ai_offer_timer: Local<f32>,
 ) {
-    // Only create offers periodically (every 3-5 seconds)
+    // A creator whose offer was just taken withdraws its others: it named
+    // cards in all of them and can only settle one trade at a time.
+    let committed: Vec<Entity> = existing_offers
+        .iter()
+        .filter(|o| o.is_settling())
+        .map(|o| o.creator)
+        .collect();
+    for mut offer in &mut existing_offers {
+        if committed.contains(&offer.creator) && offer.accepted_by.is_none() && !offer.withdrawn {
+            offer.withdrawn = true;
+        }
+    }
+
     *ai_offer_timer += time.delta_secs();
-    if *ai_offer_timer < 3.0 {
+    if *ai_offer_timer < 1.0 {
         return;
     }
     *ai_offer_timer = 0.0;
@@ -2623,77 +2638,73 @@ pub fn ai_create_trade_offers(
     let mut rng = rand::rng();
     for (ai_entity, ai_name, ai_cards, _, personality) in ai_players.iter() {
         // Personality gate: eager traders flood the table with offers, reluctant
-        // ones mostly sit the phase out.
+        // ones post less often.
         if rng.random::<f32>() > offer_creation_chance(&personality.weights) {
             continue;
         }
-
-        // Check if AI already has an active offer
-        let has_active_offer = existing_offers
+        if existing_offers
             .iter()
-            .any(|o| o.creator == ai_entity && !o.withdrawn && o.accepted_by.is_none());
-
-        if has_active_offer {
+            .any(|o| o.is_settling() && (o.creator == ai_entity || o.accepted_by == Some(ai_entity)))
+        {
             continue;
         }
-
-        // Get AI's commodity cards
-        let commodities: Vec<(TradeCard, usize)> = ai_cards.commodity_cards().into_iter().collect();
-        if commodities.len() < 2 {
-            continue; // Not enough cards to trade
-        }
-
-        let ai_card_counts: HashMap<TradeCard, usize> = commodities.iter().copied().collect();
-
-        // A commodity set of n cards is worth face_value x n^2 (rule 28.2), so
-        // what matters is not a card's face value but what it does to a set.
-        // Give away whatever costs least: singletons and small sets, even of a
-        // high face value, before touching a set we are building.
-        let offering_guaranteed = cheapest_cards_to_give(&ai_card_counts, 2);
-        let cards_offered: usize = offering_guaranteed.values().sum();
-
-        if cards_offered < 2 {
-            continue;
-        }
-
-        // Ask for whatever adds the most: the (n+1)th card of a set we already
-        // hold is worth face_value x (2n+1), so reinforcing our biggest set
-        // beats collecting one of everything. Still capped at our own top face
-        // value -- an AI holding nothing but Ochre asking for Gold just gets
-        // ignored by everyone at the table.
-        let max_own_value = commodities
+        let open: Vec<HashMap<TradeCard, usize>> = existing_offers
             .iter()
-            .filter(|(_, count)| *count > 0)
-            .map(|(card, _)| card.value())
-            .max()
-            .unwrap_or(0);
-
-        let requestable: Vec<TradeCard> = TradeCard::iter()
-            .filter(adv_civ_protocol::TradeCardTrait::is_commodity)
-            .filter(|c| c.value() <= max_own_value)
-            // Never ask for a card we are simultaneously offering away.
-            .filter(|c| !offering_guaranteed.contains_key(c))
+            .filter(|o| o.creator == ai_entity && !o.withdrawn && o.accepted_by.is_none())
+            .map(|o| o.wanting_guaranteed.clone())
             .collect();
+        if open.len() >= AI_MAX_OPEN_OFFERS {
+            continue;
+        }
 
-        let wanting_guaranteed = most_valuable_cards_to_request(&ai_card_counts, &requestable, 2);
-        let cards_wanted: usize = wanting_guaranteed.values().sum();
+        // A commodity set of n cards is worth face_value x n^2 (rule 28.2):
+        // ask for cards that grow our sets, give the ones that cost least.
+        let ai_card_counts: HashMap<TradeCard, usize> =
+            ai_cards.commodity_cards().into_iter().collect();
+        let Some(plan) = plan_ai_offers(&ai_card_counts, AI_MAX_OPEN_OFFERS)
+            .into_iter()
+            .find(|p| !open.contains(&p.want))
+        else {
+            continue;
+        };
 
-        // Add hidden cards to reach minimum 3 each side
-        let offering_hidden = 3_usize.saturating_sub(cards_offered);
-        let wanting_hidden = 3_usize.saturating_sub(cards_wanted);
-
-        // Create the offer
         let mut offer = OpenTradeOffer::new(ai_entity, ai_name.to_string(), None, None);
-        offer.offering_guaranteed = offering_guaranteed;
-        offer.offering_hidden_count = offering_hidden;
-        offer.wanting_guaranteed = wanting_guaranteed;
-        offer.wanting_hidden_count = wanting_hidden;
+        offer.offering_guaranteed = plan.give;
+        offer.offering_hidden_count = 1;
+        offer.wanting_guaranteed = plan.want;
+        offer.wanting_hidden_count = 1;
 
         if offer.is_valid() {
             commands.spawn(offer);
-            debug!("{} created a trade offer", ai_name);
+            debug!("{} created a trade offer (expects +{})", ai_name, plan.gain);
         }
     }
+}
+
+/// What accepting `offer` does to `cards`' stack value: the acceptor gives the
+/// named cards plus the hidden ones it would pick at settlement (calamities
+/// first, then whatever costs least) and receives the creator's named cards.
+/// The creator's hidden card is unknown and counted as worth nothing. `None`
+/// when the hand cannot pay. Also says whether a calamity would go out.
+pub fn acceptor_trade_gain(
+    cards: &PlayerTradeCards,
+    offer: &OpenTradeOffer,
+    has_mining: bool,
+) -> Option<(i64, bool)> {
+    let given =
+        ai_select_settlement_cards(cards, &offer.wanting_guaranteed, offer.wanting_hidden_count)?;
+    let mut simulated = cards.clone();
+    let mut dumps_calamity = false;
+    for (card, count) in &given {
+        dumps_calamity |= card.is_calamity();
+        simulated.remove_n_trade_cards(*count, *card);
+    }
+    for (card, count) in &offer.offering_guaranteed {
+        simulated.add_trade_cards(*card, *count);
+    }
+    let before = cards.total_stack_value_with_mining(has_mining) as i64;
+    let after = simulated.total_stack_value_with_mining(has_mining) as i64;
+    Some((after - before, dumps_calamity))
 }
 
 /// AI accepts trade offers that benefit them.
@@ -2713,78 +2724,42 @@ pub fn ai_accept_trade_offers(
     mut offers: Query<(Entity, &mut OpenTradeOffer)>,
 ) {
     for (ai_entity, ai_name, ai_cards, _, personality, ai_civ_cards) in ai_players.iter() {
+        // One trade at a time: the cards it would hand over are only known
+        // to be free while no other deal of ours is waiting to settle.
+        let busy = |e: Entity, offers: &Query<(Entity, &mut OpenTradeOffer)>| {
+            offers
+                .iter()
+                .any(|(_, o)| o.is_settling() && (o.creator == e || o.accepted_by == Some(e)))
+        };
+        if busy(ai_entity, &offers) {
+            continue;
+        }
         let has_mining = ai_civ_cards.is_some_and(|c| c.owns(&CivCardName::Mining));
-        for (_offer_entity, mut offer) in &mut offers {
-            // Skip if we can't accept
-            if !offer.can_accept(ai_entity) {
-                continue;
-            }
+        let margin = trade_accept_margin(&personality.weights);
 
-            // Check if AI has the cards to fulfill the trade
-            let ai_commodities: HashMap<TradeCard, usize> =
-                ai_cards.commodity_cards().into_iter().collect();
+        // Take the best offer on the table, not the first acceptable one.
+        let best = offers
+            .iter()
+            .filter(|(_, o)| o.can_accept(ai_entity) && !busy(o.creator, &offers))
+            .filter_map(|(e, o)| {
+                let (gain, dumps_calamity) = acceptor_trade_gain(ai_cards, o, has_mining)?;
+                let profitable = gain as f32 > margin;
+                // Passing on a calamity is worth a small loss to the wary.
+                let dump = dumps_calamity
+                    && accepts_calamity_offload(&personality.weights)
+                    && gain >= -4;
+                (profitable || dump).then_some((e, gain, dumps_calamity))
+            })
+            .max_by_key(|(_, gain, _)| *gain);
 
-            // Check if AI can provide the wanted guaranteed cards
-            let mut can_fulfill = true;
-            for (card, count) in &offer.wanting_guaranteed {
-                let ai_has = ai_commodities.get(card).copied().unwrap_or(0);
-                if ai_has < *count {
-                    can_fulfill = false;
-                    break;
-                }
-            }
-
-            if !can_fulfill {
-                continue;
-            }
-
-            // Check if AI has enough total cards
-            let total_ai_cards: usize = ai_commodities.values().sum();
-            if total_ai_cards < offer.total_wanting() {
-                continue;
-            }
-
-            // Calculate current stack value (Mining bonus included if held)
-            let current_stack_value = ai_cards.total_stack_value_with_mining(has_mining);
-
-            // Simulate the trade to calculate new stack value
-            // We receive: offering_guaranteed cards, we give: wanting_guaranteed cards
-            let mut simulated_cards = ai_cards.clone();
-
-            // Remove cards we would give away
-            for (card, count) in &offer.wanting_guaranteed {
-                simulated_cards.remove_n_trade_cards(*count, *card);
-            }
-
-            // Add cards we would receive
-            for (card, count) in &offer.offering_guaranteed {
-                simulated_cards.add_trade_cards(*card, *count);
-            }
-
-            let new_stack_value = simulated_cards.total_stack_value_with_mining(has_mining);
-
-            // Check if this trade enables trading away a calamity (hidden card slot)
-            let can_trade_away_calamity =
-                ai_cards.has_tradeable_calamity() && offer.wanting_hidden_count > 0;
-
-            // Accept if the trade clears this personality's profit margin, or it lets
-            // a calamity-averse player dump a calamity card.
-            let margin = trade_accept_margin(&personality.weights);
-            let profitable = new_stack_value as f32 > current_stack_value as f32 + margin;
-            let dump_calamity =
-                can_trade_away_calamity && accepts_calamity_offload(&personality.weights);
-            if profitable || dump_calamity {
-                offer.accept(ai_entity, ai_name.to_string());
-                debug!(
-                    "{} accepted trade offer from {} (value: {} -> {}, calamity: {})",
-                    ai_name,
-                    offer.creator_name,
-                    current_stack_value,
-                    new_stack_value,
-                    can_trade_away_calamity
-                );
-                break; // Only accept one offer per frame
-            }
+        if let Some((offer_entity, gain, dumps_calamity)) = best
+            && let Ok((_, mut offer)) = offers.get_mut(offer_entity)
+        {
+            offer.accept(ai_entity, ai_name.to_string());
+            debug!(
+                "{} accepted trade offer from {} (stack value {:+}, calamity out: {})",
+                ai_name, offer.creator_name, gain, dumps_calamity
+            );
         }
     }
 }
@@ -2823,10 +2798,13 @@ pub fn finalize_settled_open_offers(
             acceptor_cards.clone(),
         ));
 
-        debug!(
-            "Finalized trade between {} and {}",
+        // Self-play (scripts/selfplay.py) counts these lines.
+        info!(
+            "[TRADE] {} <-> {}: {:?} for {:?}",
             offer.creator_name,
-            offer.accepted_by_name.as_deref().unwrap_or("?")
+            offer.accepted_by_name.as_deref().unwrap_or("?"),
+            creator_cards,
+            acceptor_cards
         );
         commands.entity(offer_entity).despawn();
     }

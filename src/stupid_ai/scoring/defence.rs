@@ -28,16 +28,13 @@ pub fn calamity_defence_value(card: CivCardName) -> f32 {
         Mysticism => 0.30,
         Deism => 0.35,
         Enlightenment => 0.45,
-        // Epidemic.
-        Medicine => 0.15,
-        // Earthquake (destroy becomes reduce, no secondary) and Flood.
-        Engineering => 0.15,
+        // Medicine: Epidemic. Engineering: Earthquake (destroy becomes
+        // reduce, no secondary victims) and Flood.
+        Medicine | Engineering => 0.15,
         // Civil War selection, Iconoclasm and Heresy limit.
         Philosophy => 0.12,
-        // Famine.
-        Pottery => 0.08,
-        // Civil War and Civil Disorder.
-        Music | DramaAndPoetry | Democracy => 0.08,
+        // Pottery: Famine. The rest: Civil War and Civil Disorder.
+        Pottery | Music | DramaAndPoetry | Democracy => 0.08,
         // Civil Disorder and Iconoclasm and Heresy.
         Law => 0.06,
         // Iconoclasm and Heresy.

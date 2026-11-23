@@ -85,6 +85,96 @@ pub fn most_valuable_cards_to_request(
     chosen
 }
 
+/// One open offer an AI means to post: two cards it names and gives, and the
+/// two it asks for (rule 28.4: both sides name two cards truthfully; one more
+/// card each way stays hidden).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AiOfferPlan {
+    pub give: HashMap<TradeCard, usize>,
+    pub want: HashMap<TradeCard, usize>,
+    /// Stack value the AI expects to gain, net of what it gives (hidden card
+    /// included, valued as its cheapest remaining card).
+    pub gain: usize,
+}
+
+/// Up to `max_offers` offers worth posting, best first.
+///
+/// Each asks for two *different* cards that extend sets the AI is building:
+/// a partner then only has to part with two odd cards, which most hands can
+/// do cheaply. (Asking for two of the same card, as before, needed a partner
+/// holding a pair it was willing to break, so almost no offer was ever
+/// taken.) What it gives is whatever costs it least, never a card it asks
+/// for. Offers that would not leave the AI better off are not made.
+pub fn plan_ai_offers(holdings: &HashMap<TradeCard, usize>, max_offers: usize) -> Vec<AiOfferPlan> {
+    let held: usize = holdings
+        .iter()
+        .filter(|(c, _)| c.is_commodity())
+        .map(|(_, n)| *n)
+        .sum();
+    if held < 3 || max_offers == 0 {
+        return Vec::new();
+    }
+    // Asking for cards above our own best face value just gets ignored at the
+    // table (nobody trades Gold for Ochre), so stay within reach.
+    let max_own_value = holdings
+        .iter()
+        .filter(|(c, n)| **n > 0 && c.is_commodity())
+        .map(|(c, _)| c.value())
+        .max()
+        .unwrap_or(0);
+    let mut wants: Vec<(TradeCard, usize)> = TradeCard::iter()
+        .filter(|c| c.is_commodity() && c.value() <= max_own_value)
+        .map(|c| {
+            (
+                c,
+                value_of_receiving(c, holdings.get(&c).copied().unwrap_or(0)),
+            )
+        })
+        .collect();
+    wants.sort_by_key(|(c, gain)| (std::cmp::Reverse(*gain), format!("{c:?}")));
+    wants.truncate(5);
+
+    let mut plans: Vec<AiOfferPlan> = wants
+        .iter()
+        .tuple_combinations()
+        .filter_map(|((a, gain_a), (b, gain_b))| {
+            let rest: HashMap<TradeCard, usize> = holdings
+                .iter()
+                .filter(|(c, _)| *c != a && *c != b)
+                .map(|(c, n)| (*c, *n))
+                .collect();
+            let give = cheapest_cards_to_give(&rest, 3);
+            if give.values().sum::<usize>() < 3 {
+                return None;
+            }
+            let cost = giving_cost(&rest, &give);
+            // The third (hidden) card is the one cheapest_cards_to_give picked
+            // last; name the other two.
+            let named = cheapest_cards_to_give(&rest, 2);
+            let gain = (gain_a + gain_b).checked_sub(cost).filter(|g| *g > 0)?;
+            Some(AiOfferPlan {
+                give: named,
+                want: HashMap::from([(*a, 1), (*b, 1)]),
+                gain,
+            })
+        })
+        .collect();
+    plans.sort_by_key(|p| std::cmp::Reverse(p.gain));
+    plans.truncate(max_offers);
+    plans
+}
+
+/// Stack value lost by giving `give` out of `holdings`.
+fn giving_cost(holdings: &HashMap<TradeCard, usize>, give: &HashMap<TradeCard, usize>) -> usize {
+    give.iter()
+        .map(|(card, n)| {
+            let have = holdings.get(card).copied().unwrap_or(0);
+            let left = have.saturating_sub(*n);
+            card.value() * (have * have - left * left)
+        })
+        .sum()
+}
+
 use crate::civilization::concepts::acquire_trade_cards::PlayerTradeCards;
 use crate::civilization::concepts::trade::trade_components::TradeOffer;
 use itertools::Itertools;
@@ -156,4 +246,49 @@ pub fn receiver_can_pay_for_offer(offer: &TradeOffer, receiver_cards: &PlayerTra
         .map(|(c, _)| receiver_cards.number_of_cards_for_trade_card(*c))
         .sum::<usize>()
         >= offer.initiator_gets_guaranteed.values().sum::<usize>()
+}
+
+#[cfg(test)]
+mod offer_plan_tests {
+    use super::*;
+
+    fn hand(cards: &[(TradeCard, usize)]) -> HashMap<TradeCard, usize> {
+        cards.iter().copied().collect()
+    }
+
+    #[test]
+    fn asks_for_two_different_cards_and_never_gives_them() {
+        let h = hand(&[
+            (TradeCard::Ochre, 3),
+            (TradeCard::Iron, 2),
+            (TradeCard::Hides, 1),
+            (TradeCard::Papyrus, 1),
+            (TradeCard::Salt, 1),
+        ]);
+        let plans = plan_ai_offers(&h, 3);
+        let best = plans.first().expect("this hand has offers worth making");
+        for p in &plans {
+            assert_eq!(p.want.len(), 2, "two different cards: {p:?}");
+            assert_eq!(p.give.values().sum::<usize>(), 2);
+            assert!(p.give.keys().all(|c| !p.want.contains_key(c)));
+            assert!(p.gain > 0);
+        }
+        // Best offer extends the two biggest sets.
+        assert!(
+            best.want.contains_key(&TradeCard::Ochre) || best.want.contains_key(&TradeCard::Iron)
+        );
+    }
+
+    #[test]
+    fn no_offer_without_three_cards_to_trade() {
+        assert_eq!(plan_ai_offers(&hand(&[(TradeCard::Ochre, 2)]), 3), vec![]);
+    }
+
+    #[test]
+    fn does_not_break_a_big_set_for_singletons() {
+        // Only Grain to give: losing three of a 4-set (cost 4*(16-1)=60) is
+        // never worth two singletons.
+        let h = hand(&[(TradeCard::Grain, 4)]);
+        assert_eq!(plan_ai_offers(&h, 3), vec![]);
+    }
 }

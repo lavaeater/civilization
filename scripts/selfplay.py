@@ -46,6 +46,9 @@ LOSS = re.compile(
     r"\[LOSS\] .* of (\w+): tokens\[(.*?)\] cities\[(.*?)\] treasury\[(.*?)\](?: gained\[(.*?)\])?"
 )
 BUILT = re.compile(r"\[CITY_CONSTRUCTION\] (\w+) built a city")
+CIV_BOUGHT = re.compile(r"\[CIV_CARDS\] (\w+) bought \[(\w+)")
+TRADED = re.compile(r"\[TRADE\] .* of (\w+) <-> .* of (\w+):")
+STACKS = re.compile(r"\[TRADE_CARDS\] stack sizes: (.*)")
 
 # Phases grouped into the causes worth telling apart. Tokens spent on
 # CityConstruction became a city, so they are reported but not as a loss.
@@ -74,10 +77,12 @@ def parse_game(log: Path) -> dict:
         lambda: {
             "cities": [], "board": [], "ast": [], "score": [], "strategy": None,
             "tokens_lost": defaultdict(int), "cities_lost": defaultdict(int),
-            "treasury_spent": 0, "built": 0, "gained": 0,
+            "treasury_spent": 0, "built": 0, "gained": 0, "civ_bought": 0, "trades": 0,
         }
     )
     rounds = 0
+    stack_samples: list[list[int]] = []
+    bought: dict[str, int] = defaultdict(int)
     with log.open(errors="replace") as f:
         for line in f:
             if "[" not in line:
@@ -103,7 +108,15 @@ def parse_game(log: Path) -> dict:
                 fx["gained"] += sum(parse_counts(m[5] or "").values())
             elif m := BUILT.search(line):
                 factions[m[1]]["built"] += 1
-    return {"rounds": rounds, "factions": factions}
+            elif m := CIV_BOUGHT.search(line):
+                factions[m[1]]["civ_bought"] += 1
+                bought[m[2]] += 1
+            elif m := TRADED.search(line):
+                factions[m[1]]["trades"] += 1
+                factions[m[2]]["trades"] += 1
+            elif m := STACKS.search(line):
+                stack_samples.append([int(x.split(":")[1]) for x in m[1].split()])
+    return {"rounds": rounds, "factions": factions, "stacks": stack_samples, "bought": bought}
 
 
 def mean(xs):
@@ -125,6 +138,8 @@ def summarize(games: list[dict]) -> dict:
             "final_ast": mean([r["ast"][-1] for r in rows if r["ast"]]),
             "final_score": mean([r["score"][-1] for r in rows if r["score"]]),
             "built_per_game": mean([r["built"] for r in rows]),
+            "civ_bought_per_game": mean([r["civ_bought"] for r in rows]),
+            "trades_per_game": mean([r["trades"] for r in rows]),
             "cities_lost_per_game": {
                 c: mean([r["cities_lost"].get(c, 0) for r in rows]) for c in CAUSE_ORDER
             },
@@ -152,9 +167,16 @@ def summarize(games: list[dict]) -> dict:
             for f in g["factions"].values())
         for g in games
     ]
+    samples = [row for g in games for row in g["stacks"]]
+    bought: dict[str, int] = defaultdict(int)
+    for g in games:
+        for card, n in g["bought"].items():
+            bought[card] += n
     return {
         "games": len(games),
         "rounds": mean(rounds),
+        "stack_sizes": [mean([row[i] for row in samples]) for i in range(9)] if samples else [],
+        "most_bought": sorted(((n / len(games), c) for c, n in bought.items()), reverse=True)[:8],
         "unaccounted_cities_per_game": mean(unaccounted),
         "factions": per_faction,
         "table": {
@@ -183,8 +205,8 @@ def print_report(s: dict, base: dict | None) -> None:
     bf = (base or {}).get("factions", {})
     print(f"\n{s['games']} games, {s['rounds']:.0f} rounds each on average"
           " (cities, board, AST, score: at the end; avg: cities over the game)\n")
-    print(f"{'':52}| tokens lost per round{'':34}| cities lost per game")
-    print(f"{'faction':9} {'cities':<11} {'avg':>5} {'board':>6} {'AST':>5} {'score':>6} {'built':>6} | "
+    print(f"{'':63}| tokens lost per round{'':34}| cities lost per game")
+    print(f"{'faction':9} {'cities':<11} {'avg':>5} {'board':>6} {'AST':>5} {'score':>6} {'built':>6} {'civ':>4} {'trade':>5} | "
           + " ".join(f"{c:>8}" for c in CAUSE_ORDER) + " | surpl+confl+calam+suppt+other")
     for name, f in s["factions"].items():
         b = bf.get(name, {})
@@ -193,7 +215,7 @@ def print_report(s: dict, base: dict | None) -> None:
         print(
             f"{name:9} {f['final_cities']:5.1f}{delta(f['final_cities'], b.get('final_cities')):6} "
             f"{f['avg_cities']:5.1f} {f['final_board']:6.1f} {f['final_ast']:5.1f} "
-            f"{f['final_score']:6.0f} {f['built_per_game']:6.1f} | "
+            f"{f['final_score']:6.0f} {f['built_per_game']:6.1f} {f.get('civ_bought_per_game', 0):4.1f} {f.get('trades_per_game', 0):5.1f} | "
             + " ".join(f"{lost[c]:8.2f}" for c in CAUSE_ORDER)
             + " | " + "+".join(f"{clost[c]:.1f}" for c in CAUSE_ORDER[:-1])
             + (f"   {','.join(f['strategies'])}" if f["strategies"] else "")
@@ -210,6 +232,11 @@ def print_report(s: dict, base: dict | None) -> None:
     if abs(s.get("unaccounted_cities_per_game", 0)) > 0.01:
         print(f"  ⚠ cities unaccounted for (built + gained - lost - standing): "
               f"{s['unaccounted_cities_per_game']:.1f} per game; a loss path is not in the ledger")
+    if s.get("stack_sizes"):
+        print("  trade stack sizes before drawing (piles 1-9): "
+              + " ".join(f"{x:.1f}" for x in s["stack_sizes"]))
+    if s.get("most_bought"):
+        print("  civ cards bought per game: " + ", ".join(f"{c} {n:.1f}" for n, c in s["most_bought"]))
     print(f"  furthest A.S.T. space: {t['max_ast']:.1f}{delta(t['max_ast'], bt.get('max_ast'))}")
 
 

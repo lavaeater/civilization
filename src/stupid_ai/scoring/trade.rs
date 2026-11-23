@@ -28,8 +28,10 @@ pub fn offer_creation_chance(w: &Weights) -> f32 {
 
 /// Trade-phase countdown value below which this AI stops trading. The phase counts
 /// down from 90; a higher threshold = stops sooner. Eager traders keep going.
+/// AIs post offers once a second, so even the most reluctant stays for a few
+/// rounds of offers (it used to leave after 2s, before the first one).
 pub fn stop_trading_threshold(w: &Weights) -> f32 {
-    // trade_drive 1.0 -> 80 (trade until the last ~10s)
-    // trade_drive 0.0 -> 88 (bail after ~2s)
-    88.0 - 8.0 * w.trade_drive
+    // trade_drive 1.0 -> 74 (trade for ~16s)
+    // trade_drive 0.0 -> 86 (stay ~4s)
+    86.0 - 12.0 * w.trade_drive
 }
