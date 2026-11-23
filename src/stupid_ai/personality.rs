@@ -98,6 +98,8 @@ pub enum Picker {
 
 #[derive(Component, Clone, Debug, Reflect)]
 #[reflect(Component)]
+// Every AI keeps its own record of whose word holds in trades.
+#[require(crate::stupid_ai::TradeTrust)]
 pub struct Personality {
     pub playstyle: Playstyle,
     /// What this AI is trying to win by (see `strategy.rs`).

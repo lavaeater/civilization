@@ -321,6 +321,10 @@ pub struct OpenTradeOffer {
     pub offering_guaranteed: HashMap<TradeCard, usize>,
     /// How many additional hidden cards the creator offers
     pub offering_hidden_count: usize,
+    /// What the creator *says* its hidden cards are. Talk, not a promise
+    /// (rule 28.3: unnamed cards may be anything, "regardless of what was
+    /// said"), so a bluffing AI can claim Salt and deliver a calamity.
+    pub offering_claimed: HashMap<TradeCard, usize>,
 
     /// What creator wants - guaranteed cards (exactly 2 total, must be truthful)
     pub wanting_guaranteed: HashMap<TradeCard, usize>,
@@ -354,6 +358,7 @@ impl OpenTradeOffer {
             target_name,
             offering_guaranteed: HashMap::default(),
             offering_hidden_count: 0,
+            offering_claimed: HashMap::default(),
             wanting_guaranteed: HashMap::default(),
             wanting_hidden_count: 0,
             accepted_by: None,

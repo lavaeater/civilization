@@ -22,8 +22,9 @@ use crate::civilization::{
     AvailableCivCards, CivCardName, PlayerCivilizationCards, TradeCardTrait, TradePhaseUiRoot,
 };
 use crate::stupid_ai::{
-    IsHuman, Personality, accepts_calamity_offload, offer_creation_chance, stop_trading_threshold,
-    trade_accept_margin,
+    DEFAULT_TRUST, HIDDEN_CALAMITY_COST, IsHuman, Personality, TradeTrust,
+    accepts_calamity_offload, deceit, hidden_cards_to_trade, honesty_of_delivery,
+    offer_creation_chance, stop_trading_threshold, trade_accept_margin,
 };
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
@@ -2668,29 +2669,68 @@ pub fn ai_create_trade_offers(
             continue;
         };
 
+        // Bigger deals to hide a calamity in, or to gamble a poor hand on.
+        let holds_calamity = ai_cards.has_tradeable_calamity();
+        let tradeable_cards = ai_cards.number_of_tradeable_cards();
+        let hidden = hidden_cards_to_trade(
+            holds_calamity,
+            ai_cards.total_stack_value(),
+            &personality.weights,
+        )
+        .min(tradeable_cards.saturating_sub(2))
+        .max(1);
+        // The hidden cards it would actually hand over (calamities first).
+        let delivered = ai_select_settlement_cards(ai_cards, &plan.give, hidden);
+        let lies = holds_calamity && rng.random::<f32>() < deceit(&personality.weights);
+        let claimed: HashMap<TradeCard, usize> = if lies {
+            // "...and more of the same": dress the calamity up as a set.
+            plan.give
+                .keys()
+                .next()
+                .map(|card| HashMap::from([(*card, hidden)]))
+                .unwrap_or_default()
+        } else {
+            // Honest: name the hidden commodities, keep quiet about calamities.
+            delivered
+                .iter()
+                .flatten()
+                .filter(|(card, _)| card.is_commodity())
+                .filter_map(|(card, n)| {
+                    let extra = n.saturating_sub(plan.give.get(card).copied().unwrap_or(0));
+                    (extra > 0).then_some((*card, extra))
+                })
+                .collect()
+        };
+
         let mut offer = OpenTradeOffer::new(ai_entity, ai_name.to_string(), None, None);
         offer.offering_guaranteed = plan.give;
-        offer.offering_hidden_count = 1;
+        offer.offering_hidden_count = hidden;
+        offer.offering_claimed = claimed;
         offer.wanting_guaranteed = plan.want;
-        offer.wanting_hidden_count = 1;
+        offer.wanting_hidden_count = hidden;
 
         if offer.is_valid() {
             commands.spawn(offer);
-            debug!("{} created a trade offer (expects +{})", ai_name, plan.gain);
+            debug!("{} created a trade offer (expects +{}, bluffing: {lies})", ai_name, plan.gain);
         }
     }
 }
 
-/// What accepting `offer` does to `cards`' stack value: the acceptor gives the
-/// named cards plus the hidden ones it would pick at settlement (calamities
-/// first, then whatever costs least) and receives the creator's named cards.
-/// The creator's hidden card is unknown and counted as worth nothing. `None`
-/// when the hand cannot pay. Also says whether a calamity would go out.
+/// What accepting `offer` is worth to `cards`' owner, in stack value: the
+/// acceptor gives the named cards plus the hidden ones it would pick at
+/// settlement (calamities first, then whatever costs least) and receives the
+/// creator's named cards. The creator's hidden cards are valued by how far
+/// its word can be trusted: claimed cards count `trust` times their worth, and
+/// each hidden card risks being a calamity with chance `1 - trust` (weighed by
+/// `calamity_aversion`). `None` when the hand cannot pay. Also says whether a
+/// calamity of ours would go out with it.
 pub fn acceptor_trade_gain(
     cards: &PlayerTradeCards,
     offer: &OpenTradeOffer,
     has_mining: bool,
-) -> Option<(i64, bool)> {
+    trust: f32,
+    calamity_aversion: f32,
+) -> Option<(f32, bool)> {
     let given =
         ai_select_settlement_cards(cards, &offer.wanting_guaranteed, offer.wanting_hidden_count)?;
     let mut simulated = cards.clone();
@@ -2702,9 +2742,18 @@ pub fn acceptor_trade_gain(
     for (card, count) in &offer.offering_guaranteed {
         simulated.add_trade_cards(*card, *count);
     }
-    let before = cards.total_stack_value_with_mining(has_mining) as i64;
-    let after = simulated.total_stack_value_with_mining(has_mining) as i64;
-    Some((after - before, dumps_calamity))
+    let before = cards.total_stack_value_with_mining(has_mining) as f32;
+    let after = simulated.total_stack_value_with_mining(has_mining) as f32;
+    let mut with_claims = simulated.clone();
+    for (card, count) in &offer.offering_claimed {
+        with_claims.add_trade_cards(*card, *count);
+    }
+    let claims = with_claims.total_stack_value_with_mining(has_mining) as f32 - after;
+    let calamity_risk = offer.offering_hidden_count as f32
+        * (1.0 - trust)
+        * HIDDEN_CALAMITY_COST
+        * calamity_aversion;
+    Some((after - before + trust * claims - calamity_risk, dumps_calamity))
 }
 
 /// AI accepts trade offers that benefit them.
@@ -2718,12 +2767,13 @@ pub fn ai_accept_trade_offers(
             &CanTrade,
             &Personality,
             Option<&PlayerCivilizationCards>,
+            Option<&TradeTrust>,
         ),
         Without<IsHuman>,
     >,
     mut offers: Query<(Entity, &mut OpenTradeOffer)>,
 ) {
-    for (ai_entity, ai_name, ai_cards, _, personality, ai_civ_cards) in ai_players.iter() {
+    for (ai_entity, ai_name, ai_cards, _, personality, ai_civ_cards, trust) in ai_players.iter() {
         // One trade at a time: the cards it would hand over are only known
         // to be free while no other deal of ours is waiting to settle.
         let busy = |e: Entity, offers: &Query<(Entity, &mut OpenTradeOffer)>| {
@@ -2735,29 +2785,35 @@ pub fn ai_accept_trade_offers(
             continue;
         }
         let has_mining = ai_civ_cards.is_some_and(|c| c.owns(&CivCardName::Mining));
-        let margin = trade_accept_margin(&personality.weights);
+        // A poor hand has little to lose: the risk-takers gamble on it.
+        let weak_hand = ai_cards.total_stack_value() < 15;
+        let margin = trade_accept_margin(&personality.weights)
+            - if weak_hand { 2.0 * personality.weights.risk } else { 0.0 };
+        let aversion = personality.weights.calamity_aversion;
 
         // Take the best offer on the table, not the first acceptable one.
         let best = offers
             .iter()
             .filter(|(_, o)| o.can_accept(ai_entity) && !busy(o.creator, &offers))
             .filter_map(|(e, o)| {
-                let (gain, dumps_calamity) = acceptor_trade_gain(ai_cards, o, has_mining)?;
-                let profitable = gain as f32 > margin;
+                let partner_trust = trust.map_or(DEFAULT_TRUST, |t| t.of(o.creator));
+                let (gain, dumps_calamity) =
+                    acceptor_trade_gain(ai_cards, o, has_mining, partner_trust, aversion)?;
+                let profitable = gain > margin;
                 // Passing on a calamity is worth a small loss to the wary.
                 let dump = dumps_calamity
                     && accepts_calamity_offload(&personality.weights)
-                    && gain >= -4;
+                    && gain >= -4.0;
                 (profitable || dump).then_some((e, gain, dumps_calamity))
             })
-            .max_by_key(|(_, gain, _)| *gain);
+            .max_by(|a, b| a.1.total_cmp(&b.1));
 
         if let Some((offer_entity, gain, dumps_calamity)) = best
             && let Ok((_, mut offer)) = offers.get_mut(offer_entity)
         {
             offer.accept(ai_entity, ai_name.to_string());
             debug!(
-                "{} accepted trade offer from {} (stack value {:+}, calamity out: {})",
+                "{} accepted trade offer from {} (expected {:+.1}, calamity out: {})",
                 ai_name, offer.creator_name, gain, dumps_calamity
             );
         }
@@ -2770,6 +2826,7 @@ pub fn finalize_settled_open_offers(
     mut commands: Commands,
     settled_offers: Query<(Entity, &OpenTradeOffer)>,
     mut command_writer: MessageWriter<SendTradingCardsCommand>,
+    mut trust: Query<&mut TradeTrust>,
 ) {
     for (offer_entity, offer) in settled_offers.iter() {
         if !offer.is_settled() {
@@ -2798,13 +2855,38 @@ pub fn finalize_settled_open_offers(
             acceptor_cards.clone(),
         ));
 
+        // Each side learns how far the other's word held (claims kept, no
+        // calamity slipped in) -- see TradeTrust.
+        let acceptor_saw = honesty_of_delivery(
+            &offer.offering_claimed,
+            &offer.offering_guaranteed,
+            creator_cards,
+        );
+        let creator_saw =
+            honesty_of_delivery(&HashMap::default(), &offer.wanting_guaranteed, acceptor_cards);
+        if let Ok(mut t) = trust.get_mut(acceptor) {
+            t.observe(offer.creator, acceptor_saw);
+        }
+        if let Ok(mut t) = trust.get_mut(offer.creator) {
+            t.observe(acceptor, creator_saw);
+        }
+        let calamities = |cards: &HashMap<TradeCard, usize>| -> usize {
+            cards.iter().filter(|(c, _)| c.is_calamity()).map(|(_, n)| n).sum()
+        };
+        let claimed: usize = offer.offering_claimed.values().sum();
+        let lied = claimed > 0 && acceptor_saw < 1.0;
+
         // Self-play (scripts/selfplay.py) counts these lines.
         info!(
-            "[TRADE] {} <-> {}: {:?} for {:?}",
+            "[TRADE] {} <-> {}: {:?} for {:?} | claimed {:?} lied={} calamities {}/{}",
             offer.creator_name,
             offer.accepted_by_name.as_deref().unwrap_or("?"),
             creator_cards,
-            acceptor_cards
+            acceptor_cards,
+            offer.offering_claimed,
+            lied,
+            calamities(creator_cards),
+            calamities(acceptor_cards),
         );
         commands.entity(offer_entity).despawn();
     }

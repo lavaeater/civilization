@@ -35,3 +35,151 @@ pub fn stop_trading_threshold(w: &Weights) -> f32 {
     // trade_drive 0.0 -> 86 (stay ~4s)
     86.0 - 12.0 * w.trade_drive
 }
+
+// ── Bluffing and trust (rule 28.3) ───────────────────────────────────────
+//
+// Each side of a deal names two of its cards truthfully; everything else
+// "may be any commodity or tradable calamity card, regardless of what was
+// said". So an offer can carry a *claim* about its hidden cards ("...and two
+// more Salt") that is nothing but talk. Honest AIs claim what they will
+// really hand over; a deceptive one holding a calamity claims whatever sells
+// and slips the calamity in. Every AI remembers, per partner, how well that
+// partner's word has held up, and values claims (and fears hidden cards) by it.
+
+/// How willing this personality is to lie about its hidden cards: the
+/// reckless and the aggressive bluff, the cautious rarely do.
+pub fn deceit(w: &Weights) -> f32 {
+    (0.6 * w.risk + 0.4 * w.aggression).clamp(0.0, 1.0)
+}
+
+/// Hidden cards an AI puts in its offer (and asks for in return). One by
+/// default; one more to hide a tradable calamity among, and one more when its
+/// hand is poor and it is willing to gamble -- a weak hand has little to lose
+/// and a bigger deal is the fastest way to a set.
+pub fn hidden_cards_to_trade(
+    holds_tradable_calamity: bool,
+    hand_value: usize,
+    w: &Weights,
+) -> usize {
+    let mut hidden = 1;
+    if holds_tradable_calamity {
+        hidden += 1;
+    }
+    if hand_value < 15 && w.risk >= 0.5 {
+        hidden += 1;
+    }
+    hidden
+}
+
+/// Trust in a partner nobody has traded with yet.
+pub const DEFAULT_TRUST: f32 = 0.6;
+
+/// Stack-value hit a hidden card that turns out to be a calamity is treated
+/// as: Treachery alone costs a city.
+pub const HIDDEN_CALAMITY_COST: f32 = 8.0;
+
+/// Per-partner trust, 0 (always lies) to 1 (always honest).
+#[derive(bevy::prelude::Component, Clone, Debug, Default)]
+pub struct TradeTrust {
+    trust: bevy::platform::collections::HashMap<bevy::prelude::Entity, f32>,
+}
+
+impl TradeTrust {
+    pub fn of(&self, partner: bevy::prelude::Entity) -> f32 {
+        self.trust.get(&partner).copied().unwrap_or(DEFAULT_TRUST)
+    }
+
+    /// Blend in how honest the last deal with `partner` was (0..1).
+    pub fn observe(&mut self, partner: bevy::prelude::Entity, honesty: f32) {
+        let t = self.of(partner);
+        self.trust.insert(
+            partner,
+            (0.7 * t + 0.3 * honesty.clamp(0.0, 1.0)).clamp(0.0, 1.0),
+        );
+    }
+}
+
+/// How honest a deal looked from the receiving side: the share of claimed
+/// hidden cards that actually arrived, and 0 if a calamity came with it.
+pub fn honesty_of_delivery(
+    claimed_hidden: &bevy::platform::collections::HashMap<crate::civilization::TradeCard, usize>,
+    guaranteed: &bevy::platform::collections::HashMap<crate::civilization::TradeCard, usize>,
+    received: &bevy::platform::collections::HashMap<crate::civilization::TradeCard, usize>,
+) -> f32 {
+    use crate::civilization::TradeCardTrait;
+    if received.iter().any(|(c, n)| *n > 0 && c.is_calamity()) {
+        return 0.0;
+    }
+    let claimed: usize = claimed_hidden.values().sum();
+    if claimed == 0 {
+        return 1.0;
+    }
+    let kept: usize = claimed_hidden
+        .iter()
+        .map(|(card, n)| {
+            let extra = received
+                .get(card)
+                .copied()
+                .unwrap_or(0)
+                .saturating_sub(guaranteed.get(card).copied().unwrap_or(0));
+            extra.min(*n)
+        })
+        .sum();
+    kept as f32 / claimed as f32
+}
+
+#[cfg(test)]
+mod bluff_tests {
+    use super::*;
+    use crate::civilization::TradeCard;
+    use crate::stupid_ai::{Personality, Playstyle};
+    use bevy::platform::collections::HashMap;
+    use bevy::prelude::Entity;
+
+    #[test]
+    fn warlords_bluff_more_than_turtles() {
+        let warlord = Personality::from_playstyle(Playstyle::Warlord).weights;
+        let turtle = Personality::from_playstyle(Playstyle::Turtle).weights;
+        assert!(deceit(&warlord) > deceit(&turtle));
+    }
+
+    #[test]
+    fn calamities_and_poor_hands_make_bigger_deals() {
+        let w = Weights::uniform(0.6);
+        assert_eq!(hidden_cards_to_trade(false, 40, &w), 1);
+        assert_eq!(hidden_cards_to_trade(true, 40, &w), 2);
+        assert_eq!(hidden_cards_to_trade(true, 5, &w), 3);
+        assert_eq!(hidden_cards_to_trade(false, 5, &Weights::uniform(0.2)), 1);
+    }
+
+    #[test]
+    fn a_lie_or_a_calamity_costs_trust() {
+        let p = Entity::from_raw_u32(5).unwrap();
+        let salt2 = HashMap::from([(TradeCard::Salt, 2)]);
+        let named = HashMap::from([(TradeCard::Iron, 1), (TradeCard::Ochre, 1)]);
+        // Promised 2 more Salt, got 1 Salt and a Hides.
+        let got = HashMap::from([
+            (TradeCard::Iron, 1),
+            (TradeCard::Ochre, 1),
+            (TradeCard::Salt, 1),
+            (TradeCard::Hides, 1),
+        ]);
+        assert!((honesty_of_delivery(&salt2, &named, &got) - 0.5).abs() < 1e-6);
+        let burnt = HashMap::from([
+            (TradeCard::Iron, 1),
+            (TradeCard::Ochre, 1),
+            (TradeCard::Treachery, 1),
+        ]);
+        assert_eq!(
+            honesty_of_delivery(&HashMap::default(), &named, &burnt),
+            0.0
+        );
+
+        let mut trust = TradeTrust::default();
+        trust.observe(p, 0.0);
+        assert!(trust.of(p) < DEFAULT_TRUST);
+        let low = trust.of(p);
+        trust.observe(p, 1.0);
+        assert!(trust.of(p) > low);
+    }
+}

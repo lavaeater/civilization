@@ -47,7 +47,9 @@ LOSS = re.compile(
 )
 BUILT = re.compile(r"\[CITY_CONSTRUCTION\] (\w+) built a city")
 CIV_BOUGHT = re.compile(r"\[CIV_CARDS\] (\w+) bought \[([\w, ]+)\]")
-TRADED = re.compile(r"\[TRADE\] .* of (\w+) <-> .* of (\w+):")
+TRADED = re.compile(
+    r"\[TRADE\] .* of (\w+) <-> .* of (\w+):(?:.*lied=(true|false) calamities (\d+)/(\d+))?"
+)
 STACKS = re.compile(r"\[TRADE_CARDS\] stack sizes: (.*)")
 
 # Phases grouped into the causes worth telling apart. Tokens spent on
@@ -78,6 +80,7 @@ def parse_game(log: Path) -> dict:
             "cities": [], "board": [], "ast": [], "score": [], "strategy": None,
             "tokens_lost": defaultdict(int), "cities_lost": defaultdict(int),
             "treasury_spent": 0, "built": 0, "gained": 0, "civ_bought": 0, "trades": 0,
+            "lies": 0, "calamities_passed": 0,
         }
     )
     rounds = 0
@@ -115,6 +118,11 @@ def parse_game(log: Path) -> dict:
             elif m := TRADED.search(line):
                 factions[m[1]]["trades"] += 1
                 factions[m[2]]["trades"] += 1
+                if m[3] == "true":
+                    factions[m[1]]["lies"] += 1
+                if m[4]:
+                    factions[m[1]]["calamities_passed"] += int(m[4])
+                    factions[m[2]]["calamities_passed"] += int(m[5])
             elif m := STACKS.search(line):
                 stack_samples.append([int(x.split(":")[1]) for x in m[1].split()])
     return {"rounds": rounds, "factions": factions, "stacks": stack_samples, "bought": bought}
@@ -141,6 +149,8 @@ def summarize(games: list[dict]) -> dict:
             "built_per_game": mean([r["built"] for r in rows]),
             "civ_bought_per_game": mean([r["civ_bought"] for r in rows]),
             "trades_per_game": mean([r["trades"] for r in rows]),
+            "lies_per_game": mean([r["lies"] for r in rows]),
+            "calamities_passed_per_game": mean([r["calamities_passed"] for r in rows]),
             "cities_lost_per_game": {
                 c: mean([r["cities_lost"].get(c, 0) for r in rows]) for c in CAUSE_ORDER
             },
@@ -233,6 +243,11 @@ def print_report(s: dict, base: dict | None) -> None:
     if abs(s.get("unaccounted_cities_per_game", 0)) > 0.01:
         print(f"  ⚠ cities unaccounted for (built + gained - lost - standing): "
               f"{s['unaccounted_cities_per_game']:.1f} per game; a loss path is not in the ledger")
+    lies = {n: f.get("lies_per_game", 0) for n, f in s["factions"].items()}
+    passed = {n: f.get("calamities_passed_per_game", 0) for n, f in s["factions"].items()}
+    if any(lies.values()) or any(passed.values()):
+        print("  per game, lies told / calamities traded away: "
+              + ", ".join(f"{n} {lies[n]:.1f}/{passed[n]:.1f}" for n in s["factions"]))
     if s.get("stack_sizes"):
         print("  trade stack sizes before drawing (piles 1-9): "
               + " ".join(f"{x:.1f}" for x in s["stack_sizes"]))
