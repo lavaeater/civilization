@@ -699,6 +699,10 @@ pub fn select_stupid_civ_card_move(
                                         def.card_type,
                                         def.cost,
                                         &needs,
+                                    ) + crate::stupid_ai::scoring::calamity_defence_bonus(
+                                        def.name,
+                                        player_cities.number_of_cities(),
+                                        personality.weights.risk,
                                     );
                                     CivCardOption {
                                         effective_cost: def.calculate_cost(&credits),

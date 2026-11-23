@@ -5,12 +5,14 @@
 mod city;
 mod city_plan;
 mod civ_cards;
+mod defence;
 mod expansion;
 mod movement;
 mod trade;
 pub use city::*;
 pub use city_plan::*;
 pub use civ_cards::*;
+pub use defence::*;
 pub use expansion::*;
 pub use movement::*;
 pub use trade::*;
