@@ -25,25 +25,54 @@ pub struct CivilizationTradeCards {
 }
 
 impl CivilizationTradeCards {
+    /// Stacks as set up for an unknown table size; see [`Self::for_players`].
     pub fn new() -> Self {
-        let mut cards: HashMap<usize, Vec<TradeCard>> = HashMap::new();
-        for trade_card in TradeCard::iter() {
-            cards
-                .entry(trade_card.value())
-                .or_default()
-                .extend(vec![trade_card; trade_card.number_of_cards()]);
-        }
-        // Shuffle each pile so calamities and commodities are mixed
+        Self::for_players(0)
+    }
+
+    /// Rule 15.2 setup for `players` players. In stacks 2-9, one commodity
+    /// card per player is counted out and put back on top after the tradable
+    /// calamity is shuffled into the rest, so nobody draws a calamity on the
+    /// first turn; non-tradable calamities start at the bottom. Stack 1 has
+    /// no calamity.
+    pub fn for_players(players: usize) -> Self {
         let mut rng = rand::rng();
-        for pile in cards.values_mut() {
-            pile.shuffle(&mut rng);
+        let mut by_value: HashMap<usize, Vec<TradeCard>> = HashMap::new();
+        for trade_card in TradeCard::iter() {
+            by_value.entry(trade_card.value()).or_default().extend(vec![
+                trade_card;
+                trade_card
+                    .number_of_cards()
+            ]);
+        }
+        let mut card_piles = HashMap::new();
+        for (value, cards) in by_value {
+            let (mut commodities, calamities): (Vec<TradeCard>, Vec<TradeCard>) =
+                cards.into_iter().partition(|c| !c.is_calamity());
+            let (tradable, untradeable): (Vec<TradeCard>, Vec<TradeCard>) = calamities
+                .into_iter()
+                .partition(TradeCardTrait::is_tradeable);
+            commodities.shuffle(&mut rng);
+            let reserved_n = if value >= 2 {
+                players.min(commodities.len())
+            } else {
+                0
+            };
+            let reserved = commodities.split_off(commodities.len() - reserved_n);
+            let mut middle = commodities;
+            middle.extend(tradable);
+            middle.shuffle(&mut rng);
+            // Index 0 is the bottom, the end of the Vec the top.
+            let mut pile = untradeable;
+            pile.extend(middle);
+            pile.extend(reserved);
+            card_piles.insert(value, pile);
         }
         Self {
-            card_piles: cards,
+            card_piles,
             returned: HashMap::new(),
         }
     }
-
     /// Hands `count` copies of `card` back to its stack. They stay out of play
     /// until the end of the turn, when `put_returned_cards_at_bottom` puts them
     /// under the stack (rules 29.7, 31.71, 31.81-31.82).
@@ -61,7 +90,9 @@ impl CivilizationTradeCards {
     /// Whether `card` is in its stack or waiting to go back under it.
     pub fn stack_holds(&self, card: TradeCard) -> bool {
         let value = card.value();
-        self.card_piles.get(&value).is_some_and(|p| p.contains(&card))
+        self.card_piles
+            .get(&value)
+            .is_some_and(|p| p.contains(&card))
             || self.returned.get(&value).is_some_and(|p| p.contains(&card))
     }
 
@@ -482,6 +513,23 @@ pub fn hex(hex_str: &str) -> Color {
 mod tests {
     use super::*;
 
+    #[test]
+    fn setup_puts_one_commodity_per_player_over_the_calamities() {
+        let piles = CivilizationTradeCards::for_players(9);
+        for value in 2..=9 {
+            let pile = &piles.card_piles[&value];
+            let top_nine = &pile[pile.len() - 9..];
+            assert!(
+                top_nine.iter().all(|c| !c.is_calamity()),
+                "stack {value}: {pile:?}"
+            );
+        }
+        // Non-tradable calamities start at the very bottom.
+        assert_eq!(piles.card_piles[&2][0], TradeCard::VolcanoEarthquake);
+        assert_eq!(piles.card_piles[&3][0], TradeCard::Famine);
+        assert!(piles.card_piles[&1].iter().all(|c| !c.is_calamity()));
+    }
+
     /// Rules 31.81-31.82: returned cards wait out the turn, then go under the
     /// stack (non-tradable calamities lowest); what was on top stays on top.
     #[test]
@@ -499,7 +547,11 @@ mod tests {
         let pile = &piles.card_piles[&3];
         assert_eq!(pile.len(), 5);
         assert_eq!(pile[0], TradeCard::Famine, "non-tradable calamity lowest");
-        assert_eq!(pile[3..], [TradeCard::Salt, TradeCard::Timber], "old top unchanged");
+        assert_eq!(
+            pile[3..],
+            [TradeCard::Salt, TradeCard::Timber],
+            "old top unchanged"
+        );
         assert_eq!(piles.pull_card_from(3), Some(TradeCard::Timber));
         assert!(piles.returned.is_empty());
     }

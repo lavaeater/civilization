@@ -231,6 +231,8 @@ pub fn setup_players(
     factions_to_use.extend(reserved);
     // Shuffle so human isn't always first
     factions_to_use.shuffle(&mut rand::rng());
+    // Rule 15.2: stack setup depends on how many players sit down.
+    *trade_card_resource = CivilizationTradeCards::for_players(factions_to_use.len());
 
     for (n, faction) in factions_to_use.into_iter().enumerate() {
         let ruler_name = available_names.pop().unwrap_or("Unknown");
