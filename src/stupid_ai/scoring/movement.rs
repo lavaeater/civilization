@@ -34,9 +34,16 @@ pub fn score_movement(
             {
                 return 0.02 * w.aggression;
             }
-            let base = score_peaceful_move(m.source, m.target, m.max_tokens, is_ferry, areas, w);
+            if is_ferry && m.max_tokens == 0 {
+                return empty_ship_pickup(m.source, m.target, areas, w, plan);
+            }
+            let mut base =
+                score_peaceful_move(m.source, m.target, m.max_tokens, is_ferry, areas, w);
             if m.max_tokens == 0 {
                 return base;
+            }
+            if is_ferry {
+                base *= 0.6 + 0.4 * saturating(open_land_around(m.target, areas) as f32, 6.0);
             }
             // Moving into an area already at its limit only feeds surplus removal
             // (the extra tokens are stripped at end of turn) -- unless it's a
@@ -69,6 +76,54 @@ pub fn score_movement(
         }
         // Not a movement-phase move; never selected here.
         _ => f32::NEG_INFINITY,
+    }
+}
+
+/// Room to grow at `target` and in the land areas next to it that no rival
+/// holds. A ferry is how a boxed-in faction gets out: self-play traced an
+/// island faction ferrying the same tokens between its own crowded island
+/// areas every round, each just emptied by surplus removal and so looking
+/// like new land, instead of landing on the open mainland coast next door.
+fn open_land_around(target: Entity, areas: &HashMap<Entity, AreaSummary>) -> usize {
+    let room = |a: &AreaSummary| {
+        if a.enemy_pop > 0 || (a.has_city && !a.city_is_mine) {
+            0
+        } else {
+            a.max_population.saturating_sub(a.my_pop)
+        }
+    };
+    let Some(tgt) = area(areas, target) else {
+        return 0;
+    };
+    room(tgt)
+        + tgt
+            .neighbours
+            .iter()
+            .filter_map(|n| area(areas, *n))
+            .map(room)
+            .sum::<usize>()
+}
+
+/// An empty ship sailing to pick up tokens: worth it only into an area of
+/// ours that is over its limit (those tokens are lost to surplus removal
+/// unless they move), and only out of an area that isn't, so a ship can
+/// never bounce between two areas. Self-play: an island faction's ship sat
+/// empty in its city area for 20+ rounds while the tokens next to it were
+/// removed every turn.
+fn empty_ship_pickup(
+    source: Entity,
+    target: Entity,
+    areas: &HashMap<Entity, AreaSummary>,
+    w: &Weights,
+    plan: &CityPlan,
+) -> f32 {
+    if plan.is_target(target) {
+        return 0.0; // piled up on purpose, for a city
+    }
+    let overfull = |a: &AreaSummary| a.my_pop > a.max_population;
+    match (area(areas, source), area(areas, target)) {
+        (Some(src), Some(tgt)) if !overfull(src) && overfull(tgt) => 0.25 + 0.15 * w.expansion,
+        _ => 0.0,
     }
 }
 
@@ -456,6 +511,95 @@ mod tests {
             attack_score < hold_score,
             "turtle should not throw tokens at a lost cause: attack {attack_score} vs hold {hold_score}"
         );
+    }
+
+    /// Of two coasts, a ferry lands where there is land to grow into, not
+    /// on a crowded island area that only looks empty.
+    #[test]
+    fn ferry_prefers_open_land_over_a_crowded_island() {
+        let player = e(1);
+        let home = e(10);
+        let island = e(20);
+        let island_full = e(21);
+        let coast = e(30);
+        let hinterland = e(31);
+        let mut areas = HashMap::default();
+        let summary = |max, mine, neighbours: Vec<Entity>| AreaSummary {
+            max_population: max,
+            my_pop: mine,
+            neighbours,
+            ..Default::default()
+        };
+        areas.insert(home, summary(2, 4, vec![]));
+        areas.insert(island, summary(3, 0, vec![island_full]));
+        areas.insert(island_full, summary(2, 2, vec![island]));
+        areas.insert(coast, summary(2, 0, vec![hinterland]));
+        areas.insert(hinterland, summary(3, 0, vec![coast]));
+        let w = Personality::from_playstyle(Playstyle::Balanced).weights;
+        let score = |tgt| {
+            score_movement(
+                &GameMove::ShipFerry(MovementMove::new(home, tgt, player, 4)),
+                player,
+                &areas,
+                &w,
+                &CityPlan::default(),
+                &Rivals::default(),
+            )
+        };
+        assert!(
+            score(coast) > score(island),
+            "coast {} island {}",
+            score(coast),
+            score(island)
+        );
+    }
+
+    /// An empty ship sails to tokens surplus removal would take, once.
+    #[test]
+    fn empty_ship_fetches_tokens_from_an_overfull_area() {
+        let player = e(1);
+        let city_area = e(10);
+        let crowded = e(20);
+        let mut areas = HashMap::default();
+        areas.insert(
+            city_area,
+            AreaSummary {
+                max_population: 3,
+                has_city: true,
+                city_is_mine: true,
+                ..Default::default()
+            },
+        );
+        areas.insert(
+            crowded,
+            AreaSummary {
+                max_population: 2,
+                my_pop: 4,
+                ..Default::default()
+            },
+        );
+        let w = Personality::from_playstyle(Playstyle::Balanced).weights;
+        let score = |src, tgt| {
+            score_movement(
+                &GameMove::ShipFerry(MovementMove::new(src, tgt, player, 0)),
+                player,
+                &areas,
+                &w,
+                &CityPlan::default(),
+                &Rivals::default(),
+            )
+        };
+        let end = score_movement(
+            &GameMove::EndMovement,
+            player,
+            &areas,
+            &w,
+            &CityPlan::default(),
+            &Rivals::default(),
+        );
+        assert!(score(city_area, crowded) > end);
+        // Never back out of the crowded area empty.
+        assert_eq!(score(crowded, city_area), 0.0);
     }
 
     /// Regression test: an empty ferry (0 tokens aboard) between two areas

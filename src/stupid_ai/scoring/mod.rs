@@ -143,10 +143,14 @@ pub fn pick<R: Rng>(scored: &[(usize, f32)], picker: Picker, rng: &mut R) -> Opt
             // dozens of near-zero moves outweighed one good one (with 70
             // movement options the best was drawn ~13% of the time), so the
             // AI mostly played noise.
+            // A score of 0 or less is a veto ("never do this"), not a weak
+            // option: with EndMovement at 0.15, vetoed moves sat inside the
+            // window and were drawn often (self-play traces showed tokens
+            // walking into full areas that way, lost to surplus removal).
             let near_best: Vec<(usize, f32)> = scored
                 .iter()
                 .copied()
-                .filter(|(_, s)| *s >= max - NEAR_BEST)
+                .filter(|(_, s)| *s >= max - NEAR_BEST && (*s > 0.0 || max <= 0.0))
                 .collect();
             let scored = &near_best[..];
             let weights: Vec<f64> = scored
@@ -224,6 +228,22 @@ mod tests {
             let picked = pick(&scored, Picker::Softmax { temperature: 0.35 }, &mut rng);
             assert!(matches!(picked, Some(98 | 99)), "picked {picked:?}");
         }
+    }
+
+    #[test]
+    fn softmax_never_picks_a_vetoed_move() {
+        let mut rng = rand::rng();
+        let scored = vec![(0usize, 0.15), (1, 0.0), (2, 0.0), (3, -0.1)];
+        for _ in 0..200 {
+            let picked = pick(&scored, Picker::Softmax { temperature: 0.35 }, &mut rng);
+            assert_eq!(picked, Some(0));
+        }
+        // With nothing positive on offer, the best of the rest still goes.
+        let all_zero = vec![(0usize, 0.0), (1, -1.0)];
+        assert_eq!(
+            pick(&all_zero, Picker::Softmax { temperature: 0.35 }, &mut rng),
+            Some(0)
+        );
     }
 
     #[test]

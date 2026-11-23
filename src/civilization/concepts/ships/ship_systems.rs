@@ -75,8 +75,7 @@ pub fn ai_should_maintain_ship(treasury: usize, board_pop: usize) -> bool {
 /// faction is big enough that a levy (from `spare_area_tokens`, which already
 /// leaves one token behind) won't stunt it.
 pub fn ai_should_build_ship(treasury: usize, spare_area_tokens: usize, board_pop: usize) -> bool {
-    treasury >= 2
-        || (treasury + spare_area_tokens >= 2 && board_pop >= AI_MIN_POP_FOR_SHIP_LEVY)
+    treasury >= 2 || (treasury + spare_area_tokens >= 2 && board_pop >= AI_MIN_POP_FOR_SHIP_LEVY)
 }
 
 /// Called on entering `ShipConstruction`.
@@ -260,12 +259,27 @@ pub fn enter_ship_construction(
                 player_entity
             );
         } else {
-            // AI: prefer a coastal area, fall back to any area.
+            // AI: the coastal area with most of our tokens, so the ship has
+            // cargo to carry. The first coastal area found was often a city
+            // area with no tokens: the ship sat there empty all game (self-
+            // play: Crete kept an idle ship from round 4 while surplus
+            // removal took 4 of its island tokens every round).
+            let tokens_in = |a: Entity| {
+                area_pop_query
+                    .get(a)
+                    .map_or(0, |pop| pop.population_for_player(player_entity))
+            };
             let candidate_area = player_areas
                 .areas()
                 .into_iter()
-                .find(|&a| sea_passage_query.get(a).unwrap_or(false))
-                .or_else(|| player_areas.areas().into_iter().next());
+                .filter(|&a| sea_passage_query.get(a).unwrap_or(false))
+                .max_by_key(|&a| tokens_in(a))
+                .or_else(|| {
+                    player_areas
+                        .areas()
+                        .into_iter()
+                        .max_by_key(|&a| tokens_in(a))
+                });
             let Some(area) = candidate_area else { continue };
 
             // Check affordability: treasury + area tokens must cover 2. The levy
@@ -623,5 +637,4 @@ mod tests {
         assert!(!ai_should_build_ship(0, 1, AI_MIN_POP_FOR_SHIP_LEVY));
         assert!(ai_should_build_ship(1, 1, AI_MIN_POP_FOR_SHIP_LEVY));
     }
-
 }
