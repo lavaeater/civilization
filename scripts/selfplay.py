@@ -46,7 +46,7 @@ LOSS = re.compile(
     r"\[LOSS\] .* of (\w+): tokens\[(.*?)\] cities\[(.*?)\] treasury\[(.*?)\](?: gained\[(.*?)\])?"
 )
 BUILT = re.compile(r"\[CITY_CONSTRUCTION\] (\w+) built a city")
-CIV_BOUGHT = re.compile(r"\[CIV_CARDS\] (\w+) bought \[(\w+)")
+CIV_BOUGHT = re.compile(r"\[CIV_CARDS\] (\w+) bought \[([\w, ]+)\]")
 TRADED = re.compile(r"\[TRADE\] .* of (\w+) <-> .* of (\w+):")
 STACKS = re.compile(r"\[TRADE_CARDS\] stack sizes: (.*)")
 
@@ -109,8 +109,9 @@ def parse_game(log: Path) -> dict:
             elif m := BUILT.search(line):
                 factions[m[1]]["built"] += 1
             elif m := CIV_BOUGHT.search(line):
-                factions[m[1]]["civ_bought"] += 1
-                bought[m[2]] += 1
+                for card in m[2].split(", "):
+                    factions[m[1]]["civ_bought"] += 1
+                    bought[card] += 1
             elif m := TRADED.search(line):
                 factions[m[1]]["trades"] += 1
                 factions[m[2]]["trades"] += 1

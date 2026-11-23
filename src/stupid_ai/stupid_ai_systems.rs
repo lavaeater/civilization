@@ -795,16 +795,58 @@ pub fn select_stupid_civ_card_move(
                             );
                             let card_def = cards.cards.iter().find(|c| c.name == *card_name);
                             if let Some(def) = card_def {
-                                let cost = def.calculate_cost(&credits) as usize;
-                                let (payment, treasury_tokens) = compute_ai_payment(
-                                    trade_cards,
-                                    cost,
-                                    grain_locked.map_or(0, |l| l.0),
-                                    treasury.map_or(0, Treasury::tokens_in_treasury),
-                                );
+                                let grain = grain_locked.map_or(0, |l| l.0);
+                                let treasury_n = treasury.map_or(0, Treasury::tokens_in_treasury);
+                                // Rules 31.1/31.58: cards bought together are
+                                // paid together, so a set too big for one card
+                                // can pay for two instead of being broken up.
+                                // Add every other card this player would rather
+                                // buy than stop, while the hand still covers
+                                // the total.
+                                let done_score = scored
+                                    .iter()
+                                    .find(|(i, _)| {
+                                        matches!(
+                                            available_moves.moves.get(i),
+                                            Some(GameMove::AcquireCivilizationCards(
+                                                AcquireCivilizationCardsMove::DoneAcquiringCards
+                                            ))
+                                        )
+                                    })
+                                    .map_or(f32::NEG_INFINITY, |(_, s)| *s);
+                                let mut others: Vec<(CivCardName, f32)> = scored
+                                    .iter()
+                                    .filter_map(|(i, score)| match available_moves.moves.get(i) {
+                                        Some(GameMove::AcquireCivilizationCards(
+                                            AcquireCivilizationCardsMove::AcquireCard(n),
+                                        )) if n != card_name && *score > done_score => {
+                                            Some((*n, *score))
+                                        }
+                                        _ => None,
+                                    })
+                                    .collect();
+                                others.sort_by(|a, b| b.1.total_cmp(&a.1));
+                                let mut to_buy = vec![*card_name];
+                                let mut total = def.calculate_cost(&credits) as usize;
+                                for (name, _) in others {
+                                    let Some(extra) = cards
+                                        .cards
+                                        .iter()
+                                        .find(|c| c.name == name)
+                                        .map(|d| d.calculate_cost(&credits) as usize)
+                                    else {
+                                        continue;
+                                    };
+                                    if payment_covers(trade_cards, total + extra, grain, treasury_n) {
+                                        to_buy.push(name);
+                                        total += extra;
+                                    }
+                                }
+                                let (payment, treasury_tokens) =
+                                    compute_ai_payment(trade_cards, total, grain, treasury_n);
                                 purchase_writer.write(ConfirmCivCardPurchase {
                                     player: event.player,
-                                    cards_to_buy: vec![*card_name],
+                                    cards_to_buy: to_buy,
                                     payment,
                                     treasury_tokens,
                                 });
@@ -861,52 +903,110 @@ pub fn compute_ai_payment(
     bevy::platform::collections::HashMap<TradeCard, usize>,
     usize,
 ) {
-    let mut payment = bevy::platform::collections::HashMap::default();
-    let mut remaining = cost;
-
     let mut stacks = trade_cards.as_card_stacks_sorted_by_value();
     if grain_locked > 0
         && let Some(grain_stack) = stacks.iter_mut().find(|s| s.card_type == TradeCard::Grain)
     {
-        let usable = crate::civilization::resolve_calamities::resolve_calamities_components::usable_grain_count(
+        grain_stack.count = crate::civilization::resolve_calamities::resolve_calamities_components::usable_grain_count(
             grain_stack.count,
             grain_locked,
         );
-        grain_stack.count = usable;
-        grain_stack.suite_value = usable * usable * grain_stack.card_type.value();
     }
-    stacks.retain(|s| s.is_commodity && s.count > 0);
+    stacks.retain(|s| s.is_commodity && s.count > 0 && s.card_type.value() > 0);
+    let types: Vec<(TradeCard, usize, usize)> = stacks
+        .iter()
+        .map(|s| (s.card_type, s.count, s.card_type.value()))
+        .collect();
+    let (counts, paid) = cheapest_payment(&types, cost, treasury_available);
+    let payment = types
+        .iter()
+        .zip(counts)
+        .filter(|(_, k)| *k > 0)
+        .map(|((card, ..), k)| (*card, k))
+        .collect();
+    // Rule 31.4: tokens only for what the cards leave unpaid.
+    let tokens = cost.saturating_sub(paid).min(treasury_available);
+    (payment, tokens)
+}
 
-    for stack in stacks {
-        if remaining == 0 {
+/// Whether `compute_ai_payment` can cover `cost` from this hand and treasury.
+pub fn payment_covers(
+    trade_cards: &PlayerTradeCards,
+    cost: usize,
+    grain_locked: usize,
+    treasury_available: usize,
+) -> bool {
+    let (payment, tokens) = compute_ai_payment(trade_cards, cost, grain_locked, treasury_available);
+    let paid: usize = payment.iter().map(|(card, k)| card.value() * k * k).sum();
+    paid + tokens >= cost
+}
+
+/// Picks how many of each commodity `(card, held, face)` to spend on `cost`.
+///
+/// k cards of a type pay `face * k^2` (rule 28.2), but they take
+/// `face * (held^2 - (held-k)^2)` off the hand: one card from a set of four
+/// pays 1x face and costs 7x. So the cheapest payment is the one that loses
+/// the least hand value, plus the treasury tokens it needs on top (rule
+/// 31.4: tokens only cover the shortfall). Hands are small (a dozen cards),
+/// so every combination is tried. Returns the counts and what the cards pay.
+/// If even everything cannot cover `cost`, all cards are offered.
+fn cheapest_payment(
+    types: &[(TradeCard, usize, usize)],
+    cost: usize,
+    treasury: usize,
+) -> (Vec<usize>, usize) {
+    if cost == 0 {
+        return (vec![0; types.len()], 0);
+    }
+    let combinations: usize = types.iter().map(|(_, n, _)| n + 1).product();
+    let all: Vec<usize> = types.iter().map(|(_, n, _)| *n).collect();
+    let paid_by = |ks: &[usize]| -> usize {
+        types.iter().zip(ks).map(|((_, _, f), k)| f * k * k).sum()
+    };
+    if combinations > 500_000 {
+        // Not a hand this game produces; spend everything rather than hang.
+        let paid = paid_by(&all);
+        return (all, paid);
+    }
+    let mut best: Option<(usize, usize, usize, Vec<usize>)> = None; // (loss, tokens, paid, ks)
+    let mut ks = vec![0usize; types.len()];
+    loop {
+        let paid = paid_by(&ks);
+        if paid + treasury >= cost {
+            let lost: usize = types
+                .iter()
+                .zip(&ks)
+                .map(|((_, n, f), k)| f * (n * n - (n - k) * (n - k)))
+                .sum();
+            let tokens = cost.saturating_sub(paid);
+            let loss = lost + tokens;
+            // Ties go to fewer tokens: they are population and score, while
+            // spare cards past eight are shed anyway.
+            if best.as_ref().is_none_or(|(l, t, _, _)| (loss, tokens) < (*l, *t)) {
+                best = Some((loss, tokens, paid, ks.clone()));
+            }
+        }
+        // Next combination (odometer over 0..=held per type).
+        let mut i = 0;
+        while i < ks.len() {
+            if ks[i] < types[i].1 {
+                ks[i] += 1;
+                break;
+            }
+            ks[i] = 0;
+            i += 1;
+        }
+        if i == ks.len() {
             break;
         }
-        let face = stack.card_type.value();
-        if face == 0 {
-            // Worthless for payment -- and `n * n * face < remaining` below
-            // would never terminate.
-            continue;
-        }
-        let full_value = stack.suite_value; // count² × face
-
-        if full_value <= remaining {
-            // The whole stack still doesn't cover what's left — use it all.
-            payment.insert(stack.card_type, stack.count);
-            remaining -= full_value;
-        } else {
-            // Find the minimum N (≥1) such that N² × face ≥ remaining.
-            let mut n = 1usize;
-            while n * n * face < remaining {
-                n += 1;
-            }
-            let n = n.min(stack.count);
-            payment.insert(stack.card_type, n);
-            remaining = 0;
-        }
     }
-
-    let tokens = remaining.min(treasury_available);
-    (payment, tokens)
+    best.map_or_else(
+        || {
+            let paid = paid_by(&all);
+            (all, paid)
+        },
+        |(_, _, paid, ks)| (ks, paid),
+    )
 }
 
 /// Per-player inputs to the rule-35 score estimate.
@@ -1162,6 +1262,40 @@ mod grain_lock_tests {
         // that up with tokens the purchase does not need.
         let (_, tokens) = compute_ai_payment(&hand, 20, 0, 10);
         assert_eq!(tokens, 0);
+    }
+
+    // ── Paying costs hand value, not face value ────────────────────────────
+
+    #[test]
+    fn pays_without_breaking_up_a_set_when_singletons_will_do() {
+        let mut hand = PlayerTradeCards::default();
+        for _ in 0..4 {
+            hand.add_trade_card(TradeCard::Ochre); // 4-set, worth 16
+        }
+        hand.add_trade_card(TradeCard::Salt); // 3
+        hand.add_trade_card(TradeCard::Iron); // 2
+        // Cost 5: Salt + Iron pay exactly 5 and lose 5; any Ochre would cost 7+.
+        let (payment, tokens) = compute_ai_payment(&hand, 5, 0, 0);
+        assert_eq!(payment.get(&TradeCard::Salt).copied(), Some(1));
+        assert_eq!(payment.get(&TradeCard::Iron).copied(), Some(1));
+        assert_eq!(payment.get(&TradeCard::Ochre), None);
+        assert_eq!(tokens, 0);
+    }
+
+    #[test]
+    fn a_whole_set_is_cheaper_than_part_of_it_plus_a_bigger_set() {
+        let mut hand = PlayerTradeCards::default();
+        for _ in 0..3 {
+            hand.add_trade_card(TradeCard::Salt); // 27
+        }
+        for _ in 0..3 {
+            hand.add_trade_card(TradeCard::Grain); // 36
+        }
+        // Cost 27: all the Salt pays exactly; the old greedy started with the
+        // higher face value and spent 3 Grain (36) instead.
+        let (payment, _) = compute_ai_payment(&hand, 27, 0, 0);
+        assert_eq!(payment.get(&TradeCard::Salt).copied(), Some(3));
+        assert_eq!(payment.get(&TradeCard::Grain), None);
     }
 
     #[test]
