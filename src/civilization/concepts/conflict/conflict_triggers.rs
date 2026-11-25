@@ -12,12 +12,14 @@ use crate::civilization::{CivCardName, ConflictCounterResource};
 use crate::stupid_ai::IsHuman;
 use bevy::log::info;
 use bevy::platform::collections::HashSet;
-use bevy::prelude::{Add, Commands, Entity, Name, NextState, On, Query, ResMut, Transform, With};
+use bevy::prelude::{
+    Add, Commands, Entity, Has, Name, NextState, On, Query, ResMut, Transform, With,
+};
 use std::cmp::Ordering;
 
 pub fn on_add_unresolved_conflict(
     trigger: On<Add<UnresolvedConflict>>,
-    mut areas: Query<(Entity, &Name, &mut Population, &Transform)>,
+    mut areas: Query<(Entity, &Name, &mut Population, &Transform, Has<BuiltCity>)>,
     mut commands: Commands,
     mut conflict_counter_resource: ResMut<ConflictCounterResource>,
     mut next_state: ResMut<NextState<GameActivity>>,
@@ -25,7 +27,7 @@ pub fn on_add_unresolved_conflict(
     mut camera_focus: ResMut<CameraFocusQueue>,
     civ_cards_query: Query<&PlayerCivilizationCards>,
 ) {
-    if let Ok((area_entity, name, mut population, transform)) =
+    if let Ok((area_entity, name, mut population, transform, city_still_stands)) =
         areas.get_mut(trigger.event().entity)
     {
         let player_count = population.number_of_players();
@@ -103,6 +105,17 @@ pub fn on_add_unresolved_conflict(
         );
 
         commands.entity(area_entity).remove::<UnresolvedConflict>();
+
+        // Rule 24.33: nations fighting over another's city battle among
+        // themselves first; the survivor may then attack the city (or, with
+        // too few tokens, is removed, 24.31). The counter stays up for that.
+        // A battle that removed nobody must not be started over.
+        if city_still_stands && remaining_pop < total_pop {
+            info!("[CONFLICT] '{name}' still has a city - resolving the attack on it");
+            commands.entity(area_entity).insert(UnresolvedCityConflict);
+            return;
+        }
+
         conflict_counter_resource.0 = conflict_counter_resource.0.saturating_sub(1);
         info!(
             "[CONFLICT] Conflicts remaining: {}",
@@ -141,6 +154,13 @@ pub fn on_add_unresolved_city_conflict(
     if let Ok((area_entity, name, mut population, built_city, transform)) =
         areas.get_mut(trigger.event().entity)
     {
+        // Before anything is chained: a battle between several invaders puts
+        // this marker back when it is over, which only counts as an `Add` if
+        // it is gone by then.
+        commands
+            .entity(area_entity)
+            .remove::<UnresolvedCityConflict>();
+
         let total_pop = population.total_population();
         let max_pop = population.max_population;
         let city_owner = built_city.player;
@@ -336,10 +356,6 @@ pub fn on_add_unresolved_city_conflict(
             "[CITY CONFLICT] After resolution: {} tokens remaining (was {})",
             remaining_pop, total_pop
         );
-
-        commands
-            .entity(area_entity)
-            .remove::<UnresolvedCityConflict>();
 
         // Only decrement the counter if we did NOT chain into UnresolvedConflict.
         // When we insert UnresolvedConflict (large invader paths), that observer

@@ -2,8 +2,10 @@ use crate::civilization::enums::GameFaction;
 use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::{Component, Entity, Reflect, ReflectComponent};
 
+mod city_audit;
 mod ledger;
 mod population;
+pub use city_audit::*;
 pub use ledger::*;
 pub use population::*;
 
@@ -327,7 +329,9 @@ impl PlayerAreas {
 
     /// Whether `token` is on the board in one of this player's areas.
     pub fn holds_token(&self, token: Entity) -> bool {
-        self.area_population.values().any(|tokens| tokens.contains(&token))
+        self.area_population
+            .values()
+            .any(|tokens| tokens.contains(&token))
     }
 
     pub fn remove_token(&mut self, token: Entity) {
@@ -444,12 +448,20 @@ impl CityTokenStock {
         self.tokens.pop()
     }
 
+    /// A token already in stock stays there once: two effects hitting the
+    /// same city must not let its owner build twice with one token.
     pub fn return_token_to_stock(&mut self, token: Entity) {
-        self.tokens.push(token);
+        if !self.tokens.contains(&token) {
+            self.tokens.push(token);
+        }
     }
 
     pub fn city_tokens_in_stock(&self) -> usize {
         self.tokens.len()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = Entity> + '_ {
+        self.tokens.iter().copied()
     }
 }
 

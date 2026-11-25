@@ -1256,7 +1256,13 @@ pub struct UnitLossSelectionState {
     pub cities: Vec<(Entity, bool)>,
     /// Navigation cursor into `cities`.
     pub current_city_index: usize,
+    /// Points one city covers; four for Epidemic (30.612), otherwise five.
+    pub city_points: usize,
 }
+
+/// A city given up to Epidemic leaves a token behind, so it covers at most
+/// four unit points (30.612).
+pub const EPIDEMIC_CITY_POINTS: usize = 4;
 
 /// A city is worth up to five unit points when resolving a calamity (29.62).
 pub const CITY_UNIT_POINTS: usize = 5;
@@ -1280,6 +1286,7 @@ impl UnitLossSelectionState {
         self.current_area_index = 0;
         self.cities = cities.into_iter().map(|city| (city, false)).collect();
         self.current_city_index = 0;
+        self.city_points = CITY_UNIT_POINTS;
     }
 
     pub fn clear(&mut self) {
@@ -1287,7 +1294,7 @@ impl UnitLossSelectionState {
     }
 
     pub fn allocated_total(&self) -> usize {
-        self.tokens_allocated() + self.cities_allocated() * CITY_UNIT_POINTS
+        self.tokens_allocated() + self.cities_allocated() * self.city_points
     }
 
     pub fn tokens_allocated(&self) -> usize {
@@ -1302,7 +1309,7 @@ impl UnitLossSelectionState {
     }
 
     pub fn total_available(&self) -> usize {
-        self.tokens_available() + self.cities.len() * CITY_UNIT_POINTS
+        self.tokens_available() + self.cities.len() * self.city_points
     }
 
     pub fn selected_cities(&self) -> Vec<Entity> {
@@ -1411,7 +1418,7 @@ impl UnitLossSelectionState {
     ///
     /// Tokens are 1 point each, so any amount within reach of the tokens
     /// alone can always be met exactly and no overshoot is permitted. Only
-    /// when the tokens fall short must cities (5 points each, 29.62) make up
+    /// when the tokens fall short must cities (29.62) make up
     /// the difference, and then the fewest possible are used -- which fixes
     /// the total even though *which* tokens and cities go is still the
     /// victim's choice.
@@ -1421,8 +1428,8 @@ impl UnitLossSelectionState {
         if required <= tokens {
             return required;
         }
-        let cities_needed = (required - tokens).div_ceil(CITY_UNIT_POINTS);
-        required.max(cities_needed * CITY_UNIT_POINTS)
+        let cities_needed = (required - tokens).div_ceil(self.city_points);
+        required.max(cities_needed * self.city_points)
     }
 
     pub fn tokens_available(&self) -> usize {

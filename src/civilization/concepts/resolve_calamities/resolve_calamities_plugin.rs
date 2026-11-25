@@ -33,6 +33,7 @@ impl Plugin for ResolveCalamitiesPlugin {
             .register_type::<ResolvingCalamity>()
             .register_type::<ClearAllTokens>()
             .register_type::<DestroyCity>()
+            .register_type::<LeaveOneToken>()
             .register_type::<ReduceCity>()
             .register_type::<TransferCityTo>()
             .register_type::<ReturnCityToStock>()
@@ -63,7 +64,10 @@ impl Plugin for ResolveCalamitiesPlugin {
             )
             .add_systems(
                 OnExit(GameActivity::ResolveCalamities),
-                cleanup_calamity_selection_ui_on_exit,
+                (
+                    cleanup_calamity_selection_ui_on_exit,
+                    clear_leftover_city_markers,
+                ),
             )
             .add_systems(
                 OnEnter(GameActivity::PopulationExpansion),

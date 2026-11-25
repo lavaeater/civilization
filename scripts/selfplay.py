@@ -46,6 +46,7 @@ LOSS = re.compile(
     r"\[LOSS\] .* of (\w+): tokens\[(.*?)\] cities\[(.*?)\] treasury\[(.*?)\](?: gained\[(.*?)\])?"
 )
 BUILT = re.compile(r"\[CITY_CONSTRUCTION\] (\w+) built a city")
+AUDIT = re.compile(r"\[CITY_AUDIT\] entering (.*)")
 CIV_BOUGHT = re.compile(r"\[CIV_CARDS\] (\w+) bought \[([\w, ]+)\]")
 TRADED = re.compile(
     r"\[TRADE\] .* of (\w+) <-> .* of (\w+):(?:.*lied=(true|false) calamities (\d+)/(\d+))?"
@@ -87,6 +88,8 @@ def parse_game(log: Path) -> dict:
     rounds = 0
     stack_samples: list[list[int]] = []
     bought: dict[str, int] = defaultdict(int)
+    new_cities: dict[str, int] = defaultdict(int)  # since the player's last [STATE]
+    audit: dict[str, int] = defaultdict(int)
     with log.open(errors="replace") as f:
         for line in f:
             if "[" not in line:
@@ -110,8 +113,13 @@ def parse_game(log: Path) -> dict:
                     fx["cities_lost"][cause] += n
                 fx["treasury_spent"] += sum(parse_counts(m[4]).values())
                 fx["gained"] += sum(parse_counts(m[5] or "").values())
+                # A game that ends mid-round has cities built after its last
+                # [STATE]; they are not in the standing count either.
+                fx["built"] += new_cities.pop(m[1], 0)
             elif m := BUILT.search(line):
-                factions[m[1]]["built"] += 1
+                new_cities[m[1]] += 1
+            elif (m := AUDIT.search(line)) and "WARN" in line:
+                audit[re.sub(r"\d+v\d+", "…", m[1])] += 1
             elif m := CIV_BOUGHT.search(line):
                 for card in m[2].split(", "):
                     factions[m[1]]["civ_bought"] += 1
@@ -132,7 +140,8 @@ def parse_game(log: Path) -> dict:
                     factions[m[2]]["calamities_passed"] += int(m[5])
             elif m := STACKS.search(line):
                 stack_samples.append([int(x.split(":")[1]) for x in m[1].split()])
-    return {"rounds": rounds, "factions": factions, "stacks": stack_samples, "bought": bought}
+    return {"rounds": rounds, "factions": factions, "stacks": stack_samples, "bought": bought,
+            "audit": audit}
 
 
 def mean(xs):
@@ -198,6 +207,8 @@ def summarize(games: list[dict]) -> dict:
         "stack_sizes": [mean([row[i] for row in samples]) for i in range(9)] if samples else [],
         "most_bought": sorted(((n / len(games), c) for c, n in bought.items()), reverse=True)[:8],
         "unaccounted_cities_per_game": mean(unaccounted),
+        "city_audit_warnings": [f"game {i}: {n}x {w}" for i, g in enumerate(games)
+                                for w, n in g["audit"].items()],
         "factions": per_faction,
         "table": {
             "tokens_lost_per_round": {c: mean(v) for c, v in totals_per_round.items()},
@@ -249,6 +260,8 @@ def print_report(s: dict, base: dict | None) -> None:
               f"{delta(t['tokens_lost_per_round'][c], old)}")
     print(f"  cities on the board at the end: {t['final_cities']:.1f} ± {t['final_cities_sd']:.1f}"
           f"{delta(t['final_cities'], bt.get('final_cities'))}")
+    for w in s.get("city_audit_warnings", []):
+        print(f"  ⚠ city audit, {w}")
     if abs(s.get("unaccounted_cities_per_game", 0)) > 0.01:
         print(f"  ⚠ cities unaccounted for (built + gained - lost - standing): "
               f"{s['unaccounted_cities_per_game']:.1f} per game; a loss path is not in the ledger")

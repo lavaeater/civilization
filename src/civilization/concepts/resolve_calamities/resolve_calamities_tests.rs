@@ -546,10 +546,14 @@ mod tests {
             "commodities untouched"
         );
 
-        let discarded = [TradeCard::Famine, TradeCard::VolcanoEarthquake, TradeCard::Flood]
-            .into_iter()
-            .find(|c| !hand.has_trade_card(*c))
-            .expect("exactly one of the three calamities was discarded");
+        let discarded = [
+            TradeCard::Famine,
+            TradeCard::VolcanoEarthquake,
+            TradeCard::Flood,
+        ]
+        .into_iter()
+        .find(|c| !hand.has_trade_card(*c))
+        .expect("exactly one of the three calamities was discarded");
         let piles = world.resource::<CivilizationTradeCards>();
         assert!(
             piles.stack_holds(discarded),
@@ -646,6 +650,57 @@ mod tests {
         assert!(!world.get::<PlayerCities>(owner).unwrap().has_city_in(area));
     }
 
+    /// The new owner's city used to have no icon, so a city taken through
+    /// Treachery, Civil War or Piracy vanished from the board.
+    #[test]
+    fn a_transferred_city_gets_the_new_owners_icon() {
+        use crate::civilization::AvailableFactions;
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            TransferCityTo, transfer_city_to_new_owner,
+        };
+        use crate::civilization::enums::GameFaction;
+
+        let mut world = World::new();
+        let mut icons = AvailableFactions::default();
+        icons
+            .faction_city_icons
+            .insert(GameFaction::Crete, Handle::default());
+        world.insert_resource(icons);
+        let old_city = world.spawn(Sprite::default()).id();
+        let new_city = world.spawn_empty().id();
+        let victim = world
+            .spawn((CityTokenStock::new(9, vec![]), PlayerCities::default()))
+            .id();
+        let taker = world
+            .spawn((
+                CityTokenStock::new(9, vec![new_city]),
+                PlayerCities::default(),
+                Faction::new(GameFaction::Crete),
+            ))
+            .id();
+        let area = world
+            .spawn((
+                Transform::from_xyz(3.0, 4.0, 1.0),
+                BuiltCity::new(old_city, victim),
+                TransferCityTo(taker),
+            ))
+            .id();
+        world
+            .get_mut::<PlayerCities>(victim)
+            .unwrap()
+            .build_city_in_area(area, old_city);
+
+        world.run_system_once(transfer_city_to_new_owner).unwrap();
+
+        assert_eq!(world.get::<BuiltCity>(area).unwrap().player, taker);
+        assert!(world.get::<Sprite>(old_city).is_none());
+        assert!(world.get::<Sprite>(new_city).is_some());
+        assert_eq!(
+            world.get::<Transform>(new_city).unwrap().translation,
+            Vec3::new(3.0, 4.0, 1.0)
+        );
+    }
+
     #[test]
     fn a_destroyed_citys_token_stops_being_rendered() {
         use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
@@ -653,6 +708,7 @@ mod tests {
         };
 
         let mut world = World::new();
+        world.init_resource::<bevy::prelude::Messages<crate::civilization::events::MoveTokensFromStockToAreaCommand>>();
 
         let owner = world
             .spawn((CityTokenStock::new(9, vec![]), PlayerCities::default()))
@@ -1910,10 +1966,10 @@ mod tests {
     }
 
     /// Rule 30.612 keeps one token per area, so a human Epidemic victim is
-    /// offered `count - 1` per area -- and the city half of the budget must be
-    /// spent exactly once even though the token half pauses for input.
+    /// offered `count - 1` per area, and may give up a city instead at four
+    /// points (a token stays behind), not the usual five.
     #[test]
-    fn epidemic_primary_loss_pauses_for_a_human_without_double_spending_the_city_budget() {
+    fn epidemic_primary_loss_lets_a_human_choose_tokens_or_a_four_point_city() {
         use crate::civilization::concepts::resolve_calamities::calamities::epidemic::{
             EpidemicPhase, EpidemicState,
         };
@@ -1963,7 +2019,7 @@ mod tests {
 
         let mut state = EpidemicState::new();
         state.phase = EpidemicPhase::ComputeEffects;
-        state.primary_loss = 6; // 4 to the city, 2 left for tokens
+        state.primary_loss = 6;
 
         let context = CalamityContext::new(TradeCard::Epidemic, victim, None);
         world.entity_mut(victim).insert((
@@ -1971,34 +2027,31 @@ mod tests {
             ResolvingCalamity::Epidemic(state),
         ));
 
-        // Pass 1: spend the city budget. Pass 2: pause for the token choice.
+        // Pass 1 enters the loss; pass 2 pauses for the choice.
         world.run_system_once(advance_epidemic).unwrap();
         world.run_system_once(advance_epidemic).unwrap();
 
         assert!(
-            world.get::<DestroyCity>(areas[0]).is_some(),
-            "city spent against the budget"
+            world.get::<DestroyCity>(areas[0]).is_none(),
+            "nothing is destroyed before the human chooses"
         );
         assert!(
             world
                 .get::<AwaitingHumanCalamitySelection>(victim)
                 .is_some(),
-            "human should choose which tokens cover the remaining 2 points"
+            "human should choose which units cover the loss"
         );
         {
             let selection = world.resource::<UnitLossSelectionState>();
-            assert_eq!(
-                selection.total_budget, 2,
-                "4 of the 6 points went to the city"
-            );
+            assert_eq!(selection.total_budget, 6);
             assert_eq!(
                 selection.total_available(),
-                8,
-                "30.612 leaves one token per area, so 4 of 5 are offered in each"
+                12,
+                "4 of 5 tokens in each area, and 4 points for the city"
             );
         }
 
-        // Extra frames while waiting must not re-destroy the city or move on.
+        // Extra frames while waiting must not move on.
         world.run_system_once(advance_epidemic).unwrap();
         let ResolvingCalamity::Epidemic(ref waiting) =
             *world.get::<ResolvingCalamity>(victim).unwrap()
@@ -2010,18 +2063,15 @@ mod tests {
             EpidemicPhase::ApplyPrimaryLoss,
             "still waiting"
         );
-        assert_eq!(
-            waiting.primary_tokens_remaining, 2,
-            "city budget not spent twice"
-        );
 
-        // Human puts both points on the second area.
+        // Human gives up the city (4) and two tokens from the second area.
         {
             let mut selection = world.resource_mut::<UnitLossSelectionState>();
             let second = areas[1];
             while selection.current_area().map(|(a, _, _)| a) != Some(second) {
                 selection.next_area();
             }
+            assert!(selection.toggle_current_city());
             assert!(selection.increment_current());
             assert!(selection.increment_current());
             assert!(selection.selection_valid());
@@ -2031,6 +2081,9 @@ mod tests {
             .remove::<AwaitingHumanCalamitySelection>();
 
         world.run_system_once(advance_epidemic).unwrap();
+
+        assert!(world.get::<DestroyCity>(areas[0]).is_some());
+        assert!(world.get::<LeaveOneToken>(areas[0]).is_some());
 
         assert_eq!(
             world
@@ -2670,21 +2723,18 @@ mod tests {
     //
     // "Cities eliminated by Epidemic are replaced by at least one token; thus
     // cities account for a maximum of 4 unit points when calculating Epidemic
-    // losses." A city in an affected area absorbs up to 4 points of the loss
-    // budget (never more, regardless of Engineering -- unlike Flood/Volcano,
-    // rule 30.612 doesn't mention Engineering at all), then whatever remains
-    // is removed from tokens, still respecting the existing leave-one-per-area
-    // rule.
+    // losses." Which units go is the victim's choice (29.62); an AI pays in
+    // tokens and only gives up cities when its tokens fall short.
 
     use crate::civilization::concepts::resolve_calamities::calamities::epidemic::{
         EpidemicPhase, EpidemicState,
     };
     use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
-        DestroyCity, advance_epidemic,
+        DestroyCity, LeaveOneToken, advance_epidemic,
     };
 
     #[test]
-    fn epidemic_primary_loss_spends_up_to_4_points_on_an_owned_city_then_the_rest_on_tokens() {
+    fn epidemic_takes_tokens_before_cities() {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::EpidemicSelectionState>();
@@ -2721,7 +2771,7 @@ mod tests {
 
         let mut state = EpidemicState::new();
         state.phase = EpidemicPhase::ComputeEffects;
-        state.primary_loss = 6; // 4 for the city + 2 leftover for tokens
+        state.primary_loss = 6;
 
         let context = CalamityContext::new(TradeCard::Epidemic, victim, None);
         world.entity_mut(victim).insert((
@@ -2729,21 +2779,19 @@ mod tests {
             ResolvingCalamity::Epidemic(state),
         ));
 
-        // Two passes: ComputeEffects spends the budget on cities, ApplyPrimaryLoss
-        // takes the remainder off tokens (split so the token half can pause for
-        // a human's choice without re-destroying the city).
         world.run_system_once(advance_epidemic).unwrap();
         world.run_system_once(advance_epidemic).unwrap();
 
-        // The city was marked for destruction (spending 4 of the 6-point budget).
-        assert!(world.get::<DestroyCity>(city_area).is_some());
-        // The remaining 2 points came off tokens in that same area: 10 -> 8.
+        assert!(
+            world.get::<DestroyCity>(city_area).is_none(),
+            "nine tokens can be taken, so the city stands"
+        );
         let pop_after = world.get::<Population>(city_area).unwrap();
-        assert_eq!(pop_after.population_for_player(victim), 8);
+        assert_eq!(pop_after.population_for_player(victim), 4);
     }
 
     #[test]
-    fn epidemic_primary_loss_under_4_points_still_spends_only_on_the_city_partially() {
+    fn epidemic_takes_a_four_point_city_when_tokens_fall_short() {
         let mut world = World::new();
         world.init_resource::<bevy::prelude::Messages<crate::civilization::concepts::resolve_calamities::resolve_calamities_events::CalamityResolved>>();
         world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::EpidemicSelectionState>();
@@ -2780,7 +2828,7 @@ mod tests {
 
         let mut state = EpidemicState::new();
         state.phase = EpidemicPhase::ComputeEffects;
-        state.primary_loss = 2; // less than the 4-point city cost
+        state.primary_loss = 7; // 4 tokens can go (one stays), so 4 + 3 tokens
 
         let context = CalamityContext::new(TradeCard::Epidemic, victim, None);
         world.entity_mut(victim).insert((
@@ -2789,11 +2837,15 @@ mod tests {
         ));
 
         world.run_system_once(advance_epidemic).unwrap();
+        world.run_system_once(advance_epidemic).unwrap();
 
-        // The whole 2-point budget went to the city; no tokens were touched.
         assert!(world.get::<DestroyCity>(city_area).is_some());
+        assert!(
+            world.get::<LeaveOneToken>(city_area).is_some(),
+            "30.612: a token takes the city's place"
+        );
         let pop_after = world.get::<Population>(city_area).unwrap();
-        assert_eq!(pop_after.population_for_player(victim), 5);
+        assert_eq!(pop_after.population_for_player(victim), 2);
     }
 
     #[test]
@@ -4400,7 +4452,11 @@ mod tests {
         let mut holder_areas = PlayerAreas::default();
         holder_areas.add_token_to_area(holder_area, world.spawn_empty().id());
         let holder = world
-            .spawn((Name::new("holder-player"), holder_areas, NeedsMonotheismConversion))
+            .spawn((
+                Name::new("holder-player"),
+                holder_areas,
+                NeedsMonotheismConversion,
+            ))
             .id();
         let _ = holder; // AI holder: no IsHuman component.
 
@@ -4626,7 +4682,10 @@ mod tests {
                 .iter()
                 .filter(|&&a| world.get::<ReduceCity>(a).is_some())
                 .count();
-            assert_eq!(reduced, 3, "Mining and Enlightenment cancel, base 15 stands");
+            assert_eq!(
+                reduced, 3,
+                "Mining and Enlightenment cancel, base 15 stands"
+            );
         }
     }
 }

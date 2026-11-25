@@ -15,8 +15,10 @@ use crate::civilization::ui::ButtonActivationPlugin;
 use crate::player::Player;
 use crate::stupid_ai::*;
 use crate::{GameActivity, GameState};
-use bevy::app::{App, Plugin, Update};
-use bevy::prelude::{AppExtStates, IntoScheduleConfigs, OnEnter, Res, Resource, in_state};
+use bevy::app::{App, Last, Plugin, Update};
+use bevy::prelude::{
+    AppExtStates, IntoScheduleConfigs, OnEnter, Res, Resource, in_state, state_changed,
+};
 
 pub struct CivilizationPlugin;
 
@@ -119,6 +121,7 @@ impl Plugin for CivLogicPlugins {
                     fix_token_positions.run_if(in_state(GameState::Playing)),
                 ),
             )
+            .add_systems(Last, audit_cities.run_if(state_changed::<GameActivity>))
             .add_observer(on_add_return_token_to_stock)
             .add_observer(on_add_return_city_to_stock);
     }

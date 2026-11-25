@@ -299,6 +299,90 @@ mod tests {
         assert_eq!(city_conflicts, 0);
     }
 
+    /// Runs the conflict phase on a city with tokens of two other nations.
+    /// Returns the app, the area, the city's owner and the two invaders.
+    fn two_invaders(first: usize, second: usize) -> (App, Entity, Entity, [Entity; 2]) {
+        let mut app = create_test_app();
+        let [owner, a, b] = [(); 3].map(|()| {
+            app.world_mut()
+                .spawn((
+                    TokenStock::new(47, vec![]),
+                    PlayerAreas::default(),
+                    CityTokenStock::new(9, vec![]),
+                    PlayerCities::default(),
+                ))
+                .id()
+        });
+        let defenders = (0..6).map(|_| app.world_mut().spawn_empty().id()).collect();
+        app.world_mut()
+            .entity_mut(owner)
+            .insert(TokenStock::new(47, defenders));
+        let city_token = app.world_mut().spawn(CityToken::new(owner)).id();
+        let area = spawn_area(
+            app.world_mut(),
+            "City Area",
+            3,
+            &[(a, first), (b, second)],
+            Some(BuiltCity::new(city_token, owner)),
+        );
+        app.world_mut()
+            .get_mut::<PlayerCities>(owner)
+            .unwrap()
+            .build_city_in_area(area, city_token);
+        transition_to_conflict(&mut app).unwrap();
+        for _ in 0..10 {
+            app.update();
+        }
+        assert_eq!(
+            *app.world().resource::<State<GameActivity>>().get(),
+            GameActivity::CityConstruction
+        );
+        assert_eq!(app.world().resource::<ConflictCounterResource>().0, 0);
+        assert!(app.world().get::<UnresolvedConflict>(area).is_none());
+        assert!(app.world().get::<UnresolvedCityConflict>(area).is_none());
+        (app, area, owner, [a, b])
+    }
+
+    /// Rule 24.33: several invaders battle first; a survivor with enough
+    /// tokens then attacks the city. It used to be left standing with the
+    /// survivor's tokens beside it, and the survivor built a city on top.
+    #[test]
+    fn the_survivor_of_several_invaders_attacks_the_city() {
+        let (app, area, owner, [a, _]) = two_invaders(16, 2);
+        assert!(app.world().get::<BuiltCity>(area).is_none());
+        assert!(
+            !app.world()
+                .get::<PlayerCities>(owner)
+                .unwrap()
+                .has_city_in(area)
+        );
+        let population = app.world().get::<Population>(area).unwrap();
+        assert!(population.population_for_player(a) > 0);
+        assert_eq!(
+            app.world()
+                .get::<CityTokenStock>(owner)
+                .unwrap()
+                .city_tokens_in_stock(),
+            1,
+            "the owner gets its city token back"
+        );
+    }
+
+    /// Rule 24.31: survivors too few to take the city are removed.
+    #[test]
+    fn a_weak_survivor_of_several_invaders_leaves_the_city_standing() {
+        let (app, area, owner, _) = two_invaders(8, 7);
+        assert!(app.world().get::<BuiltCity>(area).is_some());
+        assert!(
+            app.world()
+                .get::<PlayerCities>(owner)
+                .unwrap()
+                .has_city_in(area)
+        );
+        let population = app.world().get::<Population>(area).unwrap();
+        assert_eq!(population.total_population(), 0);
+    }
+
     #[test]
     fn test_city_conflict_large_invader_no_counter_underflow() {
         // Regression test: when a city conflict chains into a regular conflict

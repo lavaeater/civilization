@@ -12,9 +12,10 @@ use crate::civilization::concepts::save_game::LoadingFromSave;
 use crate::civilization::functions::{build_city_in_area, return_all_tokens_from_area_to_players};
 use crate::civilization::game_moves::{AvailableMoves, RecalculatePlayerMoves};
 use crate::player::Player;
+use bevy::platform::collections::HashSet;
 use bevy::prelude::{
     Commands, Entity, MessageReader, MessageWriter, NextState, Query, Res, ResMut, Transform, With,
-    info,
+    info, warn,
 };
 
 pub fn city_building_gate(
@@ -53,8 +54,22 @@ pub fn build_city(
     mut recalculate_player_moves: MessageWriter<RecalculatePlayerMoves>,
     game_factions: Res<AvailableFactions>,
     mut round_summary: ResMut<RoundSummary>,
+    built_cities: Query<(), With<BuiltCity>>,
 ) {
+    let mut built_now: HashSet<Entity> = HashSet::default();
     for build_city in command.read() {
+        // Rule 25.1: one city per area. Building over a standing city would
+        // leave its owner listing a city that is no longer on the map and
+        // lose a city token, so it is refused here whoever asks for it.
+        if built_cities.contains(build_city.area) || !built_now.insert(build_city.area) {
+            warn!(
+                "[CITY_CONSTRUCTION] {:?} tried to build over the city in {:?} - refused",
+                build_city.player, build_city.area
+            );
+            recalculate_player_moves.write(RecalculatePlayerMoves::new(build_city.player));
+            continue;
+        }
+
         let has_architecture = player_query
             .get(build_city.player)
             .ok()

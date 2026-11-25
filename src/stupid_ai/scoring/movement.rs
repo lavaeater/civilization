@@ -34,6 +34,11 @@ pub fn score_movement(
             {
                 return 0.02 * w.aggression;
             }
+            // Tokens in one's own city are only removed as surplus.
+            if is_ferry && m.max_tokens > 0 && area(areas, m.target).is_some_and(|t| t.city_is_mine)
+            {
+                return 0.0;
+            }
             if is_ferry && m.max_tokens == 0 {
                 return empty_ship_pickup(m.source, m.target, areas, w, plan);
             }
@@ -552,6 +557,41 @@ mod tests {
             score(coast),
             score(island)
         );
+    }
+
+    /// Tokens landed in one's own city are removed as surplus.
+    #[test]
+    fn ferry_never_unloads_into_its_own_city() {
+        let player = e(1);
+        let (home, city) = (e(10), e(20));
+        let mut areas = HashMap::default();
+        areas.insert(
+            home,
+            AreaSummary {
+                max_population: 3,
+                my_pop: 4,
+                ..Default::default()
+            },
+        );
+        areas.insert(
+            city,
+            AreaSummary {
+                max_population: 3,
+                has_city: true,
+                city_is_mine: true,
+                ..Default::default()
+            },
+        );
+        let w = Personality::from_playstyle(Playstyle::Balanced).weights;
+        let score = score_movement(
+            &GameMove::ShipFerry(MovementMove::new(home, city, player, 2)),
+            player,
+            &areas,
+            &w,
+            &CityPlan::default(),
+            &Rivals::default(),
+        );
+        assert_eq!(score, 0.0);
     }
 
     /// An empty ship sails to tokens surplus removal would take, once.

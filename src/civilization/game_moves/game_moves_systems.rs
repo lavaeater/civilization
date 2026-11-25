@@ -237,7 +237,7 @@ pub fn recalculate_city_construction_moves_for_player(
         Option<&PlayerCivilizationCards>,
         Option<&Name>,
     )>,
-    area_property_query: Query<(&Population, Has<CitySite>)>,
+    area_property_query: Query<(&Population, Has<CitySite>, Has<BuiltCity>)>,
     mut commands: Commands,
 ) {
     for event in recalc_player_reader.read() {
@@ -262,7 +262,8 @@ pub fn recalculate_city_construction_moves_for_player(
                 // the board, leaving the (real) surplus to be stripped away
                 // in RemoveSurplusPopulation instead of spent on a city.
                 for area in player_areas.areas() {
-                    if let Ok((population, has_city_site)) = area_property_query.get(area) {
+                    if let Ok((population, has_city_site, false)) = area_property_query.get(area) {
+                        // Rule 25.1: one city per area.
                         let pop_count = population.population_for_player(event.player);
                         if (has_city_site && pop_count >= city_site_threshold)
                             || pop_count >= no_site_threshold
@@ -283,7 +284,7 @@ pub fn recalculate_city_construction_moves_for_player(
                 let mut best_site = 0;
                 let mut best_any = 0;
                 for area in player_areas.areas() {
-                    if let Ok((population, has_city_site)) = area_property_query.get(area) {
+                    if let Ok((population, has_city_site, false)) = area_property_query.get(area) {
                         let pop_count = population.population_for_player(event.player);
                         best_any = best_any.max(pop_count);
                         if has_city_site {
@@ -293,7 +294,10 @@ pub fn recalculate_city_construction_moves_for_player(
                 }
                 info!(
                     "[CITY_CONSTRUCTION] No build moves for {} (city tokens in stock: {}, areas: {}, best city-site stack: {}/{}, best stack anywhere: {}) - removing IsBuilding",
-                    name.map_or_else(|| format!("{:?}", event.player), std::string::ToString::to_string),
+                    name.map_or_else(
+                        || format!("{:?}", event.player),
+                        std::string::ToString::to_string
+                    ),
                     city_token_stock.city_tokens_in_stock(),
                     player_areas.areas().len(),
                     best_site,
@@ -419,11 +423,9 @@ mod open_sea_tests {
 
     fn destinations(world: &mut World, from: Entity, astronomy: bool, cloth: bool) -> Vec<Entity> {
         world
-            .run_system_once(
-                move |sea: Query<&SeaPassage>, open: Query<Has<OpenSea>>| {
-                    ship_destinations(from, astronomy, cloth, &sea, &open)
-                },
-            )
+            .run_system_once(move |sea: Query<&SeaPassage>, open: Query<Has<OpenSea>>| {
+                ship_destinations(from, astronomy, cloth, &sea, &open)
+            })
             .unwrap()
     }
 

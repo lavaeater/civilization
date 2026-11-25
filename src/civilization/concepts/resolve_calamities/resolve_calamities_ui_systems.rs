@@ -2584,7 +2584,7 @@ pub fn update_unit_loss_selection_ui(
                     "City in {}: {} ({} pts)  [{}/{}]",
                     name,
                     if selected { "GIVEN UP" } else { "kept" },
-                    CITY_UNIT_POINTS,
+                    unit_loss.city_points,
                     unit_loss.current_city_index + 1,
                     unit_loss.cities.len()
                 )

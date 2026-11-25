@@ -54,8 +54,8 @@ use crate::civilization::concepts::resolve_calamities::resolve_calamities_compon
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_events::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::{
     AwaitingHumanCalamitySelection, AwaitingMonotheismSelection, CITY_UNIT_POINTS,
-    CalamitySelectionState, CivilWarSelectionState, EpidemicSelectionState, FamineSelectionState,
-    FloodSelectionState, MonotheismSelectionState, UnitLossSelectionState,
+    CalamitySelectionState, CivilWarSelectionState, EPIDEMIC_CITY_POINTS, EpidemicSelectionState,
+    FamineSelectionState, FloodSelectionState, MonotheismSelectionState, UnitLossSelectionState,
 };
 use crate::civilization::functions::return_all_tokens_to_stock;
 use crate::civilization::triggers::retire_city_token_visuals;
@@ -1090,42 +1090,6 @@ fn remove_unit_points_leaving_one_per_area(
     }
 }
 
-/// Rule 30.612: "Cities eliminated by Epidemic are replaced by at least one
-/// token; thus cities account for a maximum of 4 unit points when
-/// calculating Epidemic losses." Unlike Flood/Volcano, the rule text gives
-/// this number directly and never mentions Engineering, so Engineering has
-/// no effect on Epidemic city elimination -- always a plain `DestroyCity`,
-/// never `ReduceCity`.
-///
-/// A city's cost is deducted from the loss budget before any tokens are
-/// removed (mirroring Flood's `ApplyPrimaryLoss` city-then-tokens order,
-/// the closest existing precedent for a budget covering both). If a player
-/// has multiple cities and the remaining budget covers more than one, they
-/// are eliminated in `player_cities.areas_and_cities` iteration order until
-/// the budget runs out or the player has no cities left -- deterministic
-/// auto-selection, not an interactive choice (matching how other "which of
-/// several targets" specifics are auto-resolved elsewhere pending UI work).
-///
-/// Returns the remaining budget after city costs, to spend on tokens via
-/// `remove_unit_points_leaving_one_per_area`.
-fn spend_epidemic_budget_on_cities(
-    player_cities: &PlayerCities,
-    points: i32,
-    commands: &mut Commands,
-) -> i32 {
-    const CITY_COST: i32 = 4;
-    let mut remaining = points;
-    for &area in player_cities.areas_and_cities.keys() {
-        if remaining <= 0 {
-            break;
-        }
-        let city_cost = remaining.min(CITY_COST);
-        commands.entity(area).insert(DestroyCity);
-        remaining -= city_cost;
-    }
-    remaining
-}
-
 /// Outcome of asking a victim to give up unit points.
 #[derive(Debug, PartialEq, Eq)]
 enum UnitLossStep {
@@ -1142,6 +1106,7 @@ fn apply_unit_loss_allocation(
     player: Entity,
     allocation: &[(Entity, usize)],
     cities: &[Entity],
+    leave_one_per_area: bool,
     populations: &mut Query<&mut Population>,
     commands: &mut Commands,
 ) {
@@ -1157,8 +1122,17 @@ fn apply_unit_loss_allocation(
             }
         }
     }
+    give_up_cities(cities, leave_one_per_area, commands);
+}
+
+/// Destroys the cities a victim gave up. Rule 30.612: a city eliminated by
+/// Epidemic leaves one token behind.
+fn give_up_cities(cities: &[Entity], leave_one_per_area: bool, commands: &mut Commands) {
     for &city_area in cities {
         commands.entity(city_area).insert(DestroyCity);
+        if leave_one_per_area {
+            commands.entity(city_area).insert(LeaveOneToken);
+        }
     }
 }
 
@@ -1169,23 +1143,25 @@ fn spendable_cities(player_cities: &PlayerCities) -> Vec<Entity> {
 
 /// Splits `points` the way an AI victim must under rule 29.63: tokens alone
 /// whenever they can meet the amount exactly, otherwise the fewest cities
-/// (29.62, five points each) that close the gap plus whatever tokens are
+/// (29.62, `city_points` each) that close the gap plus whatever tokens are
 /// still needed -- exceeding the amount by as little as possible.
 ///
 /// Returns `(cities_given_up, tokens_to_remove)`.
 fn split_unit_loss(
     tokens_available: usize,
     cities: &[Entity],
+    city_points: usize,
     points: usize,
 ) -> (Vec<Entity>, i32) {
     if points <= tokens_available {
         return (Vec::new(), points as i32);
     }
     let cities_needed = (points - tokens_available)
-        .div_ceil(CITY_UNIT_POINTS)
+        .div_ceil(city_points)
         .min(cities.len());
-    let city_points = cities_needed * CITY_UNIT_POINTS;
-    let tokens_needed = points.saturating_sub(city_points).min(tokens_available);
+    let tokens_needed = points
+        .saturating_sub(cities_needed * city_points)
+        .min(tokens_available);
     (cities[..cities_needed].to_vec(), tokens_needed as i32)
 }
 
@@ -1199,8 +1175,9 @@ fn split_unit_loss(
 /// everything they own, every token goes regardless of choice, so showing a
 /// panel would just be a mandatory "confirm" click.
 ///
-/// `leave_one_per_area` implements Epidemic's rule 30.612 by capping each
-/// area's availability at `count - 1`.
+/// `leave_one_per_area` implements Epidemic's rule 30.612: each area's
+/// availability is capped at `count - 1`, and a city given up leaves one
+/// token behind and so covers only four points.
 #[allow(clippy::too_many_arguments)]
 fn take_unit_point_loss(
     player: Entity,
@@ -1210,9 +1187,7 @@ fn take_unit_point_loss(
     is_human: bool,
     awaiting_human: bool,
     player_areas: &PlayerAreas,
-    // `spendable_cities`: cities the victim may give up at five points each
-    // (29.62). Empty when the calamity prices cities itself (Epidemic's
-    // 30.612 cap, Flood's own city handling) or the victim has none.
+    // `spendable_cities`: cities the victim may give up (29.62).
     spendable_cities: &[Entity],
     populations: &mut Query<&mut Population>,
     unit_loss: &mut UnitLossSelectionState,
@@ -1222,6 +1197,11 @@ fn take_unit_point_loss(
         return UnitLossStep::Applied;
     }
 
+    let city_points = if leave_one_per_area {
+        EPIDEMIC_CITY_POINTS
+    } else {
+        CITY_UNIT_POINTS
+    };
     let token_availability = |area_count: usize| {
         if leave_one_per_area {
             area_count.saturating_sub(1)
@@ -1236,11 +1216,13 @@ fn take_unit_point_loss(
         .sum();
 
     if !is_human {
-        let (cities, token_points) =
-            split_unit_loss(tokens_available, spendable_cities, points as usize);
-        for &city_area in &cities {
-            commands.entity(city_area).insert(DestroyCity);
-        }
+        let (cities, token_points) = split_unit_loss(
+            tokens_available,
+            spendable_cities,
+            city_points,
+            points as usize,
+        );
+        give_up_cities(&cities, leave_one_per_area, commands);
         if leave_one_per_area {
             remove_unit_points_leaving_one_per_area(
                 player,
@@ -1270,7 +1252,14 @@ fn take_unit_point_loss(
             allocation.len(),
             cities.len()
         );
-        apply_unit_loss_allocation(player, &allocation, &cities, populations, commands);
+        apply_unit_loss_allocation(
+            player,
+            &allocation,
+            &cities,
+            leave_one_per_area,
+            populations,
+            commands,
+        );
         return UnitLossStep::Applied;
     }
 
@@ -1316,6 +1305,7 @@ fn take_unit_point_loss(
         spendable_cities.to_vec(),
         points as usize,
     );
+    unit_loss.city_points = city_points;
     commands
         .entity(player)
         .insert(AwaitingHumanCalamitySelection);
@@ -2000,28 +1990,20 @@ pub fn advance_epidemic(
 
         match state.phase {
             EpidemicPhase::ComputeEffects => {
-                // Cities are spent against the budget first (30.612) and are
-                // picked deterministically; only the token remainder is a
-                // choice, so it is handled in ApplyPrimaryLoss where it can
-                // pause for a human without re-destroying cities.
-                state.primary_tokens_remaining = spend_epidemic_budget_on_cities(
-                    player_cities,
-                    state.primary_loss,
-                    &mut commands,
-                );
                 state.phase = EpidemicPhase::ApplyPrimaryLoss;
             }
             EpidemicPhase::ApplyPrimaryLoss => {
-                // Rule 30.612: at least one token stays in each affected area.
+                // Rule 30.612: at least one token stays in each affected area,
+                // and which units go is the victim's choice (29.62).
                 if take_unit_point_loss(
                     player_entity,
-                    state.primary_tokens_remaining,
+                    state.primary_loss,
                     "Epidemic",
                     true,
                     is_human,
                     is_awaiting,
                     player_areas,
-                    &[], // cities already spent at 30.612's rate above
+                    &spendable_cities(player_cities),
                     &mut populations,
                     &mut unit_loss,
                     &mut commands,
@@ -2029,7 +2011,6 @@ pub fn advance_epidemic(
                 {
                     continue;
                 }
-                state.primary_tokens_remaining = 0;
                 state.phase = EpidemicPhase::ApplySecondaryLosses;
             }
             EpidemicPhase::ApplySecondaryLosses => {
@@ -2119,38 +2100,18 @@ pub fn advance_epidemic(
                         settled.push(secondary_entity);
                         continue;
                     };
-                    let (sec_is_human, sec_is_awaiting) = human_flags
-                        .get(secondary_entity)
-                        .unwrap_or((false, false));
-
-                    // Cities absorb up to 4 points each (30.612) and are picked
-                    // deterministically -- spend them once, then let the victim
-                    // choose which tokens cover what is left.
-                    let token_points = if state.secondary_cities_spent.contains(&secondary_entity) {
-                        owed
-                    } else {
-                        let remainder =
-                            spend_epidemic_budget_on_cities(sec_cities, owed, &mut commands);
-                        state.secondary_cities_spent.push(secondary_entity);
-                        if let Some(entry) = state
-                            .secondary_allocations
-                            .iter_mut()
-                            .find(|(e, _)| *e == secondary_entity)
-                        {
-                            entry.1 = remainder;
-                        }
-                        remainder
-                    };
+                    let (sec_is_human, sec_is_awaiting) =
+                        human_flags.get(secondary_entity).unwrap_or((false, false));
 
                     match take_unit_point_loss(
                         secondary_entity,
-                        token_points,
+                        owed,
                         "Epidemic",
                         true,
                         sec_is_human,
                         sec_is_awaiting,
                         sec_areas,
-                        &[], // cities already spent at 30.612's rate above
+                        &spendable_cities(sec_cities),
                         &mut populations,
                         &mut unit_loss,
                         &mut commands,
@@ -3604,6 +3565,11 @@ pub struct ClearAllTokens;
 #[reflect(Component)]
 pub struct DestroyCity;
 
+/// With `DestroyCity`: one token takes the destroyed city's place (30.612).
+#[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
+pub struct LeaveOneToken;
+
 #[derive(Component, Debug, Reflect)]
 #[reflect(Component)]
 pub struct ReduceCity;
@@ -3611,6 +3577,29 @@ pub struct ReduceCity;
 #[derive(Component, Debug, Reflect)]
 #[reflect(Component)]
 pub struct ReturnCityToStock;
+
+/// Drops city markers nothing acted on. `DestroyCity` and friends only take
+/// effect on an area with a city, so one left behind would destroy the next
+/// city built there.
+pub fn clear_leftover_city_markers(
+    mut commands: Commands,
+    marked: Query<
+        Entity,
+        Or<(
+            With<DestroyCity>,
+            With<ReduceCity>,
+            With<TransferCityTo>,
+            With<LeaveOneToken>,
+        )>,
+    >,
+) {
+    for area in &marked {
+        warn!("[CALAMITIES] Dropping an unused city marker on {area:?}");
+        commands
+            .entity(area)
+            .remove::<(DestroyCity, ReduceCity, TransferCityTo, LeaveOneToken)>();
+    }
+}
 
 pub fn clear_all_tokens_from_area(
     mut commands: Commands,
@@ -3629,10 +3618,11 @@ pub fn clear_all_tokens_from_area(
 
 pub fn destroy_city_in_area(
     mut commands: Commands,
-    areas_with_destroy: Query<(Entity, &BuiltCity), With<DestroyCity>>,
+    areas_with_destroy: Query<(Entity, &BuiltCity, Has<LeaveOneToken>), With<DestroyCity>>,
     mut city_stock_query: Query<(&mut CityTokenStock, &mut PlayerCities)>,
+    mut move_tokens: MessageWriter<crate::civilization::events::MoveTokensFromStockToAreaCommand>,
 ) {
-    for (area_entity, built_city) in areas_with_destroy.iter() {
+    for (area_entity, built_city, leave_one_token) in areas_with_destroy.iter() {
         info!("[CALAMITIES] Destroying city in area {:?}", area_entity);
 
         if let Ok((mut city_stock, mut player_cities)) = city_stock_query.get_mut(built_city.player)
@@ -3643,9 +3633,19 @@ pub fn destroy_city_in_area(
             city_stock.return_token_to_stock(built_city.city);
         }
         retire_city_token_visuals(&mut commands, built_city.city);
+        if leave_one_token {
+            move_tokens.write(
+                crate::civilization::events::MoveTokensFromStockToAreaCommand {
+                    player_entity: built_city.player,
+                    area_entity,
+                    number_of_tokens: 1,
+                },
+            );
+        }
 
-        commands.entity(area_entity).remove::<BuiltCity>();
-        commands.entity(area_entity).remove::<DestroyCity>();
+        commands
+            .entity(area_entity)
+            .remove::<(BuiltCity, DestroyCity, LeaveOneToken)>();
     }
 }
 
@@ -3711,6 +3711,9 @@ pub fn transfer_city_to_new_owner(
     mut commands: Commands,
     areas_with_transfer: Query<(Entity, &BuiltCity, &TransferCityTo)>,
     mut player_data: Query<(&mut CityTokenStock, &mut PlayerCities)>,
+    area_transforms: Query<&Transform, With<BuiltCity>>,
+    factions: Query<&Faction>,
+    game_factions: Option<Res<crate::civilization::AvailableFactions>>,
 ) {
     let transfers: Vec<(Entity, Entity, Entity)> = areas_with_transfer
         .iter()
@@ -3718,14 +3721,15 @@ pub fn transfer_city_to_new_owner(
         .collect();
 
     for (area_entity, victim_player, new_owner) in transfers {
-        // Remove current BuiltCity and marker
-        commands.entity(area_entity).remove::<BuiltCity>();
         commands.entity(area_entity).remove::<TransferCityTo>();
+        if victim_player == new_owner {
+            continue; // nothing to hand over; the city stands
+        }
+        commands.entity(area_entity).remove::<BuiltCity>();
 
-        // Use unsafe multi-get to borrow both entities mutably at once
-        if victim_player != new_owner
-            && let Ok([(mut v_stock, mut v_cities), (mut b_stock, mut b_cities)]) =
-                player_data.get_many_mut([victim_player, new_owner])
+        // Borrow both players mutably at once
+        if let Ok([(mut v_stock, mut v_cities), (mut b_stock, mut b_cities)]) =
+            player_data.get_many_mut([victim_player, new_owner])
         {
             if let Some(old_city) = v_cities.remove_city_from_area(area_entity) {
                 record_city_loss(&mut commands, victim_player);
@@ -3738,6 +3742,25 @@ pub fn transfer_city_to_new_owner(
                 commands
                     .entity(area_entity)
                     .insert(BuiltCity::new(new_city, new_owner));
+                // The new city needs its own icon; the old one's is gone with
+                // it. Pirates have no faction and borrow any icon, as when a
+                // saved game is loaded.
+                let icon = game_factions.as_deref().and_then(|icons| {
+                    factions.get(new_owner).map_or_else(
+                        |_| icons.faction_city_icons.values().next(),
+                        |f| icons.faction_city_icons.get(&f.faction),
+                    )
+                });
+                if let (Some(icon), Ok(transform)) = (icon, area_transforms.get(area_entity)) {
+                    commands.entity(new_city).insert((
+                        Sprite {
+                            image: icon.clone(),
+                            ..default()
+                        },
+                        Transform::from_scale(Vec3::splat(0.25))
+                            .with_translation(transform.translation),
+                    ));
+                }
                 info!("[CALAMITIES] City transferred to {:?}", new_owner);
             } else {
                 info!(
