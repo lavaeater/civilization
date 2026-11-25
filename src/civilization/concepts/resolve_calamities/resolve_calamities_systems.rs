@@ -62,7 +62,9 @@ use crate::civilization::triggers::retire_city_token_visuals;
 use crate::civilization::{CivCardName, PlayerTradeCards, TradeCard, TradeCardTrait};
 use crate::loading::TextureAssets;
 use crate::player::Player;
-use crate::stupid_ai::IsHuman;
+use crate::stupid_ai::{
+    DEFAULT_TRUST, IsHuman, Personality, TradeTrust, Weights, harm_victim_value,
+};
 
 /// Rule 30.312: Grain cards locked by a Famine/Pottery reduction stop being
 /// locked "the following turn" -- i.e. once the next round's Population
@@ -3187,6 +3189,44 @@ pub fn ensure_pirate_nation(
     pirate_entity
 }
 
+fn shuffled<T>(mut items: Vec<T>) -> Vec<T> {
+    items.shuffle(&mut rng());
+    items
+}
+
+/// Cities in the order an opponent wants them gone: real city sites first
+/// (a city there takes 6 tokens to build, anywhere else 12), chance
+/// deciding the rest.
+fn worst_cities_to_lose(
+    cities: Vec<Entity>,
+    city_sites: &Query<(), With<CitySite>>,
+) -> Vec<Entity> {
+    let mut cities = shuffled(cities);
+    cities.sort_by_key(|&area| !city_sites.contains(area));
+    cities
+}
+
+/// The cities (one per candidate: player, city count, city) an AI directs a
+/// calamity at, best victims first, chance deciding between equals.
+fn pick_harm_victims(
+    candidates: Vec<(Entity, usize, Entity)>,
+    count: usize,
+    mind: Option<(&Personality, Option<&TradeTrust>)>,
+) -> Vec<Entity> {
+    let most = candidates.iter().map(|c| c.1).max().unwrap_or(0);
+    let fallback = Weights::uniform(0.5);
+    let (weights, trust) = mind.map_or((&fallback, None), |(p, t)| (&p.weights, t));
+    let mut scored: Vec<(f32, Entity)> = shuffled(candidates)
+        .into_iter()
+        .map(|(player, cities, area)| {
+            let trusted = trust.map_or(DEFAULT_TRUST, |t| t.of(player));
+            (harm_victim_value(cities, most, trusted, weights), area)
+        })
+        .collect();
+    scored.sort_by(|a, b| b.0.total_cmp(&a.0));
+    scored.into_iter().take(count).map(|(_, a)| a).collect()
+}
+
 pub fn advance_piracy(
     mut commands: Commands,
     mut player_query: Query<(
@@ -3197,13 +3237,16 @@ pub fn advance_piracy(
         Has<IsHuman>,
         Has<AwaitingHumanCalamitySelection>,
     )>,
-    all_players: Query<(Entity, &TokenStock, &PlayerCities), With<Player>>,
+    all_players: Query<(Entity, &PlayerCities), With<Player>>,
+    ai_minds: Query<(&Personality, Option<&TradeTrust>)>,
+    city_sites: Query<(), With<CitySite>>,
     area_query: Query<&BuiltCity>,
     sea_passage_query: Query<Has<SeaPassage>>,
     pirate_nation_query: Query<Entity, With<PirateNation>>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut calamity_selection: ResMut<CalamitySelectionState>,
     human_flags: Query<(Has<IsHuman>, Has<AwaitingHumanCalamitySelection>), With<Player>>,
+    names: Query<&Name>,
 ) {
     for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in
         &mut player_query
@@ -3243,14 +3286,19 @@ pub fn advance_piracy(
                 }
 
                 // The selector is the trader, not the victim. With no trader
-                // (drawn and kept, 29.4) nobody gets to choose.
+                // (drawn and kept, 29.4) nobody gets to choose: chance does.
                 let trader = resolution.context.traded_by;
                 let (trader_is_human, trader_awaiting) = trader
                     .and_then(|t| human_flags.get(t).ok())
                     .unwrap_or((false, false));
 
                 if !trader_is_human {
-                    state.cities_to_replace = coastal_cities.into_iter().take(2).collect();
+                    state.cities_to_replace = if trader.is_some() {
+                        worst_cities_to_lose(coastal_cities, &city_sites)
+                    } else {
+                        shuffled(coastal_cities)
+                    };
+                    state.cities_to_replace.truncate(2);
                     state.phase = PiracyPhase::SelectSecondaryVictims;
                     continue;
                 }
@@ -3279,74 +3327,50 @@ pub fn advance_piracy(
                 // Rule 30.912: primary victim chooses 2 other players to each lose 1 coastal city.
                 let immune = resolution.context.traded_by;
 
-                if is_human && calamity_selection.player.is_none() && !awaiting_human {
-                    // Collect all coastal cities from eligible secondary players
-                    let available: Vec<Entity> = all_players
-                        .iter()
-                        .filter(|(e, _, cities)| {
-                            *e != player_entity
-                                && Some(*e) != immune
-                                && !cities.areas_and_cities.is_empty()
-                        })
-                        // 30.912 replaces *coastal* cities; a player with none
-                        // simply cannot be named a secondary victim.
-                        .flat_map(|(_, _, cities)| {
-                            cities
-                                .areas_and_cities
-                                .keys()
-                                .copied()
-                                .filter(|&area| sea_passage_query.get(area).unwrap_or(false))
-                                .take(1)
-                                .collect::<Vec<_>>()
-                        })
-                        .collect();
+                // One coastal city per eligible player; a player with none
+                // simply cannot be named.
+                let candidates: Vec<(Entity, usize, Entity)> = all_players
+                    .iter()
+                    .filter(|(e, _)| *e != player_entity && Some(*e) != immune)
+                    .filter_map(|(e, cities)| {
+                        let coastal = cities
+                            .areas_and_cities
+                            .keys()
+                            .copied()
+                            .filter(|&area| sea_passage_query.get(area).unwrap_or(false))
+                            .collect();
+                        worst_cities_to_lose(coastal, &city_sites)
+                            .first()
+                            .map(|&area| (e, cities.number_of_cities(), area))
+                    })
+                    .collect();
 
-                    if available.len() < 2 {
-                        // Not enough secondary victims, just take what we can
-                        state.secondary_cities = available;
-                        state.phase = PiracyPhase::ApplyEffects;
-                    } else {
-                        calamity_selection.populate(
-                            player_entity,
-                            available,
-                            2,
-                            "Piracy — Select 2 secondary victims",
-                        );
-                        commands
-                            .entity(player_entity)
-                            .insert(AwaitingHumanCalamitySelection);
-                    }
-                } else if is_human && awaiting_human {
+                if candidates.len() <= 2 {
+                    // No choice to make.
+                    state.secondary_cities = candidates.iter().map(|c| c.2).collect();
+                    state.phase = PiracyPhase::ApplyEffects;
+                } else if !is_human {
+                    state.secondary_cities =
+                        pick_harm_victims(candidates, 2, ai_minds.get(player_entity).ok());
+                    state.phase = PiracyPhase::ApplyEffects;
+                } else if awaiting_human {
                     // Waiting for UI
-                } else if is_human
-                    && !awaiting_human
-                    && calamity_selection.player == Some(player_entity)
-                {
+                } else if calamity_selection.player == Some(player_entity) {
                     // Human confirmed
                     state.secondary_cities = calamity_selection.take_selected_cities();
                     state.phase = PiracyPhase::ApplyEffects;
-                } else {
-                    // AI: auto-select up to 1 coastal city from each of 2 other eligible players
-                    let mut secondary: Vec<Entity> = Vec::new();
-                    for (e, _, cities) in all_players.iter() {
-                        if secondary.len() >= 2 {
-                            break;
-                        }
-                        if e == player_entity || Some(e) == immune {
-                            continue;
-                        }
-                        let coastal: Option<Entity> = cities
-                            .areas_and_cities
-                            .keys()
-                            .find(|&&area| sea_passage_query.get(area).unwrap_or(false))
-                            .copied();
-                        if let Some(area) = coastal {
-                            secondary.push(area);
-                        }
-                    }
-                    state.secondary_cities = secondary;
-                    state.phase = PiracyPhase::ApplyEffects;
+                } else if calamity_selection.player.is_none() {
+                    calamity_selection.populate(
+                        player_entity,
+                        candidates.iter().map(|c| c.2).collect(),
+                        2,
+                        "Piracy — Select 2 secondary victims",
+                    );
+                    commands
+                        .entity(player_entity)
+                        .insert(AwaitingHumanCalamitySelection);
                 }
+                // else: the panel belongs to someone else; retry next frame.
             }
             PiracyPhase::ApplyEffects => {
                 // Rule 30.911/30.912: both the primary victim's 2 coastal
@@ -3358,13 +3382,19 @@ pub fn advance_piracy(
                 // scheduled system) handles the actual BuiltCity/PlayerCities
                 // bookkeeping identically to any other TransferCityTo target.
                 if let Some(pirate_nation) = state.pirate_nation {
-                    for &area in &state.cities_to_replace {
-                        if area_query.get(area).is_ok() {
-                            commands.entity(area).insert(TransferCityTo(pirate_nation));
-                        }
-                    }
-                    for &area in &state.secondary_cities {
-                        if area_query.get(area).is_ok() {
+                    let hits = state
+                        .cities_to_replace
+                        .iter()
+                        .map(|a| (*a, "primary"))
+                        .chain(state.secondary_cities.iter().map(|a| (*a, "secondary")));
+                    for (area, role) in hits {
+                        if let Ok(city) = area_query.get(area) {
+                            info!(
+                                "[PIRACY] {} loses {} as {} victim",
+                                names.get(city.player).map_or("?", |n| n.as_str()),
+                                names.get(area).map_or("?", |n| n.as_str()),
+                                role
+                            );
                             commands.entity(area).insert(TransferCityTo(pirate_nation));
                         }
                     }

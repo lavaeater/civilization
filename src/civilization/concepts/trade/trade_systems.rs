@@ -2903,7 +2903,8 @@ pub fn ai_accept_trade_offers(
         Without<IsHuman>,
     >,
     mut offers: Query<(Entity, &mut OpenTradeOffer)>,
-    cities: Query<&PlayerCities>,
+    // Not the Pirate Nation, which owns cities too.
+    cities: Query<&PlayerCities, With<crate::player::Player>>,
 ) {
     let most_cities = cities
         .iter()

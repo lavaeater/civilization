@@ -21,8 +21,9 @@ use bevy::prelude::{Entity, Reflect};
 /// Both selections in 30.911/30.912 are interactive for a human: the
 /// *trader* picks which 2 of the victim's coastal cities go (30.911), and
 /// the *primary victim* picks the 2 secondary victims (30.912), each via
-/// `CalamitySelectionState`. An AI in either seat auto-selects
-/// deterministically. Only coastal cities are ever eligible on either side --
+/// `CalamitySelectionState`. An AI trader takes cities on city sites first; an
+/// AI victim names the players ahead on cities or who lied to it in a trade.
+/// Ties, and cities nobody chooses (no trader), are drawn at random. Only coastal cities are ever eligible on either side --
 /// a player with none simply cannot be hit, which is why 30.912 bothers to
 /// say the secondary victims are struck "even if the primary victim had fewer
 /// than two coastal cities". Adjacent-area / "nearest vulnerable" reasoning

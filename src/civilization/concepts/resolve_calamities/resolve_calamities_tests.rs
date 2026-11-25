@@ -3928,6 +3928,117 @@ mod tests {
         assert!(!chosen.contains(&coastal[0]), "the city the trader spared");
     }
 
+    /// 30.912: the AI used to name the first two players in seat order every
+    /// time. It now goes for the leaders, whatever their seat.
+    #[test]
+    fn an_ai_names_the_players_with_most_cities_whatever_their_seat() {
+        let mut world = piracy_test_world();
+        let victim = world.spawn((Player, PlayerCities::default())).id();
+        let small: Vec<Entity> = (0..3).map(|_| world.spawn(Player).id()).collect();
+        let big: Vec<Entity> = (0..2).map(|_| world.spawn(Player).id()).collect();
+        for &p in &small {
+            spawn_city_for(&mut world, p, "one", true);
+        }
+        for &p in &big {
+            for _ in 0..4 {
+                spawn_city_for(&mut world, p, "many", true);
+            }
+        }
+
+        start_piracy(&mut world, victim, None);
+        run_piracy_to_completion(&mut world, victim);
+
+        for p in small {
+            assert_eq!(world.get::<PlayerCities>(p).unwrap().number_of_cities(), 1);
+        }
+        for p in big {
+            assert_eq!(world.get::<PlayerCities>(p).unwrap().number_of_cities(), 3);
+        }
+    }
+
+    /// Between equals, chance decides: over many Piracies no seat is spared.
+    #[test]
+    fn equal_players_are_all_hit_sooner_or_later() {
+        let mut hit = [false; 4];
+        for _ in 0..60 {
+            let mut world = piracy_test_world();
+            let victim = world.spawn((Player, PlayerCities::default())).id();
+            let others: Vec<Entity> = (0..4).map(|_| world.spawn(Player).id()).collect();
+            for &p in &others {
+                spawn_city_for(&mut world, p, "city", true);
+            }
+            start_piracy(&mut world, victim, None);
+            run_piracy_to_completion(&mut world, victim);
+            for (seat, &p) in others.iter().enumerate() {
+                hit[seat] |= world.get::<PlayerCities>(p).unwrap().number_of_cities() == 0;
+            }
+        }
+        assert_eq!(hit, [true; 4]);
+    }
+
+    /// The AI trader takes the cities on city sites (30.911: it selects).
+    #[test]
+    fn an_ai_trader_takes_the_city_sites() {
+        let mut world = piracy_test_world();
+        let victim = world.spawn(Player).id();
+        let trader = world.spawn((Player, PlayerCities::default())).id();
+        let areas: Vec<Entity> = (0..5)
+            .map(|_| spawn_city_for(&mut world, victim, "city", true))
+            .collect();
+        for &site in &areas[2..4] {
+            world.entity_mut(site).insert(CitySite);
+        }
+
+        start_piracy(&mut world, victim, Some(trader));
+        run_piracy_to_completion(&mut world, victim);
+
+        let pirates = find_pirate_nation(&mut world);
+        for (n, &area) in areas.iter().enumerate() {
+            let taken = world.get::<BuiltCity>(area).unwrap().player == pirates;
+            assert_eq!(taken, n == 2 || n == 3, "city {n}");
+        }
+    }
+
+    /// While another player's selection panel is open a human victim waits
+    /// for it; the AI used to choose for them instead.
+    #[test]
+    fn a_busy_panel_does_not_take_the_choice_from_a_human_victim() {
+        use crate::stupid_ai::IsHuman;
+
+        let mut world = piracy_test_world();
+        let victim = world.spawn((Player, IsHuman, PlayerCities::default())).id();
+        for _ in 0..3 {
+            let other = world.spawn(Player).id();
+            spawn_city_for(&mut world, other, "city", true);
+        }
+        let someone_else = world.spawn_empty().id();
+        world.resource_mut::<CalamitySelectionState>().populate(
+            someone_else,
+            vec![someone_else],
+            1,
+            "Busy",
+        );
+
+        start_piracy(&mut world, victim, None);
+        for _ in 0..5 {
+            world.run_system_once(advance_piracy).unwrap();
+            world.flush();
+        }
+        let Some(ResolvingCalamity::Piracy(state)) = world.get::<ResolvingCalamity>(victim) else {
+            panic!("the victim has not chosen yet")
+        };
+        assert!(state.secondary_cities.is_empty());
+
+        world
+            .resource_mut::<CalamitySelectionState>()
+            .take_selected_cities();
+        world.run_system_once(advance_piracy).unwrap();
+        assert_eq!(
+            world.resource::<CalamitySelectionState>().player,
+            Some(victim)
+        );
+    }
+
     /// 30.911 targets coastal cities only. A victim whose cities are all
     /// inland keeps every one of them -- 30.912 still hits the secondary
     /// victims, which is precisely why the rule spells that case out.

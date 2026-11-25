@@ -170,6 +170,21 @@ pub fn best_treachery_victim(
         .map(|(p, _)| p)
 }
 
+/// How much an AI wants a calamity it directs to hit `victim` (Piracy 30.912,
+/// Iconoclasm 30.818). It gains nothing itself, so what counts is holding back
+/// whoever is ahead on cities and paying back a past liar. Only the ranking
+/// matters: rule 29.64 says the effects must be directed at someone.
+pub fn harm_victim_value(
+    victim_cities: usize,
+    most_cities: usize,
+    trust_in_victim: f32,
+    w: &Weights,
+) -> f32 {
+    let ahead = victim_cities as f32 / most_cities.max(1) as f32;
+    let payback = ((DEFAULT_TRUST - trust_in_victim) / DEFAULT_TRUST).clamp(0.0, 1.0);
+    ahead + (0.5 + 0.5 * w.aggression.clamp(0.0, 1.0)) * payback
+}
+
 #[cfg(test)]
 mod treachery_tests {
     use super::*;
@@ -198,6 +213,15 @@ mod treachery_tests {
         // Equal cities: the one who burnt us gets it.
         let others = [(e(1), 3), (e(2), 3)];
         assert_eq!(best_treachery_victim(&others, Some(&trust), &w), Some(e(2)));
+    }
+
+    #[test]
+    fn harm_goes_to_the_leader_or_a_liar() {
+        let w = Personality::from_playstyle(Playstyle::Balanced).weights;
+        let honest = DEFAULT_TRUST;
+        assert!(harm_victim_value(5, 5, honest, &w) > harm_victim_value(2, 5, honest, &w));
+        assert!(harm_victim_value(4, 5, 0.0, &w) > harm_victim_value(5, 5, honest, &w));
+        assert!(harm_victim_value(0, 0, honest, &w).is_finite());
     }
 }
 
