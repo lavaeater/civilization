@@ -135,7 +135,9 @@ Trade increments:
   phase).
 - [x] **T2** — `POST /trade/accept {faction?,id}` → `OpenTradeOffer::accept`.
 - [x] **T3** — `POST /trade/offer {faction?,offering_guaranteed,offering_hidden,
-  wanting_guaranteed,wanting_hidden,target?}` → spawns a validated `OpenTradeOffer`.
+  wanting_guaranteed,wanting_hidden,target}` → spawns a validated `OpenTradeOffer`.
+  `target` is required: a proposal is made to one player and only they can accept
+  it (docs/trade-dialog-design.md).
 - [x] **T4** — `POST /trade/settle {faction?,id,cards}` → `settle_creator` /
   `settle_acceptor`; the existing `finalize_settled_open_offers` does the exchange.
 

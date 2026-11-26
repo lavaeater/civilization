@@ -320,16 +320,19 @@ pub fn hidden_text(hidden: usize, claimed: &HashMap<TradeCard, usize>) -> String
     format!(" +{hidden} hidden (said to be {})", said.join(", "))
 }
 
-/// A simplified trade offer for the new trade UI system.
-/// Offers can be open (target = None) or directed at a specific player.
+/// A proposal at the trade table: a complete deal (rule 28.3) addressed to
+/// one player, who alone may accept it (docs/trade-dialog-design.md).
 #[derive(Debug, Component, Reflect, Clone, Eq, PartialEq)]
 pub struct OpenTradeOffer {
     pub creator: Entity,
     pub creator_name: String,
 
-    /// Optional target - None means open offer (anyone can accept)
+    /// The player the proposal is made to; only they can accept it. A
+    /// proposal without one cannot be accepted by anybody.
     pub target: Option<Entity>,
     pub target_name: Option<String>,
+    /// The Want (`TradeTalk`) this proposal answers, if any.
+    pub thread: Option<Entity>,
 
     /// What creator offers - guaranteed cards (exactly 2 total, must be truthful)
     pub offering_guaranteed: HashMap<TradeCard, usize>,
@@ -372,6 +375,7 @@ impl OpenTradeOffer {
             creator_name: creator_name.into(),
             target,
             target_name,
+            thread: None,
             offering_guaranteed: HashMap::default(),
             offering_hidden_count: 0,
             offering_claimed: HashMap::default(),
@@ -437,12 +441,8 @@ impl OpenTradeOffer {
         if self.accepted_by.is_some() || self.withdrawn {
             return false;
         }
-        // If directed, only target can accept
-        if let Some(target) = self.target {
-            return player == target;
-        }
-        // Open offer - anyone can accept
-        true
+        // Only the player it is addressed to: nobody takes someone else's deal.
+        self.target == Some(player)
     }
 
     /// Accept the offer

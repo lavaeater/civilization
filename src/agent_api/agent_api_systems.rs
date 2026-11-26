@@ -101,7 +101,7 @@ impl OfferInfo {
         player != self.creator
             && self.accepted_by.is_none()
             && !self.withdrawn
-            && self.target.is_none_or(|t| t == player)
+            && self.target == Some(player)
     }
 }
 
@@ -413,7 +413,9 @@ pub fn poll_agent_api(
                             .and_then(serde_json::Value::as_u64)
                             .unwrap_or(0)
                             as usize;
-                        if offer.is_valid() {
+                        if target.is_none_or(|t| t == p.player) {
+                            json!({ "ok": false, "error": "a proposal needs a \"target\": the faction it is made to (only they can accept it)" })
+                        } else if offer.is_valid() {
                             let id = commands.spawn(offer).id();
                             json!({ "ok": true, "created_offer": id.to_bits().to_string() })
                         } else {
@@ -1047,7 +1049,7 @@ mod tests {
             wanting_guaranteed: vec![],
             wanting_hidden: 0,
         };
-        assert!(offer.can_accept(other), "open offer: anyone but creator");
+        assert!(!offer.can_accept(other), "unaddressed offer: nobody");
         assert!(!offer.can_accept(creator), "creator can't accept own offer");
 
         offer.target = Some(other);
@@ -1057,7 +1059,6 @@ mod tests {
             "directed offer: non-target cannot"
         );
 
-        offer.target = None;
         offer.accepted_by = Some(third);
         assert!(!offer.can_accept(other), "already accepted");
     }

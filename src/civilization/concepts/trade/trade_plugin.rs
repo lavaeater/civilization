@@ -4,6 +4,10 @@ use crate::civilization::concepts::trade::trade_resources::{
     CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState,
 };
 use crate::civilization::concepts::trade::trade_systems::*;
+use crate::civilization::concepts::trade::trade_talk::{
+    ai_trade_talk, clear_withdrawn_offers, log_new_talk, prune_old_talk,
+    withdraw_unfulfillable_proposals,
+};
 use crate::civilization::concepts::trade::trade_triggers::{can_trade_removed, offer_published};
 use bevy::app::App;
 use bevy::prelude::{IntoScheduleConfigs, OnEnter, OnExit, Plugin, Update, in_state};
@@ -40,6 +44,7 @@ impl Plugin for TradePlugin {
                     handle_accept_offer_button,
                     update_human_done_ui,
                     refresh_player_cards_display,
+                    handle_decline_offer_button,
                 )
                     .run_if(in_state(GameActivity::Trade)),
             )
@@ -57,6 +62,8 @@ impl Plugin for TradePlugin {
                     update_claim_display,
                     update_offer_summary_display,
                     handle_publish_offer,
+                    handle_target_buttons,
+                    update_target_display,
                 )
                     .run_if(in_state(GameActivity::Trade)),
             )
@@ -81,6 +88,11 @@ impl Plugin for TradePlugin {
                     ai_settle_trades,
                     finalize_settled_open_offers,
                     ai_stop_trading_when_ready,
+                    ai_trade_talk,
+                    withdraw_unfulfillable_proposals,
+                    clear_withdrawn_offers,
+                    prune_old_talk,
+                    log_new_talk,
                 )
                     .run_if(in_state(GameActivity::Trade)),
             )

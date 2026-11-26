@@ -1,6 +1,7 @@
 # Dialog-based trade
 
-Status: design, not started. Replaces the "open offer anyone can accept"
+Status: step 1 (rules, data, AI adapter, minimal human controls) built on
+branch `trade-dialog`; steps 2–4 to do. Replaces the "open offer anyone can accept"
 model in `concepts/trade` with a table conversation that works like trading
 around a real board.
 
@@ -93,6 +94,13 @@ nine AIs still produce a readable feed.
    tests. `OpenTradeOffer` becomes a proposal and the accept-anything button
    goes. AIs get a simple adapter: post wants, propose to whoever replies,
    accept or decline what is addressed to them.
+   *Done:* `trade_talk.rs` (`TradeTalk`, `TalkKind`, `TableKnowledge`,
+   `ai_trade_talk`, `withdraw_unfulfillable_proposals`, `clear_withdrawn_offers`,
+   `prune_old_talk`, `[TALK]` log lines); `OpenTradeOffer::can_accept` only for
+   the addressee, `thread` field; AI proposals pick (deal, partner) by talk fit;
+   AIs decline unwanted proposals after 1.5 s; the offer dialog has a "Proposal
+   to" chooser; Accept/Decline only on proposals to you; the feed shows talk
+   (others' declines hidden); `/trade/offer` requires `target`.
 2. **Human screen**: feed and composer with pre-filled replies.
 3. **AI conversation**: replying, countering, undercutting, declining; compare
    self-play pass-on rate and trade value with today.

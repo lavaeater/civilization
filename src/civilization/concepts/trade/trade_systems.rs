@@ -13,6 +13,7 @@ use crate::civilization::concepts::trade::trade_functions::{
 use crate::civilization::concepts::trade::trade_resources::{
     CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState,
 };
+use crate::civilization::concepts::trade::trade_talk::{TableKnowledge, TalkKind, TradeTalk};
 use crate::civilization::game_moves::RecalculatePlayerMoves;
 use crate::civilization::game_moves::{
     AcquireCivilizationCardsMove, AvailableMoves, GameMove, TradeMove,
@@ -767,8 +768,12 @@ pub fn cleanup_trade_phase_ui(
     trade_ui_query: Query<Entity, With<TradePhaseUiRoot>>,
     open_offers_query: Query<Entity, With<OpenTradeOffer>>,
     modals: Query<Entity, Or<(With<CreateOfferModal>, With<SettlementModal>)>>,
+    talk: Query<Entity, With<TradeTalk>>,
     mut trade_phase_state: ResMut<TradePhaseState>,
 ) {
+    for entity in &talk {
+        commands.entity(entity).despawn();
+    }
     // The dialogs are top-level, and the systems that close them only run
     // during Trade, so a dialog open when the time ran out stayed up for good.
     for entity in &modals {
@@ -864,6 +869,9 @@ pub fn update_player_trading_status(
     }
 }
 
+/// Lines of table talk shown above the proposals.
+const TALK_LINES_SHOWN: usize = 8;
+
 /// Update the open offers display with actual offers
 pub fn update_open_offers_display(
     mut commands: Commands,
@@ -872,9 +880,13 @@ pub fn update_open_offers_display(
     container_query: Query<Entity, With<OpenOffersListContainer>>,
     children_query: Query<&Children>,
     trade_ui_state: Res<TradeUiState>,
+    new_talk: Query<(), Added<TradeTalk>>,
+    talk: Query<&TradeTalk>,
+    mut removed_offers: RemovedComponents<OpenTradeOffer>,
 ) {
-    // Only update if offers changed
-    if offers_query.is_empty() {
+    // Only update when an offer changed or left, or someone spoke.
+    let offers_left = removed_offers.read().count() > 0;
+    if offers_query.is_empty() && new_talk.is_empty() && !offers_left {
         return;
     }
 
@@ -895,7 +907,43 @@ pub fn update_open_offers_display(
         .filter(|(_, o)| !o.withdrawn)
         .collect();
 
-    if active_offers.is_empty() {
+    // The latest talk first, above the proposals.
+    // Other players' "No deal"s are noise; only those to or from us show.
+    let human = trade_ui_state.human_player;
+    let mut lines: Vec<&TradeTalk> = talk
+        .iter()
+        .filter(|t| {
+            !matches!(t.kind, TalkKind::Decline(_))
+                || human.is_some_and(|h| t.speaker == h || t.to == Some(h))
+        })
+        .collect();
+    lines.sort_by_key(|t| t.said_at);
+    if !lines.is_empty() {
+        commands.entity(container).with_children(|parent| {
+            for t in lines.iter().take(TALK_LINES_SHOWN) {
+                let to_me =
+                    trade_ui_state.human_player.is_some() && t.to == trade_ui_state.human_player;
+                parent.spawn((
+                    Text::new(format!("💬 {}", t.line())),
+                    TextFont {
+                        font_size: FontSize::Px(12.0),
+                        ..Default::default()
+                    },
+                    TextColor(if to_me {
+                        Color::srgb(0.95, 0.85, 0.4)
+                    } else {
+                        Color::srgb(0.65, 0.7, 0.75)
+                    }),
+                    Node {
+                        margin: UiRect::bottom(Val::Px(2.0)),
+                        ..Default::default()
+                    },
+                ));
+            }
+        });
+    }
+
+    if active_offers.is_empty() && lines.is_empty() {
         // Show "no offers" message
         commands.entity(container).with_children(|parent| {
             parent.spawn((
@@ -950,8 +998,9 @@ pub fn update_open_offers_display(
                         ..Default::default()
                     })
                     .with_children(|header| {
+                        let to = offer.target_name.as_deref().unwrap_or("?");
                         header.spawn((
-                            Text::new(format!("📤 {}", offer.creator_name)),
+                            Text::new(format!("📤 {} -> {to}", offer.creator_name)),
                             TextFont {
                                 font_size: FontSize::Px(14.0),
                                 ..Default::default()
@@ -1067,8 +1116,8 @@ pub fn update_open_offers_display(
                         ));
                     });
 
-                    // Action buttons (only for offers we can interact with)
-                    if !is_my_offer && !is_accepted && human_player.is_some() {
+                    // Accept or turn down a proposal made to us.
+                    if human_player.is_some_and(|h| offer.can_accept(h)) {
                         card.spawn(Node {
                             width: Val::Percent(100.0),
                             flex_direction: FlexDirection::Row,
@@ -1092,6 +1141,28 @@ pub fn update_open_offers_display(
                                 ))
                                 .with_child((
                                     Text::new("Accept"),
+                                    TextFont {
+                                        font_size: FontSize::Px(12.0),
+                                        ..Default::default()
+                                    },
+                                    TextColor(Color::WHITE),
+                                ));
+                            buttons
+                                .spawn((
+                                    game_button(),
+                                    DeclineOfferButton {
+                                        offer: *offer_entity,
+                                    },
+                                    Node {
+                                        padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
+                                        margin: UiRect::left(Val::Px(8.0)),
+                                        ..Default::default()
+                                    },
+                                    BackgroundColor(DONE_TRADING_PALETTE.none),
+                                    DONE_TRADING_PALETTE,
+                                ))
+                                .with_child((
+                                    Text::new("Decline"),
                                     TextFont {
                                         font_size: FontSize::Px(12.0),
                                         ..Default::default()
@@ -1208,6 +1279,22 @@ pub struct HiddenCountButton {
 pub struct AcceptOfferButton {
     pub offer: Entity,
 }
+
+/// Turns down a proposal made to the human.
+#[derive(Component)]
+pub struct DeclineOfferButton {
+    pub offer: Entity,
+}
+
+/// `<` / `>` choosing who a proposal is made to.
+#[derive(Component)]
+pub struct TargetCycleButton {
+    pub delta: i32,
+}
+
+/// Shows who the proposal being composed is made to.
+#[derive(Component, Default)]
+pub struct OfferTargetDisplay;
 
 /// Marker for the player trading status display
 #[derive(Component, Default)]
@@ -1528,6 +1615,44 @@ pub fn spawn_create_offer_modal(
             "Rules: Exactly 2 guaranteed cards each side. Minimum 3 total cards each side.",
             Some(TextStyle::size_color(12.0, Color::srgb(0.6, 0.6, 0.6))),
         );
+
+        // Who the proposal is made to: only they can accept it.
+        dialog.add_row(|row| {
+            row.width_percent(100.0)
+                .align_items_center()
+                .margin(UiRect::vertical(Val::Px(6.0)));
+            row.add_text_child(
+                "Proposal to: ",
+                Some(TextStyle::size_color(15.0, Color::srgb(0.8, 0.8, 0.8))),
+            );
+            row.add_button(
+                "<",
+                36.0,
+                26.0,
+                Color::srgb(0.3, 0.3, 0.4),
+                16.0,
+                4.0,
+                TargetCycleButton { delta: -1 },
+            );
+            row.with_child(|name| {
+                name.set_node(Node {
+                    min_width: Val::Px(220.0),
+                    justify_content: JustifyContent::Center,
+                    ..Default::default()
+                });
+                name.insert(OfferTargetDisplay);
+                name.with_text("?", Some(TextStyle::size_color(15.0, Color::WHITE)));
+            });
+            row.add_button(
+                ">",
+                36.0,
+                26.0,
+                Color::srgb(0.3, 0.3, 0.4),
+                16.0,
+                4.0,
+                TargetCycleButton { delta: 1 },
+            );
+        });
 
         // ── Scrolling middle ──────────────────────────────────────────────
         // The card rows (one per owned commodity, one per *every* commodity
@@ -2048,6 +2173,9 @@ pub fn update_offer_summary_display(
             *color = TextColor(Color::srgb(0.4, 0.8, 0.4));
         } else {
             let mut issues = Vec::new();
+            if create_offer_state.target.is_none() {
+                issues.push("choose who it is for".to_string());
+            }
             if create_offer_state.guaranteed_offering_count() != 2 {
                 issues.push(format!(
                     "need 2 guaranteed offering (have {})",
@@ -2106,6 +2234,7 @@ pub fn handle_publish_offer(
     mut trade_phase_state: ResMut<TradePhaseState>,
     trade_ui_state: Res<TradeUiState>,
     human_query: Query<&Name, With<IsHuman>>,
+    names: Query<&Name>,
 ) {
     for _ in activated.read().filter(|a| buttons.contains(a.0)) {
         if !create_offer_state.is_valid() {
@@ -2121,9 +2250,14 @@ pub fn handle_publish_offer(
         let human_name = human_query
             .get(human_entity)
             .map_or_else(|_| "Player".to_string(), std::string::ToString::to_string);
+        let target = create_offer_state.target;
+        let target_name = target
+            .and_then(|t| names.get(t).ok())
+            .map(std::string::ToString::to_string);
 
         // Create the offer entity
-        let mut offer = OpenTradeOffer::new(human_entity, human_name, None, None);
+        let mut offer = OpenTradeOffer::new(human_entity, human_name, target, target_name);
+        offer.posted_at = (trade_phase_state.countdown_seconds * 10.0) as u32;
         offer
             .offering_guaranteed
             .clone_from(&create_offer_state.offering_guaranteed);
@@ -2140,6 +2274,106 @@ pub fn handle_publish_offer(
 
         // Close the modal
         trade_phase_state.create_offer_modal_open = false;
+    }
+}
+
+/// The other players at the table, by name, for choosing a proposal's addressee.
+fn proposal_candidates(
+    traders: &Query<(Entity, &Name), With<CanTrade>>,
+    human: Option<Entity>,
+) -> Vec<(Entity, String)> {
+    let mut candidates: Vec<(Entity, String)> = traders
+        .iter()
+        .filter(|(e, _)| Some(*e) != human)
+        .map(|(e, n)| (e, n.to_string()))
+        .collect();
+    candidates.sort_by(|a, b| a.1.cmp(&b.1));
+    candidates
+}
+
+/// `<` / `>` on "Proposal to": step through the players still trading.
+pub fn handle_target_buttons(
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&TargetCycleButton>,
+    mut create_offer_state: ResMut<CreateOfferState>,
+    traders: Query<(Entity, &Name), With<CanTrade>>,
+    trade_ui_state: Res<TradeUiState>,
+) {
+    for btn in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
+        let candidates = proposal_candidates(&traders, trade_ui_state.human_player);
+        if candidates.is_empty() {
+            continue;
+        }
+        let current = candidates
+            .iter()
+            .position(|(e, _)| Some(*e) == create_offer_state.target)
+            .unwrap_or(0) as i32;
+        let next = (current + btn.delta).rem_euclid(candidates.len() as i32) as usize;
+        create_offer_state.target = Some(candidates[next].0);
+    }
+}
+
+/// Keep "Proposal to" pointing at someone still at the table and show who.
+pub fn update_target_display(
+    mut create_offer_state: ResMut<CreateOfferState>,
+    traders: Query<(Entity, &Name), With<CanTrade>>,
+    trade_ui_state: Res<TradeUiState>,
+    mut displays: Query<&mut Text, With<OfferTargetDisplay>>,
+) {
+    if displays.is_empty() {
+        return;
+    }
+    let candidates = proposal_candidates(&traders, trade_ui_state.human_player);
+    let still_there = candidates
+        .iter()
+        .any(|(e, _)| Some(*e) == create_offer_state.target);
+    if !still_there {
+        let first = candidates.first().map(|(e, _)| *e);
+        if create_offer_state.target != first {
+            create_offer_state.target = first;
+        }
+    }
+    let name = candidates
+        .iter()
+        .find(|(e, _)| Some(*e) == create_offer_state.target)
+        .map_or("nobody left at the table", |(_, n)| n.as_str());
+    for mut text in &mut displays {
+        if text.0 != name {
+            text.0 = name.to_string();
+        }
+    }
+}
+
+/// The human turns down a proposal made to them.
+pub fn handle_decline_offer_button(
+    mut commands: Commands,
+    mut activated: MessageReader<ButtonActivated>,
+    buttons: Query<&DeclineOfferButton>,
+    mut offers: Query<&mut OpenTradeOffer>,
+    trade_ui_state: Res<TradeUiState>,
+    names: Query<&Name>,
+    trade_phase_state: Res<TradePhaseState>,
+) {
+    let Some(human) = trade_ui_state.human_player else {
+        return;
+    };
+    for btn in activated.read().filter_map(|a| buttons.get(a.0).ok()) {
+        let Ok(mut offer) = offers.get_mut(btn.offer) else {
+            continue;
+        };
+        if !offer.can_accept(human) {
+            continue;
+        }
+        offer.withdrawn = true;
+        let name = names
+            .get(human)
+            .map_or_else(|_| "You".to_string(), ToString::to_string);
+        commands.spawn(
+            TradeTalk::new(human, name, TalkKind::Decline(None))
+                .to(offer.creator, offer.creator_name.clone())
+                .in_thread(offer.thread)
+                .at(trade_phase_state.countdown_seconds),
+        );
     }
 }
 
@@ -2826,6 +3060,7 @@ pub fn ai_create_trade_offers(
     >,
     traders: Query<(Entity, &Name, &PlayerCities), With<CanTrade>>,
     mut existing_offers: Query<&mut OpenTradeOffer>,
+    talk: Query<(Entity, &TradeTalk)>,
     time: Res<Time>,
     mut ai_offer_timer: Local<f32>,
     mut trade_phase_state: ResMut<TradePhaseState>,
@@ -2851,6 +3086,7 @@ pub fn ai_create_trade_offers(
     *ai_offer_timer = 0.0;
 
     let mut rng = rand::rng();
+    let table = TableKnowledge::from_talk(talk.iter());
     for (ai_entity, ai_name, ai_cards, _, personality, trust) in ai_players.iter() {
         // Personality gate: eager traders flood the table with offers, reluctant
         // ones post less often.
@@ -2875,10 +3111,11 @@ pub fn ai_create_trade_offers(
                 stale.withdrawn = true;
             }
         }
-        let open: Vec<HashMap<TradeCard, usize>> = existing_offers
+        // (addressee, asked-for cards) of the proposals it has out.
+        let open: Vec<(Option<Entity>, HashMap<TradeCard, usize>)> = existing_offers
             .iter()
             .filter(|o| o.creator == ai_entity && !o.withdrawn && o.accepted_by.is_none())
-            .map(|o| o.wanting_guaranteed.clone())
+            .map(|o| (o.target, o.wanting_guaranteed.clone()))
             .collect();
         if open.len() >= AI_MAX_OPEN_OFFERS {
             continue;
@@ -2896,9 +3133,59 @@ pub fn ai_create_trade_offers(
                 calamity_dump_allowance(&personality.weights),
             )
         } else {
-            plan_ai_offers(&ai_card_counts, AI_MAX_OPEN_OFFERS)
+            plan_ai_offers(&ai_card_counts, AI_DUMP_PLANS)
         };
-        let Some(plan) = plans.into_iter().find(|p| !open.contains(&p.want)) else {
+        // Holding Treachery: aim one proposal at the player whose city we'd
+        // most like to take (rule 30.221).
+        let aiming = ai_cards.number_of_cards_for_trade_card(TradeCard::Treachery) > 0
+            && !existing_offers
+                .iter()
+                .any(|o| o.creator == ai_entity && !o.withdrawn && o.accepted_by.is_none());
+        let victim = if aiming {
+            let others: Vec<(Entity, usize)> = traders
+                .iter()
+                .filter(|(p, _, _)| *p != ai_entity)
+                .map(|(p, _, cities)| (p, cities.number_of_cities()))
+                .collect();
+            best_treachery_victim(&others, trust, &personality.weights)
+        } else {
+            None
+        };
+        // Every proposal is made to one player: the one the talk says fits
+        // the deal best (wants what we give, has what we want, spoke to us),
+        // with a little chance mixed in so the quiet get offers too.
+        let partners: Vec<Entity> = traders
+            .iter()
+            .map(|(p, _, _)| p)
+            .filter(|p| *p != ai_entity)
+            .collect();
+        // Weigh every deal against every partner: the talk decides the pair,
+        // and among equally good fits the more profitable deal (earlier in
+        // `plans`) wins.
+        let plan_count = plans.len().max(1) as f32;
+        let choice = plans
+            .into_iter()
+            .enumerate()
+            .flat_map(|(rank, plan)| {
+                let candidates: Vec<Entity> = match victim {
+                    Some(v) => vec![v],
+                    None => partners.clone(),
+                };
+                candidates
+                    .into_iter()
+                    .filter(|p| !open.contains(&(Some(*p), plan.want.clone())))
+                    .map(|p| {
+                        let fit = table.partner_score(ai_entity, p, &plan.give, &plan.want);
+                        let key = fit
+                            + 0.5 * (1.0 - rank as f32 / plan_count)
+                            + 0.5 * rng.random::<f32>();
+                        (key, plan.clone(), p)
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .max_by(|a, b| a.0.total_cmp(&b.0))
+            .map(|(_, plan, p)| (plan, p));
+        let Some((plan, target)) = choice else {
             if ai_cards.has_tradeable_calamity() {
                 info!("[TRADE_DIAG] {ai_name} has a calamity but no offer to make");
             }
@@ -2936,27 +3223,14 @@ pub fn ai_create_trade_offers(
                 .collect()
         };
 
-        // Holding Treachery: aim one offer at the player whose city we'd
-        // most like to take (rule 30.221), keep the rest open to anyone.
-        let aiming = ai_cards.number_of_cards_for_trade_card(TradeCard::Treachery) > 0
-            && !existing_offers
-                .iter()
-                .any(|o| o.creator == ai_entity && o.target.is_some() && !o.withdrawn);
-        let target = if aiming {
-            let others: Vec<(Entity, usize)> = traders
-                .iter()
-                .filter(|(p, _, _)| *p != ai_entity)
-                .map(|(p, _, cities)| (p, cities.number_of_cities()))
-                .collect();
-            best_treachery_victim(&others, trust, &personality.weights)
-        } else {
-            None
-        };
-        let target_name = target
-            .and_then(|t| traders.get(t).ok())
+        let target_name = traders
+            .get(target)
+            .ok()
             .map(|(_, name, _)| name.to_string());
 
-        let mut offer = OpenTradeOffer::new(ai_entity, ai_name.to_string(), target, target_name);
+        let mut offer =
+            OpenTradeOffer::new(ai_entity, ai_name.to_string(), Some(target), target_name);
+        offer.thread = table.want_talk.get(&target).copied();
         offer.offering_guaranteed = plan.give;
         offer.offering_hidden_count = hidden;
         offer.offering_claimed = claimed;
@@ -3040,7 +3314,10 @@ pub fn ai_accept_trade_offers(
     mut offers: Query<(Entity, &mut OpenTradeOffer)>,
     // Not the Pirate Nation, which owns cities too.
     cities: Query<&PlayerCities, With<crate::player::Player>>,
+    trade_phase_state: Res<TradePhaseState>,
+    mut commands: Commands,
 ) {
+    let now = trade_phase_state.countdown_seconds;
     let most_cities = cities
         .iter()
         .map(PlayerCities::number_of_cities)
@@ -3069,35 +3346,62 @@ pub fn ai_accept_trade_offers(
         let aversion = personality.weights.calamity_aversion;
         let holds_treachery = ai_cards.number_of_cards_for_trade_card(TradeCard::Treachery) > 0;
 
-        // Take the best offer on the table, not the first acceptable one.
-        let best = offers
+        // Judge every proposal made to us; take the best, not the first.
+        let judged: Vec<(Entity, Option<(f32, bool)>)> = offers
             .iter()
             .filter(|(_, o)| o.can_accept(ai_entity) && !busy(o.creator, &offers))
-            .filter_map(|(e, o)| {
+            .map(|(e, o)| {
                 let partner_trust = trust.map_or(DEFAULT_TRUST, |t| t.of(o.creator));
-                let (mut gain, dumps_calamity) =
-                    acceptor_trade_gain(ai_cards, o, has_mining, partner_trust, aversion)?;
-                // Our Treachery goes out with the hidden cards: a creator
-                // with cities to take makes the deal worth more.
-                if holds_treachery && o.wanting_hidden_count > 0 {
-                    let victim_cities = cities
-                        .get(o.creator)
-                        .map_or(0, PlayerCities::number_of_cities);
-                    gain += treachery_victim_value(
-                        victim_cities,
-                        most_cities,
-                        partner_trust,
-                        &personality.weights,
-                    );
-                }
-                let profitable = gain > margin;
-                // Passing on a calamity is worth a small loss to the wary.
-                let dump = dumps_calamity
-                    && accepts_calamity_offload(&personality.weights)
-                    && gain >= -4.0;
-                (profitable || dump).then_some((e, gain, dumps_calamity))
+                let verdict = acceptor_trade_gain(ai_cards, o, has_mining, partner_trust, aversion)
+                    .and_then(|(mut gain, dumps_calamity)| {
+                        // Our Treachery goes out with the hidden cards: a
+                        // creator with cities to take makes the deal worth more.
+                        if holds_treachery && o.wanting_hidden_count > 0 {
+                            let victim_cities = cities
+                                .get(o.creator)
+                                .map_or(0, PlayerCities::number_of_cities);
+                            gain += treachery_victim_value(
+                                victim_cities,
+                                most_cities,
+                                partner_trust,
+                                &personality.weights,
+                            );
+                        }
+                        let profitable = gain > margin;
+                        // Passing on a calamity is worth a small loss to the wary.
+                        let dump = dumps_calamity
+                            && accepts_calamity_offload(&personality.weights)
+                            && gain >= -4.0;
+                        (profitable || dump).then_some((gain, dumps_calamity))
+                    });
+                (e, verdict)
             })
+            .collect();
+        let best = judged
+            .iter()
+            .filter_map(|(e, v)| v.map(|(gain, dumps)| (*e, gain, dumps)))
             .max_by(|a, b| a.1.total_cmp(&b.1));
+
+        // Turn down, out loud, what is not worth taking once it has been on
+        // the table a moment; the maker can then try someone else.
+        for (offer_entity, verdict) in &judged {
+            if verdict.is_some() {
+                continue;
+            }
+            let Ok((_, mut offer)) = offers.get_mut(*offer_entity) else {
+                continue;
+            };
+            if (offer.posted_at as f32 / 10.0 - now) < DECLINE_AFTER_SECONDS {
+                continue;
+            }
+            offer.withdrawn = true;
+            commands.spawn(
+                TradeTalk::new(ai_entity, ai_name.to_string(), TalkKind::Decline(None))
+                    .to(offer.creator, offer.creator_name.clone())
+                    .in_thread(offer.thread)
+                    .at(now),
+            );
+        }
 
         if let Some((offer_entity, gain, dumps_calamity)) = best
             && let Ok((_, mut offer)) = offers.get_mut(offer_entity)
@@ -3110,6 +3414,9 @@ pub fn ai_accept_trade_offers(
         }
     }
 }
+
+/// Seconds a proposal an AI does not want sits before it says no.
+const DECLINE_AFTER_SECONDS: f32 = 1.5;
 
 /// Finalize fully-settled OpenTradeOffer entities: exchange cards and despawn.
 /// Called every frame; each offer is processed exactly once.
@@ -3355,7 +3662,7 @@ mod trust_tests {
         let human = app.world_mut().spawn(IsHuman).id();
         let ai = app.world_mut().spawn(TradeTrust::default()).id();
 
-        let mut offer = OpenTradeOffer::new(human, "Human", None, None);
+        let mut offer = OpenTradeOffer::new(human, "Human", Some(ai), Some("AI".to_string()));
         offer.offering_guaranteed = HashMap::from_iter([(TradeCard::Salt, 2)]);
         offer.offering_hidden_count = 2;
         offer.claim_hidden([(TradeCard::Salt, 2)]);

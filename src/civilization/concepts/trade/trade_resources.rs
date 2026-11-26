@@ -61,6 +61,8 @@ pub struct CreateOfferState {
     pub wanting_guaranteed: HashMap<TradeCard, usize>,
     /// Number of hidden cards wanted
     pub wanting_hidden_count: usize,
+    /// The player the proposal is made to; only they can accept it.
+    pub target: Option<bevy::prelude::Entity>,
 }
 
 impl CreateOfferState {
@@ -70,6 +72,7 @@ impl CreateOfferState {
         self.offering_claim = None;
         self.wanting_guaranteed.clear();
         self.wanting_hidden_count = 0;
+        self.target = None;
     }
 
     /// The claim as stated on the offer: every hidden card is the
@@ -99,9 +102,11 @@ impl CreateOfferState {
         self.wanting_guaranteed.values().sum()
     }
 
-    /// Check if offer is valid (min 3 cards each side, exactly 2 guaranteed each side)
+    /// Check if offer is valid: made to someone, min 3 cards each side, exactly
+    /// 2 guaranteed each side.
     pub fn is_valid(&self) -> bool {
-        self.guaranteed_offering_count() == 2
+        self.target.is_some()
+            && self.guaranteed_offering_count() == 2
             && self.guaranteed_wanting_count() == 2
             && self.total_offering() >= 3
             && self.total_wanting() >= 3
