@@ -2,7 +2,7 @@ use crate::GameActivity;
 use crate::civilization::camera_auto_pan_enabled;
 use crate::civilization::concepts::movement::movement_events::*;
 use crate::civilization::concepts::movement::movement_systems::{
-    animate_token_movement, execute_ship_ferry, move_tokens_from_area_to_area, on_exit_movement,
+    animate_token_movement, drop_animation_when_token_leaves_board, execute_ship_ferry, move_tokens_from_area_to_area, on_exit_movement,
     player_end_movement, prepare_next_mover, start_movement_activity,
 };
 use crate::civilization::concepts::movement::movement_ui_components::MovementSelectionState;
@@ -27,6 +27,7 @@ impl Plugin for MovementPlugin {
             .add_message::<NextPlayerStarted>()
             .init_resource::<MovementSelectionState>()
             .init_resource::<crate::civilization::ShipVoyages>()
+            .add_observer(drop_animation_when_token_leaves_board)
             .add_systems(OnEnter(GameActivity::Movement), start_movement_activity)
             .add_systems(
                 Update,
@@ -35,7 +36,10 @@ impl Plugin for MovementPlugin {
                     player_end_movement.run_if(in_state(GameActivity::Movement)),
                     move_tokens_from_area_to_area.run_if(in_state(GameActivity::Movement)),
                     execute_ship_ferry.run_if(in_state(GameActivity::Movement)),
-                    animate_token_movement.run_if(in_state(GameActivity::Movement)),
+                    // Not gated on Movement: a slide still running when the
+                    // phase ended used to finish a round later, snapping the
+                    // token back to where it went then (often a city site by now).
+                    animate_token_movement,
                     // Human player movement UI systems
                     setup_human_movement_options.run_if(in_state(GameActivity::Movement)),
                     spawn_movement_controls_ui.run_if(in_state(GameActivity::Movement)),

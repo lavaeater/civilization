@@ -16,8 +16,8 @@ use crate::civilization::{
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
 use bevy::prelude::{
-    Commands, Entity, Has, MessageReader, MessageWriter, Name, NextState, Query, Res, ResMut,
-    Transform, With, Without, info, warn,
+    Commands, Entity, Has, MessageReader, MessageWriter, Name, NextState, On, Query, Remove, Res,
+    ResMut, Transform, With, Without, info, warn,
 };
 use bevy::time::Time;
 
@@ -383,6 +383,19 @@ pub fn execute_ship_ferry(
     }
 }
 
+/// A token that leaves the board drops any slide it was making, so it is not
+/// moved back to that old spot once it is placed again.
+pub fn drop_animation_when_token_leaves_board(
+    trigger: On<Remove<Transform>>,
+    animating: Query<(), (With<Token>, With<TokenMoveAnimation>)>,
+    mut commands: Commands,
+) {
+    let token = trigger.event().entity;
+    if animating.contains(token) {
+        commands.entity(token).try_remove::<TokenMoveAnimation>();
+    }
+}
+
 /// System to animate tokens moving from one area to another
 pub fn animate_token_movement(
     time: Res<Time>,
@@ -509,5 +522,81 @@ mod ship_voyage_tests {
         let voyages = app.world().resource::<ShipVoyages>();
         assert!(voyages.voyages.values().all(|v| v.cargo.is_empty()));
         assert_eq!(tokens(&app, b, player), 7);
+    }
+}
+
+#[cfg(test)]
+mod slide_tests {
+    use super::*;
+    use crate::civilization::components::{FixTokenPositions, Population, Token};
+    use crate::civilization::general_systems::fix_token_positions;
+    use bevy::prelude::{App, IntoScheduleConfigs, Sprite, Update, Vec3, Visibility};
+
+    /// The play-test ghost: a token whose slide was cut short by the end of
+    /// Movement went back to stock, was placed elsewhere, and a round later
+    /// the old slide finished, drawing it on a city site it had long left.
+    #[test]
+    fn a_token_leaving_the_board_forgets_its_slide() {
+        let mut app = App::new();
+        app.add_observer(drop_animation_when_token_leaves_board);
+        let player = app.world_mut().spawn_empty().id();
+        let token = app
+            .world_mut()
+            .spawn((
+                Token::new(player),
+                Sprite::default(),
+                Transform::default(),
+                TokenMoveAnimation::new(Vec3::ZERO, Vec3::new(100.0, 0.0, 0.0), 0.15),
+            ))
+            .id();
+        app.world_mut()
+            .entity_mut(token)
+            .remove::<(Sprite, Transform, Visibility)>();
+        app.update();
+        assert!(app.world().get::<TokenMoveAnimation>(token).is_none());
+    }
+
+    /// A token sliding in ends on its own spot in the area, not on the
+    /// centre where a city would stand.
+    #[test]
+    fn a_sliding_token_lands_on_its_spot() {
+        let mut app = App::new();
+        app.add_systems(Update, (fix_token_positions, animate_token_movement).chain())
+            .init_resource::<Time>();
+        let player = app.world_mut().spawn_empty().id();
+        let others = app.world_mut().spawn_empty().id();
+        // Piles are laid out by player entity; the slider gets the second.
+        let (first, second) = if player < others {
+            (player, others)
+        } else {
+            (others, player)
+        };
+        let centre = Vec3::new(500.0, 500.0, 0.0);
+        let token = app
+            .world_mut()
+            .spawn((
+                // The second pile: its spot is off the centre.
+                Token::new(second),
+                Transform::default(),
+                TokenMoveAnimation::new(Vec3::ZERO, centre, 0.0),
+            ))
+            .id();
+        let other = app
+            .world_mut()
+            .spawn((Token::new(first), Transform::default()))
+            .id();
+        let mut population = Population::new(3);
+        population.add_token_to_area(second, token);
+        population.add_token_to_area(first, other);
+        app.world_mut().spawn((
+            population,
+            Transform::from_translation(centre),
+            FixTokenPositions,
+        ));
+        app.update();
+        let at = |e| app.world().get::<Transform>(e).unwrap().translation;
+        assert!(app.world().get::<TokenMoveAnimation>(token).is_none());
+        assert_eq!(at(other), centre);
+        assert_eq!(at(token), centre + Vec3::new(15.0, 0.0, 0.0), "not on the city");
     }
 }
