@@ -8,7 +8,7 @@ use crate::civilization::concepts::trade::trade_components::{
 };
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::trade_functions::{
-    cheapest_cards_to_give, plan_ai_offers,
+    cheapest_cards_to_give, plan_ai_dump_offers, plan_ai_offers,
 };
 use crate::civilization::concepts::trade::trade_resources::{
     CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState,
@@ -24,9 +24,9 @@ use crate::civilization::{
 };
 use crate::stupid_ai::{
     DEFAULT_TRUST, HIDDEN_CALAMITY_COST, IsHuman, Personality, TradeTrust,
-    accepts_calamity_offload, best_treachery_victim, deceit, hidden_cards_to_trade,
-    honesty_of_delivery, offer_creation_chance, stop_trading_threshold, trade_accept_margin,
-    treachery_victim_value,
+    accepts_calamity_offload, best_treachery_victim, calamity_dump_allowance, deceit,
+    hidden_cards_to_trade, honesty_of_delivery, offer_creation_chance, stop_trading_threshold,
+    trade_accept_margin, treachery_victim_value,
 };
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
@@ -96,13 +96,22 @@ const ACCEPT_OFFER_PALETTE: InteractionPalette = InteractionPalette {
 
 pub fn setup_trade(
     mut commands: Commands,
-    trading_players_query: Query<(&PlayerTradeCards, Entity, Has<IsHuman>)>,
+    trading_players_query: Query<(&PlayerTradeCards, Entity, Has<IsHuman>, &Name)>,
     _ui_theme: Res<LavaTheme>,
     mut trade_ui_state: ResMut<TradeUiState>,
     mut next_state: ResMut<NextState<GameActivity>>,
 ) {
     let mut players_that_can_trade_count: usize = 0;
-    for (trade_cards, player, is_human) in trading_players_query.iter() {
+    for (trade_cards, player, is_human, name) in trading_players_query.iter() {
+        if trade_cards.has_tradeable_calamity() {
+            // Self-play diagnostics: who starts trading with a calamity to pass on.
+            info!(
+                "[TRADE_DIAG] {name} starts with a calamity: commodities={} tradeable={} can_trade={}",
+                trade_cards.commodity_cards().values().sum::<usize>(),
+                trade_cards.number_of_tradeable_cards(),
+                trade_cards.can_trade()
+            );
+        }
         if trade_cards.can_trade() {
             if is_human {
                 trade_ui_state.human_player = Some(player);
@@ -430,6 +439,7 @@ pub fn setup_trade_phase_ui(
     mut trade_phase_state: ResMut<TradePhaseState>,
 ) {
     trade_phase_state.countdown_seconds = 90.0; // 90 seconds
+    trade_phase_state.last_new_offer_at = 90.0;
     trade_phase_state.human_done = false;
 
     // Get human player's cards for display - handle case where no human player exists
@@ -2705,6 +2715,10 @@ pub fn despawn_settlement_modal(
 /// AI creates trade offers based on their cards and needs
 /// Open offers one AI keeps on the table at a time.
 pub const AI_MAX_OPEN_OFFERS: usize = 3;
+/// Deals a calamity holder cycles through, AI_MAX_OPEN_OFFERS at a time.
+const AI_DUMP_PLANS: usize = 10;
+/// Seconds an offer nobody took stays up before a calamity holder replaces it.
+const STALE_OFFER_SECONDS: f32 = 4.0;
 
 pub fn ai_create_trade_offers(
     mut commands: Commands,
@@ -2723,7 +2737,9 @@ pub fn ai_create_trade_offers(
     mut existing_offers: Query<&mut OpenTradeOffer>,
     time: Res<Time>,
     mut ai_offer_timer: Local<f32>,
+    mut trade_phase_state: ResMut<TradePhaseState>,
 ) {
+    let now = trade_phase_state.countdown_seconds;
     // A creator whose offer was just taken withdraws its others: it named
     // cards in all of them and can only settle one trade at a time.
     let committed: Vec<Entity> = existing_offers
@@ -2755,6 +2771,19 @@ pub fn ai_create_trade_offers(
         }) {
             continue;
         }
+        let holds_calamity = ai_cards.has_tradeable_calamity();
+        // A calamity holder takes down an offer nobody took after a while
+        // and tries another deal; the rest leave theirs up.
+        if holds_calamity {
+            let stale = existing_offers
+                .iter_mut()
+                .filter(|o| o.creator == ai_entity && !o.withdrawn && o.accepted_by.is_none())
+                .filter(|o| o.posted_at as f32 / 10.0 - now >= STALE_OFFER_SECONDS)
+                .max_by_key(|o| o.posted_at);
+            if let Some(mut stale) = stale {
+                stale.withdrawn = true;
+            }
+        }
         let open: Vec<HashMap<TradeCard, usize>> = existing_offers
             .iter()
             .filter(|o| o.creator == ai_entity && !o.withdrawn && o.accepted_by.is_none())
@@ -2766,17 +2795,26 @@ pub fn ai_create_trade_offers(
 
         // A commodity set of n cards is worth face_value x n^2 (rule 28.2):
         // ask for cards that grow our sets, give the ones that cost least.
+        // A calamity holder pays to get rid of it.
         let ai_card_counts: HashMap<TradeCard, usize> =
             ai_cards.commodity_cards().into_iter().collect();
-        let Some(plan) = plan_ai_offers(&ai_card_counts, AI_MAX_OPEN_OFFERS)
-            .into_iter()
-            .find(|p| !open.contains(&p.want))
-        else {
+        let plans = if holds_calamity {
+            plan_ai_dump_offers(
+                &ai_card_counts,
+                AI_DUMP_PLANS,
+                calamity_dump_allowance(&personality.weights),
+            )
+        } else {
+            plan_ai_offers(&ai_card_counts, AI_MAX_OPEN_OFFERS)
+        };
+        let Some(plan) = plans.into_iter().find(|p| !open.contains(&p.want)) else {
+            if ai_cards.has_tradeable_calamity() {
+                info!("[TRADE_DIAG] {ai_name} has a calamity but no offer to make");
+            }
             continue;
         };
 
         // Bigger deals to hide a calamity in, or to gamble a poor hand on.
-        let holds_calamity = ai_cards.has_tradeable_calamity();
         let tradeable_cards = ai_cards.number_of_tradeable_cards();
         let hidden = hidden_cards_to_trade(
             holds_calamity,
@@ -2832,9 +2870,15 @@ pub fn ai_create_trade_offers(
         offer.offering_hidden_count = hidden;
         offer.offering_claimed = claimed;
         offer.wanting_guaranteed = plan.want;
-        offer.wanting_hidden_count = hidden;
+        // Getting rid of a calamity: ask for no more than the rules require.
+        offer.wanting_hidden_count = if holds_calamity { 1 } else { hidden };
+        offer.posted_at = (now * 10.0) as u32;
 
         if offer.is_valid() {
+            trade_phase_state.last_new_offer_at = now;
+            if holds_calamity {
+                info!("[TRADE_DIAG] {ai_name} offers with a calamity, hidden={hidden}");
+            }
             commands.spawn(offer);
             debug!(
                 "{} created a trade offer (expects +{}, bluffing: {lies})",
@@ -3055,19 +3099,36 @@ pub fn finalize_settled_open_offers(
     }
 }
 
+/// Countdown below which no AI waits any longer.
+const STAY_AT_TABLE_UNTIL: f32 = 60.0;
+/// An AI leaves once no new offer has gone up for this long.
+const QUIET_TABLE_SECONDS: f32 = 3.0;
+
 /// Remove CanTrade from AI players once they have no pending offers.
 /// Waits until 5 seconds have elapsed in the trade phase (countdown drops below 85)
 /// to give `ai_create_trade_offers` time to fire before concluding.
 pub fn ai_stop_trading_when_ready(
     mut commands: Commands,
-    ai_players: Query<(Entity, &Personality), (With<CanTrade>, Without<IsHuman>)>,
+    ai_players: Query<
+        (Entity, &Personality, &Name, &PlayerTradeCards),
+        (With<CanTrade>, Without<IsHuman>),
+    >,
     offers: Query<&OpenTradeOffer>,
     trade_phase_state: Res<TradePhaseState>,
 ) {
-    for (ai_entity, personality) in ai_players.iter() {
+    for (ai_entity, personality, name, cards) in ai_players.iter() {
         // Each personality keeps trading for a different slice of the phase: eager
         // traders hold out near the end, reluctant ones bail almost immediately.
-        if trade_phase_state.countdown_seconds > stop_trading_threshold(&personality.weights) {
+        let now = trade_phase_state.countdown_seconds;
+        if now > stop_trading_threshold(&personality.weights) {
+            continue;
+        }
+        // Stay while there is still a calamity to pass on, or while new
+        // offers keep coming -- up to a point.
+        if now > STAY_AT_TABLE_UNTIL
+            && (cards.has_tradeable_calamity()
+                || trade_phase_state.last_new_offer_at - now < QUIET_TABLE_SECONDS)
+        {
             continue;
         }
 
@@ -3079,6 +3140,12 @@ pub fn ai_stop_trading_when_ready(
         });
 
         if !has_pending {
+            if cards.has_tradeable_calamity() {
+                info!(
+                    "[TRADE_DIAG] {name} stops trading with a calamity at {:.0}s left",
+                    trade_phase_state.countdown_seconds
+                );
+            }
             commands.entity(ai_entity).remove::<CanTrade>();
         }
     }

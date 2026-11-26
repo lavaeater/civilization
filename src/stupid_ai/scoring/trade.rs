@@ -14,6 +14,12 @@ pub fn trade_accept_margin(w: &Weights) -> f32 {
     (1.0 - w.trade_drive) * 3.0
 }
 
+/// Stack value an AI holding a tradable calamity will give up on the named
+/// cards to pass it on: about a city's worth, more for the calamity-averse.
+pub fn calamity_dump_allowance(w: &Weights) -> i32 {
+    (HIDDEN_CALAMITY_COST * (0.75 + 0.75 * w.calamity_aversion.clamp(0.0, 1.0))).round() as i32
+}
+
 /// Whether this AI bothers to take a trade purely to offload a calamity card.
 /// Calamity-averse players jump at it; the carefree ignore the risk.
 pub fn accepts_calamity_offload(w: &Weights) -> bool {

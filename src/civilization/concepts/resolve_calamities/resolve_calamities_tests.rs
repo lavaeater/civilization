@@ -1104,6 +1104,66 @@ mod tests {
         assert!(world.get::<TransferCityTo>(cities[0]).is_none());
     }
 
+    /// 30.221: an AI trader takes the city next to its own lands, which it
+    /// can hold; it used to take whichever came first.
+    #[test]
+    fn an_ai_trader_takes_the_treachery_city_next_to_its_lands() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            TransferCityTo, advance_treachery,
+        };
+
+        let mut world = iconoclasm_world();
+        let victim = world.spawn((Player, PlayerCities::default())).id();
+        let home = world.spawn(LandPassage::default()).id();
+        let mut areas = PlayerAreas::default();
+        areas.add_token_to_area(home, world.spawn_empty().id());
+        let trader = world.spawn((Player, areas)).id();
+        let cities: Vec<Entity> = (0..5)
+            .map(|n| give_city(&mut world, victim, &format!("victim-{n}")))
+            .collect();
+        world
+            .get_mut::<LandPassage>(cities[3])
+            .unwrap()
+            .to_areas
+            .push(home);
+        world.entity_mut(cities[1]).insert(CitySite);
+
+        start_treachery(&mut world, victim, Some(trader));
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+
+        assert_eq!(
+            world.get::<TransferCityTo>(cities[3]).map(|t| t.0),
+            Some(trader)
+        );
+    }
+
+    /// 30.222: an AI keeping Treachery reduces the city quickest to rebuild,
+    /// the one on a city site.
+    #[test]
+    fn an_ai_reduces_its_city_on_a_city_site() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            ReduceCity, advance_treachery,
+        };
+
+        let mut world = iconoclasm_world();
+        let victim = world.spawn((Player, PlayerCities::default())).id();
+        let cities: Vec<Entity> = (0..5)
+            .map(|n| give_city(&mut world, victim, &format!("victim-{n}")))
+            .collect();
+        world.entity_mut(cities[2]).insert(CitySite);
+
+        start_treachery(&mut world, victim, None);
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+        world.run_system_once(advance_treachery).unwrap();
+        world.flush();
+
+        assert!(world.get::<ReduceCity>(cities[2]).is_some());
+    }
+
     // ========================================================================
     // Rules 30.818/30.819/29.64: ordering enemy cities reduced
     // ========================================================================
@@ -1146,6 +1206,41 @@ mod tests {
             ActiveCalamityResolution::new(context),
             ResolvingCalamity::IconoclasmAndHeresy(state),
         ));
+    }
+
+    /// 30.818: an AI orders the leader's cities reduced, not the first
+    /// player's in seat order.
+    #[test]
+    fn an_ai_orders_the_leaders_cities_reduced() {
+        use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::{
+            ReduceCity, advance_iconoclasm_heresy,
+        };
+
+        let mut world = iconoclasm_world();
+        let victim = world.spawn((Player, PlayerCities::default())).id();
+        let small: Vec<Entity> = (0..3)
+            .map(|n| {
+                let p = world.spawn(Player).id();
+                give_city(&mut world, p, &format!("small-{n}"))
+            })
+            .collect();
+        let leader = world.spawn(Player).id();
+        let big: Vec<Entity> = (0..4)
+            .map(|n| give_city(&mut world, leader, &format!("big-{n}")))
+            .collect();
+
+        start_iconoclasm(&mut world, victim, 0);
+        for _ in 0..4 {
+            world.run_system_once(advance_iconoclasm_heresy).unwrap();
+            world.flush();
+        }
+
+        assert!(small.iter().all(|&a| world.get::<ReduceCity>(a).is_none()));
+        let hit = big
+            .iter()
+            .filter(|&&a| world.get::<ReduceCity>(a).is_some())
+            .count();
+        assert_eq!(hit, 2);
     }
 
     /// 30.818 + 29.64: the primary victim must order two enemy cities

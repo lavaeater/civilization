@@ -2166,6 +2166,8 @@ pub fn advance_iconoclasm_heresy(
     all_players: Query<(Entity, &PlayerCities, Option<&PlayerCivilizationCards>), With<Player>>,
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut calamity_selection: ResMut<CalamitySelectionState>,
+    ai_minds: Query<(&Personality, Option<&TradeTrust>)>,
+    city_sites: Query<(), With<CitySite>>,
 ) {
     for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in
         &mut player_query
@@ -2202,12 +2204,11 @@ pub fn advance_iconoclasm_heresy(
                         .insert(AwaitingHumanCalamitySelection);
                     state.phase = IconoclasmHeresyPhase::SelectCities;
                 } else {
-                    let areas: Vec<Entity> = player_cities
-                        .areas_and_cities
-                        .keys()
-                        .copied()
-                        .take(state.cities_to_reduce)
-                        .collect();
+                    let mut areas = city_sites_first(
+                        player_cities.areas_and_cities.keys().copied().collect(),
+                        &city_sites,
+                    );
+                    areas.truncate(state.cities_to_reduce);
                     for area in &areas {
                         state.select_city(*area);
                     }
@@ -2232,14 +2233,14 @@ pub fn advance_iconoclasm_heresy(
                 // be named at all, and a Philosophy holder may lose at most
                 // one city -- expressed by offering only one of their cities,
                 // so no selection can exceed the cap.
-                let candidates: Vec<Entity> = all_players
+                let candidates: Vec<(Entity, usize, Entity)> = all_players
                     .iter()
                     .filter(|(e, cities, _)| {
                         *e != player_entity
                             && Some(*e) != state.immune_player
                             && !cities.areas_and_cities.is_empty()
                     })
-                    .filter_map(|(_, cities, cards)| {
+                    .filter_map(|(owner, cities, cards)| {
                         if cards.is_some_and(|c| c.owns(&CivCardName::Theology)) {
                             return None; // 30.819: cannot be named
                         }
@@ -2248,12 +2249,13 @@ pub fn advance_iconoclasm_heresy(
                         } else {
                             usize::MAX
                         };
+                        let count = cities.number_of_cities();
                         Some(
                             cities
                                 .areas_and_cities
                                 .keys()
-                                .copied()
                                 .take(limit)
+                                .map(|&area| (owner, count, area))
                                 .collect::<Vec<_>>(),
                         )
                     })
@@ -2273,7 +2275,7 @@ pub fn advance_iconoclasm_heresy(
                     } else if calamity_selection.player.is_none() {
                         calamity_selection.populate(
                             player_entity,
-                            candidates,
+                            candidates.iter().map(|c| c.2).collect(),
                             required,
                             "Iconoclasm — order 2 enemy cities reduced",
                         );
@@ -2284,7 +2286,7 @@ pub fn advance_iconoclasm_heresy(
                     // else: panel belongs to someone else; retry next frame.
                 } else {
                     state.selected_secondary_cities =
-                        candidates.into_iter().take(required).collect();
+                        pick_harm_victims(candidates, required, ai_minds.get(player_entity).ok());
                     state.phase = IconoclasmHeresyPhase::ApplySecondaryLosses;
                 }
             }
@@ -3057,6 +3059,9 @@ pub fn advance_treachery(
     mut calamity_resolved: MessageWriter<CalamityResolved>,
     mut calamity_selection: ResMut<CalamitySelectionState>,
     human_flags: Query<(Has<IsHuman>, Has<AwaitingHumanCalamitySelection>), With<Player>>,
+    player_areas: Query<&PlayerAreas>,
+    land_passages: Query<&LandPassage>,
+    city_sites: Query<(), With<CitySite>>,
 ) {
     for (player_entity, mut resolving, mut resolution, player_cities, is_human, awaiting_human) in
         &mut player_query
@@ -3093,7 +3098,18 @@ pub fn advance_treachery(
                 };
 
                 if !chooser_is_human {
-                    state.city_to_replace = available.first().copied();
+                    // The trader takes the city it can best hold; a victim
+                    // reduces the one quickest to rebuild.
+                    let ranked = match state.beneficiary {
+                        Some(trader) => cities_to_annex(
+                            available,
+                            player_areas.get(trader).ok(),
+                            &land_passages,
+                            &city_sites,
+                        ),
+                        None => city_sites_first(available, &city_sites),
+                    };
+                    state.city_to_replace = ranked.first().copied();
                     state.phase = TreacheryPhase::ApplyEffects;
                 } else if chooser_awaiting {
                     // Waiting for the chooser's pick.
@@ -3194,19 +3210,36 @@ fn shuffled<T>(mut items: Vec<T>) -> Vec<T> {
     items
 }
 
-/// Cities in the order an opponent wants them gone: real city sites first
-/// (a city there takes 6 tokens to build, anywhere else 12), chance
-/// deciding the rest.
-fn worst_cities_to_lose(
-    cities: Vec<Entity>,
-    city_sites: &Query<(), With<CitySite>>,
-) -> Vec<Entity> {
+/// Cities on city sites first, chance deciding the rest. A city there takes 6
+/// tokens to build, anywhere else 12: the one to reduce yourself, since it is
+/// quick to rebuild, and the one to take from an opponent.
+fn city_sites_first(cities: Vec<Entity>, city_sites: &Query<(), With<CitySite>>) -> Vec<Entity> {
     let mut cities = shuffled(cities);
     cities.sort_by_key(|&area| !city_sites.contains(area));
     cities
 }
 
-/// The cities (one per candidate: player, city count, city) an AI directs a
+/// The cities the trader of a Treachery takes (30.221): one touching its own
+/// areas first, which it can hold and support, then city sites.
+fn cities_to_annex(
+    cities: Vec<Entity>,
+    trader_areas: Option<&PlayerAreas>,
+    land_passages: &Query<&LandPassage>,
+    city_sites: &Query<(), With<CitySite>>,
+) -> Vec<Entity> {
+    let held = trader_areas.map(PlayerAreas::areas).unwrap_or_default();
+    let touches = |area: Entity| {
+        held.contains(&area)
+            || land_passages
+                .get(area)
+                .is_ok_and(|p| p.to_areas.iter().any(|a| held.contains(a)))
+    };
+    let mut cities = city_sites_first(cities, city_sites);
+    cities.sort_by_key(|&area| !touches(area));
+    cities
+}
+
+/// The cities (candidates: owner, owner's city count, city) an AI directs a
 /// calamity at, best victims first, chance deciding between equals.
 fn pick_harm_victims(
     candidates: Vec<(Entity, usize, Entity)>,
@@ -3294,7 +3327,7 @@ pub fn advance_piracy(
 
                 if !trader_is_human {
                     state.cities_to_replace = if trader.is_some() {
-                        worst_cities_to_lose(coastal_cities, &city_sites)
+                        city_sites_first(coastal_cities, &city_sites)
                     } else {
                         shuffled(coastal_cities)
                     };
@@ -3339,7 +3372,7 @@ pub fn advance_piracy(
                             .copied()
                             .filter(|&area| sea_passage_query.get(area).unwrap_or(false))
                             .collect();
-                        worst_cities_to_lose(coastal, &city_sites)
+                        city_sites_first(coastal, &city_sites)
                             .first()
                             .map(|&area| (e, cities.number_of_cities(), area))
                     })

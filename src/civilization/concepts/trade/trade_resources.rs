@@ -43,6 +43,9 @@ pub struct TradePhaseState {
     pub create_offer_modal_open: bool,
     pub settlement_modal_open: bool,
     pub settling_offer_entity: Option<Entity>,
+    /// Countdown when the last new offer went up: AIs stay at the table
+    /// while offers keep coming.
+    pub last_new_offer_at: f32,
 }
 
 /// Tracks the offer being created in the Create Offer modal

@@ -356,6 +356,8 @@ pub struct OpenTradeOffer {
     pub creator_actual_cards: Option<HashMap<TradeCard, usize>>,
     /// Settlement: actual cards chosen by acceptor
     pub acceptor_actual_cards: Option<HashMap<TradeCard, usize>>,
+    /// Trade countdown when the offer went up, in tenths of a second.
+    pub posted_at: u32,
 }
 
 impl OpenTradeOffer {
@@ -380,6 +382,7 @@ impl OpenTradeOffer {
             withdrawn: false,
             creator_actual_cards: None,
             acceptor_actual_cards: None,
+            posted_at: 0,
         }
     }
 

@@ -93,8 +93,9 @@ pub struct AiOfferPlan {
     pub give: HashMap<TradeCard, usize>,
     pub want: HashMap<TradeCard, usize>,
     /// Stack value the AI expects to gain, net of what it gives (hidden card
-    /// included, valued as its cheapest remaining card).
-    pub gain: usize,
+    /// included, valued as its cheapest remaining card). Negative for an
+    /// offer made to get rid of a calamity.
+    pub gain: i32,
 }
 
 /// Up to `max_offers` offers worth posting, best first.
@@ -106,12 +107,33 @@ pub struct AiOfferPlan {
 /// taken.) What it gives is whatever costs it least, never a card it asks
 /// for. Offers that would not leave the AI better off are not made.
 pub fn plan_ai_offers(holdings: &HashMap<TradeCard, usize>, max_offers: usize) -> Vec<AiOfferPlan> {
+    plan_offers(holdings, max_offers, None)
+}
+
+/// Offers for an AI holding a tradable calamity, which goes out as a hidden
+/// card. Two commodities to name are enough, and it accepts losing up to
+/// `allowance` stack value on them: keeping the calamity costs more.
+pub fn plan_ai_dump_offers(
+    holdings: &HashMap<TradeCard, usize>,
+    max_offers: usize,
+    allowance: i32,
+) -> Vec<AiOfferPlan> {
+    plan_offers(holdings, max_offers, Some(allowance))
+}
+
+fn plan_offers(
+    holdings: &HashMap<TradeCard, usize>,
+    max_offers: usize,
+    dump_allowance: Option<i32>,
+) -> Vec<AiOfferPlan> {
     let held: usize = holdings
         .iter()
         .filter(|(c, _)| c.is_commodity())
         .map(|(_, n)| *n)
         .sum();
-    if held < 3 || max_offers == 0 {
+    // Cards it pays from its commodities: the calamity is the third.
+    let paid = if dump_allowance.is_some() { 2 } else { 3 };
+    if held < paid || max_offers == 0 {
         return Vec::new();
     }
     // Asking for cards above our own best face value just gets ignored at the
@@ -143,15 +165,18 @@ pub fn plan_ai_offers(holdings: &HashMap<TradeCard, usize>, max_offers: usize) -
                 .filter(|(c, _)| *c != a && *c != b)
                 .map(|(c, n)| (*c, *n))
                 .collect();
-            let give = cheapest_cards_to_give(&rest, 3);
-            if give.values().sum::<usize>() < 3 {
+            let give = cheapest_cards_to_give(&rest, paid);
+            if give.values().sum::<usize>() < paid {
                 return None;
             }
             let cost = giving_cost(&rest, &give);
             // The third (hidden) card is the one cheapest_cards_to_give picked
             // last; name the other two.
             let named = cheapest_cards_to_give(&rest, 2);
-            let gain = (gain_a + gain_b).checked_sub(cost).filter(|g| *g > 0)?;
+            let gain = (gain_a + gain_b) as i32 - cost as i32;
+            if gain <= -dump_allowance.unwrap_or(0) {
+                return None;
+            }
             Some(AiOfferPlan {
                 give: named,
                 want: HashMap::from([(*a, 1), (*b, 1)]),
@@ -277,6 +302,17 @@ mod offer_plan_tests {
         assert!(
             best.want.contains_key(&TradeCard::Ochre) || best.want.contains_key(&TradeCard::Iron)
         );
+    }
+
+    #[test]
+    fn a_calamity_goes_out_with_two_commodities_at_a_loss() {
+        // Two Grain: giving both costs 2*4=8, receiving two odd cards gains 2.
+        let h = hand(&[(TradeCard::Grain, 2)]);
+        assert_eq!(plan_ai_offers(&h, 3), vec![]);
+        let plans = plan_ai_dump_offers(&h, 3, 10);
+        assert_ne!(plans, vec![]);
+        assert!(plans.iter().all(|p| p.gain < 0 && p.gain > -10));
+        assert_eq!(plan_ai_dump_offers(&h, 3, 4), vec![]);
     }
 
     #[test]
