@@ -10,7 +10,9 @@ use crate::civilization::general_systems::{
     start_game,
 };
 use crate::civilization::resolve_calamities::resolve_calamities_plugin::ResolveCalamitiesPlugin;
-use crate::civilization::triggers::{on_add_return_city_to_stock, on_add_return_token_to_stock};
+use crate::civilization::triggers::{
+    hide_off_board_pieces, on_add_return_city_to_stock, on_add_return_token_to_stock,
+};
 use crate::civilization::ui::ButtonActivationPlugin;
 use crate::player::Player;
 use crate::stupid_ai::*;
@@ -30,6 +32,7 @@ impl Plugin for CivilizationPlugin {
             CivilizationInputPlugin,
             TradeUiPlugin,
             AreaInfoPlugin,
+            NarrationUiPlugin,
             lava_ui_builder::LavaUiPlugin,
             AgentApiPlugin,
         ));
@@ -86,6 +89,7 @@ impl Plugin for CivLogicPlugins {
                 (print_names_of_phases.run_if(in_state(GameState::Playing)),),
             )
             .add_plugins((
+                ChroniclePlugin,
                 TaxationPlugin,
                 ShipsPlugin,
                 SuccessionPlugin,
@@ -122,6 +126,7 @@ impl Plugin for CivLogicPlugins {
                 ),
             )
             .add_systems(Last, audit_cities.run_if(state_changed::<GameActivity>))
+            .add_systems(Last, hide_off_board_pieces)
             .add_observer(on_add_return_token_to_stock)
             .add_observer(on_add_return_city_to_stock);
     }

@@ -218,6 +218,10 @@ impl TokenStock {
     pub fn tokens_in_stock(&self) -> usize {
         self.tokens.len()
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = Entity> + '_ {
+        self.tokens.iter().copied()
+    }
 }
 
 #[derive(Component, Debug, Reflect, Default)]
@@ -421,6 +425,10 @@ impl Treasury {
 
     pub fn tokens_in_treasury(&self) -> usize {
         self.tokens.len()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = Entity> + '_ {
+        self.tokens.iter().copied()
     }
 }
 

@@ -3485,6 +3485,7 @@ mod tests {
         world.init_resource::<NextState<GameActivity>>();
         world.init_resource::<CivilizationTradeCards>();
         world.init_resource::<CameraFocusQueue>();
+        world.init_resource::<Messages<crate::civilization::Chronicle>>();
         world.init_resource::<crate::civilization::concepts::resolve_calamities::resolve_calamities_ui_components::CalamitySelectionState>();
         world.add_observer(on_add_unresolved_conflict);
         world.add_observer(on_add_unresolved_city_conflict);
@@ -4273,6 +4274,7 @@ mod tests {
         world.init_resource::<NextState<GameActivity>>();
         world.init_resource::<CivilizationTradeCards>();
         world.init_resource::<CameraFocusQueue>();
+        world.init_resource::<Messages<crate::civilization::Chronicle>>();
         world.add_observer(on_add_unresolved_conflict);
         world.add_observer(on_add_unresolved_city_conflict);
 
