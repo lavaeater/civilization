@@ -561,8 +561,11 @@ mod slide_tests {
     #[test]
     fn a_sliding_token_lands_on_its_spot() {
         let mut app = App::new();
-        app.add_systems(Update, (fix_token_positions, animate_token_movement).chain())
-            .init_resource::<Time>();
+        app.add_systems(
+            Update,
+            (fix_token_positions, animate_token_movement).chain(),
+        )
+        .init_resource::<Time>();
         let player = app.world_mut().spawn_empty().id();
         let others = app.world_mut().spawn_empty().id();
         // Piles are laid out by player entity; the slider gets the second.
@@ -597,6 +600,10 @@ mod slide_tests {
         let at = |e| app.world().get::<Transform>(e).unwrap().translation;
         assert!(app.world().get::<TokenMoveAnimation>(token).is_none());
         assert_eq!(at(other), centre);
-        assert_eq!(at(token), centre + Vec3::new(15.0, 0.0, 0.0), "not on the city");
+        assert_eq!(
+            at(token),
+            centre + Vec3::new(15.0, 0.0, 0.0),
+            "not on the city"
+        );
     }
 }

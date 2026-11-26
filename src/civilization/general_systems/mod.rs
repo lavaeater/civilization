@@ -504,7 +504,10 @@ pub fn one_way_links(links: &[(i32, Vec<i32>)]) -> Vec<(i32, i32)> {
 /// `Entity` before indexing makes the layout deterministic and stable.
 pub fn fix_token_positions(
     population_query: Query<(Entity, &Population, &Transform, &FixTokenPositions), Without<Token>>,
-    mut token_transform_query: Query<&mut Transform, With<Token>>,
+    mut token_transform_query: Query<
+        (&mut Transform, Option<&mut TokenMoveAnimation>),
+        With<Token>,
+    >,
     mut commands: Commands,
 ) {
     for (area_entity, pop, area_transform, _) in population_query.iter() {
@@ -514,13 +517,19 @@ pub fn fix_token_positions(
             let mut sorted_tokens: Vec<&Entity> = tokens.iter().collect();
             sorted_tokens.sort();
             for (token_index, token) in sorted_tokens.into_iter().enumerate() {
-                if let Ok(mut token_transform) = token_transform_query.get_mut(*token) {
-                    token_transform.translation = area_transform.translation
+                if let Ok((mut token_transform, slide)) = token_transform_query.get_mut(*token) {
+                    let spot = area_transform.translation
                         + vec3(
                             (player_index * 15) as f32,
                             ((token_index as i32) * -5) as f32,
                             0.0,
                         );
+                    // A token still sliding in ends on its spot, not on the
+                    // area's centre where the city stands.
+                    match slide {
+                        Some(mut slide) => slide.end_pos = spot,
+                        None => token_transform.translation = spot,
+                    }
                 }
             }
         }
@@ -705,15 +714,24 @@ mod connection_tests {
     fn map_file_connections_are_two_way_and_local() {
         let text = std::fs::read_to_string("assets/maps/civilization.map.ron").unwrap();
         let map: Map = ron::from_str(&text).unwrap();
-        let land: Vec<(i32, Vec<i32>)> =
-            map.areas.iter().map(|a| (a.id, a.land_connections.clone())).collect();
-        let sea: Vec<(i32, Vec<i32>)> =
-            map.areas.iter().map(|a| (a.id, a.sea_connections.clone())).collect();
+        let land: Vec<(i32, Vec<i32>)> = map
+            .areas
+            .iter()
+            .map(|a| (a.id, a.land_connections.clone()))
+            .collect();
+        let sea: Vec<(i32, Vec<i32>)> = map
+            .areas
+            .iter()
+            .map(|a| (a.id, a.sea_connections.clone()))
+            .collect();
         assert_eq!(one_way_links(&land), vec![], "one-way land links");
         assert_eq!(one_way_links(&sea), vec![], "one-way sea links");
 
-        let pos: HashMap<i32, Vec2> =
-            map.areas.iter().map(|a| (a.id, Vec2::new(a.x, a.y))).collect();
+        let pos: HashMap<i32, Vec2> = map
+            .areas
+            .iter()
+            .map(|a| (a.id, Vec2::new(a.x, a.y)))
+            .collect();
         for area in &map.areas {
             assert!(
                 !area.open_sea || area.land_connections.is_empty(),

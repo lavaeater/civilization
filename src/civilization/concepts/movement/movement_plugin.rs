@@ -2,8 +2,9 @@ use crate::GameActivity;
 use crate::civilization::camera_auto_pan_enabled;
 use crate::civilization::concepts::movement::movement_events::*;
 use crate::civilization::concepts::movement::movement_systems::{
-    animate_token_movement, drop_animation_when_token_leaves_board, execute_ship_ferry, move_tokens_from_area_to_area, on_exit_movement,
-    player_end_movement, prepare_next_mover, start_movement_activity,
+    animate_token_movement, drop_animation_when_token_leaves_board, execute_ship_ferry,
+    move_tokens_from_area_to_area, on_exit_movement, player_end_movement, prepare_next_mover,
+    start_movement_activity,
 };
 use crate::civilization::concepts::movement::movement_ui_components::MovementSelectionState;
 use crate::civilization::concepts::movement::movement_ui_systems::{
