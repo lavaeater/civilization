@@ -11,7 +11,7 @@ use crate::civilization::concepts::trade::trade_functions::{
     cheapest_cards_to_give, offer_hand_values, plan_ai_dump_offers, plan_ai_offers,
 };
 use crate::civilization::concepts::trade::trade_resources::{
-    CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState,
+    CreateOfferState, HUMAN_TABLE_PACE, TradeCountdown, TradePhaseState, TradeUiState,
 };
 use crate::civilization::concepts::trade::trade_table_ui::{SayButton, TalkComposerModal};
 use crate::civilization::concepts::trade::trade_talk::{TableKnowledge, TalkKind, TradeTalk};
@@ -34,6 +34,7 @@ use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use lava_ui_builder::{InteractionPalette, LavaTheme, TextStyle, UIBuilder};
 use rand::RngExt;
+use rand::seq::SliceRandom;
 
 pub fn check_trade_gate(
     players_can_trade: Query<(Entity, &CanTrade)>,
@@ -828,7 +829,7 @@ pub fn update_trade_countdown_display(
     mut trade_phase_state: ResMut<TradePhaseState>,
     mut countdown_text: Query<&mut Text, With<TradeCountdownText>>,
     can_trade_query: Query<Entity, With<CanTrade>>,
-    humans: Query<(), With<IsHuman>>,
+    humans: Query<Has<CanTrade>, With<IsHuman>>,
     mut commands: Commands,
 ) {
     // A lone human composing or settling a deal stops the clock; with
@@ -837,15 +838,26 @@ pub fn update_trade_countdown_display(
         && (trade_phase_state.create_offer_modal_open
             || trade_phase_state.settlement_modal_open
             || trade_phase_state.talk_modal_open);
-    if !paused {
-        trade_phase_state.countdown_seconds -= time.delta_secs();
-    }
+    // A human still trading slows the whole table down to reading speed.
+    trade_phase_state.pace = if humans.iter().any(|trading| trading) {
+        HUMAN_TABLE_PACE
+    } else {
+        1.0
+    };
+    trade_phase_state.table_delta = if paused {
+        0.0
+    } else {
+        time.delta_secs() / trade_phase_state.pace()
+    };
+    trade_phase_state.countdown_seconds -= trade_phase_state.table_delta;
     if trade_phase_state.countdown_seconds < 0.0 {
         trade_phase_state.countdown_seconds = 0.0;
     }
 
-    let minutes = (trade_phase_state.countdown_seconds / 60.0) as u32;
-    let seconds = (trade_phase_state.countdown_seconds % 60.0) as u32;
+    // Shown in real seconds left at the current pace.
+    let shown = trade_phase_state.countdown_seconds * trade_phase_state.pace();
+    let minutes = (shown / 60.0) as u32;
+    let seconds = (shown % 60.0) as u32;
 
     for mut text in &mut countdown_text {
         **text = if paused {
@@ -2793,7 +2805,6 @@ pub fn ai_create_trade_offers(
     traders: Query<(Entity, &Name, &PlayerCities), With<CanTrade>>,
     mut existing_offers: Query<&mut OpenTradeOffer>,
     talk: Query<(Entity, &TradeTalk)>,
-    time: Res<Time>,
     mut ai_offer_timer: Local<f32>,
     mut trade_phase_state: ResMut<TradePhaseState>,
 ) {
@@ -2811,7 +2822,8 @@ pub fn ai_create_trade_offers(
         }
     }
 
-    *ai_offer_timer += time.delta_secs();
+    // Table time: slower while a human is trading, stopped while paused.
+    *ai_offer_timer += trade_phase_state.table_delta;
     if *ai_offer_timer < 1.0 {
         return;
     }
@@ -2819,7 +2831,15 @@ pub fn ai_create_trade_offers(
 
     let mut rng = rand::rng();
     let table = TableKnowledge::from_talk(talk.iter());
-    for (ai_entity, ai_name, ai_cards, _, personality, trust) in ai_players.iter() {
+    // Who gets to speak first varies, as the round may be capped.
+    let mut order: Vec<_> = ai_players.iter().collect();
+    order.shuffle(&mut rng);
+    let budget = trade_phase_state.ai_budget(false);
+    let mut posted = 0;
+    for (ai_entity, ai_name, ai_cards, _, personality, trust) in order {
+        if posted >= budget {
+            break;
+        }
         // Personality gate: eager traders flood the table with offers, reluctant
         // ones post less often.
         if rng.random::<f32>() > offer_creation_chance(&personality.weights) {
@@ -2977,6 +2997,7 @@ pub fn ai_create_trade_offers(
                 info!("[TRADE_DIAG] {ai_name} offers with a calamity, hidden={hidden}");
             }
             commands.spawn(offer);
+            posted += 1;
             debug!(
                 "{} created a trade offer (expects +{}, bluffing: {lies})",
                 ai_name, plan.gain
@@ -3412,5 +3433,54 @@ mod trust_tests {
 
         let trust = app.world().get::<TradeTrust>(ai).unwrap();
         assert!(trust.of(human) < DEFAULT_TRUST, "trust {}", trust.of(human));
+    }
+}
+
+#[cfg(test)]
+mod pace_tests {
+    use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+    use std::time::Duration;
+
+    fn table(human_trading: bool) -> World {
+        let mut world = World::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(Duration::from_secs(3));
+        world.insert_resource(time);
+        world.insert_resource(TradePhaseState {
+            countdown_seconds: 90.0,
+            ..Default::default()
+        });
+        let human = world.spawn(IsHuman).id();
+        if human_trading {
+            world.entity_mut(human).insert(CanTrade);
+        }
+        world.spawn(CanTrade);
+        world
+    }
+
+    /// Three real seconds are one table second while a human trades; once
+    /// they are done the table runs at full speed again.
+    #[test]
+    fn a_human_at_the_table_slows_it_to_reading_speed() {
+        let mut world = table(true);
+        world
+            .run_system_once(update_trade_countdown_display)
+            .unwrap();
+        let state = world.resource::<TradePhaseState>();
+        assert!((state.countdown_seconds - 89.0).abs() < 1e-4);
+        assert!((state.table_delta - 1.0).abs() < 1e-4);
+        assert_eq!(
+            state.ai_budget(true),
+            crate::civilization::concepts::trade::HUMAN_TABLE_TALK_PER_ROUND
+        );
+
+        let mut world = table(false);
+        world
+            .run_system_once(update_trade_countdown_display)
+            .unwrap();
+        let state = world.resource::<TradePhaseState>();
+        assert!((state.countdown_seconds - 87.0).abs() < 1e-4);
+        assert_eq!(state.ai_budget(true), usize::MAX);
     }
 }

@@ -50,6 +50,37 @@ pub struct TradePhaseState {
     /// Countdown when the last new offer went up: AIs stay at the table
     /// while offers keep coming.
     pub last_new_offer_at: f32,
+    /// Real seconds per table second: `HUMAN_TABLE_PACE` while a human is
+    /// still trading, 1 otherwise. 0 before the first frame counts as 1.
+    pub pace: f32,
+    /// Table seconds that passed this frame: what the AIs' clocks advance by.
+    /// 0 while the clock is paused.
+    pub table_delta: f32,
+}
+
+/// While a human is at the table the whole table runs this many times
+/// slower: the countdown, and with it every AI's talking, proposing,
+/// declining and leaving. A person needs a few seconds to read a line.
+pub const HUMAN_TABLE_PACE: f32 = 3.0;
+/// Statements all AIs together may make per talk round with a human at the
+/// table, so lines arrive one or two at a time instead of in bursts.
+pub const HUMAN_TABLE_TALK_PER_ROUND: usize = 2;
+/// Proposals all AIs together may post per round with a human at the table.
+pub const HUMAN_TABLE_PROPOSALS_PER_ROUND: usize = 1;
+
+impl TradePhaseState {
+    pub fn pace(&self) -> f32 {
+        self.pace.max(1.0)
+    }
+
+    /// How many statements (`talk`) or proposals the AIs may make this round.
+    pub fn ai_budget(&self, talk: bool) -> usize {
+        match (self.pace() > 1.0, talk) {
+            (false, _) => usize::MAX,
+            (true, true) => HUMAN_TABLE_TALK_PER_ROUND,
+            (true, false) => HUMAN_TABLE_PROPOSALS_PER_ROUND,
+        }
+    }
 }
 
 /// Tracks the offer being created in the Create Offer modal

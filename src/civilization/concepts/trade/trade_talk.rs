@@ -371,8 +371,9 @@ impl TalkDraft {
 use crate::civilization::concepts::trade::trade_components::{CanTrade, OpenTradeOffer};
 use crate::civilization::concepts::trade::trade_resources::TradePhaseState;
 use crate::stupid_ai::{IsHuman, Personality, offer_creation_chance};
-use bevy::prelude::{Commands, Local, Name, Query, Res, Time, With, Without, debug};
+use bevy::prelude::{Commands, Local, Name, Query, Res, With, Without, debug};
 use rand::RngExt;
+use rand::seq::SliceRandom;
 
 /// Talk kept on the table; older statements are swept away.
 const MAX_TALK: usize = 80;
@@ -445,11 +446,11 @@ pub fn ai_trade_talk(
     traders: Query<(), With<CanTrade>>,
     mut talk: Query<(Entity, &mut TradeTalk)>,
     trade_phase_state: Res<TradePhaseState>,
-    time: Res<Time>,
     mut timer: Local<f32>,
     mut answered: Local<HashSet<(Entity, Entity)>>,
 ) {
-    *timer += time.delta_secs();
+    // Table time: slower while a human is trading, stopped while paused.
+    *timer += trade_phase_state.table_delta;
     if *timer < 1.0 {
         return;
     }
@@ -470,10 +471,19 @@ pub fn ai_trade_talk(
         })
         .collect();
 
-    for (me, name, hand, personality) in &ai_players {
+    // Who gets to speak first varies, as the round may be capped.
+    let mut order: Vec<_> = ai_players.iter().collect();
+    order.shuffle(&mut rng);
+    let budget = trade_phase_state.ai_budget(true);
+    let mut said = 0;
+    for (me, name, hand, personality) in order {
+        if said >= budget {
+            break;
+        }
         let wants = cards_to_want(hand, 2);
         let current = live_wants.iter().find(|(_, speaker, _, _)| *speaker == me);
         if !wants.is_empty() && current.is_none_or(|(_, _, _, cards)| *cards != wants) {
+            said += 1;
             for (_, mut t) in &mut talk {
                 if t.speaker == me && matches!(t.kind, TalkKind::Want(_)) {
                     t.live = false;
@@ -496,7 +506,11 @@ pub fn ai_trade_talk(
                 let have = cards_to_offer(hand, cards, &wants);
                 (!have.is_empty()).then(|| (*want_talk, *speaker, speaker_name.clone(), have))
             });
+        if said >= budget {
+            continue;
+        }
         if let Some((want_talk, speaker, speaker_name, have)) = answer {
+            said += 1;
             answered.insert((me, want_talk));
             commands.spawn(
                 TradeTalk::new(
