@@ -4,8 +4,10 @@ use crate::civilization::CivCardName;
 use crate::civilization::components::{
     BuiltCity, CityTokenStock, Faction, GameArea, PlayerCities, TokenStock, Treasury,
 };
+use crate::civilization::concepts::chronicle::Chronicle;
 use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
 use crate::civilization::concepts::map::AvailableFactions;
+use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::PirateNation;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::ReturnCityToStock;
 use crate::civilization::concepts::round_summary::RoundSummary;
 use crate::civilization::concepts::taxation::taxation_components::{
@@ -15,10 +17,9 @@ use crate::civilization::functions::build_city_in_area;
 use crate::player::Player;
 use crate::stupid_ai::{IsHuman, StupidAi};
 use bevy::prelude::{
-    Commands, Entity, Has, Local, Name, NextState, Query, Res, ResMut, Transform, With, Without,
-    info, warn,
+    Commands, Entity, Has, Local, MessageWriter, Name, NextState, Query, Res, ResMut, Transform,
+    With, Without, info, warn,
 };
-use crate::civilization::concepts::resolve_calamities::resolve_calamities_components::PirateNation;
 
 /// Called on entering `CollectTaxes`. Skips the phase entirely if no player has any
 /// cities (this will be the case on the very first turn of the game).
@@ -62,9 +63,7 @@ pub fn enter_collect_taxes(
                 .get(player_entity)
                 .is_ok_and(|c| c.owns(&CivCardName::Coinage));
             if has_coinage {
-                info!(
-                    "[TAXATION] {player_entity:?} holds Coinage — awaiting tax rate choice"
-                );
+                info!("[TAXATION] {player_entity:?} holds Coinage — awaiting tax rate choice");
                 commands
                     .entity(player_entity)
                     .insert(AwaitingCoinageRateSelection);
@@ -127,6 +126,7 @@ pub fn collect_taxes(
     civ_cards_query: Query<&PlayerCivilizationCards>,
     mut commands: Commands,
     mut round_summary: ResMut<RoundSummary>,
+    mut chronicle: MessageWriter<Chronicle>,
 ) {
     for (player_entity, name, needs_to_pay, mut stock, mut treasury, cities) in &mut player_query {
         let tokens_owed = needs_to_pay.tokens_owed;
@@ -203,9 +203,10 @@ pub fn collect_taxes(
                 "[TAXATION] {} can only pay for {} cities ({} tokens); {} cities revolt",
                 name, affordable_cities, to_pay, cities_in_revolt
             );
-            round_summary.push(format!(
-                "{name} paid {to_pay} in taxes; {cities_in_revolt} of their cities revolted"
-            ));
+            chronicle.write(Chronicle::toast(format!(
+                "{name} owed {tokens_owed} tax for {num_cities} cities but had only \
+                 {stock_count} tokens in stock: {cities_in_revolt} cities revolt!"
+            )));
 
             // Mark excess cities as revolting (pick from the map arbitrarily — the
             // resolve-revolts system will handle beneficiary assignment).
@@ -256,7 +257,6 @@ pub fn resolve_revolts(
     area_query: Query<&Transform, With<GameArea>>,
     game_factions: Res<AvailableFactions>,
     mut commands: Commands,
-    mut round_summary: ResMut<RoundSummary>,
 ) {
     let revolting: Vec<(Entity, Entity)> = revolting_cities_query
         .iter()
@@ -294,9 +294,6 @@ pub fn resolve_revolts(
         .collect();
 
     for (revolting_city, area_opt, original_owner) in city_area_owner {
-        let owner_name = player_query
-            .get(original_owner)
-            .map_or("A player".to_string(), |(_, name, ..)| name.to_string());
         // 19.32: the beneficiary replaces the city with one of his own, so he
         // needs a city token in stock. Whoever is strongest without one is
         // skipped in favour of the next player down.
@@ -311,9 +308,7 @@ pub fn resolve_revolts(
 
         let (Some(area), Some(new_owner)) = (area_opt, beneficiary) else {
             info!("[TAXATION] No player can take revolting city {revolting_city:?} — eliminating");
-            round_summary.push(format!(
-                "{owner_name}'s city revolted and nobody could take it over — it was destroyed"
-            ));
+            // The chronicle's city watcher reports the loss.
             // Hands the token back to its owner's stock, drops it from their
             // PlayerCities and strips its map sprite.
             commands
@@ -353,9 +348,6 @@ pub fn resolve_revolts(
             };
             info!("[TAXATION] Revolting city in {area:?} taken over by {new_owner_name}");
             crate::civilization::components::record_city_gain(&mut commands, new_owner);
-            round_summary.push(format!(
-                "{owner_name}'s revolting city was taken over by {new_owner_name}"
-            ));
             build_city_in_area(
                 &mut commands,
                 texture,
@@ -457,6 +449,7 @@ mod tests {
     fn taxation_app() -> App {
         let mut app = App::new();
         app.init_resource::<RoundSummary>();
+        app.add_message::<Chronicle>();
         app.add_systems(Update, collect_taxes);
         app
     }
@@ -690,6 +683,7 @@ mod tests {
         let mut app = App::new();
         app.init_resource::<NextState<GameActivity>>();
         app.init_resource::<RoundSummary>();
+        app.add_message::<Chronicle>();
         app.init_resource::<crate::civilization::concepts::map::AvailableFactions>();
         app.add_systems(
             Update,
@@ -734,7 +728,9 @@ mod tests {
             .unwrap();
 
         assert!(
-            app.world().get::<AwaitingCoinageRateSelection>(player).is_some(),
+            app.world()
+                .get::<AwaitingCoinageRateSelection>(player)
+                .is_some(),
             "human Coinage holder should await a rate choice"
         );
         assert!(
@@ -781,7 +777,9 @@ mod tests {
             .unwrap();
 
         assert!(
-            app.world().get::<AwaitingCoinageRateSelection>(player).is_none(),
+            app.world()
+                .get::<AwaitingCoinageRateSelection>(player)
+                .is_none(),
             "AI holders already have a rate and must not wait on UI"
         );
         let needs = app.world().get::<NeedsToPayTaxes>(player).unwrap();

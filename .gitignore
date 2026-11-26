@@ -7,3 +7,6 @@ dist/
 # Python
 __pycache__/
 *.pyc
+
+# Per-session game logs (src/civilization/concepts/chronicle)
+logs/

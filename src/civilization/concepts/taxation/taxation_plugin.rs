@@ -15,7 +15,8 @@ pub struct TaxationPlugin;
 
 impl Plugin for TaxationPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<NeedsToPayTaxes>()
+        app.add_message::<crate::civilization::Chronicle>()
+            .register_type::<NeedsToPayTaxes>()
             .register_type::<CityInRevolt>()
             .register_type::<CoinageTaxRate>()
             .register_type::<AwaitingCoinageRateSelection>()

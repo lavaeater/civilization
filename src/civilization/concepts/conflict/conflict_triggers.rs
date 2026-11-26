@@ -1,6 +1,9 @@
 use crate::GameActivity;
 use crate::civilization::components::*;
 use crate::civilization::concepts::acquire_trade_cards::PlayerTradeCards;
+use crate::civilization::concepts::chronicle::{
+    Chronicle, describe_battle, player_label, short_area_name,
+};
 use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
 use crate::civilization::concepts::conflict::conflict_components::*;
 use crate::civilization::concepts::conflict::conflict_functions::*;
@@ -13,7 +16,7 @@ use crate::stupid_ai::IsHuman;
 use bevy::log::info;
 use bevy::platform::collections::HashSet;
 use bevy::prelude::{
-    Add, Commands, Entity, Has, Name, NextState, On, Query, ResMut, Transform, With,
+    Add, Commands, Entity, Has, MessageWriter, Name, NextState, On, Query, ResMut, Transform, With,
 };
 use std::cmp::Ordering;
 
@@ -26,6 +29,8 @@ pub fn on_add_unresolved_conflict(
     human_players: Query<Entity, With<IsHuman>>,
     mut camera_focus: ResMut<CameraFocusQueue>,
     civ_cards_query: Query<&PlayerCivilizationCards>,
+    factions: Query<&Faction>,
+    mut chronicle: MessageWriter<Chronicle>,
 ) {
     if let Ok((area_entity, name, mut population, transform, city_still_stands)) =
         areas.get_mut(trigger.event().entity)
@@ -98,6 +103,28 @@ pub fn on_add_unresolved_conflict(
             "unequal_lengths"
         };
 
+        let mut sides: Vec<(String, usize, usize)> = temp_map
+            .iter()
+            .map(|(player, tokens)| {
+                (
+                    player_label(*player, &factions),
+                    tokens.len(),
+                    population.population_for_player(*player),
+                )
+            })
+            .collect();
+        sides.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        let battle = describe_battle(&short_area_name(name), &sides);
+        // Eight AIs fight a couple of dozen field battles a round; showing
+        // them all would bury the ones the player is in. Cities lost and
+        // calamities are always shown; the rest is in the log.
+        let battle = if human_involved {
+            Chronicle::toast(battle)
+        } else {
+            Chronicle::log(battle)
+        };
+        chronicle.write(battle.at(area_entity));
+
         let remaining_pop = population.total_population();
         info!(
             "[CONFLICT] Resolved '{}' via {}: {} tokens remaining (was {})",
@@ -150,6 +177,8 @@ pub fn on_add_unresolved_city_conflict(
     civ_cards_query: Query<&PlayerCivilizationCards>,
     mut trade_cards_query: Query<&mut PlayerTradeCards>,
     mut treasury_query: Query<&mut Treasury>,
+    factions: Query<&Faction>,
+    mut chronicle: MessageWriter<Chronicle>,
 ) {
     if let Ok((area_entity, name, mut population, built_city, transform)) =
         areas.get_mut(trigger.event().entity)
@@ -231,6 +260,16 @@ pub fn on_add_unresolved_city_conflict(
                     info!(
                         "[CITY CONFLICT] Single large invader - replacing city with {} tokens",
                         replacement_count
+                    );
+                    chronicle.write(
+                        Chronicle::toast(format!(
+                            "{} attacks {}'s city in {} with {} tokens",
+                            player_label(attacker, &factions),
+                            player_label(city_owner, &factions),
+                            short_area_name(name),
+                            population.population_for_player(attacker)
+                        ))
+                        .at(area_entity),
                     );
                     if let Ok((
                         mut city_stock,
@@ -325,6 +364,26 @@ pub fn on_add_unresolved_city_conflict(
             // branch also runs for a city holding nothing but its owner's tokens).
             if !other_players.is_empty() {
                 info!("[CITY CONFLICT] Small invaders (<=6 tokens each) - eliminating them");
+                let mut invaders: Vec<String> = other_players
+                    .iter()
+                    .map(|p| {
+                        format!(
+                            "{} ({} tokens)",
+                            player_label(*p, &factions),
+                            population.population_for_player(*p)
+                        )
+                    })
+                    .collect();
+                invaders.sort();
+                chronicle.write(
+                    Chronicle::toast(format!(
+                        "{}'s city in {} repels {}: too few to attack a city, they are removed",
+                        player_label(city_owner, &factions),
+                        short_area_name(name),
+                        invaders.join(" and ")
+                    ))
+                    .at(area_entity),
+                );
             }
             for player in other_players {
                 if let Ok((_, mut token_stock, _, mut player_areas)) =

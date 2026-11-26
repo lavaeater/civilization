@@ -58,6 +58,7 @@ mod tests {
         app.insert_state(GameActivity::Conflict);
         app.init_resource::<ConflictCounterResource>();
         app.init_resource::<CameraFocusQueue>();
+        app.add_message::<crate::civilization::Chronicle>();
         app.add_observer(on_add_unresolved_conflict);
         app.add_observer(on_add_unresolved_city_conflict);
 

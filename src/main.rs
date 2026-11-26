@@ -2,9 +2,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use adv_civ::GamePlugin;
+use adv_civ::civilization::{ChronicleFile, create_session_log};
 use bevy::DefaultPlugins;
 use bevy::asset::AssetMetaCheck;
 use bevy::ecs::system::NonSendMarker;
+use bevy::log::BoxedLayer;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy::winit::WINIT_WINDOWS;
@@ -31,6 +33,7 @@ fn main() {
                 .set(bevy::log::LogPlugin {
                     level: bevy::log::Level::INFO,
                     filter: "wgpu=warn,bevy_ecs=info,bevy_diagnostic=warn".to_string(),
+                    custom_layer: full_log_layer,
                     ..default()
                 })
                 .set(AssetPlugin {
@@ -39,8 +42,27 @@ fn main() {
                 }),
         )
         .add_plugins(GamePlugin)
+        .add_systems(Startup, open_chronicle_file)
         .add_systems(Startup, set_window_icon)
         .run();
+}
+
+/// Everything the console shows also goes to `logs/<stamp>-full.log`, so a
+/// game that went strange can be looked into afterwards.
+fn full_log_layer(_app: &mut App) -> Option<BoxedLayer> {
+    let file = create_session_log("full")?;
+    Some(Box::new(
+        bevy::log::tracing_subscriber::fmt::layer()
+            .with_ansi(false)
+            .with_writer(std::sync::Mutex::new(file)),
+    ))
+}
+
+/// The story of the game, one line per event, in `logs/<stamp>-chronicle.log`.
+fn open_chronicle_file(mut commands: Commands) {
+    if let Some(file) = create_session_log("chronicle") {
+        commands.insert_resource(ChronicleFile(file));
+    }
 }
 
 // Sets the icon on windows and X11

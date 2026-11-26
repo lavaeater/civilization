@@ -1,6 +1,7 @@
 mod acquire_trade_cards;
 mod area_info;
 mod census;
+pub mod chronicle;
 mod check_city_support;
 mod choose_start_area;
 mod city_construction;
@@ -23,6 +24,9 @@ mod trade;
 pub use acquire_trade_cards::*;
 pub use area_info::*;
 pub use census::*;
+pub use chronicle::{
+    Chronicle, ChronicleFile, ChroniclePlugin, NarrationUiPlugin, create_session_log,
+};
 pub use check_city_support::*;
 pub use choose_start_area::*;
 pub use city_construction::*;

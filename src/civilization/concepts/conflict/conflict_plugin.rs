@@ -14,6 +14,7 @@ pub struct ConflictCounterResource(pub usize);
 impl Plugin for ConflictPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ConflictCounterResource>()
+            .add_message::<crate::civilization::Chronicle>()
             .add_systems(OnEnter(GameActivity::Conflict), find_conflict_zones)
             .add_observer(on_add_unresolved_conflict)
             .add_observer(on_add_unresolved_city_conflict);

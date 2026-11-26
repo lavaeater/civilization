@@ -23,7 +23,8 @@ fn setup_conflict_test_app() -> App {
         .add_sub_state::<GameActivity>()
         .insert_state(GameActivity::Conflict)
         .init_resource::<ConflictCounterResource>()
-        .init_resource::<CameraFocusQueue>();
+        .init_resource::<CameraFocusQueue>()
+        .add_message::<adv_civ::civilization::Chronicle>();
     app
 }
 #[test]
