@@ -4,8 +4,13 @@ use crate::civilization::concepts::trade::trade_resources::{
     CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState,
 };
 use crate::civilization::concepts::trade::trade_systems::*;
+use crate::civilization::concepts::trade::trade_table_ui::{
+    despawn_talk_composer, handle_proposal_action_buttons, handle_say_button,
+    handle_talk_composer_buttons, handle_talk_line_buttons, spawn_talk_composer,
+    update_talk_composer, update_trade_table_feed,
+};
 use crate::civilization::concepts::trade::trade_talk::{
-    ai_trade_talk, clear_withdrawn_offers, log_new_talk, prune_old_talk,
+    TalkDraft, ai_trade_talk, clear_withdrawn_offers, log_new_talk, prune_old_talk,
     withdraw_unfulfillable_proposals,
 };
 use crate::civilization::concepts::trade::trade_triggers::{can_trade_removed, offer_published};
@@ -20,6 +25,7 @@ impl Plugin for TradePlugin {
             .init_resource::<TradeCountdown>()
             .init_resource::<TradePhaseState>()
             .init_resource::<CreateOfferState>()
+            .init_resource::<TalkDraft>()
             .add_message::<SendTradingCardsCommand>()
             .add_systems(
                 OnEnter(GameActivity::Trade),
@@ -38,7 +44,7 @@ impl Plugin for TradePlugin {
                     check_trade_gate,
                     update_trade_countdown_display,
                     update_player_trading_status,
-                    update_open_offers_display,
+                    update_trade_table_feed,
                     handle_done_trading_button,
                     handle_create_offer_button,
                     handle_accept_offer_button,
@@ -65,6 +71,20 @@ impl Plugin for TradePlugin {
                     handle_target_buttons,
                     update_target_display,
                 )
+                    .run_if(in_state(GameActivity::Trade)),
+            )
+            .add_systems(
+                Update,
+                (
+                    handle_say_button,
+                    handle_talk_line_buttons,
+                    handle_proposal_action_buttons,
+                    spawn_talk_composer,
+                    handle_talk_composer_buttons,
+                    update_talk_composer,
+                    despawn_talk_composer,
+                )
+                    .chain()
                     .run_if(in_state(GameActivity::Trade)),
             )
             .add_systems(

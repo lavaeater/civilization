@@ -1,7 +1,7 @@
 # Dialog-based trade
 
-Status: step 1 (rules, data, AI adapter, minimal human controls) built on
-branch `trade-dialog`; steps 2–4 to do. Replaces the "open offer anyone can accept"
+Status: steps 1 (rules, data, AI adapter) and 2 (human screen) built on
+branch `trade-dialog`; steps 3–4 to do. Replaces the "open offer anyone can accept"
 model in `concepts/trade` with a table conversation that works like trading
 around a real board.
 
@@ -102,6 +102,18 @@ nine AIs still produce a readable feed.
    to" chooser; Accept/Decline only on proposals to you; the feed shows talk
    (others' declines hidden); `/trade/offer` requires `target`.
 2. **Human screen**: feed and composer with pre-filled replies.
+   *Done:* `trade_table_ui.rs`. The feed groups talk and proposals by thread,
+   with threads holding a proposal to you first, then the liveliest (10
+   threads, opening line plus the latest 5 each). Others' talk lines have
+   Reply (opens the composer to that player, filled from what they asked
+   for and have) and Propose (opens the offer dialog addressed to them,
+   filled from the line). Proposals to you show the hand-value line and
+   Accept / Decline / Counter (the deal turned around); your own have
+   Withdraw; others' have "Outbid to X" (the same terms from you to the
+   same player). "💬 Say…" opens the composer: chips for "I want" and
+   "I have"; a bare want said to the table is a Want, anything else a Reply.
+   The composer pauses the clock like the other dialogs. Drafts are pure
+   functions in `trade_talk.rs` (`ProposalDraft`, `TalkDraft`).
 3. **AI conversation**: replying, countering, undercutting, declining; compare
    self-play pass-on rate and trade value with today.
 4. **Later**: multiplayer — messages are moves, so they fit the move-based

@@ -208,6 +208,164 @@ pub fn cards_to_offer(
         .collect()
 }
 
+// ── Drafts: what clicking a line in the feed fills in ─────────────────────
+
+/// What a statement says its speaker wants and has.
+pub fn wants_and_haves(kind: &TalkKind) -> (&[TradeCard], &[TradeCard]) {
+    match kind {
+        TalkKind::Want(cards) => (cards, &[]),
+        TalkKind::Reply { have, want } => (want, have),
+        TalkKind::Decline(_) => (&[], &[]),
+    }
+}
+
+/// Up to two named cards from `cards`, in order, as far as `available`
+/// allows (rule 28.3 names exactly two a side).
+pub fn pick_two(
+    cards: &[TradeCard],
+    available: impl Fn(TradeCard) -> usize,
+) -> HashMap<TradeCard, usize> {
+    let mut picked: HashMap<TradeCard, usize> = HashMap::default();
+    let mut left = 2;
+    for card in cards {
+        if left == 0 {
+            break;
+        }
+        let already = picked.get(card).copied().unwrap_or(0);
+        let take = available(*card).saturating_sub(already).min(left);
+        if take > 0 {
+            *picked.entry(*card).or_insert(0) += take;
+            left -= take;
+        }
+    }
+    picked
+}
+
+/// The cards of a named side, priciest first, each repeated by its count.
+fn spelled_out(side: &HashMap<TradeCard, usize>) -> Vec<TradeCard> {
+    let mut cards: Vec<(TradeCard, usize)> = side.iter().map(|(c, n)| (*c, *n)).collect();
+    cards.sort_by_key(|(c, _)| std::cmp::Reverse(c.value()));
+    cards
+        .into_iter()
+        .flat_map(|(c, n)| std::iter::repeat_n(c, n))
+        .collect()
+}
+
+/// A proposal being drawn up, before it goes on the table.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct ProposalDraft {
+    pub target: Option<Entity>,
+    pub thread: Option<Entity>,
+    pub offering: HashMap<TradeCard, usize>,
+    pub offering_hidden: usize,
+    pub wanting: HashMap<TradeCard, usize>,
+    pub wanting_hidden: usize,
+}
+
+impl ProposalDraft {
+    /// A proposal answering what `talk` said: give what its speaker wants
+    /// (as far as our hand has it) for what it said it has, one hidden card
+    /// each way.
+    pub fn answering(talk: &TradeTalk, talk_entity: Entity, hand: &PlayerTradeCards) -> Self {
+        let (their_wants, their_haves) = wants_and_haves(&talk.kind);
+        Self {
+            target: Some(talk.speaker),
+            thread: talk.thread.or(Some(talk_entity)),
+            offering: pick_two(their_wants, |c| hand.number_of_cards_for_trade_card(c)),
+            offering_hidden: 1,
+            // One of each card they named, or two of the only one.
+            wanting: pick_two(their_haves, |_| if their_haves.len() > 1 { 1 } else { 2 }),
+            wanting_hidden: 1,
+        }
+    }
+
+    /// A counter to a proposal made to us: the same deal turned around,
+    /// offered back to its maker.
+    pub fn countering(offer: &OpenTradeOffer, hand: &PlayerTradeCards) -> Self {
+        Self {
+            target: Some(offer.creator),
+            thread: offer.thread,
+            offering: pick_two(&spelled_out(&offer.wanting_guaranteed), |c| {
+                hand.number_of_cards_for_trade_card(c)
+            }),
+            offering_hidden: offer.wanting_hidden_count.max(1),
+            wanting: offer.offering_guaranteed.clone(),
+            wanting_hidden: offer.offering_hidden_count.max(1),
+        }
+    }
+
+    /// Jumping into someone else's deal: the same terms, from us, to the
+    /// player it was made to.
+    pub fn outbidding(offer: &OpenTradeOffer, hand: &PlayerTradeCards) -> Self {
+        Self {
+            target: offer.target,
+            thread: offer.thread,
+            offering: pick_two(&spelled_out(&offer.offering_guaranteed), |c| {
+                hand.number_of_cards_for_trade_card(c)
+            }),
+            offering_hidden: offer.offering_hidden_count.max(1),
+            wanting: offer.wanting_guaranteed.clone(),
+            wanting_hidden: offer.wanting_hidden_count.max(1),
+        }
+    }
+}
+
+/// Something being said, before it is said.
+#[derive(Debug, Default, Clone, PartialEq, Eq, bevy::prelude::Resource)]
+pub struct TalkDraft {
+    pub to: Option<(Entity, String)>,
+    pub thread: Option<Entity>,
+    pub have: Vec<TradeCard>,
+    pub want: Vec<TradeCard>,
+}
+
+impl TalkDraft {
+    /// A reply to `talk`: what we have of what it asks for, and what we
+    /// want back -- what it said it has, or else our own wants.
+    pub fn replying(talk: &TradeTalk, talk_entity: Entity, hand: &PlayerTradeCards) -> Self {
+        let (their_wants, their_haves) = wants_and_haves(&talk.kind);
+        // Our own wants, leaving out what they asked for: that is ours to give.
+        let own_wants: Vec<TradeCard> = cards_to_want(hand, 4)
+            .into_iter()
+            .filter(|c| !their_wants.contains(c))
+            .take(2)
+            .collect();
+        let want = if their_haves.is_empty() {
+            own_wants
+        } else {
+            their_haves.to_vec()
+        };
+        Self {
+            to: Some((talk.speaker, talk.speaker_name.clone())),
+            thread: talk.thread.or(Some(talk_entity)),
+            have: cards_to_offer(hand, their_wants, &want),
+            want,
+        }
+    }
+
+    /// What it says: a Want when said to the table with nothing offered,
+    /// otherwise a Reply. `None` when there is nothing to say.
+    pub fn kind(&self) -> Option<TalkKind> {
+        match (self.have.is_empty(), self.want.is_empty()) {
+            (true, true) => None,
+            (true, false) if self.to.is_none() => Some(TalkKind::Want(self.want.clone())),
+            _ => Some(TalkKind::Reply {
+                have: self.have.clone(),
+                want: self.want.clone(),
+            }),
+        }
+    }
+
+    pub fn toggle(&mut self, card: TradeCard, have: bool) {
+        let list = if have { &mut self.have } else { &mut self.want };
+        if let Some(i) = list.iter().position(|c| *c == card) {
+            list.remove(i);
+        } else {
+            list.push(card);
+        }
+    }
+}
+
 // ── Systems ────────────────────────────────────────────────────────────────
 
 use crate::civilization::concepts::trade::trade_components::{CanTrade, OpenTradeOffer};
@@ -410,6 +568,101 @@ mod tests {
         assert_eq!(score(c), 2.0);
         assert_eq!(score(d), 0.0);
         assert_eq!(known.want_talk.get(&c), Some(&e(11)));
+    }
+
+    fn hand_of(cards: &[(TradeCard, usize)]) -> PlayerTradeCards {
+        let mut hand = PlayerTradeCards::default();
+        for (card, n) in cards {
+            hand.add_trade_cards(*card, *n);
+        }
+        hand
+    }
+
+    #[test]
+    fn pick_two_takes_what_is_there_up_to_two() {
+        let held = |c| match c {
+            TradeCard::Oil => 1,
+            TradeCard::Wine => 3,
+            _ => 0,
+        };
+        let picked = pick_two(&[TradeCard::Salt, TradeCard::Oil, TradeCard::Wine], held);
+        assert_eq!(
+            picked,
+            HashMap::from([(TradeCard::Oil, 1), (TradeCard::Wine, 1)])
+        );
+        let picked = pick_two(&[TradeCard::Wine], held);
+        assert_eq!(picked, HashMap::from([(TradeCard::Wine, 2)]));
+    }
+
+    #[test]
+    fn clicking_a_reply_drafts_a_proposal_to_its_speaker() {
+        let (me, c, want) = (e(1), e(3), e(20));
+        // C -> B: "I have Wine and Salt, got Oil?"
+        let reply = TradeTalk::new(
+            c,
+            "C",
+            TalkKind::Reply {
+                have: vec![TradeCard::Wine, TradeCard::Salt],
+                want: vec![TradeCard::Oil],
+            },
+        )
+        .in_thread(Some(want));
+        let hand = hand_of(&[(TradeCard::Oil, 2), (TradeCard::Iron, 1)]);
+        let draft = ProposalDraft::answering(&reply, e(21), &hand);
+        assert_eq!(draft.target, Some(c));
+        assert_eq!(draft.thread, Some(want));
+        assert_eq!(draft.offering, HashMap::from([(TradeCard::Oil, 2)]));
+        assert_eq!(
+            draft.wanting,
+            HashMap::from([(TradeCard::Wine, 1), (TradeCard::Salt, 1)])
+        );
+        assert_eq!((draft.offering_hidden, draft.wanting_hidden), (1, 1));
+        let _ = me;
+    }
+
+    #[test]
+    fn a_counter_turns_the_deal_around_and_an_outbid_copies_it() {
+        let (a, b, me) = (e(1), e(2), e(3));
+        let mut offer = OpenTradeOffer::new(a, "A", Some(b), Some("B".into()));
+        offer.offering_guaranteed = HashMap::from([(TradeCard::Iron, 2)]);
+        offer.offering_hidden_count = 1;
+        offer.wanting_guaranteed = HashMap::from([(TradeCard::Salt, 1), (TradeCard::Wine, 1)]);
+        offer.wanting_hidden_count = 2;
+        let hand = hand_of(&[(TradeCard::Salt, 1), (TradeCard::Iron, 2)]);
+
+        let counter = ProposalDraft::countering(&offer, &hand);
+        assert_eq!(counter.target, Some(a));
+        assert_eq!(counter.offering, HashMap::from([(TradeCard::Salt, 1)]));
+        assert_eq!(counter.wanting, offer.offering_guaranteed);
+        assert_eq!((counter.offering_hidden, counter.wanting_hidden), (2, 1));
+
+        let outbid = ProposalDraft::outbidding(&offer, &hand);
+        assert_eq!(outbid.target, Some(b), "made to the same player");
+        assert_eq!(outbid.offering, HashMap::from([(TradeCard::Iron, 2)]));
+        assert_eq!(outbid.wanting, offer.wanting_guaranteed);
+        let _ = me;
+    }
+
+    #[test]
+    fn a_reply_offers_what_was_asked_for_and_a_bare_wish_is_a_want() {
+        let b = e(2);
+        let want = TradeTalk::new(b, "B", TalkKind::Want(vec![TradeCard::Iron]));
+        let hand = hand_of(&[(TradeCard::Iron, 1), (TradeCard::Grain, 3)]);
+        let mut draft = TalkDraft::replying(&want, e(9), &hand);
+        assert_eq!(draft.to, Some((b, "B".to_string())));
+        assert_eq!(draft.thread, Some(e(9)));
+        assert_eq!(draft.have, vec![TradeCard::Iron]);
+        assert_eq!(draft.want, vec![TradeCard::Grain]);
+        assert!(matches!(draft.kind(), Some(TalkKind::Reply { .. })));
+
+        let mut wish = TalkDraft::default();
+        assert_eq!(wish.kind(), None);
+        wish.toggle(TradeCard::Gold, false);
+        assert_eq!(wish.kind(), Some(TalkKind::Want(vec![TradeCard::Gold])));
+        wish.toggle(TradeCard::Gold, false);
+        assert_eq!(wish.kind(), None);
+        draft.toggle(TradeCard::Iron, true);
+        assert_eq!(draft.have, Vec::<TradeCard>::new());
     }
 
     mod proposals {

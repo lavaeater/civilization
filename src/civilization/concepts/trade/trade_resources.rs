@@ -35,6 +35,8 @@ pub enum TradePhase {
 }
 
 #[derive(Resource, Default)]
+// One flag per dialog and the human's done; an enum would not fit, they overlap.
+#[allow(clippy::struct_excessive_bools)]
 pub struct TradePhaseState {
     pub phase: TradePhase,
     pub countdown_seconds: f32,
@@ -42,6 +44,8 @@ pub struct TradePhaseState {
     pub human_done: bool,
     pub create_offer_modal_open: bool,
     pub settlement_modal_open: bool,
+    /// The "say something" dialog is up.
+    pub talk_modal_open: bool,
     pub settling_offer_entity: Option<Entity>,
     /// Countdown when the last new offer went up: AIs stay at the table
     /// while offers keep coming.
@@ -63,6 +67,11 @@ pub struct CreateOfferState {
     pub wanting_hidden_count: usize,
     /// The player the proposal is made to; only they can accept it.
     pub target: Option<bevy::prelude::Entity>,
+    /// The talk this proposal answers, if it was started from the feed.
+    pub thread: Option<bevy::prelude::Entity>,
+    /// Filled in from the feed: opening the dialog keeps it instead of
+    /// starting blank.
+    pub prefilled: bool,
 }
 
 impl CreateOfferState {
@@ -73,6 +82,20 @@ impl CreateOfferState {
         self.wanting_guaranteed.clear();
         self.wanting_hidden_count = 0;
         self.target = None;
+        self.thread = None;
+        self.prefilled = false;
+    }
+
+    /// Start from a draft made from the feed.
+    pub fn prefill(&mut self, draft: crate::civilization::concepts::trade::ProposalDraft) {
+        self.reset();
+        self.offering_guaranteed = draft.offering;
+        self.offering_hidden_count = draft.offering_hidden;
+        self.wanting_guaranteed = draft.wanting;
+        self.wanting_hidden_count = draft.wanting_hidden;
+        self.target = draft.target;
+        self.thread = draft.thread;
+        self.prefilled = true;
     }
 
     /// The claim as stated on the offer: every hidden card is the

@@ -13,6 +13,7 @@ use crate::civilization::concepts::trade::trade_functions::{
 use crate::civilization::concepts::trade::trade_resources::{
     CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState,
 };
+use crate::civilization::concepts::trade::trade_table_ui::{SayButton, TalkComposerModal};
 use crate::civilization::concepts::trade::trade_talk::{TableKnowledge, TalkKind, TradeTalk};
 use crate::civilization::game_moves::RecalculatePlayerMoves;
 use crate::civilization::game_moves::{
@@ -79,17 +80,17 @@ pub fn settle_trades(
 
 /// Hover and press colours for the trade panel's buttons. The palette system owns
 /// their `BackgroundColor`, so recolour them by changing these, not the colour.
-const CREATE_OFFER_PALETTE: InteractionPalette = InteractionPalette {
+pub(crate) const CREATE_OFFER_PALETTE: InteractionPalette = InteractionPalette {
     none: Color::srgb(0.2, 0.5, 0.3),
     hovered: Color::srgb(0.3, 0.6, 0.4),
     pressed: Color::srgb(0.3, 0.6, 0.4),
 };
-const DONE_TRADING_PALETTE: InteractionPalette = InteractionPalette {
+pub(crate) const DONE_TRADING_PALETTE: InteractionPalette = InteractionPalette {
     none: Color::srgb(0.5, 0.3, 0.2),
     hovered: Color::srgb(0.6, 0.4, 0.3),
     pressed: Color::srgb(0.3, 0.6, 0.3),
 };
-const ACCEPT_OFFER_PALETTE: InteractionPalette = InteractionPalette {
+pub(crate) const ACCEPT_OFFER_PALETTE: InteractionPalette = InteractionPalette {
     none: Color::srgb(0.2, 0.5, 0.3),
     hovered: Color::srgb(0.25, 0.55, 0.35),
     pressed: Color::srgb(0.3, 0.7, 0.4),
@@ -444,6 +445,7 @@ pub fn setup_trade_phase_ui(
     trade_phase_state.human_done = false;
     trade_phase_state.create_offer_modal_open = false;
     trade_phase_state.settlement_modal_open = false;
+    trade_phase_state.talk_modal_open = false;
 
     // Get human player's cards for display - handle case where no human player exists
     let human_data = if let Some(human) = trade_ui_state.human_player {
@@ -534,7 +536,29 @@ pub fn setup_trade_phase_ui(
                             CREATE_OFFER_PALETTE,
                         ))
                         .with_child((
-                            Text::new("➕ Create Offer"),
+                            Text::new("➕ Propose"),
+                            TextFont {
+                                font_size: FontSize::Px(16.0),
+                                ..Default::default()
+                            },
+                            TextColor(Color::WHITE),
+                        ));
+
+                    // Say what you want or have, to the table.
+                    buttons
+                        .spawn((
+                            game_button(),
+                            SayButton,
+                            Node {
+                                padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
+                                justify_content: JustifyContent::Center,
+                                ..Default::default()
+                            },
+                            BackgroundColor(CREATE_OFFER_PALETTE.none),
+                            CREATE_OFFER_PALETTE,
+                        ))
+                        .with_child((
+                            Text::new("💬 Say…"),
                             TextFont {
                                 font_size: FontSize::Px(16.0),
                                 ..Default::default()
@@ -645,7 +669,7 @@ pub fn setup_trade_phase_ui(
                 .with_children(|offers_section| {
                     // Section header
                     offers_section.spawn((
-                        Text::new("📜 Open Offers"),
+                        Text::new("🗣 The table: newest first. Reply or propose from any line."),
                         TextFont {
                             font_size: FontSize::Px(18.0),
                             ..Default::default()
@@ -671,7 +695,7 @@ pub fn setup_trade_phase_ui(
                             BackgroundColor(Color::srgba(0.1, 0.1, 0.12, 0.5)),
                         ))
                         .with_child((
-                            Text::new("No open offers yet. Create one or wait for others!"),
+                            Text::new("Nobody has said anything yet."),
                             TextFont {
                                 font_size: FontSize::Px(14.0),
                                 ..Default::default()
@@ -739,7 +763,7 @@ pub fn refresh_player_cards_display(
     }
 }
 
-fn commodity_color(card: TradeCard) -> Color {
+pub(crate) fn commodity_color(card: TradeCard) -> Color {
     match card {
         TradeCard::Hides => Color::srgb(0.6, 0.4, 0.2),
         TradeCard::Ochre => Color::srgb(0.8, 0.4, 0.2),
@@ -767,7 +791,14 @@ pub fn cleanup_trade_phase_ui(
     mut commands: Commands,
     trade_ui_query: Query<Entity, With<TradePhaseUiRoot>>,
     open_offers_query: Query<Entity, With<OpenTradeOffer>>,
-    modals: Query<Entity, Or<(With<CreateOfferModal>, With<SettlementModal>)>>,
+    modals: Query<
+        Entity,
+        Or<(
+            With<CreateOfferModal>,
+            With<SettlementModal>,
+            With<TalkComposerModal>,
+        )>,
+    >,
     talk: Query<Entity, With<TradeTalk>>,
     mut trade_phase_state: ResMut<TradePhaseState>,
 ) {
@@ -781,6 +812,7 @@ pub fn cleanup_trade_phase_ui(
     }
     trade_phase_state.create_offer_modal_open = false;
     trade_phase_state.settlement_modal_open = false;
+    trade_phase_state.talk_modal_open = false;
     trade_phase_state.settling_offer_entity = None;
     for entity in trade_ui_query.iter() {
         commands.entity(entity).despawn();
@@ -802,7 +834,9 @@ pub fn update_trade_countdown_display(
     // A lone human composing or settling a deal stops the clock; with
     // several humans at the table that needs an agreed rule, so it runs on.
     let paused = humans.iter().len() == 1
-        && (trade_phase_state.create_offer_modal_open || trade_phase_state.settlement_modal_open);
+        && (trade_phase_state.create_offer_modal_open
+            || trade_phase_state.settlement_modal_open
+            || trade_phase_state.talk_modal_open);
     if !paused {
         trade_phase_state.countdown_seconds -= time.delta_secs();
     }
@@ -867,313 +901,6 @@ pub fn update_player_trading_status(
         **text = format!("{trading_text}{done_text}");
         *color = TextColor(Color::srgb(0.7, 0.9, 0.7));
     }
-}
-
-/// Lines of table talk shown above the proposals.
-const TALK_LINES_SHOWN: usize = 8;
-
-/// Update the open offers display with actual offers
-pub fn update_open_offers_display(
-    mut commands: Commands,
-    offers_query: Query<(Entity, &OpenTradeOffer), Changed<OpenTradeOffer>>,
-    all_offers_query: Query<(Entity, &OpenTradeOffer)>,
-    container_query: Query<Entity, With<OpenOffersListContainer>>,
-    children_query: Query<&Children>,
-    trade_ui_state: Res<TradeUiState>,
-    new_talk: Query<(), Added<TradeTalk>>,
-    talk: Query<&TradeTalk>,
-    mut removed_offers: RemovedComponents<OpenTradeOffer>,
-) {
-    // Only update when an offer changed or left, or someone spoke.
-    let offers_left = removed_offers.read().count() > 0;
-    if offers_query.is_empty() && new_talk.is_empty() && !offers_left {
-        return;
-    }
-
-    let Ok(container) = container_query.single() else {
-        return;
-    };
-
-    // Clear existing children
-    if let Ok(children) = children_query.get(container) {
-        for child in children.iter() {
-            commands.entity(child).despawn();
-        }
-    }
-
-    // Get all active offers (not withdrawn, not fully settled)
-    let active_offers: Vec<_> = all_offers_query
-        .iter()
-        .filter(|(_, o)| !o.withdrawn)
-        .collect();
-
-    // The latest talk first, above the proposals.
-    // Other players' "No deal"s are noise; only those to or from us show.
-    let human = trade_ui_state.human_player;
-    let mut lines: Vec<&TradeTalk> = talk
-        .iter()
-        .filter(|t| {
-            !matches!(t.kind, TalkKind::Decline(_))
-                || human.is_some_and(|h| t.speaker == h || t.to == Some(h))
-        })
-        .collect();
-    lines.sort_by_key(|t| t.said_at);
-    if !lines.is_empty() {
-        commands.entity(container).with_children(|parent| {
-            for t in lines.iter().take(TALK_LINES_SHOWN) {
-                let to_me =
-                    trade_ui_state.human_player.is_some() && t.to == trade_ui_state.human_player;
-                parent.spawn((
-                    Text::new(format!("💬 {}", t.line())),
-                    TextFont {
-                        font_size: FontSize::Px(12.0),
-                        ..Default::default()
-                    },
-                    TextColor(if to_me {
-                        Color::srgb(0.95, 0.85, 0.4)
-                    } else {
-                        Color::srgb(0.65, 0.7, 0.75)
-                    }),
-                    Node {
-                        margin: UiRect::bottom(Val::Px(2.0)),
-                        ..Default::default()
-                    },
-                ));
-            }
-        });
-    }
-
-    if active_offers.is_empty() && lines.is_empty() {
-        // Show "no offers" message
-        commands.entity(container).with_children(|parent| {
-            parent.spawn((
-                Text::new("No open offers yet. Create one or wait for others!"),
-                TextFont {
-                    font_size: FontSize::Px(14.0),
-                    ..Default::default()
-                },
-                TextColor(Color::srgb(0.5, 0.5, 0.5)),
-            ));
-        });
-        return;
-    }
-
-    let human_player = trade_ui_state.human_player;
-
-    // Display each offer
-    commands.entity(container).with_children(|parent| {
-        for (offer_entity, offer) in &active_offers {
-            let is_my_offer = human_player.is_some_and(|h| h == offer.creator);
-            let is_accepted = offer.accepted_by.is_some();
-
-            // Offer card
-            parent
-                .spawn(Node {
-                    width: Val::Percent(100.0),
-                    flex_direction: FlexDirection::Column,
-                    padding: UiRect::all(Val::Px(8.0)),
-                    margin: UiRect::bottom(Val::Px(8.0)),
-                    border: UiRect::all(Val::Px(2.0)),
-                    ..Default::default()
-                })
-                .insert(BackgroundColor(if is_accepted {
-                    Color::srgba(0.2, 0.4, 0.2, 0.8)
-                } else if is_my_offer {
-                    Color::srgba(0.2, 0.3, 0.4, 0.8)
-                } else {
-                    Color::srgba(0.15, 0.15, 0.2, 0.8)
-                }))
-                .insert(BorderColor::all(if is_accepted {
-                    Color::srgb(0.3, 0.8, 0.3)
-                } else {
-                    Color::srgb(0.3, 0.3, 0.4)
-                }))
-                .with_children(|card| {
-                    // Header: Creator name and status
-                    card.spawn(Node {
-                        width: Val::Percent(100.0),
-                        flex_direction: FlexDirection::Row,
-                        justify_content: JustifyContent::SpaceBetween,
-                        margin: UiRect::bottom(Val::Px(4.0)),
-                        ..Default::default()
-                    })
-                    .with_children(|header| {
-                        let to = offer.target_name.as_deref().unwrap_or("?");
-                        header.spawn((
-                            Text::new(format!("📤 {} -> {to}", offer.creator_name)),
-                            TextFont {
-                                font_size: FontSize::Px(14.0),
-                                ..Default::default()
-                            },
-                            TextColor(Color::srgb(0.9, 0.9, 0.9)),
-                        ));
-
-                        if is_accepted {
-                            header.spawn((
-                                Text::new(format!(
-                                    "✅ Accepted by {}",
-                                    offer.accepted_by_name.as_deref().unwrap_or("?")
-                                )),
-                                TextFont {
-                                    font_size: FontSize::Px(12.0),
-                                    ..Default::default()
-                                },
-                                TextColor(Color::srgb(0.5, 0.9, 0.5)),
-                            ));
-                        } else if is_my_offer {
-                            header.spawn((
-                                Text::new("(Your offer)"),
-                                TextFont {
-                                    font_size: FontSize::Px(12.0),
-                                    ..Default::default()
-                                },
-                                TextColor(Color::srgb(0.6, 0.7, 0.9)),
-                            ));
-                        }
-                    });
-
-                    // Offering section
-                    card.spawn(Node {
-                        width: Val::Percent(100.0),
-                        flex_direction: FlexDirection::Row,
-                        margin: UiRect::bottom(Val::Px(2.0)),
-                        ..Default::default()
-                    })
-                    .with_children(|row| {
-                        row.spawn((
-                            Text::new("Offers: "),
-                            TextFont {
-                                font_size: FontSize::Px(12.0),
-                                ..Default::default()
-                            },
-                            TextColor(Color::srgb(0.7, 0.7, 0.7)),
-                        ));
-
-                        let offering_text: Vec<String> = offer
-                            .offering_guaranteed
-                            .iter()
-                            .map(|(card, count)| {
-                                if *count > 1 {
-                                    format!("{count}x{card}")
-                                } else {
-                                    format!("{card}")
-                                }
-                            })
-                            .collect();
-                        let hidden_text = offer.offering_hidden_text();
-
-                        row.spawn((
-                            Text::new(format!("{}{}", offering_text.join(", "), hidden_text)),
-                            TextFont {
-                                font_size: FontSize::Px(12.0),
-                                ..Default::default()
-                            },
-                            TextColor(Color::srgb(0.5, 0.9, 0.5)),
-                        ));
-                    });
-
-                    // Wanting section
-                    card.spawn(Node {
-                        width: Val::Percent(100.0),
-                        flex_direction: FlexDirection::Row,
-                        margin: UiRect::bottom(Val::Px(4.0)),
-                        ..Default::default()
-                    })
-                    .with_children(|row| {
-                        row.spawn((
-                            Text::new("Wants: "),
-                            TextFont {
-                                font_size: FontSize::Px(12.0),
-                                ..Default::default()
-                            },
-                            TextColor(Color::srgb(0.7, 0.7, 0.7)),
-                        ));
-
-                        let wanting_text: Vec<String> = offer
-                            .wanting_guaranteed
-                            .iter()
-                            .map(|(card, count)| {
-                                if *count > 1 {
-                                    format!("{count}x{card}")
-                                } else {
-                                    format!("{card}")
-                                }
-                            })
-                            .collect();
-                        let hidden_text = if offer.wanting_hidden_count > 0 {
-                            format!(" +{} hidden", offer.wanting_hidden_count)
-                        } else {
-                            String::new()
-                        };
-
-                        row.spawn((
-                            Text::new(format!("{}{}", wanting_text.join(", "), hidden_text)),
-                            TextFont {
-                                font_size: FontSize::Px(12.0),
-                                ..Default::default()
-                            },
-                            TextColor(Color::srgb(0.9, 0.6, 0.3)),
-                        ));
-                    });
-
-                    // Accept or turn down a proposal made to us.
-                    if human_player.is_some_and(|h| offer.can_accept(h)) {
-                        card.spawn(Node {
-                            width: Val::Percent(100.0),
-                            flex_direction: FlexDirection::Row,
-                            justify_content: JustifyContent::FlexEnd,
-                            margin: UiRect::top(Val::Px(4.0)),
-                            ..Default::default()
-                        })
-                        .with_children(|buttons| {
-                            buttons
-                                .spawn((
-                                    game_button(),
-                                    AcceptOfferButton {
-                                        offer: *offer_entity,
-                                    },
-                                    Node {
-                                        padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
-                                        ..Default::default()
-                                    },
-                                    BackgroundColor(ACCEPT_OFFER_PALETTE.none),
-                                    ACCEPT_OFFER_PALETTE,
-                                ))
-                                .with_child((
-                                    Text::new("Accept"),
-                                    TextFont {
-                                        font_size: FontSize::Px(12.0),
-                                        ..Default::default()
-                                    },
-                                    TextColor(Color::WHITE),
-                                ));
-                            buttons
-                                .spawn((
-                                    game_button(),
-                                    DeclineOfferButton {
-                                        offer: *offer_entity,
-                                    },
-                                    Node {
-                                        padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
-                                        margin: UiRect::left(Val::Px(8.0)),
-                                        ..Default::default()
-                                    },
-                                    BackgroundColor(DONE_TRADING_PALETTE.none),
-                                    DONE_TRADING_PALETTE,
-                                ))
-                                .with_child((
-                                    Text::new("Decline"),
-                                    TextFont {
-                                        font_size: FontSize::Px(12.0),
-                                        ..Default::default()
-                                    },
-                                    TextColor(Color::WHITE),
-                                ));
-                        });
-                    }
-                });
-        }
-    });
 }
 
 /// Handle "Done Trading" button click - ends trade phase for human player
@@ -1523,8 +1250,12 @@ pub fn spawn_create_offer_modal(
         return;
     }
 
-    // Reset offer state when opening modal
-    create_offer_state.reset();
+    // Start blank, unless the feed filled it in.
+    if create_offer_state.prefilled {
+        create_offer_state.prefilled = false;
+    } else {
+        create_offer_state.reset();
+    }
 
     // Get human player's cards
     let (player_name, player_cards) = if let Some(human) = trade_ui_state.human_player {
@@ -2267,6 +1998,7 @@ pub fn handle_publish_offer(
             .wanting_guaranteed
             .clone_from(&create_offer_state.wanting_guaranteed);
         offer.wanting_hidden_count = create_offer_state.wanting_hidden_count;
+        offer.thread = create_offer_state.thread;
 
         commands.spawn(offer);
 
