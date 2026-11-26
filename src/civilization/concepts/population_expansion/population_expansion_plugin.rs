@@ -7,14 +7,14 @@ use crate::civilization::concepts::population_expansion::population_expansion_ev
 };
 use crate::civilization::concepts::population_expansion::population_expansion_systems::{
     auto_expand_population, check_area_population_expansion_eligibility,
-    cleanup_pop_exp_highlights, enter_population_expansion, expand_population_manually,
-    handle_pop_exp_area_click, highlight_pop_exp_areas_for_human, log_round_state,
-    population_expansion_gate,
+    cleanup_pop_exp_highlights, clear_pop_exp_highlights_on_exit, enter_population_expansion,
+    expand_population_manually, handle_pop_exp_area_click, highlight_pop_exp_areas_for_human,
+    log_round_state, population_expansion_gate,
 };
 use crate::civilization::concepts::population_expansion::population_expansion_triggers::on_remove_needs_expansion;
 use crate::civilization::general_systems::move_tokens_from_stock_to_area;
 use bevy::app::{App, Plugin, Update};
-use bevy::prelude::{IntoScheduleConfigs, OnEnter, in_state};
+use bevy::prelude::{IntoScheduleConfigs, OnEnter, OnExit, in_state};
 
 pub struct PopulationExpansionPlugin;
 
@@ -29,6 +29,10 @@ impl Plugin for PopulationExpansionPlugin {
             .add_systems(
                 OnEnter(GameActivity::PopulationExpansion),
                 (enter_population_expansion, log_round_state).chain(),
+            )
+            .add_systems(
+                OnExit(GameActivity::PopulationExpansion),
+                clear_pop_exp_highlights_on_exit,
             )
             .add_systems(
                 Update,

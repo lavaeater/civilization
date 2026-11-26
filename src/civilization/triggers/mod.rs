@@ -1,8 +1,11 @@
+use crate::GameActivity;
 use crate::civilization::components::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::ReturnCityToStock;
 use crate::civilization::functions::return_token_to_stock;
+use bevy::platform::collections::HashSet;
 use bevy::prelude::{
-    Add, Changed, Commands, Entity, On, Or, Query, Sprite, Transform, Visibility, With, warn,
+    Add, Added, Changed, Commands, Entity, On, Or, Query, Res, Sprite, State, Transform,
+    Visibility, With, warn,
 };
 
 pub fn on_add_return_token_to_stock(
@@ -119,6 +122,41 @@ pub fn hide_off_board_pieces(
         for piece in off_board.filter(|p| drawn.contains(*p)) {
             commands
                 .entity(piece)
+                .remove::<(Sprite, Transform, Visibility)>();
+        }
+    }
+}
+
+/// A drawn population token must stand in some area's `Population`.
+///
+/// `hide_off_board_pieces` catches tokens that went to a stock or treasury,
+/// but a token can also drop out of every `Population` without reaching one
+/// (the play-test showed stray markers on city sites). Anything drawn that is
+/// on no area is a ghost: it is logged, so the path that left it can be
+/// found, and hidden.
+pub fn hide_tokens_off_the_board(
+    changed: Query<(), Or<(Changed<Population>, Added<Sprite>)>>,
+    areas: Query<&Population>,
+    drawn: Query<(Entity, &Token), With<Sprite>>,
+    activity: Option<Res<State<GameActivity>>>,
+    mut commands: Commands,
+) {
+    if changed.is_empty() {
+        return;
+    }
+    let on_board: HashSet<Entity> = areas
+        .iter()
+        .flat_map(|p| p.player_tokens().values().flatten().copied())
+        .collect();
+    for (entity, token) in &drawn {
+        if !on_board.contains(&entity) {
+            warn!(
+                "[GHOST] token {entity:?} of {:?} is drawn but on no area (in {:?}) - hiding it",
+                token.player(),
+                activity.as_ref().map(|a| a.get().clone())
+            );
+            commands
+                .entity(entity)
                 .remove::<(Sprite, Transform, Visibility)>();
         }
     }

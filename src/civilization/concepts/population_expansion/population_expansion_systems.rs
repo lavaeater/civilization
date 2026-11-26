@@ -452,6 +452,25 @@ pub fn cleanup_pop_exp_highlights(
     }
 }
 
+/// Clears every expansion highlight when the phase ends.
+///
+/// `cleanup_pop_exp_highlights` only runs inside the phase and only once the
+/// human has no moves left; when the phase ended first, the green markers
+/// stayed on the board for the rest of the game. They sit on the human's
+/// own areas, so they showed up as stray tokens once a city stood there.
+pub fn clear_pop_exp_highlights_on_exit(
+    highlighted_areas: Query<Entity, With<PopExpAreaHighlight>>,
+    highlight_markers: Query<Entity, With<PopExpHighlightMarker>>,
+    mut commands: Commands,
+) {
+    for area in &highlighted_areas {
+        commands.entity(area).remove::<PopExpAreaHighlight>();
+    }
+    for marker in &highlight_markers {
+        commands.entity(marker).despawn();
+    }
+}
+
 /// Handle mouse clicks on highlighted PopExp areas to execute the expansion.
 pub fn handle_pop_exp_area_click(
     mouse_button: Res<ButtonInput<MouseButton>>,
@@ -514,5 +533,32 @@ pub fn handle_pop_exp_area_click(
             ));
             return;
         }
+    }
+}
+
+#[cfg(test)]
+mod highlight_tests {
+    use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::prelude::World;
+
+    /// The phase can end before the human runs out of moves; the green
+    /// markers must not outlive it.
+    #[test]
+    fn leaving_expansion_clears_every_marker() {
+        let mut world = World::new();
+        let player = world.spawn_empty().id();
+        let area = world.spawn(PopExpAreaHighlight::new(player, 2)).id();
+        let marker = world.spawn(PopExpHighlightMarker { area }).id();
+
+        world
+            .run_system_once(clear_pop_exp_highlights_on_exit)
+            .unwrap();
+
+        assert!(world.get::<PopExpAreaHighlight>(area).is_none());
+        assert!(
+            world.get_entity(marker).is_err(),
+            "marker left on the board"
+        );
     }
 }

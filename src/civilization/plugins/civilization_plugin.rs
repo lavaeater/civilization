@@ -11,7 +11,8 @@ use crate::civilization::general_systems::{
 };
 use crate::civilization::resolve_calamities::resolve_calamities_plugin::ResolveCalamitiesPlugin;
 use crate::civilization::triggers::{
-    hide_off_board_pieces, on_add_return_city_to_stock, on_add_return_token_to_stock,
+    hide_off_board_pieces, hide_tokens_off_the_board, on_add_return_city_to_stock,
+    on_add_return_token_to_stock,
 };
 use crate::civilization::ui::ButtonActivationPlugin;
 use crate::player::Player;
@@ -126,7 +127,14 @@ impl Plugin for CivLogicPlugins {
                 ),
             )
             .add_systems(Last, audit_cities.run_if(state_changed::<GameActivity>))
-            .add_systems(Last, hide_off_board_pieces)
+            .add_systems(
+                Last,
+                (
+                    hide_off_board_pieces,
+                    hide_tokens_off_the_board.run_if(in_state(GameState::Playing)),
+                )
+                    .chain(),
+            )
             .add_observer(on_add_return_token_to_stock)
             .add_observer(on_add_return_city_to_stock);
     }
