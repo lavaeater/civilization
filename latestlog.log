@@ -1,0 +1,242 @@
+tivity: Movement)...
+2026-11-26T12:03:10.368195Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.368203Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.368208Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.368213Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.368217Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.368221Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.368224Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.368229Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.368488Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 81 areas with population)
+2026-11-26T12:03:10.401594Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:10.401620Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.401630Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.401634Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.401640Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.401643Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.401647Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.401652Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.401655Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.401885Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 80 areas with population)
+2026-11-26T12:03:10.455192Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:10.455224Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.455231Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.455236Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.455241Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.455245Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.455251Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.455255Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.455260Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.455593Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 79 areas with population)
+2026-11-26T12:03:10.484908Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:10.484932Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.484939Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.484944Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.484948Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.484952Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.484956Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.484960Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.484965Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.485226Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 78 areas with population)
+2026-11-26T12:03:10.535064Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:10.535090Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.535098Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.535103Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.535108Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.535131Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.535139Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.535143Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.535147Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.535428Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 79 areas with population)
+2026-11-26T12:03:10.585268Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:10.585295Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.585303Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.585307Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.585312Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.585315Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.585320Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.585332Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.585336Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.585629Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 80 areas with population)
+2026-11-26T12:03:10.618546Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:10.618571Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.618579Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.618585Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.618592Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.618596Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.618601Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.618606Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.618611Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.618869Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 80 areas with population)
+2026-11-26T12:03:10.651609Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:10.651630Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.651638Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.651644Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.651649Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.651653Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.651657Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.651662Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.651666Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.651917Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 80 areas with population)
+2026-11-26T12:03:10.701610Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:10.701632Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.701637Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.701640Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.701644Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.701647Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.701651Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.701655Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.701658Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.701913Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 79 areas with population)
+2026-11-26T12:03:10.735163Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:10.735193Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.735200Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.735206Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.735212Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.735216Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.735220Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.735237Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.735258Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.735558Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 79 areas with population)
+2026-11-26T12:03:10.786460Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:10.786486Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.786491Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.786495Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.786499Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.786504Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.786509Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.786520Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.786523Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.786815Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 80 areas with population)
+2026-11-26T12:03:10.818362Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:10.818382Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.818388Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.818393Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.818397Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.818400Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.818403Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.818406Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.818410Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.818648Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 81 areas with population)
+2026-11-26T12:03:10.868320Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:10.868352Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.868358Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.868364Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.868370Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.868375Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.868380Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.868384Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.868389Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.868646Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 82 areas with population)
+2026-11-26T12:03:10.915549Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:10.915570Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.915575Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.915580Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.915585Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.915588Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.915592Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.915596Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.915602Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.915855Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 83 areas with population)
+2026-11-26T12:03:10.951819Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:10.951840Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.951845Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.951849Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.951852Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.951856Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.951861Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.951864Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.951868Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.952138Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 83 areas with population)
+2026-11-26T12:03:10.985439Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:10.985466Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:10.985472Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:10.985476Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:10.985481Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:10.985484Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:10.985489Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:10.985493Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:10.985497Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:10.985761Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 83 areas with population)
+2026-11-26T12:03:11.018519Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:11.018544Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:11.018551Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:11.018558Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:11.018563Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:11.018567Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:11.018573Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:11.018577Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:11.018583Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:11.018829Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 82 areas with population)
+2026-11-26T12:03:11.052598Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:11.052621Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:11.052627Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:11.052631Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:11.052635Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:11.052638Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:11.052642Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:11.052645Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:11.052651Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:11.052946Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 82 areas with population)
+2026-11-26T12:03:11.085287Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:11.085312Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:11.085321Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:11.085330Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:11.085334Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:11.085338Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:11.085342Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:11.085346Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:11.085350Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:11.085613Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 83 areas with population)
+2026-11-26T12:03:11.118897Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:11.118925Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:11.118931Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:11.118936Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:11.118941Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:11.118945Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:11.118949Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:11.118954Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:11.118957Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:11.119218Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 84 areas with population)
+2026-11-26T12:03:11.152205Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:11.152228Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:11.152233Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:11.152237Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:11.152241Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:11.152244Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:11.152249Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:11.152253Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:11.152257Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:11.152594Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 85 areas with population)
+2026-11-26T12:03:11.185256Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:11.185281Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:11.185287Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:11.185291Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:11.185297Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:11.185300Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:11.185305Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:11.185309Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:11.185313Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:11.185619Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 85 areas with population)
+2026-11-26T12:03:11.218674Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:11.218701Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:11.218708Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:11.218712Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:11.218718Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:11.218722Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:11.218727Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:11.218731Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is NOT done with Movement
+2026-11-26T12:03:11.218736Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:11.218998Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 85 areas with population)
+2026-11-26T12:03:11.235535Z  INFO adv_civ::civilization::concepts::movement::movement_systems: Player Minos of Babylon has ended movement
+2026-11-26T12:03:11.268931Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Saving game (activity: Movement)...
+2026-11-26T12:03:11.268957Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Xerxes of Thrace (Thrace) is DONE with Movement
+2026-11-26T12:03:11.268964Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Pericles of Assyria (Assyria) is NOT done with Movement
+2026-11-26T12:03:11.268970Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Ptolemy of Illyria (Illyria) is NOT done with Movement
+2026-11-26T12:03:11.268979Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Hammurabi of Africa (Africa) is NOT done with Movement
+2026-11-26T12:03:11.268988Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Nefertiti of Asia (Asia) is NOT done with Movement
+2026-11-26T12:03:11.268993Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Cyrus of Iberia (Iberia) is NOT done with Movement
+2026-11-26T12:03:11.268999Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Minos of Babylon (Babylon) is DONE with Movement
+2026-11-26T12:03:11.269003Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin:   Player Agamemnon of Egypt (Egypt) is NOT done with Movement
+2026-11-26T12:03:11.269305Z  INFO adv_civ::civilization::concepts::save_game::save_game_plugin: Game saved to savegame.json (8 players, 85 areas with population)
+2026-11-26T12:03:23.202275Z  INFO bevy_window::system: No windows are open, exiting
