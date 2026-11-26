@@ -39,6 +39,7 @@ impl Plugin for TradePlugin {
                     handle_create_offer_button,
                     handle_accept_offer_button,
                     update_human_done_ui,
+                    refresh_player_cards_display,
                 )
                     .run_if(in_state(GameActivity::Trade)),
             )

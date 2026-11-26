@@ -16,7 +16,7 @@ use crate::stupid_ai::IsHuman;
 use bevy::prelude::{
     ButtonInput, Camera, Commands, Entity, GlobalTransform, Has, MessageReader, MessageWriter,
     MouseButton, Name, NextState, Query, Res, ResMut, Sprite, Transform, Vec3, Window, With,
-    Without, debug, default, info,
+    Without, debug, default, info, warn,
 };
 use bevy::window::PrimaryWindow;
 
@@ -33,8 +33,21 @@ pub fn check_area_population_expansion_eligibility(
                 commands
                     .entity(event.player)
                     .remove::<ExpandAutomatically>();
-            } else if player_areas.required_tokens_for_expansion() > 0 {
-                if player_areas.required_tokens_for_expansion() <= stock.tokens_in_stock() {
+            } else {
+                // Only the areas still waiting to grow count: city areas were
+                // never in the list and areas done this round have left it.
+                let required: usize = needs_expansion
+                    .areas_that_need_expansion
+                    .iter()
+                    .map(|area| player_areas.required_tokens_for_expansion_for_area(*area))
+                    .sum();
+                if required == 0 {
+                    commands.entity(event.player).remove::<NeedsExpansion>();
+                    commands.entity(event.player).remove::<ExpandManually>();
+                    commands
+                        .entity(event.player)
+                        .remove::<ExpandAutomatically>();
+                } else if required <= stock.tokens_in_stock() {
                     commands.entity(event.player).insert(ExpandAutomatically);
                 } else {
                     commands.entity(event.player).insert(ExpandManually);
@@ -177,6 +190,7 @@ pub fn log_round_state(
 pub fn enter_population_expansion(
     player_query: Query<(Entity, &Faction, &PlayerAreas, Has<IsHuman>)>,
     area: Query<(Entity, &Population)>,
+    city_areas: Query<(), With<BuiltCity>>,
     mut game_info: ResMut<GameInfoAndStuff>,
     mut commands: Commands,
     mut checker: MessageWriter<CheckPlayerExpansionEligibility>,
@@ -190,7 +204,19 @@ pub fn enter_population_expansion(
 
     let mut areas_with_pop = 0;
     for (area_entity, pop) in area.iter() {
-        if pop.has_population() {
+        // Surplus removal should have left every area within its limit and
+        // every city area empty; anything else is a leak to chase.
+        let has_city = city_areas.contains(area_entity);
+        if pop.has_surplus(has_city) {
+            warn!(
+                "[POP_AUDIT] round {}: area {area_entity:?} starts with {} tokens (max {}, city={has_city})",
+                game_info.round,
+                pop.total_population(),
+                pop.max_population,
+            );
+        }
+        // Tokens never grow in an area with a city (rule 22).
+        if pop.has_population() && !city_areas.contains(area_entity) {
             areas_with_pop += 1;
             commands
                 .entity(area_entity)
@@ -222,9 +248,9 @@ pub fn enter_population_expansion(
         } else {
             ai_count += 1;
         }
-        commands
-            .entity(player)
-            .insert(NeedsExpansion::new(player_areas.areas()));
+        let mut growing = player_areas.areas();
+        growing.retain(|area| !city_areas.contains(*area));
+        commands.entity(player).insert(NeedsExpansion::new(growing));
         checker.write(CheckPlayerExpansionEligibility::new(player));
     }
     info!(

@@ -273,6 +273,45 @@ pub fn receiver_can_pay_for_offer(offer: &TradeOffer, receiver_cards: &PlayerTra
         >= offer.initiator_gets_guaranteed.values().sum::<usize>()
 }
 
+/// Stack value of a hand of commodities: each set of `n` cards of face value
+/// `v` is worth `v·n²` (rule 28.2).
+pub fn hand_value(holdings: &HashMap<TradeCard, usize>) -> usize {
+    holdings
+        .iter()
+        .filter(|(card, _)| card.is_commodity())
+        .map(|(card, n)| card.value() * n * n)
+        .sum()
+}
+
+/// What an offer does to the offerer's hand, as far as it can be known when
+/// it is composed: the named cards leave, the hidden cards it gives are taken
+/// to be its cheapest commodities, and the named cards it asks for arrive.
+/// The hidden cards it gets back are unknown and left out.
+/// Returns (value now, value after).
+pub fn offer_hand_values(
+    holdings: &HashMap<TradeCard, usize>,
+    giving: &HashMap<TradeCard, usize>,
+    hidden_giving: usize,
+    receiving: &HashMap<TradeCard, usize>,
+) -> (usize, usize) {
+    let before = hand_value(holdings);
+    let mut after = holdings.clone();
+    for (card, n) in giving {
+        if let Some(have) = after.get_mut(card) {
+            *have = have.saturating_sub(*n);
+        }
+    }
+    for (card, n) in cheapest_cards_to_give(&after, hidden_giving) {
+        if let Some(have) = after.get_mut(&card) {
+            *have = have.saturating_sub(n);
+        }
+    }
+    for (card, n) in receiving {
+        *after.entry(*card).or_insert(0) += n;
+    }
+    (before, hand_value(&after))
+}
+
 #[cfg(test)]
 mod offer_plan_tests {
     use super::*;
@@ -326,5 +365,21 @@ mod offer_plan_tests {
         // never worth two singletons.
         let h = hand(&[(TradeCard::Grain, 4)]);
         assert_eq!(plan_ai_offers(&h, 3), vec![]);
+    }
+
+    #[test]
+    fn an_offer_shows_what_it_does_to_the_hand() {
+        let hand = HashMap::from([
+            (TradeCard::Ochre, 3),
+            (TradeCard::Iron, 1),
+            (TradeCard::Salt, 1),
+        ]);
+        // Give Iron and Salt, hide one more card (an Ochre is cheapest),
+        // get two Ochre back: 3 Ochre + Iron + Salt -> 4 Ochre.
+        let giving = HashMap::from([(TradeCard::Iron, 1), (TradeCard::Salt, 1)]);
+        let receiving = HashMap::from([(TradeCard::Ochre, 2)]);
+        let (before, after) = offer_hand_values(&hand, &giving, 1, &receiving);
+        assert_eq!(before, 9 + 2 + 3);
+        assert_eq!(after, 16);
     }
 }

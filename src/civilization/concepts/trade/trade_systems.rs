@@ -8,7 +8,7 @@ use crate::civilization::concepts::trade::trade_components::{
 };
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::trade_functions::{
-    cheapest_cards_to_give, plan_ai_dump_offers, plan_ai_offers,
+    cheapest_cards_to_give, offer_hand_values, plan_ai_dump_offers, plan_ai_offers,
 };
 use crate::civilization::concepts::trade::trade_resources::{
     CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState,
@@ -441,6 +441,8 @@ pub fn setup_trade_phase_ui(
     trade_phase_state.countdown_seconds = 90.0; // 90 seconds
     trade_phase_state.last_new_offer_at = 90.0;
     trade_phase_state.human_done = false;
+    trade_phase_state.create_offer_modal_open = false;
+    trade_phase_state.settlement_modal_open = false;
 
     // Get human player's cards for display - handle case where no human player exists
     let human_data = if let Some(human) = trade_ui_state.human_player {
@@ -505,6 +507,62 @@ pub fn setup_trade_phase_ui(
                     ));
                 });
 
+            // Buttons first, so a long offers list can never push them off screen.
+            parent
+                .spawn(Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(50.0),
+                    flex_shrink: 0.0,
+                    flex_direction: FlexDirection::Row,
+                    justify_content: JustifyContent::SpaceBetween,
+                    margin: UiRect::bottom(Val::Px(8.0)),
+                    ..Default::default()
+                })
+                .with_children(|buttons| {
+                    // Create Offer button
+                    buttons
+                        .spawn((
+                            game_button(),
+                            CreateOfferButton,
+                            Node {
+                                padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
+                                justify_content: JustifyContent::Center,
+                                ..Default::default()
+                            },
+                            BackgroundColor(CREATE_OFFER_PALETTE.none),
+                            CREATE_OFFER_PALETTE,
+                        ))
+                        .with_child((
+                            Text::new("➕ Create Offer"),
+                            TextFont {
+                                font_size: FontSize::Px(16.0),
+                                ..Default::default()
+                            },
+                            TextColor(Color::WHITE),
+                        ));
+
+                    // Done Trading button
+                    buttons
+                        .spawn((
+                            game_button(),
+                            DoneTradingButton,
+                            Node {
+                                padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
+                                justify_content: JustifyContent::Center,
+                                ..Default::default()
+                            },
+                            BackgroundColor(DONE_TRADING_PALETTE.none),
+                            DONE_TRADING_PALETTE,
+                        ))
+                        .with_child((
+                            Text::new("Done Trading"),
+                            TextFont {
+                                font_size: FontSize::Px(16.0),
+                                ..Default::default()
+                            },
+                            TextColor(Color::WHITE),
+                        ));
+                });
             // Player trading status row
             parent
                 .spawn(Node {
@@ -569,51 +627,7 @@ pub fn setup_trade_phase_ui(
                                 ..Default::default()
                             },
                         ))
-                        .with_children(|cards_row| {
-                            // Display commodity cards
-                            for (card, count) in player_cards.commodity_cards() {
-                                for _ in 0..count {
-                                    let color = commodity_color(card);
-                                    cards_row
-                                        .spawn((
-                                            Node {
-                                                padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
-                                                margin: UiRect::all(Val::Px(2.0)),
-                                                ..Default::default()
-                                            },
-                                            BackgroundColor(color),
-                                        ))
-                                        .with_child((
-                                            Text::new(format!("{card}")),
-                                            TextFont {
-                                                font_size: FontSize::Px(12.0),
-                                                ..Default::default()
-                                            },
-                                            TextColor(Color::WHITE),
-                                        ));
-                                }
-                            }
-                            // Display calamity cards
-                            for card in player_cards.calamity_cards() {
-                                cards_row
-                                    .spawn((
-                                        Node {
-                                            padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
-                                            margin: UiRect::all(Val::Px(2.0)),
-                                            ..Default::default()
-                                        },
-                                        BackgroundColor(Color::srgb(0.8, 0.2, 0.2)),
-                                    ))
-                                    .with_child((
-                                        Text::new(format!("{card}")),
-                                        TextFont {
-                                            font_size: FontSize::Px(12.0),
-                                            ..Default::default()
-                                        },
-                                        TextColor(Color::WHITE),
-                                    ));
-                            }
-                        });
+                        .with_children(|cards_row| spawn_hand_chips(cards_row, player_cards));
                 });
 
             // Open offers section
@@ -621,8 +635,10 @@ pub fn setup_trade_phase_ui(
                 .spawn(Node {
                     width: Val::Percent(100.0),
                     flex_grow: 1.0,
+                    // Let the section shrink to the space left so the list
+                    // inside scrolls instead of growing past the panel.
+                    min_height: Val::Px(0.0),
                     flex_direction: FlexDirection::Column,
-                    margin: UiRect::bottom(Val::Px(16.0)),
                     ..Default::default()
                 })
                 .with_children(|offers_section| {
@@ -643,12 +659,14 @@ pub fn setup_trade_phase_ui(
                             Node {
                                 width: Val::Percent(100.0),
                                 flex_grow: 1.0,
+                                min_height: Val::Px(0.0),
                                 flex_direction: FlexDirection::Column,
-                                overflow: Overflow::clip(),
+                                overflow: Overflow::scroll_y(),
                                 margin: UiRect::top(Val::Px(8.0)),
                                 padding: UiRect::all(Val::Px(8.0)),
                                 ..Default::default()
                             },
+                            ScrollPosition::default(),
                             BackgroundColor(Color::srgba(0.1, 0.1, 0.12, 0.5)),
                         ))
                         .with_child((
@@ -660,62 +678,64 @@ pub fn setup_trade_phase_ui(
                             TextColor(Color::srgb(0.5, 0.5, 0.5)),
                         ));
                 });
-
-            // Bottom buttons row
-            parent
-                .spawn(Node {
-                    width: Val::Percent(100.0),
-                    height: Val::Px(50.0),
-                    flex_direction: FlexDirection::Row,
-                    justify_content: JustifyContent::SpaceBetween,
-                    ..Default::default()
-                })
-                .with_children(|buttons| {
-                    // Create Offer button
-                    buttons
-                        .spawn((
-                            game_button(),
-                            CreateOfferButton,
-                            Node {
-                                padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
-                                justify_content: JustifyContent::Center,
-                                ..Default::default()
-                            },
-                            BackgroundColor(CREATE_OFFER_PALETTE.none),
-                            CREATE_OFFER_PALETTE,
-                        ))
-                        .with_child((
-                            Text::new("➕ Create Offer"),
-                            TextFont {
-                                font_size: FontSize::Px(16.0),
-                                ..Default::default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-
-                    // Done Trading button
-                    buttons
-                        .spawn((
-                            game_button(),
-                            DoneTradingButton,
-                            Node {
-                                padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
-                                justify_content: JustifyContent::Center,
-                                ..Default::default()
-                            },
-                            BackgroundColor(DONE_TRADING_PALETTE.none),
-                            DONE_TRADING_PALETTE,
-                        ))
-                        .with_child((
-                            Text::new("Done Trading"),
-                            TextFont {
-                                font_size: FontSize::Px(16.0),
-                                ..Default::default()
-                            },
-                            TextColor(Color::WHITE),
-                        ));
-                });
         });
+}
+
+/// One coloured chip per card in the hand: commodities, then calamities.
+fn spawn_hand_chips(cards_row: &mut ChildSpawnerCommands, player_cards: &PlayerTradeCards) {
+    let mut commodities: Vec<(TradeCard, usize)> =
+        player_cards.commodity_cards().into_iter().collect();
+    commodities.sort_by_key(|(card, _)| card.value());
+    let chips = commodities
+        .into_iter()
+        .flat_map(|(card, count)| std::iter::repeat_n((card, commodity_color(card)), count))
+        .chain(
+            player_cards
+                .calamity_cards()
+                .into_iter()
+                .map(|card| (card, Color::srgb(0.8, 0.2, 0.2))),
+        );
+    for (card, color) in chips {
+        cards_row
+            .spawn((
+                Node {
+                    padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                    margin: UiRect::all(Val::Px(2.0)),
+                    ..Default::default()
+                },
+                BackgroundColor(color),
+            ))
+            .with_child((
+                Text::new(format!("{card}")),
+                TextFont {
+                    font_size: FontSize::Px(12.0),
+                    ..Default::default()
+                },
+                TextColor(Color::WHITE),
+            ));
+    }
+}
+
+/// Keep "Your Cards" in step with the hand: trades settle while the panel
+/// is open, and it used to show the hand the phase started with.
+pub fn refresh_player_cards_display(
+    mut commands: Commands,
+    trade_ui_state: Res<TradeUiState>,
+    changed_cards: Query<&PlayerTradeCards, (With<IsHuman>, Changed<PlayerTradeCards>)>,
+    display: Query<Entity, With<PlayerCardsDisplay>>,
+) {
+    let Some(human) = trade_ui_state.human_player else {
+        return;
+    };
+    let Ok(cards) = changed_cards.get(human) else {
+        return;
+    };
+    for entity in &display {
+        commands
+            .entity(entity)
+            .despawn_related::<Children>()
+            .with_children(|row| spawn_hand_chips(row, cards));
+    }
 }
 
 fn commodity_color(card: TradeCard) -> Color {
@@ -746,7 +766,17 @@ pub fn cleanup_trade_phase_ui(
     mut commands: Commands,
     trade_ui_query: Query<Entity, With<TradePhaseUiRoot>>,
     open_offers_query: Query<Entity, With<OpenTradeOffer>>,
+    modals: Query<Entity, Or<(With<CreateOfferModal>, With<SettlementModal>)>>,
+    mut trade_phase_state: ResMut<TradePhaseState>,
 ) {
+    // The dialogs are top-level, and the systems that close them only run
+    // during Trade, so a dialog open when the time ran out stayed up for good.
+    for entity in &modals {
+        commands.entity(entity).despawn();
+    }
+    trade_phase_state.create_offer_modal_open = false;
+    trade_phase_state.settlement_modal_open = false;
+    trade_phase_state.settling_offer_entity = None;
     for entity in trade_ui_query.iter() {
         commands.entity(entity).despawn();
     }
@@ -761,9 +791,16 @@ pub fn update_trade_countdown_display(
     mut trade_phase_state: ResMut<TradePhaseState>,
     mut countdown_text: Query<&mut Text, With<TradeCountdownText>>,
     can_trade_query: Query<Entity, With<CanTrade>>,
+    humans: Query<(), With<IsHuman>>,
     mut commands: Commands,
 ) {
-    trade_phase_state.countdown_seconds -= time.delta_secs();
+    // A lone human composing or settling a deal stops the clock; with
+    // several humans at the table that needs an agreed rule, so it runs on.
+    let paused = humans.iter().len() == 1
+        && (trade_phase_state.create_offer_modal_open || trade_phase_state.settlement_modal_open);
+    if !paused {
+        trade_phase_state.countdown_seconds -= time.delta_secs();
+    }
     if trade_phase_state.countdown_seconds < 0.0 {
         trade_phase_state.countdown_seconds = 0.0;
     }
@@ -772,7 +809,11 @@ pub fn update_trade_countdown_display(
     let seconds = (trade_phase_state.countdown_seconds % 60.0) as u32;
 
     for mut text in &mut countdown_text {
-        **text = format!("{minutes}:{seconds:02}");
+        **text = if paused {
+            format!("{minutes}:{seconds:02} (paused)")
+        } else {
+            format!("{minutes}:{seconds:02}")
+        };
     }
 
     // End trading for all players when countdown expires
@@ -1179,6 +1220,10 @@ pub struct OfferSummaryDisplay;
 /// Marker for the validation status display
 #[derive(Component, Default)]
 pub struct OfferValidationDisplay;
+
+/// Marker for the line showing what the offer does to the hand's value
+#[derive(Component, Default)]
+pub struct OfferValueDisplay;
 
 /// Marker for the publish offer button
 #[derive(Component, Default)]
@@ -1607,6 +1652,14 @@ pub fn spawn_create_offer_modal(
                 );
             });
 
+            section.with_child(|value| {
+                value.insert(OfferValueDisplay);
+                value.with_text(
+                    "Hand value: -",
+                    Some(TextStyle::size_color(13.0, Color::srgb(0.85, 0.85, 0.6))),
+                );
+            });
+
             section.with_child(|validation| {
                 validation.insert(OfferValidationDisplay);
                 validation.with_text(
@@ -1898,6 +1951,14 @@ pub fn update_offer_summary_display(
         (&mut Text, &mut TextColor),
         (With<OfferValidationDisplay>, Without<OfferSummaryDisplay>),
     >,
+    mut value_query: Query<
+        &mut Text,
+        (
+            With<OfferValueDisplay>,
+            Without<OfferSummaryDisplay>,
+            Without<OfferValidationDisplay>,
+        ),
+    >,
     mut publish_btn: Query<(&mut BackgroundColor, &Children), With<PublishOfferButton>>,
     mut text_color_query: Query<
         &mut TextColor,
@@ -1906,7 +1967,37 @@ pub fn update_offer_summary_display(
             Without<OfferSummaryDisplay>,
         ),
     >,
+    trade_ui_state: Res<TradeUiState>,
+    human_cards: Query<&PlayerTradeCards, With<IsHuman>>,
 ) {
+    // What the guaranteed part of the deal does to the human's hand.
+    if let Some(cards) = trade_ui_state
+        .human_player
+        .and_then(|human| human_cards.get(human).ok())
+    {
+        let holdings: HashMap<TradeCard, usize> = cards.commodity_cards().into_iter().collect();
+        let (before, after) = offer_hand_values(
+            &holdings,
+            &create_offer_state.offering_guaranteed,
+            create_offer_state.offering_hidden_count,
+            &create_offer_state.wanting_guaranteed,
+        );
+        let net = after as i64 - before as i64;
+        let unknown = if create_offer_state.wanting_hidden_count > 0 {
+            format!(
+                " + {} hidden card(s) you get",
+                create_offer_state.wanting_hidden_count
+            )
+        } else {
+            String::new()
+        };
+        for mut text in &mut value_query {
+            **text = format!(
+                "Hand value: {before} -> {after} (net {net:+}){unknown}. Your hidden cards are counted as your cheapest."
+            );
+        }
+    }
+
     // Build offering text
     let offering_text = if create_offer_state.offering_guaranteed.is_empty()
         && create_offer_state.offering_hidden_count == 0

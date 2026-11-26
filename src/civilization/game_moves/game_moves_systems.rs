@@ -16,7 +16,7 @@ pub fn recalculate_pop_exp_moves_for_player(
         Option<&PlayerCivilizationCards>,
         Option<&NeedsExpansion>,
     )>,
-    area_population_query: Query<&Population>,
+    area_population_query: Query<(&Population, Has<BuiltCity>)>,
     mut commands: Commands,
 ) {
     for event in recalc_player_reader.read() {
@@ -37,18 +37,18 @@ pub fn recalculate_pop_exp_moves_for_player(
                 if !needs_expansion.areas_that_need_expansion.contains(area) {
                     continue;
                 }
-                if let Ok(pop) = area_population_query.get(*area) {
+                if let Ok((pop, has_city)) = area_population_query.get(*area) {
+                    let max_tokens = pop
+                        .max_expansion_for_player_with_agriculture(event.player, has_agriculture)
+                        .min(stock.tokens_in_stock());
+                    // No growth in a city area, and nothing to offer at 0.
+                    if has_city || max_tokens == 0 {
+                        continue;
+                    }
                     command_index += 1;
                     moves.insert(
                         command_index,
-                        GameMove::PopulationExpansion(PopExpMove::new(
-                            *area,
-                            pop.max_expansion_for_player_with_agriculture(
-                                event.player,
-                                has_agriculture,
-                            )
-                            .min(stock.tokens_in_stock()),
-                        )),
+                        GameMove::PopulationExpansion(PopExpMove::new(*area, max_tokens)),
                     );
                 }
             }
