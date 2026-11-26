@@ -1,5 +1,4 @@
 use crate::GameActivity;
-use crate::civilization::PlayerShips;
 use crate::civilization::components::{
     Faction, FixTokenPositions, GameArea, PlayerAreas, Population, Token,
 };
@@ -8,12 +7,17 @@ use crate::civilization::concepts::map::CameraFocusQueue;
 use crate::civilization::concepts::movement::movement_components::*;
 use crate::civilization::concepts::movement::movement_events::*;
 use crate::civilization::concepts::save_game::LoadingFromSave;
+use crate::civilization::game_moves::ship_routes;
 use crate::civilization::game_moves::{AvailableMoves, RecalculatePlayerMoves};
+use crate::civilization::{
+    CivCardName, OpenSea, PlayerCivilizationCards, PlayerShips, SHIP_CAPACITY, SeaPassage,
+    ShipVoyages, ship_range,
+};
 use crate::player::Player;
 use crate::stupid_ai::IsHuman;
 use bevy::prelude::{
     Commands, Entity, Has, MessageReader, MessageWriter, Name, NextState, Query, Res, ResMut,
-    Transform, With, Without, info,
+    Transform, With, Without, info, warn,
 };
 use bevy::time::Time;
 
@@ -22,8 +26,10 @@ pub fn start_movement_activity(
     mut next_player: MessageWriter<NextPlayerStarted>,
     loading_from_save: Option<Res<LoadingFromSave>>,
     faction_query: Query<(Entity, &Faction), With<Player>>,
+    mut voyages: ResMut<ShipVoyages>,
     mut commands: Commands,
 ) {
+    voyages.voyages.clear();
     if let Some(ref save_state) = loading_from_save {
         // Restore census_order and left_to_move from save data
         // Resolve faction names back to entities
@@ -89,8 +95,10 @@ pub fn prepare_next_mover(
 pub fn on_exit_movement(
     token_query: Query<Entity, With<TokenHasMoved>>,
     player_query: Query<Entity, With<Player>>,
+    mut voyages: ResMut<ShipVoyages>,
     mut commands: Commands,
 ) {
+    voyages.voyages.clear();
     for player in player_query.iter() {
         commands.entity(player).remove::<PerformingMovement>();
     }
@@ -105,8 +113,19 @@ pub fn player_end_movement(
     mut commands: Commands,
     mut next_player: MessageWriter<NextPlayerStarted>,
     names: Query<&Name>,
+    player_ships: Query<&PlayerShips>,
+    mut voyages: ResMut<ShipVoyages>,
 ) {
     for end_movement_event in end_event.read() {
+        // Nobody stays aboard past the phase (rule 23.56): they step off
+        // where their ship is, which is where they already stand.
+        if let Ok(ships) = player_ships.get(end_movement_event.player) {
+            for ship in ships.ships_by_area.values().flatten() {
+                if let Some(voyage) = voyages.voyages.get_mut(ship) {
+                    voyage.cargo.clear();
+                }
+            }
+        }
         let name = names
             .get(end_movement_event.player)
             .map_or("?", bevy::prelude::Name::as_str);
@@ -228,117 +247,134 @@ pub fn move_tokens_from_area_to_area(
     }
 }
 
-/// Executes a ship ferry: moves up to 5 unmoved tokens from `source_area` to
-/// `target_area` via sea passage, and advances the ship to the target area.
+/// Executes one leg of a ship's voyage (rule 23.5): tokens aboard may step
+/// off at the source, unmoved tokens there may step aboard (at most five
+/// aboard), and the ship sails to the target with everyone still aboard,
+/// spending the water areas it enters from its range for the phase.
 ///
-/// The ship moves one sea hop per command (rule 23.52 — up to 4 hops total per phase).
-/// Tokens are marked `TokenHasMoved` so they cannot move again this phase (rule 23.51).
+/// Tokens that step aboard are marked `TokenHasMoved` at once: they cannot
+/// then move overland or board another ship (rules 23.3, 23.56). Tokens
+/// aboard always stand in the ship's current area, so stepping off moves
+/// nothing.
 pub fn execute_ship_ferry(
     mut ferry_events: MessageReader<ShipFerryCommand>,
     mut pop_query: Query<(&mut Population, &Transform), Without<Token>>,
-    mut player_ships_query: Query<&mut PlayerShips>,
+    mut player_ships_query: Query<(&mut PlayerShips, Option<&PlayerCivilizationCards>)>,
     mut player_areas_query: Query<&mut PlayerAreas>,
     tokens_that_can_move: Query<&Token, Without<TokenHasMoved>>,
     token_transform: Query<&Transform, With<Token>>,
+    sea: Query<&SeaPassage>,
+    open_sea: Query<Has<OpenSea>>,
+    mut voyages: ResMut<ShipVoyages>,
     mut recalculate_player_moves: MessageWriter<RecalculatePlayerMoves>,
     mut commands: Commands,
 ) {
     for ev in ferry_events.read() {
-        // Collect tokens to move (unmoved, belonging to this player, in source area).
-        // May legitimately be empty -- rule 23.1 lets a ship move on its own,
-        // carrying nothing, so an empty result isn't itself a no-op.
-        let tokens_to_ferry: Vec<Entity> = pop_query
-            .get(ev.source_area)
-            .ok()
-            .and_then(|(pop, _)| pop.player_tokens().get(&ev.player).cloned())
-            .map(|player_tokens| {
-                player_tokens
-                    .iter()
-                    .filter(|&&t| tokens_that_can_move.get(t).is_ok())
-                    .take(ev.number_of_tokens)
-                    .copied()
-                    .collect()
-            })
-            .unwrap_or_default();
-
-        let has_ship = player_ships_query
-            .get(ev.player)
-            .is_ok_and(|ships| !ships.ships_in_area(ev.source_area).is_empty());
-
-        if tokens_to_ferry.is_empty() && !has_ship {
-            // Nothing to carry and no ship to move -- stale/invalid command.
+        let Ok((mut ships, civ_cards)) = player_ships_query.get_mut(ev.player) else {
+            continue;
+        };
+        let astronomy = civ_cards.is_some_and(|c| c.owns(&CivCardName::Astronomy));
+        let range = ship_range(civ_cards.is_some_and(|c| c.owns(&CivCardName::ClothMaking)));
+        let ships_here = ships.ships_in_area(ev.source_area).to_vec();
+        let cost = ship_routes(
+            ev.source_area,
+            voyages.best_range_left(&ships_here, range),
+            astronomy,
+            &sea,
+            &open_sea,
+        )
+        .into_iter()
+        .find(|(area, _)| *area == ev.target_area)
+        .map(|(_, cost)| cost);
+        let ship = cost.and_then(|cost| match ev.ship {
+            Some(ship) if ships_here.contains(&ship) && voyages.areas_left(ship, range) >= cost => {
+                Some(ship)
+            }
+            Some(_) => None,
+            None => voyages.pick_ship(&ships_here, range, cost),
+        });
+        let (Some(cost), Some(ship)) = (cost, ship) else {
+            warn!(
+                "[SHIPS] No ship at {:?} can reach {:?} this phase",
+                ev.source_area, ev.target_area
+            );
+            recalculate_player_moves.write(RecalculatePlayerMoves::new(ev.player));
+            continue;
+        };
+        let (target_ready, target_pos) = pop_query
+            .get(ev.target_area)
+            .map_or((false, Default::default()), |(_, t)| (true, t.translation));
+        if !target_ready || player_areas_query.get(ev.player).is_err() {
             recalculate_player_moves.write(RecalculatePlayerMoves::new(ev.player));
             continue;
         }
 
-        // Get target area transform for animation end-point.
-        let target_pos = pop_query
-            .get(ev.target_area)
-            .map(|(_, t)| t.translation)
+        let voyage = voyages.voyages.entry(ship).or_default();
+        // Step off first, so the room they leave can be filled here.
+        let dropped = ev.drop.min(voyage.cargo.len());
+        voyage.cargo.drain(..dropped);
+        let room = SHIP_CAPACITY.saturating_sub(voyage.cargo.len());
+        let boarding: Vec<Entity> = pop_query
+            .get(ev.source_area)
+            .ok()
+            .and_then(|(pop, _)| pop.player_tokens().get(&ev.player).cloned())
+            .map(|tokens| {
+                tokens
+                    .into_iter()
+                    .filter(|t| tokens_that_can_move.get(*t).is_ok())
+                    .take(ev.number_of_tokens.min(room))
+                    .collect()
+            })
             .unwrap_or_default();
+        for &token in &boarding {
+            commands.entity(token).insert(TokenHasMoved);
+        }
+        voyage.cargo.extend(boarding.iter().copied());
 
-        // Only remove tokens from the source once we've confirmed the target
-        // area and the mover's PlayerAreas both exist, so a missing component
-        // can't strand tokens between the two -- previously the source removal
-        // ran unconditionally while the target-side inserts were each gated on
-        // their own lookup, silently dropping tokens on a failed lookup
-        // (token-conservation bug).
-        if !tokens_to_ferry.is_empty() {
-            let target_ready = pop_query.get(ev.target_area).is_ok();
-            let player_areas_ready = player_areas_query.get(ev.player).is_ok();
-
-            if target_ready && player_areas_ready {
-                if let Ok((mut from_pop, _)) = pop_query.get_mut(ev.source_area) {
-                    for &token in &tokens_to_ferry {
-                        from_pop.remove_token_from_area(ev.player, token);
-                    }
-                }
-
-                if let Ok((mut to_pop, _)) = pop_query.get_mut(ev.target_area) {
-                    for &token in &tokens_to_ferry {
-                        to_pop.add_token_to_area(ev.player, token);
-                    }
-                }
-
-                if let Ok(mut player_areas) = player_areas_query.get_mut(ev.player) {
-                    for &token in &tokens_to_ferry {
-                        player_areas.remove_token_from_area(&ev.source_area, token);
-                        player_areas.add_token_to_area(ev.target_area, token);
-
-                        commands.entity(token).insert(TokenHasMoved);
-                        if let Ok(start) = token_transform.get(token) {
-                            commands.entity(token).insert(TokenMoveAnimation::new(
-                                start.translation,
-                                target_pos,
-                                0.25, // slightly longer than land movement to feel different
-                            ));
-                        }
-                    }
-                }
-            } else {
-                recalculate_player_moves.write(RecalculatePlayerMoves::new(ev.player));
+        // Everyone aboard sails.
+        let aboard = voyage.cargo.clone();
+        if let Ok((mut from_pop, _)) = pop_query.get_mut(ev.source_area) {
+            for &token in &aboard {
+                from_pop.remove_token_from_area(ev.player, token);
             }
         }
-
-        // Move the ship from source to target in PlayerShips (rule 23.1: a ship
-        // moves whether or not it's carrying anything).
-        if let Ok(mut ships) = player_ships_query.get_mut(ev.player)
-            && let Some(ship_entity) = ships.remove_ship_from_area(ev.source_area)
-        {
-            ships.place_ship(ev.target_area, ship_entity);
-            // Move the ship sprite to the target area position.
-            commands
-                .entity(ship_entity)
-                .insert(Transform::from_translation(
-                    target_pos + bevy::math::Vec3::new(8.0, 8.0, 2.0),
-                ));
-            info!(
-                "[SHIPS] Ferry: {} token(s) moved {:?} → {:?}; ship follows",
-                tokens_to_ferry.len(),
-                ev.source_area,
-                ev.target_area
-            );
+        if let Ok((mut to_pop, _)) = pop_query.get_mut(ev.target_area) {
+            for &token in &aboard {
+                to_pop.add_token_to_area(ev.player, token);
+            }
         }
+        if let Ok(mut player_areas) = player_areas_query.get_mut(ev.player) {
+            for &token in &aboard {
+                player_areas.remove_token_from_area(&ev.source_area, token);
+                player_areas.add_token_to_area(ev.target_area, token);
+                if let Ok(start) = token_transform.get(token) {
+                    commands.entity(token).insert(TokenMoveAnimation::new(
+                        start.translation,
+                        target_pos,
+                        0.25, // slightly longer than land movement to feel different
+                    ));
+                }
+            }
+        }
+        voyage.areas_moved += cost;
+        if ev.unload_on_arrival {
+            voyage.cargo.clear();
+        }
+        let left = range.saturating_sub(voyage.areas_moved);
+
+        if ships.take_ship(ev.source_area, ship) {
+            ships.place_ship(ev.target_area, ship);
+            commands.entity(ship).insert(Transform::from_translation(
+                target_pos + bevy::math::Vec3::new(8.0, 8.0, 2.0),
+            ));
+        }
+        info!(
+            "[SHIPS] Ship {ship:?} sails {:?} -> {:?} ({cost} area(s), {left} left): {dropped} off, {} on, {} aboard",
+            ev.source_area,
+            ev.target_area,
+            boarding.len(),
+            aboard.len(),
+        );
 
         commands.entity(ev.player).insert(HasJustMoved);
         commands.entity(ev.source_area).insert(FixTokenPositions);
@@ -361,5 +397,116 @@ pub fn animate_token_movement(
             transform.translation = animation.end_pos;
             commands.entity(entity).remove::<TokenMoveAnimation>();
         }
+    }
+}
+
+#[cfg(test)]
+mod ship_voyage_tests {
+    use super::*;
+    use crate::civilization::game_moves::RecalculatePlayerMoves;
+    use bevy::prelude::{App, Update};
+
+    /// Four coasts in a row, A - B - C - D - E, and a player with five
+    /// tokens in A, two in B and a ship in A.
+    fn setup() -> (App, Entity, [Entity; 5]) {
+        let mut app = App::new();
+        app.add_message::<ShipFerryCommand>()
+            .add_message::<RecalculatePlayerMoves>()
+            .init_resource::<ShipVoyages>()
+            .add_systems(Update, execute_ship_ferry);
+        let world = app.world_mut();
+        let coasts = [(); 5].map(|()| {
+            world
+                .spawn((
+                    Population::new(10),
+                    SeaPassage::default(),
+                    Transform::default(),
+                ))
+                .id()
+        });
+        for pair in coasts.windows(2) {
+            world
+                .get_mut::<SeaPassage>(pair[0])
+                .unwrap()
+                .add_passage(pair[1]);
+            world
+                .get_mut::<SeaPassage>(pair[1])
+                .unwrap()
+                .add_passage(pair[0]);
+        }
+        let player = world.spawn_empty().id();
+        let ship = world.spawn_empty().id();
+        let mut areas = PlayerAreas::default();
+        for (area, n) in [(coasts[0], 5), (coasts[1], 2)] {
+            for _ in 0..n {
+                let token = world.spawn((Token::new(player), Transform::default())).id();
+                world
+                    .get_mut::<Population>(area)
+                    .unwrap()
+                    .add_token_to_area(player, token);
+                areas.add_token_to_area(area, token);
+            }
+        }
+        let mut ships = PlayerShips::default();
+        ships.place_ship(coasts[0], ship);
+        world.entity_mut(player).insert((areas, ships));
+        (app, player, coasts)
+    }
+
+    fn sail(app: &mut App, command: ShipFerryCommand) {
+        app.world_mut().write_message(command);
+        app.update();
+    }
+
+    fn tokens(app: &App, area: Entity, player: Entity) -> usize {
+        app.world()
+            .get::<Population>(area)
+            .unwrap()
+            .population_for_player(player)
+    }
+
+    #[test]
+    fn tokens_ride_several_legs_stepping_on_and_off_on_the_way() {
+        let (mut app, player, [a, b, c, d, e]) = setup();
+        // Leg 1: one aboard in A, sail to B.
+        sail(&mut app, ShipFerryCommand::leg(a, b, 0, 1, player));
+        assert_eq!((tokens(&app, a, player), tokens(&app, b, player)), (4, 3));
+        // Leg 2: drop that one in B, take both B tokens on, sail to C.
+        sail(&mut app, ShipFerryCommand::leg(b, c, 1, 2, player));
+        assert_eq!((tokens(&app, b, player), tokens(&app, c, player)), (1, 2));
+        // Leg 3: drop one, sail on with the other. The token dropped in B
+        // has moved and cannot board again.
+        sail(&mut app, ShipFerryCommand::leg(c, d, 1, 5, player));
+        assert_eq!((tokens(&app, c, player), tokens(&app, d, player)), (1, 1));
+        // Leg 4 uses the last of the four areas; a fifth is refused.
+        sail(&mut app, ShipFerryCommand::leg(d, e, 0, 0, player));
+        assert_eq!(tokens(&app, e, player), 1);
+        sail(&mut app, ShipFerryCommand::leg(e, d, 0, 0, player));
+        assert_eq!(tokens(&app, e, player), 1, "out of range");
+        let ships = app.world().get::<PlayerShips>(player).unwrap();
+        assert_eq!(ships.ships_in_area(e).len(), 1);
+        // Nothing was lost on the way.
+        let total: usize = [a, b, c, d, e]
+            .iter()
+            .map(|x| tokens(&app, *x, player))
+            .sum();
+        assert_eq!(total, 7);
+        let areas = app.world().get::<PlayerAreas>(player).unwrap();
+        assert_eq!(areas.total_population(), 7);
+    }
+
+    #[test]
+    fn a_ship_carries_five_at_most_and_a_one_trip_ferry_unloads() {
+        let (mut app, player, [a, b, c, ..]) = setup();
+        // Seven would board in B (five from A, two there); five fit.
+        sail(&mut app, ShipFerryCommand::leg(a, b, 0, 5, player));
+        sail(&mut app, ShipFerryCommand::leg(b, c, 0, 5, player));
+        assert_eq!(tokens(&app, c, player), 5);
+        assert_eq!(tokens(&app, b, player), 2);
+        // The AI's one-trip ferry leaves nobody aboard.
+        sail(&mut app, ShipFerryCommand::new(c, b, 0, player));
+        let voyages = app.world().resource::<ShipVoyages>();
+        assert!(voyages.voyages.values().all(|v| v.cargo.is_empty()));
+        assert_eq!(tokens(&app, b, player), 7);
     }
 }

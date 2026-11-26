@@ -9,7 +9,8 @@ use crate::civilization::concepts::movement::movement_ui_components::MovementSel
 use crate::civilization::concepts::movement::movement_ui_systems::{
     cleanup_movement_ui, cleanup_movement_ui_on_exit, draw_movement_arrows,
     handle_movement_target_click, pan_camera_to_current_source, setup_human_movement_options,
-    spawn_movement_controls_ui, update_source_area_display, update_token_count_display,
+    spawn_movement_controls_ui, update_ship_status_display, update_source_area_display,
+    update_token_count_display,
 };
 use bevy::app::App;
 use bevy::prelude::{
@@ -25,6 +26,7 @@ impl Plugin for MovementPlugin {
             .add_message::<PlayerMovementEnded>()
             .add_message::<NextPlayerStarted>()
             .init_resource::<MovementSelectionState>()
+            .init_resource::<crate::civilization::ShipVoyages>()
             .add_systems(OnEnter(GameActivity::Movement), start_movement_activity)
             .add_systems(
                 Update,
@@ -41,6 +43,7 @@ impl Plugin for MovementPlugin {
                     handle_movement_target_click.run_if(in_state(GameActivity::Movement)),
                     update_token_count_display.run_if(in_state(GameActivity::Movement)),
                     update_source_area_display.run_if(in_state(GameActivity::Movement)),
+                    update_ship_status_display.run_if(in_state(GameActivity::Movement)),
                     pan_camera_to_current_source
                         .run_if(in_state(GameActivity::Movement).and_then(camera_auto_pan_enabled)),
                     cleanup_movement_ui.run_if(in_state(GameActivity::Movement)),

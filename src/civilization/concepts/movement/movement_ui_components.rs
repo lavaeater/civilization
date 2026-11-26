@@ -24,6 +24,15 @@ pub struct MovementSelectionState {
     pub is_city_attack: bool,
     /// Source areas the player has chosen to skip
     pub skipped_sources: HashSet<Entity>,
+    /// Sailing a ship instead of walking: targets are the coasts its ship
+    /// can reach, and `token_count` is how many step aboard (0 allowed).
+    pub by_ship: bool,
+    /// Tokens aboard the ship that step off here before it sails.
+    pub ship_drop: usize,
+    /// Tokens aboard the ship at the current source.
+    pub ship_cargo: usize,
+    /// Where the ship just sailed: the cursor follows it there.
+    pub follow_area: Option<Entity>,
 }
 
 impl MovementSelectionState {
@@ -38,6 +47,34 @@ impl MovementSelectionState {
         self.is_attack = false;
         self.is_city_attack = false;
         self.skipped_sources.clear();
+        self.by_ship = false;
+        self.ship_drop = 0;
+        self.ship_cargo = 0;
+        self.follow_area = None;
+    }
+
+    /// Switch between moving overland and sailing.
+    pub fn toggle_ship(&mut self) {
+        self.by_ship = !self.by_ship;
+        self.clear_target();
+    }
+
+    pub fn drop_more(&mut self) {
+        if self.ship_drop < self.ship_cargo {
+            self.ship_drop += 1;
+        }
+    }
+
+    pub fn drop_fewer(&mut self) {
+        self.ship_drop = self.ship_drop.saturating_sub(1);
+    }
+
+    /// Put the cursor on `area` if it is a source.
+    pub fn focus(&mut self, area: Entity) {
+        if let Some(index) = self.source_areas.iter().position(|a| *a == area) {
+            self.skipped_sources.remove(&area);
+            self.current_source_index = index;
+        }
     }
 
     /// Clears selection state but preserves skipped sources for the rest of the movement phase
@@ -51,6 +88,7 @@ impl MovementSelectionState {
     }
 
     pub fn clear_target(&mut self) {
+        self.ship_drop = 0;
         self.target_area = None;
         self.token_count = 0;
         self.max_tokens = 0;
@@ -202,7 +240,8 @@ impl MovementSelectionState {
     }
 
     pub fn has_selection(&self) -> bool {
-        self.target_area.is_some() && self.token_count > 0
+        // A ship may sail with nobody stepping aboard.
+        self.target_area.is_some() && (self.token_count > 0 || self.by_ship)
     }
 
     pub fn select_target(
@@ -218,7 +257,8 @@ impl MovementSelectionState {
         self.source_area = Some(source);
         self.target_area = Some(target);
         self.max_tokens = max_tokens;
-        self.token_count = 1; // Start with 1 token selected
+        // Walking starts with one token; a ship takes everyone it can.
+        self.token_count = if self.by_ship { max_tokens } else { 1 };
         self.is_attack = is_attack;
         self.is_city_attack = is_city_attack;
     }
@@ -230,6 +270,10 @@ impl MovementSelectionState {
     }
 
     pub fn decrement(&mut self) {
+        if self.by_ship {
+            self.token_count = self.token_count.saturating_sub(1);
+            return;
+        }
         if self.token_count > 0 {
             self.token_count -= 1;
         }
@@ -282,6 +326,14 @@ pub struct TokenCountDisplay;
 /// Marker for the source area name display text
 #[derive(Component, Default)]
 pub struct SourceAreaDisplay;
+
+/// Marker for the ship line: mode, tokens aboard, range left, drop-off count
+#[derive(Component, Default)]
+pub struct ShipStatusDisplay;
+
+/// Marker for the "Drop off: n / aboard" text
+#[derive(Component, Default)]
+pub struct ShipDropDisplay;
 
 /// Marker for movement arrow gizmo data
 #[derive(Component, Debug)]
