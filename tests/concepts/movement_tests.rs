@@ -2,7 +2,7 @@ use crate::{create_area, create_area_w_components, setup_bevy_app, setup_player}
 use adv_civ::civilization::{
     AvailableMoves, CameraFocusQueue, GameArea, GameFaction, GameMove, LandPassage,
     MoveTokenFromAreaToAreaCommand, PlayerAreas, PlayerMovementEnded, PlayerShips, Population,
-    RecalculatePlayerMoves, SeaPassage, ShipFerryCommand, TokenHasMoved, TokenStock,
+    RecalculatePlayerMoves, SeaPassage, ShipFerryCommand, ShipVoyages, TokenHasMoved, TokenStock,
     execute_ship_ferry, move_tokens_from_area_to_area, recalculate_movement_moves_for_player,
 };
 use adv_civ::{GameActivity, GameState};
@@ -463,6 +463,7 @@ fn ship_ferry_moves_tokens_and_the_ship_to_the_target_area() {
         .add_message::<RecalculatePlayerMoves>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
+        .init_resource::<ShipVoyages>()
         .add_systems(Update, execute_ship_ferry);
 
     let (player_one, mut player_one_tokens, _) =
@@ -476,6 +477,7 @@ fn ship_ferry_moves_tokens_and_the_ship_to_the_target_area() {
 
     let source_area = create_area_w_components(&mut app, "source", Some(source_population));
     let target_area = create_area_w_components(&mut app, "target", Some(Population::new(6)));
+    link_by_sea(&mut app, source_area, target_area);
 
     let mut player_areas = PlayerAreas::default();
     for &token in &tokens_to_ferry {
@@ -529,6 +531,7 @@ fn ship_ferry_only_moves_tokens_that_have_not_already_moved() {
         .add_message::<RecalculatePlayerMoves>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
+        .init_resource::<ShipVoyages>()
         .add_systems(Update, execute_ship_ferry);
 
     let (player_one, mut player_one_tokens, _) =
@@ -542,6 +545,7 @@ fn ship_ferry_only_moves_tokens_that_have_not_already_moved() {
 
     let source_area = create_area_w_components(&mut app, "source", Some(source_population));
     let target_area = create_area_w_components(&mut app, "target", Some(Population::new(6)));
+    link_by_sea(&mut app, source_area, target_area);
 
     app.world_mut()
         .entity_mut(already_moved)
@@ -655,6 +659,7 @@ fn ship_ferry_keeps_tokens_in_source_if_target_lookup_fails() {
         .add_message::<RecalculatePlayerMoves>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
+        .init_resource::<ShipVoyages>()
         .add_systems(Update, execute_ship_ferry);
 
     let (player_one, mut player_one_tokens, _) =
@@ -677,6 +682,7 @@ fn ship_ferry_keeps_tokens_in_source_if_target_lookup_fails() {
             Transform::from_xyz(0.0, 0.0, 0.0),
         ))
         .id();
+    link_by_sea(&mut app, source_area, target_area);
 
     let mut player_areas = PlayerAreas::default();
     for &token in &tokens_to_ferry {
@@ -720,6 +726,7 @@ fn ship_ferry_moves_an_empty_ship_with_no_tokens_along() {
         .add_message::<RecalculatePlayerMoves>()
         .insert_state(GameState::Playing)
         .add_sub_state::<GameActivity>()
+        .init_resource::<ShipVoyages>()
         .add_systems(Update, execute_ship_ferry);
 
     let (player_one, _player_one_tokens, _) =
@@ -728,6 +735,7 @@ fn ship_ferry_moves_an_empty_ship_with_no_tokens_along() {
     // Source area has no tokens belonging to player_one at all.
     let source_area = create_area_w_components(&mut app, "source", Some(Population::new(6)));
     let target_area = create_area_w_components(&mut app, "target", Some(Population::new(6)));
+    link_by_sea(&mut app, source_area, target_area);
 
     app.world_mut()
         .entity_mut(player_one)
@@ -754,4 +762,18 @@ fn ship_ferry_moves_an_empty_ship_with_no_tokens_along() {
     let ships = app.world().get::<PlayerShips>(player_one).unwrap();
     assert_eq!(ships.ships_in_area(source_area), []);
     assert_eq!(ships.ships_in_area(target_area), &[ship]);
+}
+
+/// Join two areas by a sea passage, both ways, so a ship can sail between them.
+fn link_by_sea(app: &mut App, a: bevy::prelude::Entity, b: bevy::prelude::Entity) {
+    for (from, to) in [(a, b), (b, a)] {
+        let mut entity = app.world_mut().entity_mut(from);
+        if let Some(mut passage) = entity.get_mut::<SeaPassage>() {
+            passage.add_passage(to);
+        } else {
+            let mut passage = SeaPassage::default();
+            passage.add_passage(to);
+            entity.insert(passage);
+        }
+    }
 }

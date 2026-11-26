@@ -303,7 +303,9 @@ pub fn execute_ship_ferry(
         };
         let (target_ready, target_pos) = pop_query
             .get(ev.target_area)
-            .map_or((false, Default::default()), |(_, t)| (true, t.translation));
+            .map_or((false, bevy::math::Vec3::default()), |(_, t)| {
+                (true, t.translation)
+            });
         if !target_ready || player_areas_query.get(ev.player).is_err() {
             recalculate_player_moves.write(RecalculatePlayerMoves::new(ev.player));
             continue;
@@ -318,14 +320,13 @@ pub fn execute_ship_ferry(
             .get(ev.source_area)
             .ok()
             .and_then(|(pop, _)| pop.player_tokens().get(&ev.player).cloned())
-            .map(|tokens| {
+            .map_or_else(Vec::new, |tokens| {
                 tokens
                     .into_iter()
                     .filter(|t| tokens_that_can_move.get(*t).is_ok())
                     .take(ev.number_of_tokens.min(room))
                     .collect()
-            })
-            .unwrap_or_default();
+            });
         for &token in &boarding {
             commands.entity(token).insert(TokenHasMoved);
         }
@@ -467,7 +468,7 @@ mod ship_voyage_tests {
 
     #[test]
     fn tokens_ride_several_legs_stepping_on_and_off_on_the_way() {
-        let (mut app, player, [a, b, c, d, e]) = setup();
+        let (mut app, player, [a, b, c, d, far]) = setup();
         // Leg 1: one aboard in A, sail to B.
         sail(&mut app, ShipFerryCommand::leg(a, b, 0, 1, player));
         assert_eq!((tokens(&app, a, player), tokens(&app, b, player)), (4, 3));
@@ -479,14 +480,14 @@ mod ship_voyage_tests {
         sail(&mut app, ShipFerryCommand::leg(c, d, 1, 5, player));
         assert_eq!((tokens(&app, c, player), tokens(&app, d, player)), (1, 1));
         // Leg 4 uses the last of the four areas; a fifth is refused.
-        sail(&mut app, ShipFerryCommand::leg(d, e, 0, 0, player));
-        assert_eq!(tokens(&app, e, player), 1);
-        sail(&mut app, ShipFerryCommand::leg(e, d, 0, 0, player));
-        assert_eq!(tokens(&app, e, player), 1, "out of range");
+        sail(&mut app, ShipFerryCommand::leg(d, far, 0, 0, player));
+        assert_eq!(tokens(&app, far, player), 1);
+        sail(&mut app, ShipFerryCommand::leg(far, d, 0, 0, player));
+        assert_eq!(tokens(&app, far, player), 1, "out of range");
         let ships = app.world().get::<PlayerShips>(player).unwrap();
-        assert_eq!(ships.ships_in_area(e).len(), 1);
+        assert_eq!(ships.ships_in_area(far).len(), 1);
         // Nothing was lost on the way.
-        let total: usize = [a, b, c, d, e]
+        let total: usize = [a, b, c, d, far]
             .iter()
             .map(|x| tokens(&app, *x, player))
             .sum();

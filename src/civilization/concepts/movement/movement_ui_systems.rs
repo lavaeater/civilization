@@ -760,7 +760,7 @@ pub fn update_ship_status_display(
         }
     };
     for mut text in &mut status_text {
-        **text = status.clone();
+        text.0.clone_from(&status);
     }
     for mut text in &mut drop_text {
         **text = format!(
