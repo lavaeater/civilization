@@ -1,33 +1,24 @@
-//! The human's side of the trade table (docs/trade-dialog-design.md, step 2):
-//! the feed of talk and proposals, grouped by thread, the buttons that turn a
-//! line into a pre-filled reply or proposal, and the "say something" dialog.
+//! The human's trade controls (docs/trade-dialog-design.md, step 2): the
+//! buttons that turn a line or a proposal into a pre-filled reply, proposal or
+//! counter, and the "say something" dialog. The inbox that shows them is in
+//! `trade_inbox.rs`.
 
+use crate::civilization::TradeCardTrait;
 use crate::civilization::concepts::acquire_trade_cards::{PlayerTradeCards, TradeCard};
-use crate::civilization::concepts::trade::trade_components::{
-    CanTrade, OpenOffersListContainer, OpenTradeOffer,
-};
-use crate::civilization::concepts::trade::trade_functions::offer_hand_values;
+use crate::civilization::concepts::trade::trade_components::OpenTradeOffer;
 use crate::civilization::concepts::trade::trade_resources::{
     CreateOfferState, TradePhaseState, TradeUiState,
 };
 use crate::civilization::concepts::trade::trade_systems::{
-    ACCEPT_OFFER_PALETTE, AcceptOfferButton, CREATE_OFFER_PALETTE, DONE_TRADING_PALETTE,
-    DeclineOfferButton, commodity_color,
+    ACCEPT_OFFER_PALETTE, CREATE_OFFER_PALETTE, DONE_TRADING_PALETTE, commodity_color,
 };
 use crate::civilization::concepts::trade::trade_talk::{
     ProposalDraft, TalkDraft, TalkKind, TradeTalk,
 };
 use crate::civilization::ui::{ButtonActivated, game_button};
-use crate::civilization::{TradeCardTrait, hidden_text};
-use crate::stupid_ai::IsHuman;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use lava_ui_builder::InteractionPalette;
-
-/// Threads shown in the feed; the rest have gone quiet.
-const THREADS_SHOWN: usize = 10;
-/// Statements shown per thread: the opening one and the latest few.
-const LINES_PER_THREAD: usize = 6;
 
 /// "💬 Say…" on the trade panel.
 #[derive(Component, Default)]
@@ -89,25 +80,9 @@ pub struct TalkCardToggle {
     pub have: bool,
 }
 
-// ── Feed ────────────────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
-enum FeedItem<'a> {
-    Talk(Entity, &'a TradeTalk),
-    Offer(Entity, &'a OpenTradeOffer),
-}
-
-impl FeedItem<'_> {
-    /// When it was said; the countdown runs down, so higher is older.
-    fn at(&self) -> u32 {
-        match self {
-            FeedItem::Talk(_, t) => t.said_at,
-            FeedItem::Offer(_, o) => o.posted_at,
-        }
-    }
-}
-
-/// "2x Iron, Salt" for one named side of a proposal.
-fn side_text(side: &HashMap<TradeCard, usize>) -> String {
+pub(crate) fn side_text(side: &HashMap<TradeCard, usize>) -> String {
     let mut cards: Vec<(TradeCard, usize)> = side.iter().map(|(c, n)| (*c, *n)).collect();
     cards.sort_by_key(|(c, _)| std::cmp::Reverse(c.value()));
     let parts: Vec<String> = cards
@@ -127,7 +102,7 @@ fn side_text(side: &HashMap<TradeCard, usize>) -> String {
     }
 }
 
-fn small_button(
+pub(crate) fn small_button(
     parent: &mut ChildSpawnerCommands,
     label: &str,
     palette: InteractionPalette,
@@ -153,387 +128,6 @@ fn small_button(
             },
             TextColor(Color::WHITE),
         ));
-}
-
-fn feed_text(parent: &mut ChildSpawnerCommands, text: String, size: f32, color: Color) {
-    parent.spawn((
-        Text::new(text),
-        TextFont {
-            font_size: FontSize::Px(size),
-            ..Default::default()
-        },
-        TextColor(color),
-        Node {
-            flex_grow: 1.0,
-            flex_shrink: 1.0,
-            ..Default::default()
-        },
-    ));
-}
-
-const TALK_COLOR: Color = Color::srgb(0.65, 0.7, 0.75);
-const TO_ME_COLOR: Color = Color::srgb(0.95, 0.85, 0.4);
-const MINE_COLOR: Color = Color::srgb(0.6, 0.75, 0.95);
-
-/// The table, grouped by thread: the threads with a proposal waiting on the
-/// human first, then the liveliest. Each thread shows its opening line and
-/// its latest statements, oldest first, with what can be done about each.
-#[allow(clippy::too_many_arguments)]
-pub fn update_trade_table_feed(
-    mut commands: Commands,
-    changed_offers: Query<(), Changed<OpenTradeOffer>>,
-    offers: Query<(Entity, &OpenTradeOffer)>,
-    new_talk: Query<(), Added<TradeTalk>>,
-    talk: Query<(Entity, &TradeTalk)>,
-    mut removed_offers: RemovedComponents<OpenTradeOffer>,
-    mut removed_talk: RemovedComponents<TradeTalk>,
-    container_query: Query<Entity, With<OpenOffersListContainer>>,
-    trade_ui_state: Res<TradeUiState>,
-    trade_phase_state: Res<TradePhaseState>,
-    hands: Query<&PlayerTradeCards>,
-    changed_hand: Query<(), (With<IsHuman>, Changed<PlayerTradeCards>)>,
-    at_table: Query<(), With<CanTrade>>,
-) {
-    let left = removed_offers.read().count() + removed_talk.read().count() > 0;
-    if changed_offers.is_empty() && new_talk.is_empty() && changed_hand.is_empty() && !left {
-        return;
-    }
-    let Ok(container) = container_query.single() else {
-        return;
-    };
-    commands.entity(container).despawn_related::<Children>();
-
-    let human = trade_ui_state.human_player;
-    let human_trading =
-        !trade_phase_state.human_done && human.is_some_and(|h| at_table.contains(h));
-    let is_human = |e: Entity| human == Some(e);
-
-    // Gather everything into threads.
-    let talk_ids: Vec<Entity> = talk.iter().map(|(e, _)| e).collect();
-    let root_of = |own: Entity, thread: Option<Entity>| {
-        thread.filter(|t| talk_ids.contains(t)).unwrap_or(own)
-    };
-    let mut threads: HashMap<Entity, Vec<FeedItem>> = HashMap::default();
-    for (entity, t) in &talk {
-        // Others' "no deal"s are noise; only those to or from us show.
-        if matches!(t.kind, TalkKind::Decline(_)) && !is_human(t.speaker) && t.to != human {
-            continue;
-        }
-        threads
-            .entry(root_of(entity, t.thread))
-            .or_default()
-            .push(FeedItem::Talk(entity, t));
-    }
-    for (entity, offer) in &offers {
-        if offer.withdrawn && offer.accepted_by.is_none() {
-            continue;
-        }
-        threads
-            .entry(root_of(entity, offer.thread))
-            .or_default()
-            .push(FeedItem::Offer(entity, offer));
-    }
-
-    if threads.is_empty() {
-        commands.entity(container).with_children(|parent| {
-            feed_text(
-                parent,
-                "Nobody has said anything yet. Say what you want, or propose a deal.".into(),
-                14.0,
-                Color::srgb(0.5, 0.5, 0.5),
-            );
-        });
-        return;
-    }
-
-    let waits_on_me = |items: &Vec<FeedItem>| {
-        items.iter().any(|i| match i {
-            FeedItem::Offer(_, o) => human.is_some_and(|h| o.can_accept(h)),
-            FeedItem::Talk(..) => false,
-        })
-    };
-    let mut ordered: Vec<(Entity, Vec<FeedItem>)> = threads.into_iter().collect();
-    for (_, items) in &mut ordered {
-        // Oldest first within a thread.
-        items.sort_by_key(|i| std::cmp::Reverse(i.at()));
-    }
-    ordered.sort_by_key(|(root, items)| {
-        (
-            !waits_on_me(items),
-            items.iter().map(FeedItem::at).min().unwrap_or(0),
-            *root,
-        )
-    });
-
-    let my_hand: HashMap<TradeCard, usize> = human
-        .and_then(|h| hands.get(h).ok())
-        .map_or_else(HashMap::default, |h| {
-            h.commodity_cards().into_iter().collect()
-        });
-
-    commands.entity(container).with_children(|parent| {
-        for (_, items) in ordered.iter().take(THREADS_SHOWN) {
-            let mine_waiting = waits_on_me(items);
-            parent
-                .spawn((
-                    Node {
-                        width: Val::Percent(100.0),
-                        flex_direction: FlexDirection::Column,
-                        padding: UiRect::axes(Val::Px(6.0), Val::Px(4.0)),
-                        margin: UiRect::bottom(Val::Px(6.0)),
-                        border: UiRect::left(Val::Px(3.0)),
-                        ..Default::default()
-                    },
-                    BackgroundColor(Color::srgba(0.15, 0.15, 0.2, 0.7)),
-                    BorderColor::all(if mine_waiting {
-                        TO_ME_COLOR
-                    } else {
-                        Color::srgb(0.3, 0.3, 0.4)
-                    }),
-                ))
-                .with_children(|thread| {
-                    // The opening line, then the latest few.
-                    let skip = items.len().saturating_sub(LINES_PER_THREAD);
-                    for (i, item) in items.iter().enumerate() {
-                        if i > 0 && i <= skip {
-                            if i == 1 {
-                                feed_text(
-                                    thread,
-                                    format!("  … {skip} earlier"),
-                                    11.0,
-                                    Color::srgb(0.45, 0.45, 0.5),
-                                );
-                            }
-                            continue;
-                        }
-                        match item {
-                            FeedItem::Talk(entity, t) => spawn_talk_line(
-                                thread,
-                                *entity,
-                                t,
-                                human,
-                                human_trading && at_table.contains(t.speaker),
-                            ),
-                            FeedItem::Offer(entity, offer) => spawn_proposal(
-                                thread,
-                                *entity,
-                                offer,
-                                human,
-                                human_trading,
-                                &my_hand,
-                                &at_table,
-                            ),
-                        }
-                    }
-                });
-        }
-        let quiet = ordered.len().saturating_sub(THREADS_SHOWN);
-        if quiet > 0 {
-            feed_text(
-                parent,
-                format!("{quiet} quieter thread(s) not shown"),
-                11.0,
-                Color::srgb(0.45, 0.45, 0.5),
-            );
-        }
-    });
-}
-
-fn spawn_talk_line(
-    thread: &mut ChildSpawnerCommands,
-    entity: Entity,
-    t: &TradeTalk,
-    human: Option<Entity>,
-    can_answer: bool,
-) {
-    let from_me = human == Some(t.speaker);
-    let color = if from_me {
-        MINE_COLOR
-    } else if human.is_some() && t.to == human {
-        TO_ME_COLOR
-    } else {
-        TALK_COLOR
-    };
-    let indent = if t.thread.is_some() { 12.0 } else { 0.0 };
-    thread
-        .spawn(Node {
-            width: Val::Percent(100.0),
-            flex_direction: FlexDirection::Row,
-            align_items: AlignItems::Center,
-            margin: UiRect {
-                left: Val::Px(indent),
-                bottom: Val::Px(2.0),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .with_children(|row| {
-            feed_text(row, format!("💬 {}", t.line()), 12.0, color);
-            let answerable = !matches!(t.kind, TalkKind::Decline(_));
-            if can_answer && !from_me && answerable {
-                small_button(
-                    row,
-                    "Reply",
-                    CREATE_OFFER_PALETTE,
-                    TalkLineButton {
-                        talk: entity,
-                        action: LineAction::Reply,
-                    },
-                );
-                small_button(
-                    row,
-                    "Propose",
-                    ACCEPT_OFFER_PALETTE,
-                    TalkLineButton {
-                        talk: entity,
-                        action: LineAction::Propose,
-                    },
-                );
-            }
-        });
-}
-
-fn spawn_proposal(
-    thread: &mut ChildSpawnerCommands,
-    entity: Entity,
-    offer: &OpenTradeOffer,
-    human: Option<Entity>,
-    human_trading: bool,
-    my_hand: &HashMap<TradeCard, usize>,
-    at_table: &Query<(), With<CanTrade>>,
-) {
-    let mine = human == Some(offer.creator);
-    let to_me = human.is_some_and(|h| offer.can_accept(h));
-    let color = if to_me {
-        TO_ME_COLOR
-    } else if mine {
-        MINE_COLOR
-    } else {
-        Color::srgb(0.8, 0.8, 0.8)
-    };
-    let wanting_hidden = if offer.wanting_hidden_count > 0 {
-        format!(" +{} hidden", offer.wanting_hidden_count)
-    } else {
-        String::new()
-    };
-    let to = offer.target_name.as_deref().unwrap_or("?");
-    let line = format!(
-        "📜 {} -> {to}: gives {}{} for {}{wanting_hidden}",
-        offer.creator_name,
-        side_text(&offer.offering_guaranteed),
-        hidden_text(offer.offering_hidden_count, &offer.offering_claimed),
-        side_text(&offer.wanting_guaranteed),
-    );
-
-    thread
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                padding: UiRect::all(Val::Px(4.0)),
-                margin: UiRect {
-                    left: Val::Px(12.0),
-                    bottom: Val::Px(3.0),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            BackgroundColor(if to_me {
-                Color::srgba(0.3, 0.27, 0.1, 0.6)
-            } else {
-                Color::srgba(0.1, 0.1, 0.14, 0.6)
-            }),
-        ))
-        .with_children(|card| {
-            feed_text(card, line, 12.0, color);
-            if let Some(by) = &offer.accepted_by_name {
-                feed_text(
-                    card,
-                    format!("✅ Accepted by {by}"),
-                    11.0,
-                    Color::srgb(0.5, 0.9, 0.5),
-                );
-                return;
-            }
-            if to_me {
-                // What taking it does to our hand: we give what it asks for.
-                let (before, after) = offer_hand_values(
-                    my_hand,
-                    &offer.wanting_guaranteed,
-                    offer.wanting_hidden_count,
-                    &offer.offering_guaranteed,
-                );
-                let net = after as i64 - before as i64;
-                let unknown = if offer.offering_hidden_count > 0 {
-                    format!(" + {} hidden card(s) you get", offer.offering_hidden_count)
-                } else {
-                    String::new()
-                };
-                feed_text(
-                    card,
-                    format!(
-                        "Your hand value: {before} -> {after} (net {net:+}){unknown}. Your hidden cards count as your cheapest."
-                    ),
-                    11.0,
-                    Color::srgb(0.85, 0.85, 0.6),
-                );
-            }
-            if !human_trading {
-                return;
-            }
-            card.spawn(Node {
-                width: Val::Percent(100.0),
-                flex_direction: FlexDirection::Row,
-                justify_content: JustifyContent::FlexEnd,
-                margin: UiRect::top(Val::Px(2.0)),
-                ..Default::default()
-            })
-            .with_children(|buttons| {
-                if to_me {
-                    small_button(
-                        buttons,
-                        "Accept",
-                        ACCEPT_OFFER_PALETTE,
-                        AcceptOfferButton { offer: entity },
-                    );
-                    small_button(
-                        buttons,
-                        "Decline",
-                        DONE_TRADING_PALETTE,
-                        DeclineOfferButton { offer: entity },
-                    );
-                    small_button(
-                        buttons,
-                        "Counter",
-                        CREATE_OFFER_PALETTE,
-                        ProposalActionButton {
-                            offer: entity,
-                            action: ProposalAction::Counter,
-                        },
-                    );
-                } else if mine {
-                    small_button(
-                        buttons,
-                        "Withdraw",
-                        DONE_TRADING_PALETTE,
-                        ProposalActionButton {
-                            offer: entity,
-                            action: ProposalAction::Withdraw,
-                        },
-                    );
-                } else if offer.target.is_some_and(|t| at_table.contains(t)) {
-                    small_button(
-                        buttons,
-                        &format!("Outbid to {to}"),
-                        CREATE_OFFER_PALETTE,
-                        ProposalActionButton {
-                            offer: entity,
-                            action: ProposalAction::Outbid,
-                        },
-                    );
-                }
-            });
-        });
 }
 
 // ── Turning lines into replies and proposals ───────────────────────────────
@@ -907,62 +501,5 @@ pub fn despawn_talk_composer(
     }
     for entity in &modal {
         commands.entity(entity).despawn();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use bevy::ecs::system::RunSystemOnce;
-
-    fn hand(cards: &[(TradeCard, usize)]) -> PlayerTradeCards {
-        let mut hand = PlayerTradeCards::default();
-        for (card, n) in cards {
-            hand.add_trade_cards(*card, *n);
-        }
-        hand
-    }
-
-    /// The human sees Reply/Propose on others' talk, Accept/Decline/Counter
-    /// only on a proposal made to them, and Outbid on one made to someone else.
-    #[test]
-    fn the_feed_offers_the_right_buttons() {
-        let mut world = World::new();
-        world.init_resource::<TradePhaseState>();
-        let human = world
-            .spawn((IsHuman, CanTrade, hand(&[(TradeCard::Iron, 2)])))
-            .id();
-        let b = world.spawn((CanTrade, hand(&[]))).id();
-        let c = world.spawn((CanTrade, hand(&[]))).id();
-        world.insert_resource(TradeUiState {
-            human_player: Some(human),
-        });
-        world.spawn((OpenOffersListContainer, Node::default()));
-        let want = world
-            .spawn(TradeTalk::new(b, "B", TalkKind::Want(vec![TradeCard::Iron])).at(80.0))
-            .id();
-        let mut to_me = OpenTradeOffer::new(b, "B", Some(human), Some("Me".into()));
-        to_me.thread = Some(want);
-        to_me.offering_guaranteed = HashMap::from([(TradeCard::Salt, 2)]);
-        to_me.wanting_guaranteed = HashMap::from([(TradeCard::Iron, 2)]);
-        let to_me = world.spawn(to_me).id();
-        let to_c = world
-            .spawn(OpenTradeOffer::new(b, "B", Some(c), Some("C".into())))
-            .id();
-
-        world.run_system_once(update_trade_table_feed).unwrap();
-
-        let mut q = world.query::<&TalkLineButton>();
-        let lines: Vec<(Entity, LineAction)> = q.iter(&world).map(|b| (b.talk, b.action)).collect();
-        assert!(lines.contains(&(want, LineAction::Reply)));
-        assert!(lines.contains(&(want, LineAction::Propose)));
-        let mut q = world.query::<&AcceptOfferButton>();
-        let accept: Vec<Entity> = q.iter(&world).map(|b| b.offer).collect();
-        assert_eq!(accept, vec![to_me], "only the proposal to the human");
-        let mut q = world.query::<&ProposalActionButton>();
-        let actions: Vec<(Entity, ProposalAction)> =
-            q.iter(&world).map(|b| (b.offer, b.action)).collect();
-        assert!(actions.contains(&(to_me, ProposalAction::Counter)));
-        assert!(actions.contains(&(to_c, ProposalAction::Outbid)));
     }
 }

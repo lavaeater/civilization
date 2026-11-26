@@ -1,5 +1,9 @@
 use crate::GameActivity;
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
+use crate::civilization::concepts::trade::trade_inbox::{
+    TradeInbox, collect_inbox, handle_inbox_buttons, handle_table_log_toggle, inbox_shortcuts,
+    render_inbox_card, render_my_deals, render_table_log,
+};
 use crate::civilization::concepts::trade::trade_resources::{
     CreateOfferState, TradeCountdown, TradePhaseState, TradeUiState,
 };
@@ -7,7 +11,7 @@ use crate::civilization::concepts::trade::trade_systems::*;
 use crate::civilization::concepts::trade::trade_table_ui::{
     despawn_talk_composer, handle_proposal_action_buttons, handle_say_button,
     handle_talk_composer_buttons, handle_talk_line_buttons, spawn_talk_composer,
-    update_talk_composer, update_trade_table_feed,
+    update_talk_composer,
 };
 use crate::civilization::concepts::trade::trade_talk::{
     TalkDraft, ai_trade_talk, clear_withdrawn_offers, log_new_talk, prune_old_talk,
@@ -26,6 +30,7 @@ impl Plugin for TradePlugin {
             .init_resource::<TradePhaseState>()
             .init_resource::<CreateOfferState>()
             .init_resource::<TalkDraft>()
+            .init_resource::<TradeInbox>()
             .add_message::<SendTradingCardsCommand>()
             .add_systems(
                 OnEnter(GameActivity::Trade),
@@ -44,7 +49,6 @@ impl Plugin for TradePlugin {
                     check_trade_gate,
                     update_trade_countdown_display,
                     update_player_trading_status,
-                    update_trade_table_feed,
                     handle_done_trading_button,
                     handle_create_offer_button,
                     handle_accept_offer_button,
@@ -83,6 +87,20 @@ impl Plugin for TradePlugin {
                     handle_talk_composer_buttons,
                     update_talk_composer,
                     despawn_talk_composer,
+                )
+                    .chain()
+                    .run_if(in_state(GameActivity::Trade)),
+            )
+            .add_systems(
+                Update,
+                (
+                    collect_inbox,
+                    inbox_shortcuts,
+                    handle_inbox_buttons,
+                    render_inbox_card,
+                    render_my_deals,
+                    handle_table_log_toggle,
+                    render_table_log,
                 )
                     .chain()
                     .run_if(in_state(GameActivity::Trade)),

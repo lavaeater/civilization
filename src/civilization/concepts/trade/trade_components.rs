@@ -477,10 +477,6 @@ impl OpenTradeOffer {
     }
 }
 
-/// Marker for the trade offers list UI container
-#[derive(Component, Default)]
-pub struct OpenOffersListContainer;
-
 /// Marker for the "Create Offer" modal
 #[derive(Component, Default)]
 pub struct CreateOfferModal;

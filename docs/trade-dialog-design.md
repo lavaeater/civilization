@@ -1,7 +1,7 @@
 # Dialog-based trade
 
-Status: steps 1 (rules, data, AI adapter) and 2 (human screen) built on
-branch `trade-dialog`; steps 3–4 to do. Replaces the "open offer anyone can accept"
+Status: steps 1 (rules, data, AI adapter), 2 and 2b (human screen, inbox)
+built on branch `trade-dialog`; steps 3–4 to do. Replaces the "open offer anyone can accept"
 model in `concepts/trade` with a table conversation that works like trading
 around a real board.
 
@@ -114,6 +114,22 @@ nine AIs still produce a readable feed.
    "I have"; a bare want said to the table is a Want, anything else a Reply.
    The composer pauses the clock like the other dialogs. Drafts are pure
    functions in `trade_talk.rs` (`ProposalDraft`, `TalkDraft`).
+2b. **Inbox** (play-test: the threaded feed still jumped around too much to
+   follow). `trade_inbox.rs` replaces the feed with one card at a time:
+   - Only what concerns you is queued: proposals to you first, then what is
+     said to you and news about your deals (a proposal taken), then wants
+     for cards you hold. Everything else goes to the table log.
+   - Nothing replaces the card until you act on it. New arrivals only move
+     the "N more waiting" counter; a proposal goes first in line.
+   - A card that goes stale while shown (withdrawn, speaker left) greys out
+     and waits for Next; stale cards still in the queue are dropped unseen.
+   - Talk cards: Dismiss (silent; mutes that conversation), No thanks (says
+     no out loud), Mute <player>, Reply, Propose. Proposal cards: Accept,
+     No thanks, Counter. Keys D, N, M, R, P, A, C and Enter.
+   - "Your deals" shows your current want and every proposal you have out,
+     with Withdraw. The table log is collapsed behind a one-line ticker of
+     the latest statement and only grows at the bottom.
+   - Each AI has at most one proposal waiting on a human at a time.
 3. **AI conversation**: replying, countering, undercutting, declining; compare
    self-play pass-on rate and trade value with today.
 4. **Later**: multiplayer — messages are moves, so they fit the move-based

@@ -3,12 +3,16 @@ use crate::civilization::concepts::acquire_trade_cards::PlayerTradeCards;
 use crate::civilization::concepts::acquire_trade_cards::TradeCard;
 use crate::civilization::concepts::trade::trade_components::{
     AvailableTradeOfferActions, CanTrade, CreateOfferButton, CreateOfferModal, DoneTradingButton,
-    InSettlement, NeedsTradeMove, OpenOffersListContainer, OpenTradeOffer, PlayerSettlements,
-    PlayerTradeInterests, PublishedOffer, SettlementModal, TradeOffer,
+    InSettlement, NeedsTradeMove, OpenTradeOffer, PlayerSettlements, PlayerTradeInterests,
+    PublishedOffer, SettlementModal, TradeOffer,
 };
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::trade_functions::{
     cheapest_cards_to_give, offer_hand_values, plan_ai_dump_offers, plan_ai_offers,
+};
+use crate::civilization::concepts::trade::trade_inbox::{
+    InboxCardContainer, InboxCounterText, MyDealsContainer, TableLogContainer, TableLogToggle,
+    TableTickerText, TradeInbox,
 };
 use crate::civilization::concepts::trade::trade_resources::{
     CreateOfferState, HUMAN_TABLE_PACE, TradeCountdown, TradePhaseState, TradeUiState,
@@ -440,7 +444,9 @@ pub fn setup_trade_phase_ui(
     trade_ui_state: Res<TradeUiState>,
     human_player_query: Query<(&Name, &PlayerTradeCards), With<IsHuman>>,
     mut trade_phase_state: ResMut<TradePhaseState>,
+    mut inbox: ResMut<TradeInbox>,
 ) {
+    inbox.reset();
     trade_phase_state.countdown_seconds = 90.0; // 90 seconds
     trade_phase_state.last_new_offer_at = 90.0;
     trade_phase_state.human_done = false;
@@ -656,53 +662,119 @@ pub fn setup_trade_phase_ui(
                         .with_children(|cards_row| spawn_hand_chips(cards_row, player_cards));
                 });
 
-            // Open offers section
+            // The inbox: one card at a time, what is waiting, your own
+            // deals, and the rest of the table as a quiet log.
             parent
                 .spawn(Node {
                     width: Val::Percent(100.0),
                     flex_grow: 1.0,
-                    // Let the section shrink to the space left so the list
-                    // inside scrolls instead of growing past the panel.
+                    // Shrink to the space left; the log scrolls inside.
                     min_height: Val::Px(0.0),
                     flex_direction: FlexDirection::Column,
                     ..Default::default()
                 })
-                .with_children(|offers_section| {
-                    // Section header
-                    offers_section.spawn((
-                        Text::new("🗣 The table: newest first. Reply or propose from any line."),
+                .with_children(|inbox| {
+                    inbox.spawn((
+                        InboxCardContainer,
+                        Node {
+                            width: Val::Percent(100.0),
+                            min_height: Val::Px(150.0),
+                            flex_shrink: 0.0,
+                            flex_direction: FlexDirection::Column,
+                            padding: UiRect::all(Val::Px(12.0)),
+                            border: UiRect::left(Val::Px(4.0)),
+                            ..Default::default()
+                        },
+                        BackgroundColor(Color::srgba(0.18, 0.17, 0.14, 0.95)),
+                        BorderColor::all(Color::srgb(0.85, 0.65, 0.25)),
+                    ));
+                    inbox.spawn((
+                        InboxCounterText,
+                        Text::new(""),
                         TextFont {
-                            font_size: FontSize::Px(18.0),
+                            font_size: FontSize::Px(12.0),
+                            ..Default::default()
+                        },
+                        TextColor(Color::srgb(0.85, 0.75, 0.4)),
+                        Node {
+                            margin: UiRect::vertical(Val::Px(6.0)),
+                            ..Default::default()
+                        },
+                    ));
+                    inbox.spawn((
+                        Text::new("Your deals"),
+                        TextFont {
+                            font_size: FontSize::Px(13.0),
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.7, 0.7, 0.7)),
                     ));
-
-                    // Offers list container (will be populated dynamically)
-                    offers_section
-                        .spawn((
-                            OpenOffersListContainer,
-                            Node {
-                                width: Val::Percent(100.0),
-                                flex_grow: 1.0,
-                                min_height: Val::Px(0.0),
-                                flex_direction: FlexDirection::Column,
-                                overflow: Overflow::scroll_y(),
-                                margin: UiRect::top(Val::Px(8.0)),
-                                padding: UiRect::all(Val::Px(8.0)),
-                                ..Default::default()
-                            },
-                            ScrollPosition::default(),
-                            BackgroundColor(Color::srgba(0.1, 0.1, 0.12, 0.5)),
-                        ))
-                        .with_child((
-                            Text::new("Nobody has said anything yet."),
-                            TextFont {
-                                font_size: FontSize::Px(14.0),
-                                ..Default::default()
-                            },
-                            TextColor(Color::srgb(0.5, 0.5, 0.5)),
-                        ));
+                    inbox.spawn((
+                        MyDealsContainer,
+                        Node {
+                            width: Val::Percent(100.0),
+                            flex_shrink: 0.0,
+                            flex_direction: FlexDirection::Column,
+                            padding: UiRect::all(Val::Px(6.0)),
+                            margin: UiRect::bottom(Val::Px(8.0)),
+                            ..Default::default()
+                        },
+                        BackgroundColor(Color::srgba(0.12, 0.14, 0.2, 0.7)),
+                    ));
+                    inbox
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Row,
+                            align_items: AlignItems::Center,
+                            flex_shrink: 0.0,
+                            ..Default::default()
+                        })
+                        .with_children(|row| {
+                            row.spawn((
+                                game_button(),
+                                TableLogToggle,
+                                Node {
+                                    padding: UiRect::axes(Val::Px(8.0), Val::Px(3.0)),
+                                    margin: UiRect::right(Val::Px(8.0)),
+                                    ..Default::default()
+                                },
+                                BackgroundColor(CREATE_OFFER_PALETTE.none),
+                                CREATE_OFFER_PALETTE,
+                            ))
+                            .with_child((
+                                Text::new("Table log"),
+                                TextFont {
+                                    font_size: FontSize::Px(11.0),
+                                    ..Default::default()
+                                },
+                                TextColor(Color::WHITE),
+                            ));
+                            row.spawn((
+                                TableTickerText,
+                                Text::new(""),
+                                TextFont {
+                                    font_size: FontSize::Px(11.0),
+                                    ..Default::default()
+                                },
+                                TextColor(Color::srgb(0.55, 0.55, 0.6)),
+                            ));
+                        });
+                    inbox.spawn((
+                        TableLogContainer,
+                        Node {
+                            display: Display::None,
+                            width: Val::Percent(100.0),
+                            flex_grow: 1.0,
+                            min_height: Val::Px(0.0),
+                            flex_direction: FlexDirection::Column,
+                            justify_content: JustifyContent::FlexEnd,
+                            overflow: Overflow::clip_y(),
+                            margin: UiRect::top(Val::Px(4.0)),
+                            padding: UiRect::all(Val::Px(6.0)),
+                            ..Default::default()
+                        },
+                        BackgroundColor(Color::srgba(0.1, 0.1, 0.12, 0.5)),
+                    ));
                 });
         });
 }
@@ -2805,6 +2877,7 @@ pub fn ai_create_trade_offers(
     traders: Query<(Entity, &Name, &PlayerCities), With<CanTrade>>,
     mut existing_offers: Query<&mut OpenTradeOffer>,
     talk: Query<(Entity, &TradeTalk)>,
+    humans: Query<(), With<IsHuman>>,
     mut ai_offer_timer: Local<f32>,
     mut trade_phase_state: ResMut<TradePhaseState>,
 ) {
@@ -2915,6 +2988,14 @@ pub fn ai_create_trade_offers(
         // and among equally good fits the more profitable deal (earlier in
         // `plans`) wins.
         let plan_count = plans.len().max(1) as f32;
+        // A human answers one proposal at a time: while ours to them is
+        // still waiting, they get no other from us.
+        let waiting_on_human: Vec<Entity> = existing_offers
+            .iter()
+            .filter(|o| o.creator == ai_entity && !o.withdrawn && o.accepted_by.is_none())
+            .filter_map(|o| o.target)
+            .filter(|t| humans.contains(*t))
+            .collect();
         let choice = plans
             .into_iter()
             .enumerate()
@@ -2926,6 +3007,7 @@ pub fn ai_create_trade_offers(
                 candidates
                     .into_iter()
                     .filter(|p| !open.contains(&(Some(*p), plan.want.clone())))
+                    .filter(|p| !waiting_on_human.contains(p))
                     .map(|p| {
                         let fit = table.partner_score(ai_entity, p, &plan.give, &plan.want);
                         let key = fit
