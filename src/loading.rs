@@ -74,4 +74,10 @@ pub struct TextureAssets {
     pub thrace_city: Handle<Image>,
     #[asset(path = "textures/ship.png")]
     pub ship: Handle<Image>,
+    #[asset(path = "textures/barbarian.png")]
+    pub barbarian: Handle<Image>,
+    #[asset(path = "textures/pirate.png")]
+    pub pirate: Handle<Image>,
+    #[asset(path = "textures/pirate-city.png")]
+    pub pirate_city: Handle<Image>,
 }

@@ -142,6 +142,8 @@ pub struct AvailableFactions {
     pub remaining_factions: HashSet<GameFaction>,
     pub faction_icons: HashMap<GameFaction, Handle<Image>>,
     pub faction_city_icons: HashMap<GameFaction, Handle<Image>>,
+    /// Pirate cities have no faction; they get their own icon.
+    pub pirate_city_icon: Option<Handle<Image>>,
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -198,6 +200,7 @@ fn load_map(
     windows: Query<&Window, With<PrimaryWindow>>,
     mut camera: Query<(&Camera, &mut Projection, &mut Transform), With<GameCamera>>,
 ) {
+    available_factions.pirate_city_icon = Some(textures.pirate_city.clone());
     if let Some(level) = maps.get(map.0.id()) {
         let mut ancient_places: HashSet<String> = vec![
             "Assyria",

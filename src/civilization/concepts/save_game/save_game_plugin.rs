@@ -754,7 +754,11 @@ fn restore_area_populations(
             commands
                 .entity(area_entity)
                 .insert(BuiltCity::new(city_token, pirate_nation));
-            if let Some(city_icon) = game_factions.faction_city_icons.values().next() {
+            if let Some(city_icon) = game_factions
+                .pirate_city_icon
+                .as_ref()
+                .or_else(|| game_factions.faction_city_icons.values().next())
+            {
                 commands.entity(city_token).insert((
                     Sprite {
                         image: city_icon.clone(),

@@ -1741,13 +1741,14 @@ pub fn advance_barbarian_hordes(
                         let mut entity_commands = commands.spawn((
                             BarbarianToken,
                             Name::new("Barbarian"),
-                            Transform::from_scale(bevy::math::Vec3::splat(0.3))
+                            Transform::from_scale(bevy::math::Vec3::splat(0.12))
                                 .with_translation(base + offset),
                         ));
                         if let Some(textures) = &textures {
+                            // Their own icon: a tinted dot read as a red
+                            // faction's tokens.
                             entity_commands.insert(Sprite {
-                                image: textures.dot.clone(),
-                                color: bevy::prelude::Color::srgb(0.6, 0.1, 0.05),
+                                image: textures.barbarian.clone(),
                                 ..Default::default()
                             });
                         }
@@ -3806,11 +3807,15 @@ pub fn transfer_city_to_new_owner(
                     .entity(area_entity)
                     .insert(BuiltCity::new(new_city, new_owner));
                 // The new city needs its own icon; the old one's is gone with
-                // it. Pirates have no faction and borrow any icon, as when a
-                // saved game is loaded.
+                // it. Pirates have no faction; they have their own icon.
                 let icon = game_factions.as_deref().and_then(|icons| {
                     factions.get(new_owner).map_or_else(
-                        |_| icons.faction_city_icons.values().next(),
+                        |_| {
+                            icons
+                                .pirate_city_icon
+                                .as_ref()
+                                .or_else(|| icons.faction_city_icons.values().next())
+                        },
                         |f| icons.faction_city_icons.get(&f.faction),
                     )
                 });
