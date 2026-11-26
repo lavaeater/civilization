@@ -7,7 +7,17 @@ pub use chronicle_watchers::*;
 pub use narration_ui::*;
 
 use crate::{GameActivity, GameState};
-use bevy::prelude::{App, IntoScheduleConfigs, Last, OnExit, Plugin, Update, in_state};
+use bevy::prelude::{App, IntoScheduleConfigs, Last, OnExit, Plugin, Res, State, Update, in_state};
+
+/// Run condition: the game is in one of the replay phases.
+pub fn in_replay(activity: Option<Res<State<GameActivity>>>) -> bool {
+    activity.is_some_and(|a| {
+        matches!(
+            a.get(),
+            GameActivity::BattleReplay | GameActivity::CalamityReplay
+        )
+    })
+}
 
 /// The game's story: collects [`Chronicle`] entries, watches the board for
 /// city changes and calamities, and writes the log. No UI.
@@ -29,7 +39,8 @@ impl Plugin for ChroniclePlugin {
                 OnExit(GameActivity::ResolveCalamities),
                 close_calamity_on_exit,
             )
-            .add_systems(Last, (chronicle_city_changes, record_chronicle).chain());
+            .add_systems(Last, (chronicle_city_changes, record_chronicle).chain())
+            .add_systems(Update, finish_replay.run_if(in_replay));
     }
 }
 
@@ -40,6 +51,7 @@ impl Plugin for NarrationUiPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<Narrator>()
             .add_systems(Update, play_narration.run_if(in_state(GameState::Playing)))
+            .add_systems(Update, skip_replay.run_if(in_replay))
             .add_systems(OnExit(GameState::Playing), clear_narration);
     }
 }
@@ -94,6 +106,58 @@ mod tests {
         app.world_mut().entity_mut(area).remove::<BuiltCity>();
         app.update();
         assert_eq!(told(&mut app), ["Thrace lost their city in Thebes"]);
+    }
+
+    /// Conflict over, one battle's toast still to show.
+    fn replay_app(narrator: bool) -> App {
+        let mut app = App::new();
+        app.add_plugins((StatesPlugin, ChroniclePlugin))
+            .insert_state(GameState::Playing)
+            .add_sub_state::<GameActivity>();
+        if narrator {
+            app.init_resource::<Narrator>();
+        }
+        app.world_mut()
+            .resource_mut::<NarrationQueue>()
+            .0
+            .push_back(Narration {
+                entry: Chronicle::toast("Battle in Thebes"),
+                when: String::new(),
+            });
+        app.world_mut()
+            .resource_mut::<bevy::prelude::NextState<GameActivity>>()
+            .set(GameActivity::BattleReplay);
+        app.update();
+        app
+    }
+
+    fn activity(app: &App) -> GameActivity {
+        app.world()
+            .resource::<bevy::prelude::State<GameActivity>>()
+            .get()
+            .clone()
+    }
+
+    /// The replay waits for the last toast, then cities are built.
+    #[test]
+    fn a_battle_replay_lasts_until_the_story_is_told() {
+        let mut app = replay_app(true);
+        app.update();
+        app.update();
+        assert_eq!(activity(&app), GameActivity::BattleReplay);
+        app.world_mut().resource_mut::<NarrationQueue>().0.clear();
+        app.update();
+        app.update();
+        assert_eq!(activity(&app), GameActivity::CityConstruction);
+    }
+
+    /// Nobody watches the headless server: its replays pass at once.
+    #[test]
+    fn without_a_screen_the_replay_passes_at_once() {
+        let mut app = replay_app(false);
+        app.update();
+        app.update();
+        assert_eq!(activity(&app), GameActivity::CityConstruction);
     }
 
     #[test]

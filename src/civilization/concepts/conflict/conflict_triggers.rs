@@ -149,8 +149,8 @@ pub fn on_add_unresolved_conflict(
             conflict_counter_resource.0
         );
         if conflict_counter_resource.0 == 0 {
-            info!("[CONFLICT] All conflicts resolved, transitioning to CityConstruction");
-            next_state.set(GameActivity::CityConstruction);
+            info!("[CONFLICT] All conflicts resolved, transitioning to BattleReplay");
+            next_state.set(GameActivity::BattleReplay);
         }
     } else {
         info!(
@@ -430,8 +430,8 @@ pub fn on_add_unresolved_city_conflict(
                 conflict_counter_resource.0
             );
             if conflict_counter_resource.0 == 0 {
-                info!("[CITY CONFLICT] All conflicts resolved, transitioning to CityConstruction");
-                next_state.set(GameActivity::CityConstruction);
+                info!("[CITY CONFLICT] All conflicts resolved, transitioning to BattleReplay");
+                next_state.set(GameActivity::BattleReplay);
             }
         }
     } else {

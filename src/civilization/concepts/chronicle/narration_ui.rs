@@ -32,6 +32,7 @@ pub fn play_narration(
     areas: Query<&Transform>,
     mut camera: ResMut<CameraFocusQueue>,
     debug: Option<Res<DebugOptions>>,
+    activity: Option<Res<State<crate::GameActivity>>>,
     mut commands: Commands,
 ) {
     if let Some(timer) = narrator.showing.as_mut() {
@@ -55,11 +56,17 @@ pub fn play_narration(
     {
         camera.add_focus(transform.translation, 0.0, next.entry.text.clone());
     }
-    spawn_toast(&mut commands, &next);
+    let replaying = activity.is_some_and(|a| {
+        matches!(
+            a.get(),
+            crate::GameActivity::BattleReplay | crate::GameActivity::CalamityReplay
+        )
+    });
+    spawn_toast(&mut commands, &next, replaying);
     narrator.showing = Some(Timer::from_seconds(secs, TimerMode::Once));
 }
 
-fn spawn_toast(commands: &mut Commands, narration: &Narration) {
+fn spawn_toast(commands: &mut Commands, narration: &Narration, replaying: bool) {
     commands
         .spawn((
             NarrationToast,
@@ -101,8 +108,55 @@ fn spawn_toast(commands: &mut Commands, narration: &Narration) {
                     TextColor(Color::srgb(0.95, 0.92, 0.85)),
                     Pickable::IGNORE,
                 ));
+                if replaying {
+                    toast.spawn((
+                        Text::new("Space: skip the replay"),
+                        TextFont::from_font_size(11.0),
+                        TextColor(Color::srgb(0.55, 0.5, 0.45)),
+                        Pickable::IGNORE,
+                    ));
+                }
             });
         });
+}
+
+/// A replay phase is over once every toast has been shown. Without a
+/// narrator (the headless server, self-play) there is nothing to watch, so it
+/// ends at once.
+pub fn finish_replay(
+    narrator: Option<Res<Narrator>>,
+    queue: Res<NarrationQueue>,
+    activity: Res<State<crate::GameActivity>>,
+    mut next: ResMut<NextState<crate::GameActivity>>,
+) {
+    use crate::GameActivity;
+    let told = narrator.is_none_or(|n| n.showing.is_none() && queue.0.is_empty());
+    if !told {
+        return;
+    }
+    match activity.get() {
+        GameActivity::BattleReplay => next.set(GameActivity::CityConstruction),
+        GameActivity::CalamityReplay => next.set(GameActivity::AcquireCivilizationCards),
+        _ => {}
+    }
+}
+
+/// Space or Escape during a replay skips the rest of it.
+pub fn skip_replay(
+    keys: Option<Res<ButtonInput<KeyCode>>>,
+    mut narrator: ResMut<Narrator>,
+    mut queue: ResMut<NarrationQueue>,
+    toasts: Query<Entity, With<NarrationToast>>,
+    mut commands: Commands,
+) {
+    if !keys.is_some_and(|k| k.any_just_pressed([KeyCode::Space, KeyCode::Escape])) {
+        return;
+    }
+    narrator.showing = None;
+    queue.0.clear();
+    for toast in &toasts {
+        commands.entity(toast).despawn();
+    }
 }
 
 /// Leaving the game drops whatever was still to be told.

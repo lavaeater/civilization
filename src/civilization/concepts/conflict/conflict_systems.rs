@@ -27,8 +27,8 @@ pub fn find_conflict_zones(
             }
         });
     if conflict_counter_resource.0 == 0 {
-        info!("No conflicts found, transitioning to CityConstruction");
-        next_state.set(GameActivity::CityConstruction);
+        info!("No conflicts found, transitioning to BattleReplay");
+        next_state.set(GameActivity::BattleReplay);
     } else {
         info!(
             "Found {} conflicts, remaining in Conflict",
@@ -112,8 +112,8 @@ mod tests {
         let state = app.world().resource::<State<GameActivity>>();
         assert_eq!(
             *state.get(),
-            GameActivity::CityConstruction,
-            "Should transition to CityConstruction when no conflicts exist"
+            GameActivity::BattleReplay,
+            "Should transition to BattleReplay when no conflicts exist"
         );
     }
 
@@ -139,7 +139,7 @@ mod tests {
         let state = app.world().resource::<State<GameActivity>>();
         assert_eq!(
             *state.get(),
-            GameActivity::CityConstruction,
+            GameActivity::BattleReplay,
             "Should transition after conflict is resolved"
         );
 
@@ -172,7 +172,7 @@ mod tests {
         let state = app.world().resource::<State<GameActivity>>();
         assert_eq!(
             *state.get(),
-            GameActivity::CityConstruction,
+            GameActivity::BattleReplay,
             "Should transition after all conflicts are resolved"
         );
 
@@ -229,7 +229,7 @@ mod tests {
         let state = app.world().resource::<State<GameActivity>>();
         assert_eq!(
             *state.get(),
-            GameActivity::CityConstruction,
+            GameActivity::BattleReplay,
             "City conflict with small invader should resolve and transition"
         );
 
@@ -282,7 +282,7 @@ mod tests {
         let state = app.world().resource::<State<GameActivity>>();
         assert_eq!(
             *state.get(),
-            GameActivity::CityConstruction,
+            GameActivity::BattleReplay,
             "City conflict with large invader should resolve and transition"
         );
 
@@ -336,7 +336,7 @@ mod tests {
         }
         assert_eq!(
             *app.world().resource::<State<GameActivity>>().get(),
-            GameActivity::CityConstruction
+            GameActivity::BattleReplay
         );
         assert_eq!(app.world().resource::<ConflictCounterResource>().0, 0);
         assert!(app.world().get::<UnresolvedConflict>(area).is_none());
@@ -466,7 +466,7 @@ mod tests {
         let state = app.world().resource::<State<GameActivity>>();
         assert_eq!(
             *state.get(),
-            GameActivity::CityConstruction,
+            GameActivity::BattleReplay,
             "City with only owner should not hang — should transition"
         );
     }

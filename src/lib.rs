@@ -69,6 +69,9 @@ pub enum GameActivity {
     ShipConstruction,
     Movement,
     Conflict,
+    /// The battles' toasts play out before cities are built. Passes at once
+    /// when nothing is shown (headless, or nothing to tell).
+    BattleReplay,
     CityConstruction,
     RemoveSurplusPopulation,
     CheckCitySupportAfterRemoveSurplusPopulation,
@@ -76,6 +79,8 @@ pub enum GameActivity {
     Trade,
     ResolveCalamities,
     CheckCitySupportAfterResolveCalamities,
+    /// The calamities' toasts play out before civilization cards are bought.
+    CalamityReplay,
     AcquireCivilizationCards,
     /// Rule 31.71: after civ-card purchases, players discard commodity cards
     /// (of their choice) down to the 8-card retention limit.
@@ -97,7 +102,9 @@ impl From<&GameActivity> for adv_civ_protocol::NetPhase {
             GameActivity::Census => NetPhase::Census,
             GameActivity::ShipConstruction => NetPhase::ShipConstruction,
             GameActivity::Movement => NetPhase::Movement,
-            GameActivity::Conflict => NetPhase::Conflict,
+            // Replays only exist on a screen; remote clients see the phase
+            // the story is about.
+            GameActivity::Conflict | GameActivity::BattleReplay => NetPhase::Conflict,
             GameActivity::CityConstruction => NetPhase::CityConstruction,
             GameActivity::RemoveSurplusPopulation => NetPhase::RemoveSurplusPopulation,
             GameActivity::CheckCitySupportAfterRemoveSurplusPopulation => {
@@ -106,7 +113,7 @@ impl From<&GameActivity> for adv_civ_protocol::NetPhase {
             GameActivity::AcquireTradeCards => NetPhase::AcquireTradeCards,
             GameActivity::Trade => NetPhase::Trade,
             GameActivity::ResolveCalamities => NetPhase::ResolveCalamities,
-            GameActivity::CheckCitySupportAfterResolveCalamities => {
+            GameActivity::CheckCitySupportAfterResolveCalamities | GameActivity::CalamityReplay => {
                 NetPhase::CheckCitySupportAfterResolveCalamities
             }
             GameActivity::AcquireCivilizationCards => NetPhase::AcquireCivilizationCards,

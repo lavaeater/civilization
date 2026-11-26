@@ -122,7 +122,10 @@ pub fn audit_cities(
     // as surplus.
     let share = matches!(
         activity.get(),
-        GameActivity::Movement | GameActivity::Conflict | GameActivity::CityConstruction
+        GameActivity::Movement
+            | GameActivity::Conflict
+            | GameActivity::BattleReplay
+            | GameActivity::CityConstruction
     );
     let problems: HashSet<String> = city_problems(&areas, &owners, &city_tokens, &marked, share)
         .into_iter()

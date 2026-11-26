@@ -112,8 +112,8 @@ pub fn check_status_after_resolve_calamities(
     let needs_check_count = needs_to_check_city_support.iter().count();
 
     if too_many_cities_count == 0 && needs_check_count == 0 {
-        info!("[CITY_SUPPORT] All checks complete, transitioning to AcquireCivilizationCards");
-        next_state.set(GameActivity::AcquireCivilizationCards);
+        info!("[CITY_SUPPORT] All checks complete, transitioning to CalamityReplay");
+        next_state.set(GameActivity::CalamityReplay);
     }
 }
 
