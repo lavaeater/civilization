@@ -1,0 +1,1116 @@
+{
+  "version": "0.0.2",
+  "round": 11,
+  "game_activity": "Movement",
+  "players": [
+    {
+      "name": "Agamemnon of Thrace",
+      "faction": "Thrace",
+      "is_human": false,
+      "census_population": 23,
+      "treasury": 6,
+      "tokens_in_stock": 18,
+      "city_tokens_in_stock": 8,
+      "trade_cards": [
+        [
+          "Ochre",
+          1
+        ],
+        [
+          "Papyrus",
+          1
+        ],
+        [
+          "Hides",
+          1
+        ]
+      ],
+      "done_with_current_activity": false,
+      "ast_space": 4,
+      "owned_civ_cards": [],
+      "calamity_traded_by": []
+    },
+    {
+      "name": "Darius of Iberia",
+      "faction": "Iberia",
+      "is_human": false,
+      "census_population": 20,
+      "treasury": 6,
+      "tokens_in_stock": 21,
+      "city_tokens_in_stock": 5,
+      "trade_cards": [
+        [
+          "Grain",
+          2
+        ],
+        [
+          "Ochre",
+          2
+        ],
+        [
+          "Iron",
+          1
+        ],
+        [
+          "Hides",
+          1
+        ]
+      ],
+      "done_with_current_activity": false,
+      "ast_space": 5,
+      "owned_civ_cards": [],
+      "calamity_traded_by": []
+    },
+    {
+      "name": "Hammurabi of Africa",
+      "faction": "Africa",
+      "is_human": false,
+      "census_population": 17,
+      "treasury": 11,
+      "tokens_in_stock": 19,
+      "city_tokens_in_stock": 7,
+      "trade_cards": [
+        [
+          "Papyrus",
+          1
+        ],
+        [
+          "Ochre",
+          4
+        ],
+        [
+          "Iron",
+          2
+        ]
+      ],
+      "done_with_current_activity": false,
+      "ast_space": 7,
+      "owned_civ_cards": [],
+      "calamity_traded_by": []
+    },
+    {
+      "name": "Leonidas of Asia",
+      "faction": "Asia",
+      "is_human": false,
+      "census_population": 17,
+      "treasury": 13,
+      "tokens_in_stock": 17,
+      "city_tokens_in_stock": 7,
+      "trade_cards": [
+        [
+          "Papyrus",
+          1
+        ],
+        [
+          "Salt",
+          2
+        ]
+      ],
+      "done_with_current_activity": false,
+      "ast_space": 7,
+      "owned_civ_cards": [
+        "Mysticism"
+      ],
+      "calamity_traded_by": []
+    },
+    {
+      "name": "Priam of Egypt",
+      "faction": "Egypt",
+      "is_human": false,
+      "census_population": 23,
+      "treasury": 7,
+      "tokens_in_stock": 17,
+      "city_tokens_in_stock": 5,
+      "trade_cards": [],
+      "done_with_current_activity": false,
+      "ast_space": 8,
+      "owned_civ_cards": [
+        "Mysticism",
+        "ClothMaking"
+      ],
+      "calamity_traded_by": []
+    },
+    {
+      "name": "Pericles of Crete",
+      "faction": "Crete",
+      "is_human": false,
+      "census_population": 18,
+      "treasury": 9,
+      "tokens_in_stock": 20,
+      "city_tokens_in_stock": 5,
+      "trade_cards": [],
+      "done_with_current_activity": false,
+      "ast_space": 7,
+      "owned_civ_cards": [
+        "Astronomy"
+      ],
+      "calamity_traded_by": []
+    },
+    {
+      "name": "Tutankhamun of Illyria",
+      "faction": "Illyria",
+      "is_human": false,
+      "census_population": 36,
+      "treasury": 8,
+      "tokens_in_stock": 3,
+      "city_tokens_in_stock": 6,
+      "trade_cards": [
+        [
+          "Papyrus",
+          2
+        ],
+        [
+          "Salt",
+          1
+        ],
+        [
+          "Iron",
+          1
+        ],
+        [
+          "Hides",
+          1
+        ]
+      ],
+      "done_with_current_activity": false,
+      "ast_space": 7,
+      "owned_civ_cards": [],
+      "calamity_traded_by": []
+    },
+    {
+      "name": "Cleopatra of Babylon",
+      "faction": "Babylon",
+      "is_human": true,
+      "census_population": 43,
+      "treasury": 4,
+      "tokens_in_stock": 0,
+      "city_tokens_in_stock": 7,
+      "trade_cards": [
+        [
+          "Grain",
+          1
+        ]
+      ],
+      "done_with_current_activity": false,
+      "ast_space": 7,
+      "owned_civ_cards": [
+        "Pottery"
+      ],
+      "calamity_traded_by": []
+    }
+  ],
+  "area_populations": [
+    {
+      "area_id": 126,
+      "tokens_by_faction": [
+        [
+          "Africa",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 6,
+      "tokens_by_faction": [
+        [
+          "Thrace",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 7,
+      "tokens_by_faction": [
+        [
+          "Thrace",
+          5
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 131,
+      "tokens_by_faction": [
+        [
+          "Egypt",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 5,
+      "tokens_by_faction": [
+        [
+          "Illyria",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 42,
+      "tokens_by_faction": [
+        [
+          "Iberia",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 136,
+      "tokens_by_faction": [
+        [
+          "Egypt",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 16,
+      "tokens_by_faction": [
+        [
+          "Illyria",
+          1
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 4,
+      "tokens_by_faction": [
+        [
+          "Illyria",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 82,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 51,
+      "tokens_by_faction": [
+        [
+          "Crete",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 123,
+      "tokens_by_faction": [
+        [
+          "Africa",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 94,
+      "tokens_by_faction": [
+        [
+          "Africa",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 14,
+      "tokens_by_faction": [
+        [
+          "Illyria",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 18,
+      "tokens_by_faction": [
+        [
+          "Illyria",
+          1
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 13,
+      "tokens_by_faction": [
+        [
+          "Illyria",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 20,
+      "tokens_by_faction": [
+        [
+          "Thrace",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 25,
+      "tokens_by_faction": [
+        [
+          "Iberia",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 44,
+      "tokens_by_faction": [
+        [
+          "Iberia",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 47,
+      "tokens_by_faction": [
+        [
+          "Iberia",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 43,
+      "tokens_by_faction": [
+        [
+          "Iberia",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 130,
+      "tokens_by_faction": [
+        [
+          "Africa",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 132,
+      "tokens_by_faction": [
+        [
+          "Egypt",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 100,
+      "tokens_by_faction": [
+        [
+          "Crete",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 76,
+      "tokens_by_faction": [
+        [
+          "Crete",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 75,
+      "tokens_by_faction": [
+        [
+          "Crete",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 50,
+      "tokens_by_faction": [
+        [
+          "Crete",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 85,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 116,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 54,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 59,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 23,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 38,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 15,
+      "tokens_by_faction": [
+        [
+          "Illyria",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 26,
+      "tokens_by_faction": [
+        [
+          "Illyria",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 17,
+      "tokens_by_faction": [
+        [
+          "Illyria",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 88,
+      "tokens_by_faction": [
+        [
+          "Asia",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 134,
+      "tokens_by_faction": [
+        [
+          "Egypt",
+          5
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 30,
+      "tokens_by_faction": [
+        [
+          "Iberia",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 32,
+      "tokens_by_faction": [
+        [
+          "Illyria",
+          3
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 19,
+      "tokens_by_faction": [
+        [
+          "Thrace",
+          2
+        ],
+        [
+          "Illyria",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 87,
+      "tokens_by_faction": [
+        [
+          "Asia",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 52,
+      "tokens_by_faction": [
+        [
+          "Thrace",
+          2
+        ],
+        [
+          "Illyria",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 81,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 53,
+      "tokens_by_faction": [
+        [
+          "Thrace",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 103,
+      "tokens_by_faction": [
+        [
+          "Thrace",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 73,
+      "tokens_by_faction": [
+        [
+          "Iberia",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 96,
+      "tokens_by_faction": [
+        [
+          "Africa",
+          5
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 60,
+      "tokens_by_faction": [
+        [
+          "Asia",
+          5
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 86,
+      "tokens_by_faction": [
+        [
+          "Asia",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 128,
+      "tokens_by_faction": [
+        [
+          "Egypt",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 120,
+      "tokens_by_faction": [
+        [
+          "Egypt",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 77,
+      "tokens_by_faction": [
+        [
+          "Crete",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 106,
+      "tokens_by_faction": [
+        [
+          "Crete",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 102,
+      "tokens_by_faction": [
+        [
+          "Crete",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 37,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 80,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 56,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 117,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 57,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 145,
+      "tokens_by_faction": [
+        [
+          "Egypt",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 119,
+      "tokens_by_faction": [
+        [
+          "Egypt",
+          4
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 104,
+      "tokens_by_faction": [
+        [
+          "Crete",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 39,
+      "tokens_by_faction": [
+        [
+          "Babylon",
+          5
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 35,
+      "tokens_by_faction": [
+        [
+          "Thrace",
+          2
+        ],
+        [
+          "Illyria",
+          5
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 137,
+      "tokens_by_faction": [],
+      "city_owner": "Egypt",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 65,
+      "tokens_by_faction": [],
+      "city_owner": "Iberia",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 109,
+      "tokens_by_faction": [],
+      "city_owner": "Crete",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 93,
+      "tokens_by_faction": [],
+      "city_owner": "Africa",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 108,
+      "tokens_by_faction": [],
+      "city_owner": "Crete",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 48,
+      "tokens_by_faction": [],
+      "city_owner": "Illyria",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 46,
+      "tokens_by_faction": [],
+      "city_owner": "Illyria",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 118,
+      "tokens_by_faction": [],
+      "city_owner": "Babylon",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 101,
+      "tokens_by_faction": [],
+      "city_owner": "Crete",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 124,
+      "tokens_by_faction": [],
+      "city_owner": "Africa",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 84,
+      "tokens_by_faction": [],
+      "city_owner": "Babylon",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 97,
+      "tokens_by_faction": [],
+      "city_owner": "Iberia",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 105,
+      "tokens_by_faction": [],
+      "city_owner": "Crete",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 66,
+      "tokens_by_faction": [],
+      "city_owner": "Iberia",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 28,
+      "tokens_by_faction": [],
+      "city_owner": "Iberia",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 64,
+      "tokens_by_faction": [],
+      "city_owner": "Asia",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 89,
+      "tokens_by_faction": [],
+      "city_owner": "Asia",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 135,
+      "tokens_by_faction": [],
+      "city_owner": "Egypt",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 36,
+      "tokens_by_faction": [],
+      "city_owner": "Thrace",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 133,
+      "tokens_by_faction": [],
+      "city_owner": "Egypt",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 142,
+      "tokens_by_faction": [],
+      "city_owner": "Egypt",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 27,
+      "tokens_by_faction": [],
+      "city_owner": "Illyria",
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 71,
+      "tokens_by_faction": [
+        [
+          "Illyria",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 98,
+      "tokens_by_faction": [
+        [
+          "Iberia",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    },
+    {
+      "area_id": 72,
+      "tokens_by_faction": [
+        [
+          "Iberia",
+          2
+        ]
+      ],
+      "city_owner": null,
+      "city_is_pirate": false
+    }
+  ],
+  "census_order": [
+    "Babylon",
+    "Illyria",
+    "Thrace",
+    "Egypt",
+    "Iberia",
+    "Crete",
+    "Asia",
+    "Africa"
+  ],
+  "left_to_move": [
+    "Africa",
+    "Asia",
+    "Crete",
+    "Iberia",
+    "Egypt",
+    "Thrace",
+    "Illyria"
+  ],
+  "current_mover": "Babylon"
+}
