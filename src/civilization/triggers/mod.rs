@@ -1,4 +1,5 @@
 use crate::GameActivity;
+use crate::civilization::ShipStock;
 use crate::civilization::components::*;
 use crate::civilization::concepts::resolve_calamities::resolve_calamities_systems::ReturnCityToStock;
 use crate::civilization::functions::return_token_to_stock;
@@ -90,6 +91,7 @@ type StockChanged = Or<(
     Changed<TokenStock>,
     Changed<Treasury>,
     Changed<CityTokenStock>,
+    Changed<ShipStock>,
 )>;
 
 /// A piece in a stock or treasury is off the board, so it must not be drawn.
@@ -101,24 +103,29 @@ type StockChanged = Or<(
 /// marker stayed where the token last stood. Standing on a city's spot, it
 /// made the city look like plain population. Rather than patch each path,
 /// this enforces the invariant whenever a stock changes.
+///
+/// Ships too: a ship its owner could not maintain went back to `ShipStock`
+/// but stayed drawn on the coast it last stood on.
 pub fn hide_off_board_pieces(
     owners: Query<
         (
             Option<&TokenStock>,
             Option<&Treasury>,
             Option<&CityTokenStock>,
+            Option<&ShipStock>,
         ),
         StockChanged,
     >,
     drawn: Query<(), With<Sprite>>,
     mut commands: Commands,
 ) {
-    for (stock, treasury, city_stock) in &owners {
+    for (stock, treasury, city_stock, ship_stock) in &owners {
         let off_board = stock
             .into_iter()
             .flat_map(TokenStock::iter)
             .chain(treasury.into_iter().flat_map(Treasury::iter))
-            .chain(city_stock.into_iter().flat_map(CityTokenStock::iter));
+            .chain(city_stock.into_iter().flat_map(CityTokenStock::iter))
+            .chain(ship_stock.into_iter().flat_map(|s| s.ships.iter().copied()));
         for piece in off_board.filter(|p| drawn.contains(*p)) {
             commands
                 .entity(piece)
@@ -162,6 +169,112 @@ pub fn hide_tokens_off_the_board(
     }
 }
 
+/// How far from its area's centre a token may be drawn (the layout puts
+/// them within ~60 units).
+const STRAY_DISTANCE: f32 = 90.0;
+
+/// Diagnostic: a drawn piece must be drawn where the rules have it. Logs
+/// `[STRAY]` for a token drawn far from the area whose `Population` holds it
+/// (and not sliding there), and for a drawn city no area's `BuiltCity`
+/// names. Each piece is reported once until it is right again.
+#[allow(clippy::type_complexity)]
+pub fn report_stray_pieces(
+    areas: Query<(
+        Entity,
+        &GameArea,
+        &Population,
+        &Transform,
+        Option<&BuiltCity>,
+    )>,
+    tokens: Query<
+        (
+            Entity,
+            &Token,
+            &Transform,
+            bevy::prelude::Has<crate::civilization::TokenMoveAnimation>,
+        ),
+        (With<Sprite>, bevy::prelude::Without<GameArea>),
+    >,
+    cities: Query<
+        (Entity, &CityToken, &Transform),
+        (With<Sprite>, bevy::prelude::Without<GameArea>),
+    >,
+    activity: Option<Res<State<GameActivity>>>,
+    mut reported: bevy::prelude::Local<HashSet<Entity>>,
+    mut frame: bevy::prelude::Local<u32>,
+) {
+    // A diagnostic: every 15th frame is plenty.
+    *frame = frame.wrapping_add(1);
+    if *frame % 15 != 0 {
+        return;
+    }
+    let mut home = bevy::platform::collections::HashMap::new();
+    let mut city_sites = bevy::platform::collections::HashMap::new();
+    for (area, game_area, pop, transform, city) in &areas {
+        let at = transform.translation.truncate();
+        for token in pop.player_tokens().values().flatten() {
+            home.insert(*token, (area, game_area.id, at));
+        }
+        if let Some(city) = city {
+            city_sites.insert(city.city, (game_area.id, at));
+        }
+    }
+    let phase = activity.as_ref().map(|a| a.get().clone());
+    let mut stray = HashSet::new();
+    for (entity, token, transform, sliding) in &tokens {
+        let Some((_, area_id, at)) = home.get(&entity) else {
+            continue; // hide_tokens_off_the_board handles these
+        };
+        let drawn = transform.translation.truncate();
+        if sliding {
+            continue;
+        }
+        // Closer to another area's centre than to its own reads, on the
+        // board, as standing in that other area.
+        let drawn_near = areas
+            .iter()
+            .min_by(|a, b| {
+                a.3.translation
+                    .truncate()
+                    .distance(drawn)
+                    .total_cmp(&b.3.translation.truncate().distance(drawn))
+            })
+            .map(|a| a.1.id);
+        if drawn.distance(*at) <= STRAY_DISTANCE && drawn_near == Some(*area_id) {
+            continue;
+        }
+        stray.insert(entity);
+        if reported.insert(entity) {
+            warn!(
+                "[STRAY] token {entity:?} of {:?} is in area {area_id} but drawn {:.0} away, near area {drawn_near:?} (in {phase:?})",
+                token.player(),
+                drawn.distance(*at),
+            );
+        }
+    }
+    for (entity, city, transform) in &cities {
+        let drawn = transform.translation.truncate();
+        let ok = city_sites
+            .get(&entity)
+            .is_some_and(|(_, at)| drawn.distance(*at) <= STRAY_DISTANCE);
+        if ok {
+            continue;
+        }
+        stray.insert(entity);
+        if reported.insert(entity) {
+            warn!(
+                "[STRAY] city {entity:?} of {:?} is drawn at {drawn:?} but {} (in {phase:?})",
+                city.player,
+                city_sites.get(&entity).map_or_else(
+                    || "no area has it as its BuiltCity".to_string(),
+                    |(id, _)| format!("belongs to area {id}")
+                ),
+            );
+        }
+    }
+    reported.retain(|e| stray.contains(e));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -198,6 +311,24 @@ mod tests {
             );
         }
         assert!(world.get::<Sprite>(on_board).is_some());
+    }
+
+    /// A ship its owner could not maintain goes back to stock; it must
+    /// leave the coast it stood on.
+    #[test]
+    fn an_unmaintained_ship_back_in_stock_is_not_drawn() {
+        let mut world = World::new();
+        let sunk = drawn_token(&mut world);
+        let afloat = drawn_token(&mut world);
+        world.spawn(ShipStock::new(vec![sunk]));
+
+        world.run_system_once(hide_off_board_pieces).unwrap();
+
+        assert!(
+            world.get::<Sprite>(sunk).is_none(),
+            "the returned ship is still drawn"
+        );
+        assert!(world.get::<Sprite>(afloat).is_some());
     }
 
     /// The repelled-invader path: tokens pushed straight back into stock.

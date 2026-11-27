@@ -4,17 +4,184 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
+use crate::civilization::TokenMoveAnimation;
 use crate::civilization::Z_DIALOG;
 use crate::civilization::components::{
-    BuiltCity, CityFlood, CitySite, Faction, FloodPlain, GameArea, GameCamera, Population, Volcano,
+    BarbarianToken, BuiltCity, CityFlood, CitySite, CityToken, Faction, FloodPlain, GameArea,
+    GameCamera, Population, Token, TokenStock, Treasury, Volcano,
 };
-use crate::civilization::concepts::ships::PlayerShips;
+use crate::civilization::concepts::ships::{PlayerShips, Ship};
 use crate::civilization::concepts::succession::ast_ui_systems::ast_faction_color;
+use bevy::platform::collections::HashMap;
 
 /// How close (world units) the cursor must be to an area's centre.
 const HOVER_RADIUS: f32 = 34.0;
 const PLAIN: Color = Color::srgb(0.85, 0.85, 0.85);
 const DIM: Color = Color::srgb(0.6, 0.6, 0.6);
+const STRAY: Color = Color::srgb(1.0, 0.35, 0.35);
+
+/// A drawn piece on the board, as the stray audit sees it.
+pub type DrawnPiece = (
+    Entity,
+    &'static Transform,
+    Option<&'static Visibility>,
+    Option<&'static Name>,
+    Option<&'static Token>,
+    Option<&'static CityToken>,
+    Has<BarbarianToken>,
+    Option<&'static Ship>,
+    Has<TokenMoveAnimation>,
+);
+
+type AreaRow<'a> = (
+    Entity,
+    &'a GameArea,
+    &'a Name,
+    &'a Population,
+    &'a Transform,
+    Option<&'a BuiltCity>,
+    bool,
+    bool,
+    bool,
+    bool,
+);
+
+/// Every piece drawn on `area` (closest to its centre) that the rules don't
+/// put there, with where the rules do have it. Empty when all is well.
+fn audit_drawn_pieces(
+    area: Entity,
+    areas: &Query<(
+        Entity,
+        &GameArea,
+        &Name,
+        &Population,
+        &Transform,
+        Option<&BuiltCity>,
+        Has<CitySite>,
+        Has<Volcano>,
+        Has<FloodPlain>,
+        Has<CityFlood>,
+    )>,
+    drawn: &Query<DrawnPiece, (With<Sprite>, Without<GameArea>, Without<AreaHoverPanel>)>,
+    stocks: &Query<(Entity, &TokenStock, Option<&Treasury>)>,
+    fleets: &Query<(Entity, &PlayerShips)>,
+    who: &dyn Fn(Entity) -> (String, Option<Color>),
+) -> Vec<String> {
+    let rows: Vec<AreaRow> = areas.iter().collect();
+    let nearest = |at: Vec2| {
+        rows.iter()
+            .min_by(|a, b| {
+                a.4.translation
+                    .truncate()
+                    .distance(at)
+                    .total_cmp(&b.4.translation.truncate().distance(at))
+            })
+            .map(|r| r.0)
+    };
+    let area_name = |e: Entity| {
+        rows.iter()
+            .find(|r| r.0 == e)
+            .map_or_else(|| format!("{e:?}"), |r| r.2.to_string())
+    };
+    let mut token_home: HashMap<Entity, Entity> = HashMap::new();
+    let mut city_home: HashMap<Entity, Entity> = HashMap::new();
+    let ship_home: HashMap<Entity, Entity> = fleets
+        .iter()
+        .flat_map(|(_, fleet)| {
+            fleet
+                .ships_by_area
+                .iter()
+                .flat_map(|(area, ships)| ships.iter().map(move |ship| (*ship, *area)))
+        })
+        .collect();
+    for row in &rows {
+        for token in row.3.player_tokens().values().flatten() {
+            token_home.insert(*token, row.0);
+        }
+        if let Some(city) = row.5 {
+            city_home.insert(city.city, row.0);
+        }
+    }
+    let off_board = |piece: Entity| -> Option<String> {
+        stocks.iter().find_map(|(player, stock, treasury)| {
+            if stock.iter().any(|t| t == piece) {
+                Some(format!("in {}'s stock", who(player).0))
+            } else if treasury.is_some_and(|t| t.iter().any(|t| t == piece)) {
+                Some(format!("in {}'s treasury", who(player).0))
+            } else {
+                None
+            }
+        })
+    };
+    let mut out = Vec::new();
+    for (piece, transform, visibility, name, token, city, barbarian, ship, sliding) in drawn {
+        let at = transform.translation;
+        if at.z < 0.0 || visibility == Some(&Visibility::Hidden) || sliding {
+            continue; // the map itself; hidden pieces; pieces on their way
+        }
+        if nearest(at.truncate()) != Some(area) {
+            continue;
+        }
+        let line = if let Some(token) = token {
+            match token_home.get(&piece) {
+                Some(home) if *home == area => continue,
+                Some(home) => format!(
+                    "token {piece:?} of {}: the rules have it in {}",
+                    who(token.player()).0,
+                    area_name(*home)
+                ),
+                None => format!(
+                    "token {piece:?} of {}: {}",
+                    who(token.player()).0,
+                    off_board(piece).unwrap_or_else(|| "on no area, in no stock".into())
+                ),
+            }
+        } else if let Some(city) = city {
+            match city_home.get(&piece) {
+                Some(home) if *home == area => continue,
+                Some(home) => format!(
+                    "city {piece:?} of {}: belongs to {}",
+                    who(city.player).0,
+                    area_name(*home)
+                ),
+                None => format!(
+                    "city {piece:?} of {}: no area has it as its city",
+                    who(city.player).0
+                ),
+            }
+        } else if barbarian {
+            match token_home.get(&piece) {
+                Some(home) if *home == area => continue,
+                Some(home) => format!(
+                    "barbarian {piece:?}: the rules have it in {}",
+                    area_name(*home)
+                ),
+                None => format!("barbarian {piece:?}: on no area"),
+            }
+        } else if let Some(ship) = ship {
+            match ship_home.get(&piece) {
+                Some(home) if *home == area => continue,
+                Some(home) => format!(
+                    "ship {piece:?} of {}: the rules have it at {}",
+                    who(ship.owner).0,
+                    area_name(*home)
+                ),
+                None => format!(
+                    "ship {piece:?} of {}: not on the board (in stock?)",
+                    who(ship.owner).0
+                ),
+            }
+        } else {
+            format!(
+                "sprite {piece:?} '{}' is neither token, city, barbarian nor ship",
+                name.map_or("unnamed", |n| n.as_str())
+            )
+        };
+        out.push(line);
+    }
+    out.sort();
+    out
+}
 
 #[derive(Component)]
 pub struct AreaHoverPanel;
@@ -113,6 +280,8 @@ pub fn update_area_hover_panel(
     fleets: Query<(Entity, &PlayerShips)>,
     mut panel: Query<(Entity, &mut Node, &mut Visibility), With<AreaHoverPanel>>,
     ui_scale: Res<UiScale>,
+    drawn: Query<DrawnPiece, (With<Sprite>, Without<GameArea>, Without<AreaHoverPanel>)>,
+    stocks: Query<(Entity, &TokenStock, Option<&Treasury>)>,
     mut shown: Local<Vec<HoverLine>>,
 ) {
     let Ok((panel, mut node, mut visibility)) = panel.single_mut() else {
@@ -183,7 +352,7 @@ pub fn update_area_hover_panel(
         Some((id, place)) => format!("{place} (area {id})"),
         None => format!("Area {}", game_area.id),
     };
-    let lines = describe_area(
+    let mut lines = describe_area(
         &title,
         population,
         owner.as_ref().map(|(n, c)| (n.as_str(), *c)),
@@ -193,6 +362,15 @@ pub fn update_area_hover_panel(
         &ships,
     );
 
+    let strays = audit_drawn_pieces(entity, &areas, &drawn, &stocks, &fleets, &who);
+    if !strays.is_empty() {
+        lines.push(HoverLine(
+            "Drawn here but not here by the rules:".into(),
+            STRAY,
+        ));
+        lines.extend(strays.into_iter().map(|line| HoverLine(line, STRAY)));
+    }
+
     let scale = ui_scale.0;
     node.left = Val::Px(cursor.x / scale + 18.0);
     node.top = Val::Px(cursor.y / scale + 18.0);
@@ -201,6 +379,11 @@ pub fn update_area_hover_panel(
         return;
     }
     shown.clone_from(&lines);
+    for HoverLine(line, color) in lines.iter().skip(1) {
+        if *color == STRAY {
+            warn!("[STRAY] {title}: {}", line.trim());
+        }
+    }
     commands
         .entity(panel)
         .despawn_related::<Children>()
