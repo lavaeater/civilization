@@ -6,6 +6,9 @@ use lava_ui_builder::{LavaTheme, TextStyle, UIBuilder};
 use crate::civilization::components::{
     BuiltCity, CityFlood, CitySite, Faction, FloodPlain, GameArea, GameCamera, Population, Volcano,
 };
+use crate::civilization::concepts::area_info::area_hover::{
+    AreaHoverPanel, spawn_area_hover_panel, update_area_hover_panel,
+};
 use crate::civilization::game_moves::{AvailableMoves, GameMove};
 use crate::civilization::{MovementSelectionState, Z_AREA_INDICATOR};
 use crate::player::Player;
@@ -13,6 +16,12 @@ use crate::stupid_ai::IsHuman;
 use crate::{GameActivity, GameState};
 
 pub struct AreaInfoPlugin;
+
+fn hide_area_hover_panel(mut panel: Query<&mut Visibility, With<AreaHoverPanel>>) {
+    for mut visibility in &mut panel {
+        *visibility = Visibility::Hidden;
+    }
+}
 
 #[derive(Component)]
 pub struct AreaInfoRoot;
@@ -24,11 +33,16 @@ pub struct AreaInfoMarker {
 
 impl Plugin for AreaInfoPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameActivity::StartGame), spawn_area_info_markers)
-            .add_systems(
-                Update,
-                update_area_info_markers.run_if(in_state(GameState::Playing)),
-            );
+        app.add_systems(
+            OnEnter(GameActivity::StartGame),
+            (spawn_area_info_markers, spawn_area_hover_panel),
+        )
+        .add_systems(
+            Update,
+            (update_area_info_markers, update_area_hover_panel)
+                .run_if(in_state(GameState::Playing)),
+        )
+        .add_systems(OnExit(GameState::Playing), hide_area_hover_panel);
     }
 }
 
@@ -43,7 +57,8 @@ fn area_info_text_name(area_id: i32) -> String {
 /// Static, map-defined terrain/site flags for an area, gathered up so the
 /// text-building code doesn't need a growing pile of `Has<T>` parameters.
 #[derive(Clone, Copy, Default)]
-#[allow(clippy::struct_excessive_bools)]struct AreaTerrainFlags {
+#[allow(clippy::struct_excessive_bools)]
+struct AreaTerrainFlags {
     has_city: bool,
     city_site: bool,
     volcano: bool,
@@ -79,8 +94,16 @@ fn spawn_area_info_markers(
             ..default()
         });
 
-    for (area_entity, game_area, population, has_city, city_site, volcano, flood_plain, city_flood) in
-        area_query.iter()
+    for (
+        area_entity,
+        game_area,
+        population,
+        has_city,
+        city_site,
+        volcano,
+        flood_plain,
+        city_flood,
+    ) in area_query.iter()
     {
         let max_pop = population.max_population;
         let flags = AreaTerrainFlags {
@@ -90,7 +113,8 @@ fn spawn_area_info_markers(
             flood_plain,
             city_flood,
         };
-        let text_content = build_area_info_text(game_area.id, population, &player_query, flags, max_pop);
+        let text_content =
+            build_area_info_text(game_area.id, population, &player_query, flags, max_pop);
 
         ui.with_child(|marker| {
             marker
@@ -134,12 +158,15 @@ fn update_area_info_markers(
     ui_scale: Res<UiScale>,
     human_available_moves: Query<&AvailableMoves, With<IsHuman>>,
     movement_selection: Res<MovementSelectionState>,
+    keys: Res<ButtonInput<KeyCode>>,
 ) {
     let Ok((camera, camera_gt)) = camera_query.single() else {
         return;
     };
 
     let scale = ui_scale.0;
+    // Holding Alt shows every area's marker, not just the ones in play.
+    let show_all = keys.any_pressed([KeyCode::AltLeft, KeyCode::AltRight]);
     let relevant_areas =
         relevant_areas_for_current_action(&human_available_moves, &movement_selection);
 
@@ -147,15 +174,24 @@ fn update_area_info_markers(
     // frame -- a marker whose area's viewport projection fails shouldn't
     // stay stuck showing (or hiding) whatever it last was.
     for (marker, _, mut visibility) in &mut marker_query {
-        *visibility = if relevant_areas.contains(&marker.area_entity) {
+        *visibility = if show_all || relevant_areas.contains(&marker.area_entity) {
             Visibility::Inherited
         } else {
             Visibility::Hidden
         };
     }
 
-    for (area_entity, game_area, population, area_gt, has_city, city_site, volcano, flood_plain, city_flood) in
-        area_query.iter()
+    for (
+        area_entity,
+        game_area,
+        population,
+        area_gt,
+        has_city,
+        city_site,
+        volcano,
+        flood_plain,
+        city_flood,
+    ) in area_query.iter()
     {
         let max_pop = population.max_population;
         let flags = AreaTerrainFlags {
@@ -165,7 +201,8 @@ fn update_area_info_markers(
             flood_plain,
             city_flood,
         };
-        let text_content = build_area_info_text(game_area.id, population, &player_query, flags, max_pop);
+        let text_content =
+            build_area_info_text(game_area.id, population, &player_query, flags, max_pop);
 
         let expected_text_name = area_info_text_name(game_area.id);
         for (name, mut text) in &mut text_query {
