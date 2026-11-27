@@ -120,10 +120,7 @@ mod seat_join_tests {
     #[test]
     fn reclaiming_a_token_bound_seat_requires_the_right_token() {
         let seats = vec![seat(GameFaction::Egypt, Some("Alice"), Some("secret"))];
-        assert_eq!(
-            find_seat_for_join(&seats, "Alice", Some("secret")),
-            Some(0)
-        );
+        assert_eq!(find_seat_for_join(&seats, "Alice", Some("secret")), Some(0));
     }
 
     #[test]
@@ -143,11 +140,7 @@ mod seat_join_tests {
 
     #[test]
     fn no_seats_available_at_all_returns_none() {
-        let seats = vec![seat(
-            GameFaction::Egypt,
-            Some("Alice"),
-            Some("real-secret"),
-        )];
+        let seats = vec![seat(GameFaction::Egypt, Some("Alice"), Some("real-secret"))];
         let mut taken = seats;
         taken[0].client = Some(Entity::from_raw_u32(1).unwrap());
         assert_eq!(find_seat_for_join(&taken, "Bob", None), None);
@@ -295,6 +288,15 @@ fn dead_texture_assets() -> TextureAssets {
         iberia: Handle::default(),
         illyria: Handle::default(),
         thrace: Handle::default(),
+        africa_ship: Handle::default(),
+        asia_ship: Handle::default(),
+        assyria_ship: Handle::default(),
+        babylon_ship: Handle::default(),
+        crete_ship: Handle::default(),
+        egypt_ship: Handle::default(),
+        iberia_ship: Handle::default(),
+        illyria_ship: Handle::default(),
+        thrace_ship: Handle::default(),
         barbarian: Handle::default(),
         pirate: Handle::default(),
         pirate_city: Handle::default(),

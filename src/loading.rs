@@ -74,6 +74,24 @@ pub struct TextureAssets {
     pub thrace_city: Handle<Image>,
     #[asset(path = "textures/ship.png")]
     pub ship: Handle<Image>,
+    #[asset(path = "textures/africa-ship.png")]
+    pub africa_ship: Handle<Image>,
+    #[asset(path = "textures/asia-ship.png")]
+    pub asia_ship: Handle<Image>,
+    #[asset(path = "textures/assyria-ship.png")]
+    pub assyria_ship: Handle<Image>,
+    #[asset(path = "textures/babylon-ship.png")]
+    pub babylon_ship: Handle<Image>,
+    #[asset(path = "textures/crete-ship.png")]
+    pub crete_ship: Handle<Image>,
+    #[asset(path = "textures/egypt-ship.png")]
+    pub egypt_ship: Handle<Image>,
+    #[asset(path = "textures/iberia-ship.png")]
+    pub iberia_ship: Handle<Image>,
+    #[asset(path = "textures/illyria-ship.png")]
+    pub illyria_ship: Handle<Image>,
+    #[asset(path = "textures/thrace-ship.png")]
+    pub thrace_ship: Handle<Image>,
     #[asset(path = "textures/barbarian.png")]
     pub barbarian: Handle<Image>,
     #[asset(path = "textures/pirate.png")]

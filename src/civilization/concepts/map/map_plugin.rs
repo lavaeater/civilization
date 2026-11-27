@@ -142,6 +142,7 @@ pub struct AvailableFactions {
     pub remaining_factions: HashSet<GameFaction>,
     pub faction_icons: HashMap<GameFaction, Handle<Image>>,
     pub faction_city_icons: HashMap<GameFaction, Handle<Image>>,
+    pub faction_ship_icons: HashMap<GameFaction, Handle<Image>>,
     /// Pirate cities have no faction; they get their own icon.
     pub pirate_city_icon: Option<Handle<Image>>,
 }
@@ -450,6 +451,9 @@ fn load_map(
                         available_factions
                             .faction_city_icons
                             .insert(GameFaction::Egypt, textures.egypt_city.clone());
+                        available_factions
+                            .faction_ship_icons
+                            .insert(GameFaction::Egypt, textures.egypt_ship.clone());
                     }
                     GameFaction::Crete => {
                         available_factions
@@ -458,6 +462,9 @@ fn load_map(
                         available_factions
                             .faction_city_icons
                             .insert(GameFaction::Crete, textures.crete_city.clone());
+                        available_factions
+                            .faction_ship_icons
+                            .insert(GameFaction::Crete, textures.crete_ship.clone());
                     }
                     GameFaction::Africa => {
                         available_factions
@@ -466,6 +473,9 @@ fn load_map(
                         available_factions
                             .faction_city_icons
                             .insert(GameFaction::Africa, textures.africa_city.clone());
+                        available_factions
+                            .faction_ship_icons
+                            .insert(GameFaction::Africa, textures.africa_ship.clone());
                     }
                     GameFaction::Asia => {
                         available_factions
@@ -474,6 +484,9 @@ fn load_map(
                         available_factions
                             .faction_city_icons
                             .insert(GameFaction::Asia, textures.asia_city.clone());
+                        available_factions
+                            .faction_ship_icons
+                            .insert(GameFaction::Asia, textures.asia_ship.clone());
                     }
                     GameFaction::Assyria => {
                         available_factions
@@ -482,6 +495,9 @@ fn load_map(
                         available_factions
                             .faction_city_icons
                             .insert(GameFaction::Assyria, textures.assyria_city.clone());
+                        available_factions
+                            .faction_ship_icons
+                            .insert(GameFaction::Assyria, textures.assyria_ship.clone());
                     }
                     GameFaction::Babylon => {
                         available_factions
@@ -490,6 +506,9 @@ fn load_map(
                         available_factions
                             .faction_city_icons
                             .insert(GameFaction::Babylon, textures.babylon_city.clone());
+                        available_factions
+                            .faction_ship_icons
+                            .insert(GameFaction::Babylon, textures.babylon_ship.clone());
                     }
                     GameFaction::Illyria => {
                         available_factions
@@ -498,6 +517,9 @@ fn load_map(
                         available_factions
                             .faction_city_icons
                             .insert(GameFaction::Illyria, textures.illyria_city.clone());
+                        available_factions
+                            .faction_ship_icons
+                            .insert(GameFaction::Illyria, textures.illyria_ship.clone());
                     }
                     GameFaction::Iberia => {
                         available_factions
@@ -506,6 +528,9 @@ fn load_map(
                         available_factions
                             .faction_city_icons
                             .insert(GameFaction::Iberia, textures.iberia_city.clone());
+                        available_factions
+                            .faction_ship_icons
+                            .insert(GameFaction::Iberia, textures.iberia_ship.clone());
                     }
                     GameFaction::Thrace => {
                         available_factions
@@ -514,6 +539,9 @@ fn load_map(
                         available_factions
                             .faction_city_icons
                             .insert(GameFaction::Thrace, textures.thrace_city.clone());
+                        available_factions
+                            .faction_ship_icons
+                            .insert(GameFaction::Thrace, textures.thrace_ship.clone());
                     }
                 }
             }

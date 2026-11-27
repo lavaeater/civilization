@@ -3,7 +3,7 @@ use crate::civilization::camera_auto_pan_enabled;
 use crate::civilization::components::{OpenSea, SeaPassage};
 use crate::civilization::concepts::ships::ship_components::{PlayerShips, Ship, ShipStock};
 use crate::civilization::concepts::ships::ship_systems::{
-    advance_ship_construction, enter_ship_construction,
+    advance_ship_construction, dress_ships, enter_ship_construction,
 };
 use crate::civilization::concepts::ships::ship_ui_components::{
     AwaitingShipPlacement, ShipConstructionState,
@@ -26,6 +26,7 @@ impl Plugin for ShipsPlugin {
             .register_type::<OpenSea>()
             .register_type::<AwaitingShipPlacement>()
             .init_resource::<ShipConstructionState>()
+            .add_systems(bevy::app::PostUpdate, dress_ships)
             .add_systems(
                 OnEnter(GameActivity::ShipConstruction),
                 enter_ship_construction,

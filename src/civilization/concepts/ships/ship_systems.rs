@@ -1,10 +1,11 @@
 use crate::GameActivity;
 use crate::civilization::CivCardName;
 use crate::civilization::components::{
-    GameArea, PlayerAreas, Population, ReturnTokenToStock, SeaPassage, Treasury,
+    Faction, GameArea, PlayerAreas, Population, ReturnTokenToStock, SeaPassage, Treasury,
 };
 use crate::civilization::concepts::census::GameInfoAndStuff;
 use crate::civilization::concepts::civ_cards::PlayerCivilizationCards;
+use crate::civilization::concepts::map::AvailableFactions;
 use crate::civilization::concepts::ships::ship_components::{PlayerShips, Ship, ShipStock};
 use crate::civilization::concepts::ships::ship_ui_components::{
     AwaitingShipPlacement, ShipConstructionState,
@@ -438,6 +439,28 @@ pub fn advance_ship_construction(
     }
 
     next_state.set(GameActivity::Movement);
+}
+
+/// On the board a ship is a 2:1 tile, a little over a token wide.
+pub const SHIP_SIZE: bevy::math::Vec2 = bevy::math::Vec2::new(54.0, 27.0);
+
+/// A ship that just got a sprite wears its owner's colours, at its own size
+/// (not a scale: sailing replaces the ship's `Transform`).
+pub fn dress_ships(
+    mut ships: Query<(&Ship, &mut Sprite), bevy::prelude::Added<Sprite>>,
+    factions: Query<&Faction>,
+    icons: Res<AvailableFactions>,
+) {
+    for (ship, mut sprite) in &mut ships {
+        if let Some(image) = factions
+            .get(ship.owner)
+            .ok()
+            .and_then(|f| icons.faction_ship_icons.get(&f.faction))
+        {
+            sprite.image = image.clone();
+        }
+        sprite.custom_size = Some(SHIP_SIZE);
+    }
 }
 
 /// Spawns the initial ship entities (stock) for a player during game setup.
