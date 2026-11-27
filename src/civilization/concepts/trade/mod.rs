@@ -1,4 +1,5 @@
 mod trade_components;
+mod trade_composer;
 mod trade_events;
 mod trade_functions;
 mod trade_inbox;
@@ -11,6 +12,7 @@ mod trade_triggers;
 mod trade_ui_plugin;
 
 pub use trade_components::*;
+pub use trade_composer::*;
 pub use trade_events::*;
 pub use trade_functions::*;
 pub use trade_inbox::*;

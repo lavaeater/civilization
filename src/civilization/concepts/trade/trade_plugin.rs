@@ -1,4 +1,7 @@
 use crate::GameActivity;
+use crate::civilization::concepts::trade::trade_composer::{
+    handle_composer_chips, render_composer_body, spawn_create_offer_modal,
+};
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::trade_inbox::{
     TradeInbox, collect_inbox, handle_inbox_buttons, handle_table_log_toggle, inbox_shortcuts,
@@ -64,17 +67,12 @@ impl Plugin for TradePlugin {
                     spawn_create_offer_modal,
                     handle_close_create_offer_modal,
                     despawn_create_offer_modal,
-                    handle_card_count_adjust,
-                    update_card_count_displays,
-                    handle_hidden_count_buttons,
-                    update_hidden_count_displays,
-                    handle_claim_buttons,
-                    update_claim_display,
+                    handle_composer_chips,
+                    render_composer_body,
                     update_offer_summary_display,
                     handle_publish_offer,
-                    handle_target_buttons,
-                    update_target_display,
                 )
+                    .chain()
                     .run_if(in_state(GameActivity::Trade)),
             )
             .add_systems(
