@@ -11,8 +11,8 @@ use crate::civilization::general_systems::{
 };
 use crate::civilization::resolve_calamities::resolve_calamities_plugin::ResolveCalamitiesPlugin;
 use crate::civilization::triggers::{
-    hide_off_board_pieces, hide_tokens_off_the_board, on_add_return_city_to_stock,
-    on_add_return_token_to_stock, report_stray_pieces,
+    drop_sprite_quad_with_sprite, hide_off_board_pieces, hide_tokens_off_the_board,
+    on_add_return_city_to_stock, on_add_return_token_to_stock, report_stray_pieces,
 };
 use crate::civilization::ui::ButtonActivationPlugin;
 use crate::player::Player;
@@ -29,6 +29,8 @@ pub struct CivilizationPlugin;
 /// Player logic is only active during the State `GameState::Playing`
 impl Plugin for CivilizationPlugin {
     fn build(&self, app: &mut App) {
+        // Drawing only: a removed sprite must take Bevy's quad with it.
+        app.add_observer(drop_sprite_quad_with_sprite);
         app.add_plugins(CivLogicPlugins).add_plugins((
             CivilizationInputPlugin,
             TradeUiPlugin,

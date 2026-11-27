@@ -20,11 +20,12 @@ const PLAIN: Color = Color::srgb(0.85, 0.85, 0.85);
 const DIM: Color = Color::srgb(0.6, 0.6, 0.6);
 const STRAY: Color = Color::srgb(1.0, 0.35, 0.35);
 
-/// A drawn piece on the board, as the stray audit sees it.
+/// A piece the renderer draws on the board (Bevy draws sprites through a
+/// `Mesh2d` quad), as the stray audit sees it.
 pub type DrawnPiece = (
     Entity,
-    &'static Transform,
-    Option<&'static Visibility>,
+    &'static GlobalTransform,
+    Option<&'static ViewVisibility>,
     Option<&'static Name>,
     Option<&'static Token>,
     Option<&'static CityToken>,
@@ -62,7 +63,7 @@ fn audit_drawn_pieces(
         Has<FloodPlain>,
         Has<CityFlood>,
     )>,
-    drawn: &Query<DrawnPiece, (With<Sprite>, Without<GameArea>, Without<AreaHoverPanel>)>,
+    drawn: &Query<DrawnPiece, (With<Mesh2d>, Without<GameArea>, Without<AreaHoverPanel>)>,
     stocks: &Query<(Entity, &TokenStock, Option<&Treasury>)>,
     fleets: &Query<(Entity, &PlayerShips)>,
     who: &dyn Fn(Entity) -> (String, Option<Color>),
@@ -115,8 +116,9 @@ fn audit_drawn_pieces(
     };
     let mut out = Vec::new();
     for (piece, transform, visibility, name, token, city, barbarian, ship, sliding) in drawn {
-        let at = transform.translation;
-        if at.z < 0.0 || visibility == Some(&Visibility::Hidden) || sliding {
+        // Where the renderer draws it, not where `Transform` says.
+        let at = transform.translation();
+        if at.z < 0.0 || visibility.is_some_and(|v| !v.get()) || sliding {
             continue; // the map itself; hidden pieces; pieces on their way
         }
         if nearest(at.truncate()) != Some(area) {
@@ -280,7 +282,7 @@ pub fn update_area_hover_panel(
     fleets: Query<(Entity, &PlayerShips)>,
     mut panel: Query<(Entity, &mut Node, &mut Visibility), With<AreaHoverPanel>>,
     ui_scale: Res<UiScale>,
-    drawn: Query<DrawnPiece, (With<Sprite>, Without<GameArea>, Without<AreaHoverPanel>)>,
+    drawn: Query<DrawnPiece, (With<Mesh2d>, Without<GameArea>, Without<AreaHoverPanel>)>,
     stocks: Query<(Entity, &TokenStock, Option<&Treasury>)>,
     mut shown: Local<Vec<HoverLine>>,
 ) {

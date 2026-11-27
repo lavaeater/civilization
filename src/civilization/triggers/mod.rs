@@ -169,6 +169,25 @@ pub fn hide_tokens_off_the_board(
     }
 }
 
+/// A piece taken off the board stops being drawn.
+///
+/// Since Bevy 0.20 a `Sprite` is drawn through a `Mesh2d` quad and a
+/// `MeshMaterial2d` that `SpriteMeshPlugin` inserts when the sprite is added
+/// -- and nothing takes them away when the `Sprite` goes. Every path that
+/// takes a piece off the board removes `Sprite`/`Transform`/`Visibility` but
+/// keeps the entity (it waits in a stock), so the quad stayed on screen where
+/// the piece last stood: the leftover tokens after every city, battle and
+/// calamity. Taking the sprite away now takes its quad with it.
+pub fn drop_sprite_quad_with_sprite(
+    trigger: On<bevy::prelude::Remove<Sprite>>,
+    mut commands: Commands,
+) {
+    commands.entity(trigger.event().entity).try_remove::<(
+        bevy::prelude::Mesh2d,
+        bevy::prelude::MeshMaterial2d<bevy::sprite_render::SpriteMeshMaterial>,
+    )>();
+}
+
 /// How far from its area's centre a token may be drawn (the layout puts
 /// them within ~60 units).
 const STRAY_DISTANCE: f32 = 90.0;
@@ -311,6 +330,43 @@ mod tests {
             );
         }
         assert!(world.get::<Sprite>(on_board).is_some());
+    }
+
+    /// Bevy draws a sprite through a quad it adds alongside; taking the
+    /// sprite off must take the quad too, or the piece stays on screen.
+    #[test]
+    fn removing_a_sprite_removes_the_quad_that_draws_it() {
+        use bevy::prelude::{Handle, Mesh2d, MeshMaterial2d};
+        use bevy::sprite_render::SpriteMeshMaterial;
+        let mut world = World::new();
+        world.add_observer(drop_sprite_quad_with_sprite);
+        let piece = world
+            .spawn((
+                Sprite::default(),
+                Mesh2d(Handle::default()),
+                MeshMaterial2d::<SpriteMeshMaterial>(Handle::default()),
+            ))
+            .id();
+        world
+            .entity_mut(piece)
+            .remove::<(Sprite, Transform, Visibility)>();
+        world.flush();
+        assert!(
+            world.get::<Mesh2d>(piece).is_none(),
+            "the quad is still drawn"
+        );
+        assert!(
+            world
+                .get::<MeshMaterial2d<SpriteMeshMaterial>>(piece)
+                .is_none()
+        );
+
+        // A despawned piece takes everything with it, without complaint.
+        let gone = world
+            .spawn((Sprite::default(), Mesh2d(Handle::default())))
+            .id();
+        world.despawn(gone);
+        world.flush();
     }
 
     /// A ship its owner could not maintain goes back to stock; it must
