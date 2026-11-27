@@ -15,7 +15,8 @@ use crate::civilization::concepts::trade::trade_inbox::{
     TableTickerText, TradeInbox,
 };
 use crate::civilization::concepts::trade::trade_resources::{
-    CreateOfferState, HUMAN_TABLE_PACE, TradeCountdown, TradePhaseState, TradeUiState,
+    CreateOfferState, HUMAN_HOLD_SECONDS, HUMAN_TABLE_PACE, TradeCountdown, TradePhaseState,
+    TradeUiState,
 };
 use crate::civilization::concepts::trade::trade_table_ui::{SayButton, TalkComposerModal};
 use crate::civilization::concepts::trade::trade_talk::{TableKnowledge, TalkKind, TradeTalk};
@@ -34,7 +35,7 @@ use crate::stupid_ai::{
     hidden_cards_to_trade, honesty_of_delivery, offer_creation_chance, stop_trading_threshold,
     trade_accept_margin, treachery_victim_value,
 };
-use bevy::platform::collections::HashMap;
+use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::*;
 use lava_ui_builder::{InteractionPalette, LavaTheme, TextStyle, UIBuilder};
 use rand::RngExt;
@@ -2990,6 +2991,7 @@ pub fn ai_create_trade_offers(
                 .iter_mut()
                 .filter(|o| o.creator == ai_entity && !o.withdrawn && o.accepted_by.is_none())
                 .filter(|o| o.posted_at as f32 / 10.0 - now >= STALE_OFFER_SECONDS)
+                .filter(|o| !held_for_human(o, |e| humans.contains(e), now))
                 .max_by_key(|o| o.posted_at);
             if let Some(mut stale) = stale {
                 stale.withdrawn = true;
@@ -3192,6 +3194,19 @@ pub fn acceptor_trade_gain(
 
 /// AI accepts trade offers that benefit them.
 /// Criteria: The trade must either increase the AI's total stack value OR enable trading away a calamity.
+/// A live proposal to a human, still inside its hold (see
+/// [`HUMAN_HOLD_SECONDS`]).
+pub(crate) fn held_for_human(
+    offer: &OpenTradeOffer,
+    is_human: impl Fn(Entity) -> bool,
+    now: f32,
+) -> bool {
+    !offer.withdrawn
+        && offer.accepted_by.is_none()
+        && offer.target.is_some_and(is_human)
+        && offer.posted_at as f32 / 10.0 - now < HUMAN_HOLD_SECONDS
+}
+
 pub fn ai_accept_trade_offers(
     ai_players: Query<
         (
@@ -3209,9 +3224,17 @@ pub fn ai_accept_trade_offers(
     // Not the Pirate Nation, which owns cities too.
     cities: Query<&PlayerCities, With<crate::player::Player>>,
     trade_phase_state: Res<TradePhaseState>,
+    humans: Query<(), With<IsHuman>>,
     mut commands: Commands,
 ) {
     let now = trade_phase_state.countdown_seconds;
+    // Makers waiting on a human's answer make no other deal meanwhile, so
+    // the cards they offered the human are still theirs to give.
+    let holding: HashSet<Entity> = offers
+        .iter()
+        .filter(|(_, o)| held_for_human(o, |e| humans.contains(e), now))
+        .map(|(_, o)| o.creator)
+        .collect();
     let most_cities = cities
         .iter()
         .map(PlayerCities::number_of_cities)
@@ -3225,7 +3248,7 @@ pub fn ai_accept_trade_offers(
                 .iter()
                 .any(|(_, o)| o.is_settling() && (o.creator == e || o.accepted_by == Some(e)))
         };
-        if busy(ai_entity, &offers) {
+        if busy(ai_entity, &offers) || holding.contains(&ai_entity) {
             continue;
         }
         let has_mining = ai_civ_cards.is_some_and(|c| c.owns(&CivCardName::Mining));
@@ -3243,7 +3266,11 @@ pub fn ai_accept_trade_offers(
         // Judge every proposal made to us; take the best, not the first.
         let judged: Vec<(Entity, Option<(f32, bool)>)> = offers
             .iter()
-            .filter(|(_, o)| o.can_accept(ai_entity) && !busy(o.creator, &offers))
+            .filter(|(_, o)| {
+                o.can_accept(ai_entity)
+                    && !busy(o.creator, &offers)
+                    && !holding.contains(&o.creator)
+            })
             .map(|(e, o)| {
                 let partner_trust = trust.map_or(DEFAULT_TRUST, |t| t.of(o.creator));
                 let verdict = acceptor_trade_gain(ai_cards, o, has_mining, partner_trust, aversion)
@@ -3574,6 +3601,37 @@ mod trust_tests {
 
         let trust = app.world().get::<TradeTrust>(ai).unwrap();
         assert!(trust.of(human) < DEFAULT_TRUST, "trust {}", trust.of(human));
+    }
+}
+
+#[cfg(test)]
+mod human_hold_tests {
+    use super::*;
+
+    fn offer_to(target: Entity, posted_at_seconds: f32) -> OpenTradeOffer {
+        let mut offer = OpenTradeOffer::new(Entity::PLACEHOLDER, "Crete", Some(target), None);
+        offer.posted_at = (posted_at_seconds * 10.0) as u32;
+        offer
+    }
+
+    /// A fresh proposal to a human is held; it lapses after the hold, and
+    /// proposals to AIs are never held.
+    #[test]
+    fn a_fresh_proposal_to_a_human_is_held_for_a_while() {
+        let human = Entity::from_raw_u32(7).unwrap();
+        let ai = Entity::from_raw_u32(8).unwrap();
+        let is_human = |e: Entity| e == human;
+        // Posted at 90 s on the countdown.
+        assert!(held_for_human(&offer_to(human, 90.0), is_human, 85.0));
+        assert!(!held_for_human(
+            &offer_to(human, 90.0),
+            is_human,
+            90.0 - HUMAN_HOLD_SECONDS - 0.1
+        ));
+        assert!(!held_for_human(&offer_to(ai, 90.0), is_human, 85.0));
+        let mut answered = offer_to(human, 90.0);
+        answered.withdrawn = true;
+        assert!(!held_for_human(&answered, is_human, 85.0));
     }
 }
 

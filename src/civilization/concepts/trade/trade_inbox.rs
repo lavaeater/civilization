@@ -580,6 +580,10 @@ pub fn render_inbox_card(
                         CARD_VALUE,
                     );
                 }
+                let blocked = hand.and_then(|hand| why_cannot_accept(hand, offer));
+                if let Some(reason) = &blocked {
+                    text(card, reason.clone(), 14.0, Color::srgb(1.0, 0.45, 0.4));
+                }
                 button_row(card, |row| {
                     small_button(
                         row,
@@ -602,19 +606,45 @@ pub fn render_inbox_card(
                             },
                         ),
                     );
-                    small_button(
-                        row,
-                        &label(InboxAction::Accept, "Accept"),
-                        ACCEPT_OFFER_PALETTE,
-                        (
-                            InboxButton(InboxAction::Accept),
-                            AcceptOfferButton { offer: entity },
-                        ),
-                    );
+                    if blocked.is_none() {
+                        small_button(
+                            row,
+                            &label(InboxAction::Accept, "Accept"),
+                            ACCEPT_OFFER_PALETTE,
+                            (
+                                InboxButton(InboxAction::Accept),
+                                AcceptOfferButton { offer: entity },
+                            ),
+                        );
+                    }
                 });
             }
         }
     });
+}
+
+/// Why `hand` can't take `offer`, or `None` when it can: the named cards it
+/// asks for, or enough cards in all.
+pub(crate) fn why_cannot_accept(hand: &PlayerTradeCards, offer: &OpenTradeOffer) -> Option<String> {
+    let mut short: Vec<String> = offer
+        .wanting_guaranteed
+        .iter()
+        .filter_map(|(card, n)| {
+            let have = hand.number_of_cards_for_trade_card(*card);
+            (have < *n).then(|| format!("{n} {card} (you have {have})"))
+        })
+        .collect();
+    short.sort();
+    if !short.is_empty() {
+        return Some(format!(
+            "You can't accept: it asks for {}.",
+            short.join(", ")
+        ));
+    }
+    let needed = offer.wanting_guaranteed.values().sum::<usize>() + offer.wanting_hidden_count;
+    let have = hand.number_of_trade_cards();
+    (have < needed)
+        .then(|| format!("You can't accept: it asks for {needed} cards and you hold {have}."))
 }
 
 /// What the card's buttons do to the inbox. Reply, Propose, Counter, Accept
@@ -850,6 +880,26 @@ pub fn render_my_deals(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn accept_is_blocked_with_the_reason_when_the_cards_are_missing() {
+        let hand =
+            PlayerTradeCards::from_cards_vec(vec![(TradeCard::Salt, 1), (TradeCard::Ochre, 2)]);
+        let mut offer = OpenTradeOffer::new(Entity::PLACEHOLDER, "Crete", None, None);
+        offer.wanting_guaranteed.insert(TradeCard::Salt, 2);
+        assert_eq!(
+            why_cannot_accept(&hand, &offer).as_deref(),
+            Some("You can't accept: it asks for 2 Salt (you have 1).")
+        );
+        offer.wanting_guaranteed.insert(TradeCard::Salt, 1);
+        offer.wanting_hidden_count = 3;
+        assert_eq!(
+            why_cannot_accept(&hand, &offer).as_deref(),
+            Some("You can't accept: it asks for 4 cards and you hold 3.")
+        );
+        offer.wanting_hidden_count = 2;
+        assert_eq!(why_cannot_accept(&hand, &offer), None);
+    }
+
     use super::*;
 
     fn e(n: u32) -> Entity {

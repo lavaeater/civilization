@@ -62,6 +62,10 @@ pub struct TradePhaseState {
 /// slower: the countdown, and with it every AI's talking, proposing,
 /// declining and leaving. A person needs a few seconds to read a line.
 pub const HUMAN_TABLE_PACE: f32 = 3.0;
+/// Table seconds an AI's fresh proposal to a human stays good (about half a
+/// minute at the human pace): meanwhile its maker makes no other deal and
+/// doesn't take it down, so the human has time to read it and accept.
+pub const HUMAN_HOLD_SECONDS: f32 = 12.0;
 /// Statements all AIs together may make per talk round with a human at the
 /// table, so lines arrive one or two at a time instead of in bursts.
 pub const HUMAN_TABLE_TALK_PER_ROUND: usize = 2;
