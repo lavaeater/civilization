@@ -198,7 +198,7 @@ impl Default for DebugOptions {
     fn default() -> Self {
         Self {
             add_human_player: true,
-            human_faction: GameFaction::Thrace,
+            human_faction: GameFaction::Babylon,
             human_always_pulls_trade_cards: false,
             ai_always_pulls_trade_cards: false,
             human_starts_with_trade_cards: false,
