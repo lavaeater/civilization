@@ -1,3 +1,4 @@
+use crate::civilization::concepts::movement::movement_board::{TargetKind, TargetOption};
 use bevy::platform::collections::HashSet;
 use bevy::prelude::*;
 
@@ -24,11 +25,9 @@ pub struct MovementSelectionState {
     pub is_city_attack: bool,
     /// Source areas the player has chosen to skip
     pub skipped_sources: HashSet<Entity>,
-    /// Sailing a ship instead of walking: targets are the coasts its ship
-    /// can reach, and `token_count` is how many step aboard (0 allowed).
+    /// The picked target is reached by ship: `token_count` is then how many
+    /// are aboard when it sails (0 allowed), counting those already aboard.
     pub by_ship: bool,
-    /// Tokens aboard the ship that step off here before it sails.
-    pub ship_drop: usize,
     /// Tokens aboard the ship at the current source.
     pub ship_cargo: usize,
     /// Where the ship just sailed: the cursor follows it there.
@@ -48,25 +47,17 @@ impl MovementSelectionState {
         self.is_city_attack = false;
         self.skipped_sources.clear();
         self.by_ship = false;
-        self.ship_drop = 0;
         self.ship_cargo = 0;
         self.follow_area = None;
     }
 
-    /// Switch between moving overland and sailing.
-    pub fn toggle_ship(&mut self) {
-        self.by_ship = !self.by_ship;
-        self.clear_target();
-    }
-
-    pub fn drop_more(&mut self) {
-        if self.ship_drop < self.ship_cargo {
-            self.ship_drop += 1;
-        }
-    }
-
-    pub fn drop_fewer(&mut self) {
-        self.ship_drop = self.ship_drop.saturating_sub(1);
+    /// For a picked sea move: how many of those aboard step off here, and
+    /// how many from here step on, to leave with `token_count` aboard.
+    pub fn ferry_split(&self) -> (usize, usize) {
+        (
+            self.ship_cargo.saturating_sub(self.token_count),
+            self.token_count.saturating_sub(self.ship_cargo),
+        )
     }
 
     /// Put the cursor on `area` if it is a source.
@@ -88,7 +79,7 @@ impl MovementSelectionState {
     }
 
     pub fn clear_target(&mut self) {
-        self.ship_drop = 0;
+        self.by_ship = false;
         self.target_area = None;
         self.token_count = 0;
         self.max_tokens = 0;
@@ -244,23 +235,16 @@ impl MovementSelectionState {
         self.target_area.is_some() && (self.token_count > 0 || self.by_ship)
     }
 
-    pub fn select_target(
-        &mut self,
-        player: Entity,
-        source: Entity,
-        target: Entity,
-        max_tokens: usize,
-        is_attack: bool,
-        is_city_attack: bool,
-    ) {
+    pub fn select_target(&mut self, player: Entity, source: Entity, option: TargetOption) {
         self.player = Some(player);
         self.source_area = Some(source);
-        self.target_area = Some(target);
-        self.max_tokens = max_tokens;
+        self.target_area = Some(option.target);
+        self.max_tokens = option.max;
+        self.by_ship = option.kind == TargetKind::Sail;
         // Walking starts with one token; a ship takes everyone it can.
-        self.token_count = if self.by_ship { max_tokens } else { 1 };
-        self.is_attack = is_attack;
-        self.is_city_attack = is_city_attack;
+        self.token_count = if self.by_ship { option.max } else { 1 };
+        self.is_attack = option.is_attack();
+        self.is_city_attack = option.kind == TargetKind::CityAttack;
     }
 
     pub fn increment(&mut self) {
@@ -288,29 +272,6 @@ impl MovementSelectionState {
     }
 }
 
-/// Marker for areas that are valid movement sources for the human player
-#[derive(Component, Debug)]
-pub struct MovementSourceHighlight {
-    pub player: Entity,
-}
-
-/// Marker for areas that are valid movement targets from a source
-#[derive(Component, Debug)]
-pub struct MovementTargetHighlight {
-    pub player: Entity,
-    pub source_area: Entity,
-    pub max_tokens: usize,
-    pub is_attack: bool,
-    pub is_city_attack: bool,
-}
-
-/// Visual arrow entity connecting source to target
-#[derive(Component, Debug)]
-pub struct MovementArrow {
-    pub source_area: Entity,
-    pub target_area: Entity,
-}
-
 /// Marker for the movement UI root container
 #[derive(Component, Default)]
 pub struct MovementUiRoot;
@@ -330,18 +291,6 @@ pub struct SourceAreaDisplay;
 /// Marker for the ship line: mode, tokens aboard, range left, drop-off count
 #[derive(Component, Default)]
 pub struct ShipStatusDisplay;
-
-/// Marker for the "Drop off: n / aboard" text
-#[derive(Component, Default)]
-pub struct ShipDropDisplay;
-
-/// Marker for movement arrow gizmo data
-#[derive(Component, Debug)]
-pub struct MovementArrowGizmo {
-    pub source_pos: Vec2,
-    pub target_pos: Vec2,
-    pub color: Color,
-}
 
 #[cfg(test)]
 mod movement_selection_state_tests {
@@ -441,6 +390,32 @@ mod movement_selection_state_tests {
             Some(e(1)),
             "skipped areas are not offered again"
         );
+    }
+
+    /// One "aboard" number decides who steps off and who steps on.
+    #[test]
+    fn the_aboard_count_splits_into_off_and_on() {
+        let mut state = MovementSelectionState {
+            ship_cargo: 3,
+            ..default()
+        };
+        state.select_target(
+            e(9),
+            e(1),
+            TargetOption {
+                target: e(2),
+                kind: TargetKind::Sail,
+                max: 5,
+            },
+        );
+        assert_eq!(state.token_count, 5, "a ship takes everyone it can");
+        assert_eq!(state.ferry_split(), (0, 2));
+        state.token_count = 1;
+        assert_eq!(state.ferry_split(), (2, 0));
+        state.token_count = 3;
+        assert_eq!(state.ferry_split(), (0, 0));
+        state.clear_target();
+        assert!(!state.by_ship, "the next pick decides again");
     }
 
     /// A fresh phase starts on the first area, not the second.

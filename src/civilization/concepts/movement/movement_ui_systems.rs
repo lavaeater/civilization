@@ -5,18 +5,15 @@ use crate::civilization::concepts::movement::movement_events::{
     MoveTokenFromAreaToAreaCommand, PlayerMovementEnded, ShipFerryCommand,
 };
 use crate::civilization::concepts::movement::movement_ui_components::{
-    MovementSelectionState, MovementUiRoot, ShipDropDisplay, ShipStatusDisplay, SourceAreaDisplay,
-    TokenCountDisplay,
+    MovementSelectionState, MovementUiRoot, ShipStatusDisplay, SourceAreaDisplay, TokenCountDisplay,
 };
-use crate::civilization::game_moves::{AvailableMoves, GameMove, MovementMove};
+use crate::civilization::game_moves::{AvailableMoves, GameMove};
 use crate::civilization::{
     CivCardName, PlayerCivilizationCards, PlayerShips, SHIP_CAPACITY, ShipVoyages, ship_range,
 };
 use crate::stupid_ai::IsHuman;
-use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
-use bevy::ui_widgets::{Activate, Button as WidgetsButton};
-use bevy::window::PrimaryWindow;
+use bevy::ui_widgets::Activate;
 use lava_ui_builder::{ButtonTheme, LavaTheme, TextStyle, UIBuilder};
 
 /// System to detect when human player has movement options and populate the selection state
@@ -55,198 +52,6 @@ pub fn setup_human_movement_options(
             // After a leg at sea, stay with the ship.
             if let Some(area) = selection_state.follow_area.take() {
                 selection_state.focus(area);
-            }
-        }
-    }
-}
-
-/// System to draw arrows from source areas to valid target areas using Gizmos
-pub fn draw_movement_arrows(
-    mut gizmos: Gizmos,
-    human_players: Query<(Entity, &AvailableMoves), (With<IsHuman>, With<PerformingMovement>)>,
-    area_transforms: Query<&Transform, With<GameArea>>,
-    selection_state: Res<MovementSelectionState>,
-) {
-    for (_player_entity, available_moves) in human_players.iter() {
-        // Group moves by source area
-        let mut source_targets: bevy::platform::collections::HashMap<
-            Entity,
-            Vec<(Entity, bool, bool, usize)>,
-        > = bevy::platform::collections::HashMap::new();
-
-        for game_move in available_moves.moves.values() {
-            match game_move {
-                GameMove::ShipFerry(m) if selection_state.by_ship => {
-                    source_targets.entry(m.source).or_default().push((
-                        m.target,
-                        false,
-                        false,
-                        m.max_tokens,
-                    ));
-                }
-                _ if selection_state.by_ship => {}
-                GameMove::Movement(m) => {
-                    source_targets.entry(m.source).or_default().push((
-                        m.target,
-                        false,
-                        false,
-                        m.max_tokens,
-                    ));
-                }
-                GameMove::AttackArea(m) => {
-                    source_targets.entry(m.source).or_default().push((
-                        m.target,
-                        true,
-                        false,
-                        m.max_tokens,
-                    ));
-                }
-                GameMove::AttackCity(m) => {
-                    source_targets.entry(m.source).or_default().push((
-                        m.target,
-                        true,
-                        true,
-                        m.max_tokens,
-                    ));
-                }
-                _ => {}
-            }
-        }
-
-        // Only draw arrows from the currently focused source area
-        let focused_source = selection_state.current_source();
-
-        for (source, targets) in &source_targets {
-            // Skip sources that aren't the focused one
-            if let Some(focused) = focused_source
-                && *source != focused
-            {
-                continue;
-            }
-
-            let Ok(source_transform) = area_transforms.get(*source) else {
-                continue;
-            };
-            let source_pos = source_transform.translation.truncate();
-
-            for (target, is_attack, is_city_attack, _max_tokens) in targets {
-                // If we have a target selection, only show the selected arrow
-                if selection_state.has_selection()
-                    && (selection_state.source_area != Some(*source)
-                        || selection_state.target_area != Some(*target))
-                {
-                    continue;
-                }
-
-                let Ok(target_transform) = area_transforms.get(*target) else {
-                    continue;
-                };
-                let target_pos = target_transform.translation.truncate();
-
-                // Choose color based on move type
-                let color = if selection_state.target_area == Some(*target)
-                    && selection_state.source_area == Some(*source)
-                {
-                    Color::srgb(0.2, 1.0, 0.2) // Bright green for selected
-                } else if *is_city_attack {
-                    Color::srgb(1.0, 0.2, 0.2) // Red for city attack
-                } else if *is_attack {
-                    Color::srgb(1.0, 0.6, 0.2) // Orange for area attack
-                } else if selection_state.by_ship {
-                    Color::srgb(0.1, 0.9, 0.9) // Cyan for a ship's course
-                } else {
-                    Color::srgb(0.2, 0.6, 1.0) // Blue for normal movement
-                };
-
-                // Draw arrow line
-                gizmos.arrow_2d(source_pos, target_pos, color);
-            }
-        }
-    }
-}
-
-/// System to handle clicking on target areas to select them
-pub fn handle_movement_target_click(
-    mouse_button: Res<ButtonInput<MouseButton>>,
-    windows: Query<&Window, With<PrimaryWindow>>,
-    camera_query: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
-    human_players: Query<(Entity, &AvailableMoves), (With<IsHuman>, With<PerformingMovement>)>,
-    area_query: Query<(Entity, &Transform), With<GameArea>>,
-    ui_button_hover: Query<&Hovered, With<WidgetsButton>>,
-    mut selection_state: ResMut<MovementSelectionState>,
-) {
-    const CLICK_RADIUS: f32 = 30.0;
-
-    if !mouse_button.just_pressed(MouseButton::Left) {
-        return;
-    }
-
-    // This system does a raw cursor/world-space hit test and has no idea
-    // about the movement controls panel drawn on top of the board. Without
-    // this guard, clicking OK/Cancel/Prev/etc. also "clicks through" to
-    // whatever area happens to be under the panel, silently changing the
-    // selected target. The movement UI's buttons are `feathers`/
-    // `ui_widgets::Button`s tracked via picking's `Hovered`, not the
-    // classic `bevy::prelude::Button`/`Interaction` pair.
-    if ui_button_hover.iter().any(|hovered| hovered.0) {
-        return;
-    }
-
-    let Ok(window) = windows.single() else { return };
-    let Some(cursor_pos) = window.cursor_position() else {
-        return;
-    };
-    let Ok((camera, camera_transform)) = camera_query.single() else {
-        return;
-    };
-
-    let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) else {
-        return;
-    };
-
-    let focused_source = selection_state.current_source();
-
-    for (player_entity, available_moves) in human_players.iter() {
-        // Find which target area was clicked (only from focused source)
-        for game_move in available_moves.moves.values() {
-            let movement_move: Option<&MovementMove> = match game_move {
-                GameMove::ShipFerry(m) if selection_state.by_ship => Some(m),
-                GameMove::Movement(m) | GameMove::AttackArea(m) | GameMove::AttackCity(m)
-                    if !selection_state.by_ship =>
-                {
-                    Some(m)
-                }
-                _ => None,
-            };
-
-            if let Some(m) = movement_move {
-                // Only allow clicking targets from the focused source
-                if let Some(focused) = focused_source
-                    && m.source != focused
-                {
-                    continue;
-                }
-
-                if let Ok((_, target_transform)) = area_query.get(m.target) {
-                    let target_pos = target_transform.translation.truncate();
-                    let distance = world_pos.distance(target_pos);
-
-                    if distance <= CLICK_RADIUS {
-                        let is_attack =
-                            matches!(game_move, GameMove::AttackArea(_) | GameMove::AttackCity(_));
-                        let is_city_attack = matches!(game_move, GameMove::AttackCity(_));
-
-                        selection_state.select_target(
-                            player_entity,
-                            m.source,
-                            m.target,
-                            m.max_tokens,
-                            is_attack,
-                            is_city_attack,
-                        );
-                        return;
-                    }
-                }
             }
         }
     }
@@ -433,30 +238,18 @@ pub fn spawn_movement_controls_ui(
                 },
             );
         });
-        // Ship row: switch to sailing, and see what the ship here carries.
+        // Ship line: what the ship here carries and how far it can still go.
         builder.add_row(|ship_row| {
             ship_row
                 .align_items_center()
                 .justify_space_between()
                 .column_gap(px(8.0))
                 .margin_btm(px(6.0));
-            ship_row.add_button_observe(
-                "Land/Sea",
-                |button| {
-                    button
-                        .size(px(72.0), px(36.0))
-                        .justify_content(JustifyContent::Center)
-                        .align_items(AlignItems::Center);
-                },
-                |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
-                    selection_state.toggle_ship();
-                },
-            );
             ship_row.with_child(|child| {
                 child
                     .component::<ShipStatusDisplay>()
                     .with_text(
-                        "Moving overland",
+                        "No ship here",
                         Some(TextStyle {
                             font: Some(font.clone()),
                             font_size: Some(12.0),
@@ -465,54 +258,8 @@ pub fn spawn_movement_controls_ui(
                             line_break: Some(LineBreak::NoWrap),
                         }),
                     )
-                    .width(px(210.0));
+                    .width(px(300.0));
             });
-        });
-        // Drop-off row: how many of those aboard step off here before sailing.
-        builder.add_row(|drop_row| {
-            drop_row
-                .align_items_center()
-                .column_gap(px(10.0))
-                .margin_btm(px(10.0));
-            drop_row.add_button_observe(
-                "-",
-                |button| {
-                    button
-                        .size(px(36.0), px(36.0))
-                        .justify_content(JustifyContent::Center)
-                        .align_items(AlignItems::Center);
-                },
-                |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
-                    selection_state.drop_fewer();
-                },
-            );
-            drop_row.with_child(|child| {
-                child
-                    .component::<ShipDropDisplay>()
-                    .with_text(
-                        "Drop off: 0",
-                        Some(TextStyle {
-                            font: Some(font.clone()),
-                            font_size: Some(14.0),
-                            color: Some(Color::WHITE),
-                            justify: Some(Justify::Center),
-                            line_break: Some(LineBreak::NoWrap),
-                        }),
-                    )
-                    .width(px(120.));
-            });
-            drop_row.add_button_observe(
-                "+",
-                |button| {
-                    button
-                        .size(px(36.0), px(36.0))
-                        .justify_content(JustifyContent::Center)
-                        .align_items(AlignItems::Center);
-                },
-                |_activate: On<Activate>, mut selection_state: ResMut<MovementSelectionState>| {
-                    selection_state.drop_more();
-                },
-            );
         });
         // Action buttons row - OK and End Movement use markers for global observers (need MessageWriter)
         builder.add_row(|action_row| {
@@ -540,12 +287,9 @@ pub fn spawn_movement_controls_ui(
                                 selection_state.target_area,
                             )
                         {
+                            let (drop, load) = selection_state.ferry_split();
                             ferry_writer.write(ShipFerryCommand::leg(
-                                source,
-                                target,
-                                selection_state.ship_drop,
-                                selection_state.token_count,
-                                player,
+                                source, target, drop, load, player,
                             ));
                             selection_state.follow_area = Some(target);
                             selection_state.clear_target();
@@ -607,7 +351,7 @@ pub fn update_token_count_display(
     for mut text in &mut text_query {
         if selection_state.has_selection() && selection_state.by_ship {
             **text = format!(
-                "Board {} / {}",
+                "Aboard {} / {}",
                 selection_state.token_count, selection_state.max_tokens
             );
         } else if selection_state.has_selection() {
@@ -716,15 +460,14 @@ pub fn pan_camera_to_current_source(
     camera_transform.translation.y = area_transform.translation.y;
 }
 
-/// The ship line and drop-off count: whether the player is walking or
-/// sailing, and for the ship at the current source how many are aboard and
-/// how many water areas it may still enter.
+/// The ship line: for the ship at the current source how many are aboard and
+/// how far it can still sail -- and, once a sea move is picked, who steps
+/// off and who steps on.
 pub fn update_ship_status_display(
     mut selection_state: ResMut<MovementSelectionState>,
     voyages: Res<ShipVoyages>,
     players: Query<(&PlayerShips, Option<&PlayerCivilizationCards>)>,
-    mut status_text: Query<&mut Text, (With<ShipStatusDisplay>, Without<ShipDropDisplay>)>,
-    mut drop_text: Query<&mut Text, (With<ShipDropDisplay>, Without<ShipStatusDisplay>)>,
+    mut status_text: Query<&mut Text, With<ShipStatusDisplay>>,
 ) {
     let ships_info = selection_state
         .player
@@ -738,34 +481,34 @@ pub fn update_ship_status_display(
             let range = ship_range(cards.is_some_and(|c| c.owns(&CivCardName::ClothMaking)));
             let ship = voyages.pick_ship(here, range, 1).unwrap_or(here[0]);
             Some((
-                here.len(),
                 voyages.get(ship).cargo.len(),
                 voyages.areas_left(ship, range),
             ))
         });
-    let cargo = ships_info.map_or(0, |(_, cargo, _)| cargo);
+    let cargo = ships_info.map_or(0, |(cargo, _)| cargo);
     if selection_state.ship_cargo != cargo {
         selection_state.ship_cargo = cargo;
-        selection_state.ship_drop = selection_state.ship_drop.min(cargo);
     }
     if !selection_state.is_changed() && !voyages.is_changed() {
         return;
     }
-    let status = match (selection_state.by_ship, ships_info) {
-        (false, None) => "Moving overland".to_string(),
-        (false, Some((n, _, _))) => format!("Overland ({n} ship(s) here)"),
-        (true, None) => "Sea: no ship here".to_string(),
-        (true, Some((_, cargo, left))) => {
-            format!("Sea: {cargo}/{SHIP_CAPACITY} aboard, {left} area(s) left")
+    let status = match ships_info {
+        None => "No ship here".to_string(),
+        Some((cargo, left)) if selection_state.by_ship && selection_state.has_selection() => {
+            let (off, on) = selection_state.ferry_split();
+            let change = match (off, on) {
+                (0, 0) => "nobody changes".to_string(),
+                (off, 0) => format!("{off} step off here"),
+                (0, on) => format!("{on} step on"),
+                (off, on) => format!("{off} off, {on} on"),
+            };
+            format!("Ship: {cargo} aboard, {change}; {left} sea area(s) left")
         }
+        Some((cargo, left)) => format!(
+            "Ship: {cargo}/{SHIP_CAPACITY} aboard, {left} sea area(s) left. Shift-click sails"
+        ),
     };
     for mut text in &mut status_text {
         text.0.clone_from(&status);
-    }
-    for mut text in &mut drop_text {
-        **text = format!(
-            "Drop off: {} / {}",
-            selection_state.ship_drop, selection_state.ship_cargo
-        );
     }
 }

@@ -34,6 +34,7 @@ impl Plugin for CivilizationPlugin {
             TradeUiPlugin,
             AreaInfoPlugin,
             NarrationUiPlugin,
+            MovementBoardPlugin,
             lava_ui_builder::LavaUiPlugin,
             AgentApiPlugin,
         ));
