@@ -8,7 +8,7 @@ use crate::civilization::concepts::trade::trade_components::{
 };
 use crate::civilization::concepts::trade::trade_events::SendTradingCardsCommand;
 use crate::civilization::concepts::trade::trade_functions::{
-    cheapest_cards_to_give, offer_hand_values, plan_ai_dump_offers, plan_ai_offers,
+    cheapest_cards_to_give, describe_outcome, plan_ai_dump_offers, plan_ai_offers,
 };
 use crate::civilization::concepts::trade::trade_inbox::{
     InboxCardContainer, InboxCounterText, MyDealsContainer, TableLogContainer, TableLogToggle,
@@ -809,7 +809,7 @@ fn spawn_hand_chips(cards_row: &mut ChildSpawnerCommands, player_cards: &PlayerT
                     font_size: FontSize::Px(12.0),
                     ..Default::default()
                 },
-                TextColor(Color::WHITE),
+                TextColor(ink_on(color)),
             ));
     }
 }
@@ -833,6 +833,18 @@ pub fn refresh_player_cards_display(
             .entity(entity)
             .despawn_related::<Children>()
             .with_children(|row| spawn_hand_chips(row, cards));
+    }
+}
+
+/// Text colour that reads on `background`: dark on the pale commodities
+/// (Salt, Ivory, Papyrus, Gold...), white on the rest.
+pub(crate) fn ink_on(background: Color) -> Color {
+    let c = background.to_linear();
+    let luminance = 0.2126 * c.red + 0.7152 * c.green + 0.0722 * c.blue;
+    if luminance > 0.25 {
+        Color::srgb(0.08, 0.08, 0.1)
+    } else {
+        Color::WHITE
     }
 }
 
@@ -1169,7 +1181,7 @@ fn spawn_card_adjust_row(
             label.bg_color(color);
             label.add_text_child(
                 format!("{card}"),
-                Some(TextStyle::size_color(14.0, Color::WHITE)),
+                Some(TextStyle::size_color(14.0, ink_on(color))),
             );
         });
 
@@ -1916,25 +1928,15 @@ pub fn update_offer_summary_display(
         .and_then(|human| human_cards.get(human).ok())
     {
         let holdings: HashMap<TradeCard, usize> = cards.commodity_cards().into_iter().collect();
-        let (before, after) = offer_hand_values(
+        let outcome = describe_outcome(
             &holdings,
             &create_offer_state.offering_guaranteed,
             create_offer_state.offering_hidden_count,
             &create_offer_state.wanting_guaranteed,
+            create_offer_state.wanting_hidden_count,
         );
-        let net = after as i64 - before as i64;
-        let unknown = if create_offer_state.wanting_hidden_count > 0 {
-            format!(
-                " + {} hidden card(s) you get",
-                create_offer_state.wanting_hidden_count
-            )
-        } else {
-            String::new()
-        };
         for mut text in &mut value_query {
-            **text = format!(
-                "Hand value: {before} -> {after} (net {net:+}){unknown}. Your hidden cards are counted as your cheapest."
-            );
+            text.0.clone_from(&outcome);
         }
     }
 
@@ -2216,6 +2218,10 @@ pub struct SettlementCardButton {
 #[derive(Component, Default)]
 pub struct SettlementSelectedCardsDisplay;
 
+/// What the settlement will do to the hand, kept up to date while choosing.
+#[derive(Component, Default)]
+pub struct SettlementOutcomeDisplay;
+
 /// Resource to track selected cards during settlement
 #[derive(Resource, Default)]
 pub struct SettlementSelection {
@@ -2486,7 +2492,7 @@ pub fn spawn_settlement_modal(
                                                 font_size: FontSize::Px(12.0),
                                                 ..Default::default()
                                             },
-                                            TextColor(Color::WHITE),
+                                            TextColor(ink_on(color)),
                                         ));
                                 }
                             }
@@ -2557,6 +2563,19 @@ pub fn spawn_settlement_modal(
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.5, 0.5, 0.5)),
+                    ));
+                    selected_section.spawn((
+                        SettlementOutcomeDisplay,
+                        Text::new(""),
+                        TextFont {
+                            font_size: FontSize::Px(14.0),
+                            ..Default::default()
+                        },
+                        TextColor(Color::srgb(0.95, 0.85, 0.45)),
+                        Node {
+                            margin: UiRect::top(Val::Px(8.0)),
+                            ..Default::default()
+                        },
                     ));
                 });
 
@@ -2653,7 +2672,21 @@ pub fn update_settlement_display(
     trade_phase_state: Res<TradePhaseState>,
     offers_query: Query<&OpenTradeOffer>,
     trade_ui_state: Res<TradeUiState>,
-    mut selected_display: Query<&mut Text, With<SettlementSelectedCardsDisplay>>,
+    mut selected_display: Query<
+        &mut Text,
+        (
+            With<SettlementSelectedCardsDisplay>,
+            Without<SettlementOutcomeDisplay>,
+        ),
+    >,
+    mut outcome_display: Query<
+        &mut Text,
+        (
+            With<SettlementOutcomeDisplay>,
+            Without<SettlementSelectedCardsDisplay>,
+        ),
+    >,
+    human_cards: Query<&PlayerTradeCards, With<IsHuman>>,
     mut confirm_btn: Query<(&mut BackgroundColor, &Children), With<ConfirmSettlementButton>>,
     mut text_query: Query<&mut TextColor, Without<SettlementSelectedCardsDisplay>>,
 ) {
@@ -2689,6 +2722,32 @@ pub fn update_settlement_display(
         if selected_count < *required_count {
             is_valid = false;
             break;
+        }
+    }
+
+    // What the deal does to the hand: what is picked goes, any cards still
+    // to pick count as the cheapest, and the other side's named cards arrive.
+    if let Some(cards) = trade_ui_state
+        .human_player
+        .and_then(|human| human_cards.get(human).ok())
+    {
+        let holdings: HashMap<TradeCard, usize> = cards.commodity_cards().into_iter().collect();
+        let (receiving, hidden_receiving) = if is_creator {
+            (&offer.wanting_guaranteed, offer.wanting_hidden_count)
+        } else {
+            (&offer.offering_guaranteed, offer.offering_hidden_count)
+        };
+        let outcome = describe_outcome(
+            &holdings,
+            &selection.selected_cards,
+            total_required.saturating_sub(total_selected),
+            receiving,
+            hidden_receiving,
+        );
+        for mut text in &mut outcome_display {
+            if text.0 != outcome {
+                text.0.clone_from(&outcome);
+            }
         }
     }
 

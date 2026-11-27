@@ -58,6 +58,7 @@ impl Plugin for TradeUiPlugin {
                 Update,
                 (
                     handle_player_draws_cards,
+                    update_trade_cards_header,
                     update_hud_dynamic,
                     update_census_status,
                     update_player_mat,
@@ -108,7 +109,7 @@ pub fn setup_trade_ui(
     });
 
     // ── Card 2: Trade Cards ───────────────────────────────────────────────────
-    ui.with_collapsible_toggle_at_bottom("Trade Cards", false, |section| {
+    ui.with_collapsible_toggle_at_bottom(TRADE_CARDS_TITLE, false, |section| {
         section
             .component::<TradeCardList>()
             .width_px(320.0)
@@ -244,6 +245,29 @@ fn handle_player_draws_cards(
             );
             build_compact_trade_card_list(&mut builder, trade_cards);
             new_commands = builder.build().1;
+        }
+    }
+}
+
+const TRADE_CARDS_TITLE: &str = "Trade Cards";
+
+/// "Trade Cards: value 41" on the panel's toggle, so the hand's worth shows
+/// even with the panel folded away.
+fn trade_cards_title(cards: &PlayerTradeCards) -> String {
+    format!("{TRADE_CARDS_TITLE}: value {}", cards.total_stack_value())
+}
+
+fn update_trade_cards_header(
+    human: Query<&PlayerTradeCards, With<IsHuman>>,
+    mut collapsibles: Query<&mut lava_ui_builder::Collapsible>,
+) {
+    let Ok(cards) = human.single() else {
+        return;
+    };
+    let title = trade_cards_title(cards);
+    for mut collapsible in &mut collapsibles {
+        if collapsible.label.starts_with(TRADE_CARDS_TITLE) && collapsible.label != title {
+            collapsible.label.clone_from(&title);
         }
     }
 }

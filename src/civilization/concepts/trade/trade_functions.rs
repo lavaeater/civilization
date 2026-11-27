@@ -294,7 +294,17 @@ pub fn offer_hand_values(
     hidden_giving: usize,
     receiving: &HashMap<TradeCard, usize>,
 ) -> (usize, usize) {
-    let before = hand_value(holdings);
+    let after = offer_hand_after(holdings, giving, hidden_giving, receiving);
+    (hand_value(holdings), hand_value(&after))
+}
+
+/// The commodities left in hand after a deal, as [`offer_hand_values`] sees it.
+pub fn offer_hand_after(
+    holdings: &HashMap<TradeCard, usize>,
+    giving: &HashMap<TradeCard, usize>,
+    hidden_giving: usize,
+    receiving: &HashMap<TradeCard, usize>,
+) -> HashMap<TradeCard, usize> {
     let mut after = holdings.clone();
     for (card, n) in giving {
         if let Some(have) = after.get_mut(card) {
@@ -309,12 +319,60 @@ pub fn offer_hand_values(
     for (card, n) in receiving {
         *after.entry(*card).or_insert(0) += n;
     }
-    (before, hand_value(&after))
+    after.retain(|card, n| *n > 0 && card.is_commodity());
+    after
+}
+
+/// What a deal does to the hand, in two lines: the value change and the hand
+/// it leaves, biggest sets first. Hidden cards given are counted as the
+/// cheapest; hidden cards received are unknown and only mentioned.
+pub fn describe_outcome(
+    holdings: &HashMap<TradeCard, usize>,
+    giving: &HashMap<TradeCard, usize>,
+    hidden_giving: usize,
+    receiving: &HashMap<TradeCard, usize>,
+    hidden_receiving: usize,
+) -> String {
+    let after = offer_hand_after(holdings, giving, hidden_giving, receiving);
+    let (before, after_value) = (hand_value(holdings), hand_value(&after));
+    let net = after_value as i64 - before as i64;
+    let unknown = match hidden_receiving {
+        0 => String::new(),
+        n => format!(", plus {n} hidden card(s) you get"),
+    };
+    let mut sets: Vec<(TradeCard, usize)> = after.into_iter().collect();
+    sets.sort_by_key(|(card, n)| (std::cmp::Reverse(card.value() * n * n), card.to_string()));
+    let hand = if sets.is_empty() {
+        "nothing".to_string()
+    } else {
+        sets.iter()
+            .map(|(card, n)| format!("{n} {card} ({})", card.value() * n * n))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    format!("Hand value {before} -> {after_value} ({net:+}){unknown}\nYou keep: {hand}")
 }
 
 #[cfg(test)]
 mod offer_plan_tests {
     use super::*;
+
+    #[test]
+    fn the_outcome_names_the_value_change_and_the_hand_left() {
+        let holdings = hand(&[(TradeCard::Ochre, 2), (TradeCard::Hides, 1)]);
+        let text = describe_outcome(
+            &holdings,
+            &hand(&[(TradeCard::Hides, 1)]),
+            0,
+            &hand(&[(TradeCard::Ochre, 1)]),
+            1,
+        );
+        // Ochre and Hides are worth 1: before 2*2 + 1 = 5, after 3*3 = 9.
+        assert_eq!(
+            text,
+            "Hand value 5 -> 9 (+4), plus 1 hidden card(s) you get\nYou keep: 3 Ochre (9)"
+        );
+    }
 
     fn hand(cards: &[(TradeCard, usize)]) -> HashMap<TradeCard, usize> {
         cards.iter().copied().collect()

@@ -8,7 +8,7 @@
 
 use crate::civilization::concepts::acquire_trade_cards::{PlayerTradeCards, TradeCard};
 use crate::civilization::concepts::trade::trade_components::{CanTrade, OpenTradeOffer};
-use crate::civilization::concepts::trade::trade_functions::offer_hand_values;
+use crate::civilization::concepts::trade::trade_functions::describe_outcome;
 use crate::civilization::concepts::trade::trade_resources::{TradePhaseState, TradeUiState};
 use crate::civilization::concepts::trade::trade_systems::{
     ACCEPT_OFFER_PALETTE, AcceptOfferButton, CREATE_OFFER_PALETTE, DONE_TRADING_PALETTE,
@@ -551,7 +551,10 @@ pub fn render_inbox_card(
                     Color::srgb(0.6, 0.95, 0.6),
                 );
                 let hidden = if offer.wanting_hidden_count > 0 {
-                    format!(" + {} hidden card(s) of your choice", offer.wanting_hidden_count)
+                    format!(
+                        " + {} hidden card(s) of your choice",
+                        offer.wanting_hidden_count
+                    )
                 } else {
                     String::new()
                 };
@@ -564,19 +567,16 @@ pub fn render_inbox_card(
                 if let Some(hand) = hand {
                     let holdings: HashMap<TradeCard, usize> =
                         hand.commodity_cards().into_iter().collect();
-                    let (before, after) = offer_hand_values(
-                        &holdings,
-                        &offer.wanting_guaranteed,
-                        offer.wanting_hidden_count,
-                        &offer.offering_guaranteed,
-                    );
-                    let net = after as i64 - before as i64;
                     text(
                         card,
-                        format!(
-                            "Your hand value: {before} -> {after} (net {net:+}), before the hidden cards you get. Your hidden cards count as your cheapest."
+                        describe_outcome(
+                            &holdings,
+                            &offer.wanting_guaranteed,
+                            offer.wanting_hidden_count,
+                            &offer.offering_guaranteed,
+                            offer.offering_hidden_count,
                         ),
-                        12.0,
+                        14.0,
                         CARD_VALUE,
                     );
                 }

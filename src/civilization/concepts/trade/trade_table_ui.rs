@@ -10,7 +10,7 @@ use crate::civilization::concepts::trade::trade_resources::{
     CreateOfferState, TradePhaseState, TradeUiState,
 };
 use crate::civilization::concepts::trade::trade_systems::{
-    ACCEPT_OFFER_PALETTE, CREATE_OFFER_PALETTE, DONE_TRADING_PALETTE, commodity_color,
+    ACCEPT_OFFER_PALETTE, CREATE_OFFER_PALETTE, DONE_TRADING_PALETTE, commodity_color, ink_on,
 };
 use crate::civilization::concepts::trade::trade_talk::{
     ProposalDraft, TalkDraft, TalkKind, TradeTalk,
@@ -452,24 +452,31 @@ pub fn handle_talk_composer_buttons(
 pub fn update_talk_composer(
     talk_draft: Res<TalkDraft>,
     added: Query<(), Added<TalkComposerModal>>,
-    mut chips: Query<(&TalkCardToggle, &mut BackgroundColor)>,
+    mut chips: Query<(&TalkCardToggle, &mut BackgroundColor, &Children)>,
+    mut chip_text: Query<&mut TextColor>,
     mut title: Query<&mut Text, (With<TalkComposerTitle>, Without<TalkPreviewText>)>,
     mut preview: Query<&mut Text, (With<TalkPreviewText>, Without<TalkComposerTitle>)>,
 ) {
     if !talk_draft.is_changed() && added.is_empty() {
         return;
     }
-    for (chip, mut bg) in &mut chips {
+    for (chip, mut bg, children) in &mut chips {
         let list = if chip.have {
             &talk_draft.have
         } else {
             &talk_draft.want
         };
-        *bg = BackgroundColor(if list.contains(&chip.card) {
+        let color = if list.contains(&chip.card) {
             commodity_color(chip.card)
         } else {
             Color::srgb(0.2, 0.2, 0.25)
-        });
+        };
+        *bg = BackgroundColor(color);
+        for child in children.iter() {
+            if let Ok(mut ink) = chip_text.get_mut(child) {
+                *ink = TextColor(ink_on(color));
+            }
+        }
     }
     for mut text in &mut title {
         text.0 = match &talk_draft.to {
